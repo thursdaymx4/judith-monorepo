@@ -5,8 +5,11 @@ import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { Platform, StyleSheet, View, useColorScheme } from "react-native";
+import { ActivityIndicator, Platform, StyleSheet, View, useColorScheme } from "react-native";
 
+import { Paywall } from "@/components/Paywall";
+import { PAYWALL_ENABLED } from "@/constants/config";
+import { useSettings } from "@/contexts/SettingsContext";
 import { useColors } from "@/hooks/useColors";
 
 type FeatherName = keyof typeof Feather.glyphMap;
@@ -86,8 +89,30 @@ function ClassicTabLayout() {
 }
 
 export default function TabLayout() {
+  const colors = useColors();
+  const { hasAccess, loading } = useSettings();
+
+  if (PAYWALL_ENABLED && !hasAccess) {
+    if (loading) {
+      return (
+        <View style={[styles.center, { backgroundColor: colors.background }]}>
+          <ActivityIndicator color={colors.primary} size="large" />
+        </View>
+      );
+    }
+    return (
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <Paywall />
+      </View>
+    );
+  }
+
   if (isLiquidGlassAvailable()) {
     return <NativeTabLayout />;
   }
   return <ClassicTabLayout />;
 }
+
+const styles = StyleSheet.create({
+  center: { flex: 1 },
+});

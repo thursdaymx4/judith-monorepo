@@ -16,7 +16,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { SettingsProvider } from "@/contexts/SettingsContext";
+import { SettingsProvider, useSettings } from "@/contexts/SettingsContext";
 import { useColors } from "@/hooks/useColors";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -39,11 +39,12 @@ function NotConfigured() {
 
 function RootLayoutNav() {
   const { session, loading, configured } = useAuth();
+  const { profile, loading: settingsLoading } = useSettings();
   const colors = useColors();
 
   if (!configured) return <NotConfigured />;
 
-  if (loading) {
+  if (loading || (!!session && settingsLoading)) {
     return (
       <View style={[styles.center, { backgroundColor: colors.background }]}>
         <ActivityIndicator color={colors.primary} size="large" />
@@ -51,14 +52,19 @@ function RootLayoutNav() {
     );
   }
 
+  const onboarded = !!session && profile.onboarded;
+
   return (
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
-      <Stack.Protected guard={!!session}>
+      <Stack.Protected guard={onboarded}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
           name="bill/[id]"
           options={{ presentation: "modal", headerShown: true }}
         />
+      </Stack.Protected>
+      <Stack.Protected guard={!!session && !profile.onboarded}>
+        <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
       </Stack.Protected>
       <Stack.Protected guard={!session}>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />

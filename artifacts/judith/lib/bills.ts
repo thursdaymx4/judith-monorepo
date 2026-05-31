@@ -164,3 +164,7 @@ export async function snoozeBill(id: string, days = 3): Promise<Bill> {
     snoozed_until: until.toISOString().slice(0, 10),
   });
 }
+
+export async function unsnoozeBill(id: string): Promise<Bill> {
+  return updateBill(id, { status: "upcoming", snoozed_until: null });
+}

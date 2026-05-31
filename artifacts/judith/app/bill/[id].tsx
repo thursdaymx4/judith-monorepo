@@ -15,7 +15,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { Paywall } from "@/components/Paywall";
 import { Button, SectionLabel } from "@/components/ui";
+import { PAYWALL_ENABLED } from "@/constants/config";
+import { useSettings } from "@/contexts/SettingsContext";
 import { useColors } from "@/hooks/useColors";
 import {
   CATEGORY_META,
@@ -24,6 +27,8 @@ import {
   listBills,
   markPaid,
   markUnpaid,
+  snoozeBill,
+  unsnoozeBill,
   updateBill,
   type AmountType,
   type Bill,
@@ -66,6 +71,7 @@ export default function BillFormScreen() {
   const colors = useColors();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { hasAccess } = useSettings();
   const { id } = useLocalSearchParams<{ id: string }>();
   const isNew = id === "new";
 
@@ -166,6 +172,23 @@ export default function BillFormScreen() {
     invalidate();
     router.back();
   };
+
+  const toggleSnooze = async () => {
+    if (!existing) return;
+    if (existing.status === "snoozed") await unsnoozeBill(existing.id);
+    else await snoozeBill(existing.id, 3);
+    invalidate();
+    router.back();
+  };
+
+  if (PAYWALL_ENABLED && !hasAccess) {
+    return (
+      <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={["bottom"]}>
+        <Stack.Screen options={{ title: "Judith Premium" }} />
+        <Paywall />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={["bottom"]}>
@@ -292,6 +315,14 @@ export default function BillFormScreen() {
                 icon="check"
                 onPress={() => void togglePaid()}
               />
+              {existing.status !== "paid" ? (
+                <Button
+                  label={existing.status === "snoozed" ? "Itigil ang snooze" : "I-snooze ng 3 araw"}
+                  variant="secondary"
+                  icon={existing.status === "snoozed" ? "bell" : "clock"}
+                  onPress={() => void toggleSnooze()}
+                />
+              ) : null}
               <Button label="Burahin ang bill" variant="destructive" icon="trash-2" onPress={remove} />
             </>
           ) : null}

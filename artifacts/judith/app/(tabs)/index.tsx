@@ -49,7 +49,7 @@ export default function HomeScreen() {
     void syncReminders(bills, profile.reminders_enabled);
   }, [bills, profile.reminders_enabled]);
 
-  const { weekTotal, upcoming, nextBill } = useMemo(() => {
+  const { monthTotal, weekTotal, upcoming } = useMemo(() => {
     const now = new Date();
     const unpaid = bills.filter((b) => b.status !== "paid");
     const withDue = unpaid
@@ -57,17 +57,26 @@ export default function HomeScreen() {
       .filter((x): x is { bill: Bill; due: Date } => !!x.due)
       .sort((a, b) => a.due.getTime() - b.due.getTime());
 
+    const fixedAmount = (bill: Bill) =>
+      bill.amount_type === "fixed" && bill.amount ? bill.amount : 0;
+
+    const month = withDue.reduce((sum, { bill, due }) => {
+      const d = daysUntil(due, now);
+      const sameMonth =
+        due.getMonth() === now.getMonth() &&
+        due.getFullYear() === now.getFullYear();
+      return d >= 0 && sameMonth ? sum + fixedAmount(bill) : sum;
+    }, 0);
+
     const week = withDue.reduce((sum, { bill, due }) => {
       const d = daysUntil(due, now);
-      return d >= 0 && d <= 7 && bill.amount_type === "fixed" && bill.amount
-        ? sum + bill.amount
-        : sum;
+      return d >= 0 && d <= 7 ? sum + fixedAmount(bill) : sum;
     }, 0);
 
     return {
+      monthTotal: month,
       weekTotal: week,
       upcoming: withDue.map((x) => x.bill).slice(0, 5),
-      nextBill: withDue[0] ?? null,
     };
   }, [bills]);
 
@@ -91,24 +100,19 @@ export default function HomeScreen() {
         <View style={styles.cards}>
           <View style={[styles.summary, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>
-              Due ngayong linggo
+              Due ngayong buwan
             </Text>
             <Text style={[styles.summaryValue, { color: colors.foreground }]}>
-              {pesoDisplay(weekTotal)}
+              {pesoDisplay(monthTotal)}
             </Text>
           </View>
           <View style={[styles.summary, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>
-              Susunod na bayarin
+              Due sa 7 araw
             </Text>
-            <Text style={[styles.summaryValue, { color: colors.foreground }]} numberOfLines={1}>
-              {nextBill ? nextBill.bill.name : "Wala"}
+            <Text style={[styles.summaryValue, { color: colors.foreground }]}>
+              {pesoDisplay(weekTotal)}
             </Text>
-            {nextBill ? (
-              <Text style={[styles.summarySub, { color: colors.primary }]}>
-                {nextBill.due.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-              </Text>
-            ) : null}
           </View>
         </View>
 

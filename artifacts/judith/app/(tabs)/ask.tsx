@@ -19,9 +19,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { JudithOrb, type OrbState } from "@/components/JudithOrb";
-import { Paywall } from "@/components/Paywall";
 import { getPersona } from "@/constants/personas";
-import { PAYWALL_ENABLED } from "@/constants/config";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useColors } from "@/hooks/useColors";
 import { fileToBase64, playBase64Mp3 } from "@/lib/audio";
@@ -35,7 +33,7 @@ const SUGGESTIONS = [
 
 export default function AskScreen() {
   const colors = useColors();
-  const { profile, hasAccess } = useSettings();
+  const { profile } = useSettings();
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
   const [orb, setOrb] = useState<OrbState>("idle");
@@ -110,14 +108,6 @@ export default function AskScreen() {
     setTyped("");
     void runAsk(q);
   };
-
-  if (PAYWALL_ENABLED && !hasAccess) {
-    return (
-      <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
-        <Paywall />
-      </SafeAreaView>
-    );
-  }
 
   const micColor =
     orb === "listening" ? colors.destructive : colors.primary;
