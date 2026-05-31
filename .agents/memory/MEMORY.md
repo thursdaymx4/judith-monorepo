@@ -1,0 +1,1 @@
+- [Judith due-date logic](judith-due-date.md) — monthly due-day computation is duplicated server+client; keep both in lockstep and clamp to days-in-month, never to 28.

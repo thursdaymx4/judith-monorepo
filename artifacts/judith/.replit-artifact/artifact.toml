@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/"
+title = "Judith"
+version = "1.0.0"
+id = "artifacts/judith"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/" ]
+localPort = 25567
+
+[services.development]
+run = "pnpm --filter @workspace/judith run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/judith", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/judith", "run", "serve" ]
+
+[services.env]
+PORT = "25567"
+BASE_PATH = "/"

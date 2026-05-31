@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "qckHX2KXA9QRV0X6yj9qa"
+uri = "file://attached_assets/generated_images/judith_icon.png"
+type = "image"
+title = "generated_image"
