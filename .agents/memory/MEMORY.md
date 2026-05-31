@@ -1,1 +1,2 @@
 - [Judith due-date logic](judith-due-date.md) — monthly due-day computation is duplicated server+client; keep both in lockstep and clamp to days-in-month, never to 28.
+- [Judith Anthropic model](judith-anthropic-model.md) — ask flow's pinned default model is load-bearing (no env override); an EOL'd default silently breaks the whole assistant.

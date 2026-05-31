@@ -14,4 +14,4 @@ export function getAnthropic(): Anthropic {
 }
 
 export const ANTHROPIC_MODEL =
-  process.env["ANTHROPIC_MODEL"] ?? "claude-sonnet-4-20250514";
+  process.env["ANTHROPIC_MODEL"] ?? "claude-sonnet-4-5-20250929";
