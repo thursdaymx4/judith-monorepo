@@ -12,7 +12,10 @@ export interface VoiceOption {
   category: string | null;
 }
 
-/** Lists the voices available on the configured ElevenLabs account. */
+/**
+ * Lists the female voices available on the configured ElevenLabs account.
+ * Judith is a female assistant, so non-female voices are filtered out.
+ */
 export async function listVoices(): Promise<VoiceOption[]> {
   const res = await fetch(`${BASE}/voices`, {
     headers: { "xi-api-key": apiKey() },
@@ -23,13 +26,20 @@ export async function listVoices(): Promise<VoiceOption[]> {
     );
   }
   const data = (await res.json()) as {
-    voices?: { voice_id: string; name?: string; category?: string }[];
+    voices?: {
+      voice_id: string;
+      name?: string;
+      category?: string;
+      labels?: { gender?: string };
+    }[];
   };
-  return (data.voices ?? []).map((v) => ({
-    id: v.voice_id,
-    name: v.name ?? v.voice_id,
-    category: v.category ?? null,
-  }));
+  return (data.voices ?? [])
+    .filter((v) => (v.labels?.gender ?? "").toLowerCase() === "female")
+    .map((v) => ({
+      id: v.voice_id,
+      name: v.name ?? v.voice_id,
+      category: v.category ?? null,
+    }));
 }
 
 /** Speech-to-text using ElevenLabs Scribe. */

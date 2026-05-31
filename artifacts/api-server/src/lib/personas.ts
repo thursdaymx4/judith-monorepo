@@ -1,13 +1,11 @@
 export type PersonaId = "professional" | "funny" | "sarcastic" | "mom";
 
+// Judith is female, so every persona uses a distinct, tone-matched female voice.
 export const DEFAULT_VOICE_IDS: Record<PersonaId, string> = {
-  // Verified candidates from the spec.
-  professional: "226pMx2LkIXBm6nGVIzc",
-  mom: "P1hTNpVDMG973fukK9V2",
-  // Placeholders until Filipino library voices are confirmed
-  // ("Kuya Jerry"/"John Henry" and "Manang Inday").
-  funny: "226pMx2LkIXBm6nGVIzc",
-  sarcastic: "P1hTNpVDMG973fukK9V2",
+  professional: "XrExE9yKIg1WjnnlVkGX", // Matilda — clear, knowledgeable, professional
+  funny: "cgSgspJ2msm6clMCkdW9", // Jessica — playful, bright, warm
+  sarcastic: "FGY2WhTYpPnrIDTdsKH5", // Laura — quirky, cheeky attitude
+  mom: "P1hTNpVDMG973fukK9V2", // Ate Ada — warm, maternal, Filipino/Tagalog
 };
 
 const TONE: Record<PersonaId, string> = {
