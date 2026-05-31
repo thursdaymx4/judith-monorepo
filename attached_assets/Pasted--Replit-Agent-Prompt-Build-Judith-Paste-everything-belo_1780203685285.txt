@@ -1,0 +1,75 @@
+# Replit Agent Prompt — Build “Judith”
+
+Paste everything below into Replit Agent.
+
+-----
+
+Build a mobile app called **Judith — your personal due date assistant**. Judith tracks a user’s recurring bills and reminds them before each due date. Her signature feature is a **voice assistant** (“Ask Judith”) that speaks in Tagalog with a chosen personality. Market: the Philippines. Monetization: subscription at **₱79/month**.
+
+Before writing code, propose a file/folder structure and a Phase 1 plan, and wait for my confirmation.
+
+## Tech stack (use exactly this)
+
+- **Expo (React Native) + TypeScript** — mobile-first, runs iOS + Android from one codebase.
+- **Supabase** — Postgres database + Auth, with Row Level Security so each user only sees their own data.
+- **ElevenLabs** (Creator plan, API enabled) for voice — see Voice section.
+- **Anthropic Claude API** to generate Judith’s spoken responses (persona + Taglish quality matter).
+- **RevenueCat** for the ₱79/mo subscription (cross-store IAP).
+- **Expo Notifications** for push reminders.
+
+## Non-negotiable constraints
+
+1. **Never put any secret key in the client.** ElevenLabs and Anthropic calls go through a **Supabase Edge Function** (server-side) that holds the keys. The app calls our own backend, never the vendor APIs directly.
+1. **Accuracy is absolute.** Judith’s responses are generated only from the user’s actual bill data passed in as context. She must never invent or estimate an amount, date, or provider. If data is missing, she says so — she never guesses.
+1. **Language = Tagalog only at launch.** Copy is ~90% Filipino. Three things are ALWAYS rendered in English inside the otherwise-Tagalog sentence: the **amount** (“three thousand four hundred fifty pesos”), the **day** (“Thursday”), and the **date** (“June 5”). Build a small normalization helper that converts ₱ amounts and dates into English words before they’re sent to text-to-speech.
+1. **Wellbeing override.** If a user expresses real financial stress, all personas drop the humor/sarcasm and respond plainly and kindly.
+1. **Theme-able UI.** Keep all colors/spacing/typography in a central theme file. Use minimal, clean placeholder styling for now — final visual design (a dark “modern fintech / AI robot” system with an animated voice “orb”) is being designed separately in Claude Design and will be applied later. Include a placeholder `<JudithOrb />` component (a simple animated circle that pulses when listening and morphs into a waveform when speaking) as the visual anchor.
+
+## Data model (Supabase)
+
+- `profiles`: id, persona (‘professional’ | ‘funny’ | ‘sarcastic’ | ‘mom’), voice_id, subscription_status, created_at.
+- `bills`: id, user_id, name, category (‘electricity’ | ‘water’ | ‘internet’ | ‘mobile’ | ‘landline’ | ‘credit_card’ | ‘custom’), provider, amount_type (‘fixed’ | ‘variable’), amount, due_day (1–31) or due_date, cadence (‘monthly’ | ‘one_time’), status (‘upcoming’ | ‘due_soon’ | ‘overdue’ | ‘paid’ | ‘snoozed’), reminder_offsets (e.g. [7,3,1] days before), created_at.
+  Provide full SQL for tables + RLS policies.
+
+## Phase 1 features (build these first)
+
+1. **Auth** — email/OTP via Supabase.
+1. **Onboarding** — user picks one of four personas; Judith immediately *speaks* a sample line in that persona (plays via an `<audio>`/expo-av element) so they hear it. Then they add bills across the categories above (support multiple bills and multiple providers, plus a custom bill option).
+1. **Home** — Judith’s greeting in the chosen persona, a “due this month” + “due in 7 days” summary, and a list of upcoming bills with urgency colors (≤3 days = urgent, ≤7 = near, else ok).
+1. **Bills** — list, add, edit, delete, mark paid, snooze.
+1. **Ask Judith** — voice in (record → ElevenLabs Scribe v2 STT → text), generate a response with Claude using the selected persona’s system prompt + the user’s bill data as context, then voice out (ElevenLabs TTS). Include 2–3 quick-ask chips (“Magkano lahat ng due this week?”, “Anong next na due?”).
+1. **Reminders** — schedule push notifications at each bill’s reminder_offsets before its due date.
+1. **Settings** — switch persona, pick voice, toggle reminders, manage subscription.
+1. **Paywall** — ₱79/mo via RevenueCat, gating the app after a trial/free tier (make the gate configurable).
+
+## Personas (delivery layer)
+
+Four personas. Persona changes tone only — never the facts. Each pairs a Claude system prompt with an ElevenLabs voice:
+
+- **Professional peer** — clear, calm, respectful. Voice candidate: `226pMx2LkIXBm6nGVIzc` (verify in account).
+- **Funny friend** — upbeat, playful, still accurate. Voice: search Filipino library (“Kuya Jerry” / “John Henry”).
+- **Sarcastic sibling** — dry, teasing, ultimately helpful. Voice: search “Manang Inday”.
+- **Mama mo** — warm, maternal, light guilt-trip + “kumain ka na ba?”. Voice candidate: `P1hTNpVDMG973fukK9V2` (verify).
+  I will provide the full persona system prompts separately; for now use short placeholder prompts that capture each tone and the accuracy + wellbeing rules.
+
+## Voice architecture
+
+- TTS model: `eleven_v3` for pre-generated/expressive lines; `eleven_flash_v2_5` for low-latency live “Ask Judith” replies.
+- STT: ElevenLabs Scribe v2 for voice input.
+- All ElevenLabs + Claude calls run inside a Supabase Edge Function that injects the keys and returns audio/text to the app.
+
+## Phase 2 (architect for now, build later — do NOT build yet)
+
+- iOS home-screen **widget** (WidgetKit) showing the next due bill.
+- **Apple Watch** companion app.
+- Keep the data + notification layer clean so these can attach later.
+
+## Engineering standards
+
+Clean, maintainable, elegant TypeScript. Responsive layouts. Full JSON/SQL schemas when defining entities. Only the npm packages required by the stack above. Keep explanations short.
+
+## Secrets to set in Replit
+
+`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server only), `ELEVENLABS_API_KEY`, `ANTHROPIC_API_KEY`, `REVENUECAT_API_KEY`.
+
+Start by confirming the plan and folder structure. Then scaffold the Supabase schema + Edge Function proxy, then onboarding.
