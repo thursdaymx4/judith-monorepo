@@ -35,6 +35,7 @@ interface SettingsContextValue {
   hasAccess: boolean;
   refresh: () => Promise<void>;
   setPersona: (persona: PersonaId) => Promise<void>;
+  setVoice: (voiceId: string) => Promise<void>;
   setRemindersEnabled: (enabled: boolean) => Promise<void>;
   markOnboarded: () => Promise<void>;
 }
@@ -95,6 +96,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       hasAccess,
       refresh,
       setPersona: (persona) => update({ persona, voice_id: null }),
+      setVoice: (voice_id) => update({ voice_id }),
       setRemindersEnabled: (reminders_enabled) => update({ reminders_enabled }),
       markOnboarded: () => update({ onboarded: true }),
     };

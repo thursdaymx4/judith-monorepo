@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -21,19 +22,42 @@ import { useColors } from "@/hooks/useColors";
 import { listBills } from "@/lib/bills";
 import { playBase64Mp3 } from "@/lib/audio";
 import { syncReminders } from "@/lib/notifications";
-import { fetchSample } from "@/lib/proxy";
+import { fetchSample, fetchVoices, previewVoice } from "@/lib/proxy";
+import {
+  getMonthlyPackage,
+  isPurchasesConfigured,
+  purchasePackage,
+  restorePurchases,
+} from "@/lib/purchases";
+
+const VOICE_PREVIEW_LINE =
+  "Kumusta, ako si Judith. Ganito ang boses ko kapag nagpapaalala ng bayarin.";
 
 export default function SettingsScreen() {
   const colors = useColors();
   const { user, signOut } = useAuth();
-  const { profile, setPersona, setRemindersEnabled, hasAccess } = useSettings();
+  const { profile, setPersona, setVoice, setRemindersEnabled, hasAccess, refresh } =
+    useSettings();
   const { data: bills = [] } = useQuery({
     queryKey: ["bills"],
     queryFn: listBills,
     enabled: !!user,
   });
+  const {
+    data: voices = [],
+    isLoading: voicesLoading,
+    isError: voicesError,
+  } = useQuery({
+    queryKey: ["voices"],
+    queryFn: fetchVoices,
+    enabled: !!user,
+    staleTime: 1000 * 60 * 60,
+  });
 
   const [sampling, setSampling] = useState<string | null>(null);
+  const [previewing, setPreviewing] = useState<string | null>(null);
+  const [subBusy, setSubBusy] = useState<"restore" | "subscribe" | null>(null);
+  const [subMessage, setSubMessage] = useState<string | null>(null);
 
   const playSample = async (personaId: string) => {
     setSampling(personaId);
@@ -47,9 +71,56 @@ export default function SettingsScreen() {
     }
   };
 
+  const playVoicePreview = async (voiceId: string) => {
+    setPreviewing(voiceId);
+    try {
+      const res = await previewVoice(voiceId, VOICE_PREVIEW_LINE);
+      await playBase64Mp3(res.audioBase64);
+    } catch {
+      // ignore preview failures silently
+    } finally {
+      setPreviewing(null);
+    }
+  };
+
   const toggleReminders = async (enabled: boolean) => {
     await setRemindersEnabled(enabled);
     await syncReminders(bills, enabled);
+  };
+
+  const handleRestore = async () => {
+    setSubBusy("restore");
+    setSubMessage(null);
+    try {
+      const ok = await restorePurchases();
+      await refresh();
+      setSubMessage(
+        ok ? "Na-restore ang Premium mo." : "Walang nahanap na subscription.",
+      );
+    } catch {
+      setSubMessage("Hindi ma-restore ngayon. Subukan ulit mamaya.");
+    } finally {
+      setSubBusy(null);
+    }
+  };
+
+  const handleSubscribe = async () => {
+    setSubBusy("subscribe");
+    setSubMessage(null);
+    try {
+      const pkg = await getMonthlyPackage();
+      if (!pkg) {
+        setSubMessage("Wala pang available na plano ngayon.");
+        return;
+      }
+      const ok = await purchasePackage(pkg);
+      await refresh();
+      if (ok) setSubMessage("Salamat! Aktibo na ang Premium mo.");
+    } catch {
+      setSubMessage("Hindi natuloy ang pag-subscribe. Subukan ulit.");
+    } finally {
+      setSubBusy(null);
+    }
   };
 
   return (
@@ -103,6 +174,71 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.section}>
+          <SectionLabel>Boses ni Judith</SectionLabel>
+          {voicesLoading ? (
+            <View style={[styles.row, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <ActivityIndicator color={colors.primary} />
+              <Text style={[styles.rowSub, { color: colors.mutedForeground, flex: 1 }]}>
+                Kinukuha ang mga boses…
+              </Text>
+            </View>
+          ) : voicesError ? (
+            <View style={[styles.row, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Feather name="alert-circle" size={18} color={colors.mutedForeground} />
+              <Text style={[styles.rowSub, { color: colors.mutedForeground, flex: 1 }]}>
+                Hindi ma-load ang mga boses ngayon.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.list}>
+              {voices.map((v) => {
+                const active = profile.voice_id === v.id;
+                return (
+                  <Pressable
+                    key={v.id}
+                    onPress={() => void setVoice(v.id)}
+                    style={[
+                      styles.personaRow,
+                      {
+                        backgroundColor: colors.card,
+                        borderColor: active ? colors.primary : colors.border,
+                        borderWidth: active ? 2 : StyleSheet.hairlineWidth,
+                      },
+                    ]}
+                  >
+                    <View style={[styles.personaIcon, { backgroundColor: colors.secondary }]}>
+                      <Feather name="mic" size={18} color={colors.primary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.personaName, { color: colors.foreground }]} numberOfLines={1}>
+                        {v.name}
+                      </Text>
+                      {v.category ? (
+                        <Text style={[styles.personaDesc, { color: colors.mutedForeground }]} numberOfLines={1}>
+                          {v.category}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Pressable
+                      hitSlop={10}
+                      onPress={() => void playVoicePreview(v.id)}
+                      style={[styles.playBtn, { backgroundColor: colors.secondary }]}
+                    >
+                      <Feather
+                        name={previewing === v.id ? "loader" : "play"}
+                        size={16}
+                        color={colors.foreground}
+                      />
+                    </Pressable>
+                    {active ? <Feather name="check-circle" size={20} color={colors.primary} /> : null}
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+        </View>
+
+        <View style={styles.section}>
           <SectionLabel>Mga paalala</SectionLabel>
           <View style={[styles.row, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={{ flex: 1 }}>
@@ -132,6 +268,33 @@ export default function SettingsScreen() {
               </Text>
             </View>
           </View>
+
+          {!isPurchasesConfigured ? (
+            <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
+              Hindi pa naka-set up ang billing sa device na ito.
+            </Text>
+          ) : (
+            <View style={styles.list}>
+              {!hasAccess ? (
+                <Button
+                  label={subBusy === "subscribe" ? "Sandali lang…" : `Mag-subscribe — ${PRICE_LABEL}`}
+                  icon="zap"
+                  onPress={() => void handleSubscribe()}
+                  disabled={subBusy !== null}
+                />
+              ) : null}
+              <Button
+                label={subBusy === "restore" ? "Nire-restore…" : "I-restore ang subscription"}
+                variant="ghost"
+                icon="refresh-ccw"
+                onPress={() => void handleRestore()}
+                disabled={subBusy !== null}
+              />
+            </View>
+          )}
+          {subMessage ? (
+            <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>{subMessage}</Text>
+          ) : null}
         </View>
 
         <View style={styles.section}>

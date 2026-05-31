@@ -6,6 +6,32 @@ function apiKey(): string {
   return k;
 }
 
+export interface VoiceOption {
+  id: string;
+  name: string;
+  category: string | null;
+}
+
+/** Lists the voices available on the configured ElevenLabs account. */
+export async function listVoices(): Promise<VoiceOption[]> {
+  const res = await fetch(`${BASE}/voices`, {
+    headers: { "xi-api-key": apiKey() },
+  });
+  if (!res.ok) {
+    throw new Error(
+      `ElevenLabs voices failed (${res.status}): ${await res.text()}`,
+    );
+  }
+  const data = (await res.json()) as {
+    voices?: { voice_id: string; name?: string; category?: string }[];
+  };
+  return (data.voices ?? []).map((v) => ({
+    id: v.voice_id,
+    name: v.name ?? v.voice_id,
+    category: v.category ?? null,
+  }));
+}
+
 /** Speech-to-text using ElevenLabs Scribe. */
 export async function transcribe(
   audio: Buffer,

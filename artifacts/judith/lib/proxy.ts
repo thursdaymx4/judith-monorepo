@@ -49,6 +49,31 @@ export function synthesize(
   return postJson("/tts", { text, persona });
 }
 
+export interface VoiceOption {
+  id: string;
+  name: string;
+  category: string | null;
+}
+
+export async function fetchVoices(): Promise<VoiceOption[]> {
+  const headers = await authHeader();
+  const res = await fetch(`${BASE}/voices`, { headers });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Voices failed (${res.status}): ${detail}`);
+  }
+  const data = (await res.json()) as { voices: VoiceOption[] };
+  return data.voices;
+}
+
+/** Synthesizes a short preview line with a specific voice. */
+export function previewVoice(
+  voiceId: string,
+  text: string,
+): Promise<{ audioBase64: string; mime: string }> {
+  return postJson("/tts", { text, voiceId });
+}
+
 export async function fetchSample(
   persona: PersonaId,
 ): Promise<{ text: string; audioBase64: string; mime: string }> {

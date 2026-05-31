@@ -5,7 +5,7 @@ import {
   getUserFromToken,
 } from "../lib/supabaseAdmin";
 import { getAnthropic, ANTHROPIC_MODEL } from "../lib/anthropic";
-import { transcribe, synthesize } from "../lib/elevenlabs";
+import { transcribe, synthesize, listVoices } from "../lib/elevenlabs";
 import {
   DEFAULT_VOICE_IDS,
   systemPrompt,
@@ -234,14 +234,19 @@ router.post("/tts", async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
-    const { text, persona } = req.body ?? {};
+    const { text, persona, voiceId: bodyVoiceId } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
       res.status(400).json({ error: "text is required" });
       return;
     }
     const { voiceId, persona: profilePersona } = await loadUserData(user.id);
     const chosen = persona ? coercePersona(persona) : profilePersona;
-    const voice = persona ? DEFAULT_VOICE_IDS[chosen] : voiceId;
+    const voice =
+      typeof bodyVoiceId === "string" && bodyVoiceId
+        ? bodyVoiceId
+        : persona
+          ? DEFAULT_VOICE_IDS[chosen]
+          : voiceId;
     const audio = await synthesize(text.trim(), voice, { live: false });
     res.json({ audioBase64: audio.base64, mime: audio.mime });
   } catch (err) {
@@ -261,6 +266,19 @@ const SAMPLE_LINES: Record<PersonaId, string> = {
   mom:
     "Anak, si Mama 'to — si Judith. Bantayan ko ang mga bayarin mo, ha. Oo nga pala, kumain ka na ba?",
 };
+
+// GET /api/judith/voices -> { voices: [{ id, name, category }] }
+router.get("/voices", async (req, res) => {
+  try {
+    const user = await requireUser(req, res);
+    if (!user) return;
+    const voices = await listVoices();
+    res.json({ voices });
+  } catch (err) {
+    logger.error({ err }, "voices failed");
+    res.status(500).json({ error: "Could not load voices" });
+  }
+});
 
 router.get("/sample", async (req, res) => {
   try {
