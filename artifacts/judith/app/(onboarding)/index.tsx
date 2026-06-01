@@ -194,6 +194,48 @@ const PROMPTS: Record<string, string> = {
   "Personal loan": "Any loans? Lender, the monthly amount, and the due date.",
 };
 
+/** Tagalog/Taglish bill prompts — used when the user selected Filipino voice. */
+const PROMPTS_FIL: Record<string, string> = {
+  "Rent / Mortgage": "Simula tayo sa pinakamalaki — renta o mortgage. Magkano at kailan due?",
+  Electricity: "Yung kuryente — sino ang provider, magkano, at kailan due?",
+  Water: "Tubig naman — provider, halaga, at petsa ng due?",
+  Internet: "Internet mo — provider, bayad, at due date?",
+  Mobile: "Phone plan — anong network, magkano, at kailan bayaran?",
+  "Phone subscription": "Mga phone subscriptions — iCloud, Spotify, Apple Music? Pangalan, bayad, petsa.",
+  "TV / Streaming": "Streaming — Netflix, Disney+? Alin, magkano, kelan?",
+  "Web app": "Mga web apps — Canva, Notion, ChatGPT? Pangalan, bayad, petsa.",
+  "Credit card": "Yung credit cards — anong bangko, magkano ang due, at kailan?",
+  "Personal loan": "Mga loans — sinong nagpahiram, magkano monthly, at kailan due?",
+};
+
+/** Supplementary voice lines for each Feature screen — not reading the UI, just personality. */
+const FEATURE_VOICES = [
+  "Try it — ask me anything about your bills. Just tap the mic and talk.",
+  "Ask me which bills are due this week. I know all your due dates.",
+  "I can even tell you if it\u2019s safe to spend before a big due date. Ask me anything.",
+];
+
+/**
+ * Plays a short supplementary voice line once when an onboarding screen mounts.
+ * Fires only on first render — safe with React Compiler.
+ */
+function useOnbVoice(line: string, persona: PersonaId) {
+  const played = useRef(false);
+  useEffect(() => {
+    if (played.current) return;
+    played.current = true;
+    let cancelled = false;
+    synthOnboarding(line, persona)
+      .then(({ audioBase64 }) => {
+        if (!cancelled) playBase64Mp3(audioBase64).catch(() => {});
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  });
+}
+
 const DLOCAL = {
   askQ: "“Judith, what’s my total credit card bill next month?”",
   askA: "“₱8,300 across BPI and BDO — both due before the 25th. Want a heads-up?”",
@@ -476,6 +518,8 @@ interface Ctx {
   setPersona: (p: PersonaId) => void;
   country: Country;
   setCountry: (code: string) => void;
+  language: string;
+  setLanguage: (code: string) => void;
   bills: OnbBill[];
   addBill: (b: OnbBill) => void;
   next: () => void;
@@ -549,6 +593,7 @@ function VoiceBars({ accent, on = true }: { accent: string; on?: boolean }) {
 /* ================================================================== */
 
 function ScreenWelcome({ ctx }: { ctx: Ctx }) {
+  useOnbVoice("Hi — I\u2019m Judith. I keep your bills organised and make sure you\u2019re never caught off guard by a due date. Let\u2019s get you set up.", ctx.persona);
   const popScale   = useRef(new Animated.Value(0.8)).current;
   const popOpacity = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -588,6 +633,7 @@ function ScreenWelcome({ ctx }: { ctx: Ctx }) {
 
 function ScreenCountry({ ctx }: { ctx: Ctx }) {
   const { t, country, setCountry, next } = ctx;
+  useOnbVoice("I\u2019ll use your location to show the right currency and format your dates the way you\u2019d expect. Just tap your country.", ctx.persona);
   const [q, setQ] = useState("");
   const list = COUNTRIES.filter((c) =>
     c.name.toLowerCase().includes(q.toLowerCase()),
@@ -649,14 +695,16 @@ function ScreenCountry({ ctx }: { ctx: Ctx }) {
 /* ================================================================== */
 
 function ScreenLanguage({ ctx }: { ctx: Ctx }) {
-  const { t, persona, next } = ctx;
-  const [voiceLang, setVoiceLang] = useState("en");
+  const { t, persona, next, language, setLanguage } = ctx;
+  const [voiceLang, setVoiceLang] = useState(language || "en");
   const [speaking, setSpeaking] = useState(false);
   const langReqId = useRef(0);
+  useOnbVoice("Choose the language I\u2019ll speak in. Tap any flag to hear how I sound \u2014 whatever feels most like home.", persona);
 
   const playSample = async (code: string) => {
     const id = ++langReqId.current;
     setVoiceLang(code);
+    setLanguage(code);
     setSpeaking(true);
     try {
       const text = VOICE_SAMPLE[code] ?? VOICE_SAMPLE["en"]!;
@@ -731,6 +779,7 @@ function ScreenLanguage({ ctx }: { ctx: Ctx }) {
 
 function ScreenPersona({ ctx }: { ctx: Ctx }) {
   const { t, persona, setPersona, next } = ctx;
+  useOnbVoice("This is my personality \u2014 each one sounds and feels a little different. Tap any of them to hear me before you decide.", persona);
   const [speakId, setSpeakId] = useState<PersonaId | null>(null);
   const selected = PERSONAS.find((p) => p.id === persona);
   const personaReqId = useRef(0);
@@ -818,6 +867,7 @@ function ScreenPersona({ ctx }: { ctx: Ctx }) {
 function ScreenLateFee({ ctx }: { ctx: Ctx }) {
   const { t, persona, next } = ctx;
   const cur = ctx.country.cur;
+  useOnbVoice("Late fees are sneaky. Even one missed payment adds up fast \u2014 tell me if it\u2019s happened before so I can make sure it never does again.", persona);
 
   // lockDrop: notification slides down from above on mount (prototype lockDrop keyframe)
   const dropOpacity = useRef(new Animated.Value(0)).current;
@@ -895,6 +945,7 @@ function ScreenLateFee({ ctx }: { ctx: Ctx }) {
 function ScreenProblem({ ctx }: { ctx: Ctx }) {
   const { t, next } = ctx;
   const cur = ctx.country.cur;
+  useOnbVoice("Tell me honestly \u2014 which bills have surprised you or stressed you out the most? I\u2019ll use this to be more helpful.", ctx.persona);
   const [answered, setAnswered] = useState<boolean | null>(null);
   const rows = [
     { icon: "zap", cat: "Electricity" },
@@ -1034,6 +1085,7 @@ function ScreenProblem({ ctx }: { ctx: Ctx }) {
 function ScreenStakes({ ctx }: { ctx: Ctx }) {
   const { t, next } = ctx;
   const cur = ctx.country.cur;
+  useOnbVoice("These are real numbers. A missed payment hits your credit, your wallet, and your peace of mind. I\u2019m here to make sure it never gets to that.", ctx.persona);
   const [committed, setCommitted] = useState(false);
 
   /* commit animation values */
@@ -1181,6 +1233,7 @@ function ScreenStakes({ ctx }: { ctx: Ctx }) {
 
 function ScreenIntro({ ctx }: { ctx: Ctx }) {
   const { t, persona, next } = ctx;
+  useOnbVoice("Alright \u2014 I\u2019ll ask about your bills one by one. Just speak naturally. Tell me the name, the amount, and when it\u2019s due. That\u2019s it.", persona);
   return (
     <>
       <Scroll center>
@@ -1268,7 +1321,7 @@ function ordinal(n: number): string {
 }
 
 function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
-  const { t, persona, bills, addBill, next } = ctx;
+  const { t, persona, bills, addBill, next, language } = ctx;
   const cur = ctx.country.cur;
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
@@ -1425,12 +1478,17 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     }
   };
 
+  const isFil = language === "fil";
   const promptText =
     phase === "cards"
-      ? `Card ${cardDone + 1} of ${cardN} — which bank, the amount due, and the date?`
+      ? isFil
+        ? `Card ${cardDone + 1} ng ${cardN} — anong bangko, magkano ang due, at kailan?`
+        : `Card ${cardDone + 1} of ${cardN} — which bank, the amount due, and the date?`
       : phase === "loans"
-        ? `Loan ${loanDone + 1} of ${loanN} — lender, the monthly amount, and the due date?`
-        : PROMPTS[sample.cat] || "Tell me about this bill.";
+        ? isFil
+          ? `Loan ${loanDone + 1} ng ${loanN} — sinong nagpahiram, magkano monthly, at kailan due?`
+          : `Loan ${loanDone + 1} of ${loanN} — lender, the monthly amount, and the due date?`
+        : (isFil ? PROMPTS_FIL[sample.cat] : PROMPTS[sample.cat]) || (isFil ? "Sabihin mo ang tungkol sa bill na ito." : "Tell me about this bill.");
 
   /* Auto-play Judith's prompt aloud each time a new question appears. */
   const lastPlayedPromptKey = useRef("");
@@ -1985,6 +2043,7 @@ function billData(bills: OnbBill[]): { amount: number; provider: string; cat: st
 function ScreenCongrats({ ctx }: { ctx: Ctx }) {
   const { t, persona, bills, next } = ctx;
   const cur = ctx.country.cur;
+  useOnbVoice("You\u2019re done. All your bills are in \u2014 you\u2019re already ahead of most people. Let me show you what I\u2019ve got.", persona);
   const data = billData(bills);
   const total = data.reduce((s, b) => s + b.amount, 0);
   return (
@@ -2018,6 +2077,7 @@ function ScreenCongrats({ ctx }: { ctx: Ctx }) {
 
 function ScreenPersonalizing({ ctx }: { ctx: Ctx }) {
   const { t, persona, next } = ctx;
+  useOnbVoice("Give me just a second \u2014 I\u2019m putting your dashboard together right now.", persona);
   const [step, setStep] = useState(0);
   const [pct, setPct] = useState(0);
   useEffect(() => {
@@ -2050,6 +2110,7 @@ function ScreenPersonalizing({ ctx }: { ctx: Ctx }) {
 
 function ScreenSummary({ ctx }: { ctx: Ctx }) {
   const { t, bills, next } = ctx;
+  useOnbVoice("Here\u2019s everything I know about your bills. Take a look \u2014 you can always adjust anything later.", ctx.persona);
   const cur = ctx.country.cur;
   const data = billData(bills);
   const total = data.reduce((s, b) => s + b.amount, 0);
@@ -2157,6 +2218,7 @@ function FeatureShell({
   mood: "warm" | "proud" | "joy";
 }) {
   const { t, persona, next, bills } = ctx;
+  useOnbVoice(FEATURE_VOICES[dotIdx] ?? FEATURE_VOICES[0]!, persona);
 
   /* ── demo float animation (shown before first real ask) ── */
   const floatY  = useRef(new Animated.Value(0)).current;
@@ -2526,6 +2588,7 @@ function ScreenFeature3({ ctx }: { ctx: Ctx }) {
 function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
   const { t, persona, next } = ctx;
   const cur = ctx.country.cur;
+  useOnbVoice("You\u2019ve got eight free asks to start. Want to keep the conversation going? Pick a plan that fits and I\u2019m all yours.", persona);
   const [pick, setPick] = useState("plus");
   const tiers = [
     { id: "plus", name: "Judith+", price: 99, asks: "50 voice asks / month", sub: "Plenty for most months", tag: undefined as string | undefined },
@@ -2622,6 +2685,8 @@ export default function OnboardingScreen() {
     setPersona,
     country,
     setCountry,
+    language,
+    setLanguage,
     onbIdx,
     setOnbIdx,
     setOnboarded,
@@ -2675,9 +2740,9 @@ export default function OnboardingScreen() {
   const addBill = (b: OnbBill) => setBills((arr) => [...arr, b]);
 
   const ctx = useMemo<Ctx>(
-    () => ({ t, persona, setPersona, country, setCountry, bills, addBill, next }),
+    () => ({ t, persona, setPersona, country, setCountry, language, setLanguage, bills, addBill, next }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [t, persona, country, bills, idx],
+    [t, persona, language, country, bills, idx],
   );
 
   const showProgress = SETUP.includes(screen.id);

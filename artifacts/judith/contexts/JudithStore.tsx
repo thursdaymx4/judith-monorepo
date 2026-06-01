@@ -36,6 +36,8 @@ interface PersistShape {
   tier: AskTier;
   persona: PersonaId;
   voiceId: string;
+  /** BCP-47-ish language code for Judith's spoken language (en, fil, es, id, vi). */
+  language: string;
   theme: ThemeName;
   accent: AccentId;
   countryCode: string;
@@ -53,6 +55,7 @@ const DEFAULTS: PersistShape = {
   tier: "free",
   persona: "pro",
   voiceId: "rachel",
+  language: "en",
   theme: "dark",
   accent: "mint",
   countryCode: DEFAULT_COUNTRY.code,
@@ -82,6 +85,7 @@ interface JudithStoreValue extends PersistShape {
   /* settings */
   setPersona: (p: PersonaId) => void;
   setVoice: (id: string) => void;
+  setLanguage: (code: string) => void;
   setTheme: (t: ThemeName) => void;
   toggleTheme: () => void;
   setAccent: (a: AccentId) => void;
@@ -200,6 +204,7 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       addAsks: (n) => patch({ asksLeft: state.asksLeft + n }),
       setPersona: (p) => patch({ persona: p }),
       setVoice: (id) => patch({ voiceId: id }),
+      setLanguage: (code) => patch({ language: code }),
       setTheme: (t) => patch({ theme: t }),
       toggleTheme: () =>
         patch({ theme: state.theme === "dark" ? "light" : "dark" }),

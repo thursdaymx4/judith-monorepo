@@ -94,8 +94,8 @@ export function JudithAvatar({
       wave.setValue(0);
       anim = Animated.loop(
         Animated.sequence([
-          Animated.timing(wave, { toValue: 1, duration: 300, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-          Animated.timing(wave, { toValue: 0, duration: 300, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(wave, { toValue: 1, duration: 300, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+          Animated.timing(wave, { toValue: 0, duration: 300, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
         ]),
       );
       anim.start();
