@@ -11,6 +11,7 @@ import {
   Pressable,
   ScrollView,
   TextInput,
+  useWindowDimensions,
   View,
   type StyleProp,
   type TextStyle,
@@ -548,6 +549,16 @@ function VoiceBars({ accent, on = true }: { accent: string; on?: boolean }) {
 /* ================================================================== */
 
 function ScreenWelcome({ ctx }: { ctx: Ctx }) {
+  const popScale   = useRef(new Animated.Value(0.8)).current;
+  const popOpacity = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const anim = Animated.parallel([
+      Animated.timing(popOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.timing(popScale,   { toValue: 1, duration: 500, easing: Easing.bezier(0.2, 0.9, 0.3, 1.2), useNativeDriver: true }),
+    ]);
+    anim.start();
+    return () => anim.stop();
+  }, []);
   return (
     <>
       <Scroll center>
@@ -563,7 +574,9 @@ function ScreenWelcome({ ctx }: { ctx: Ctx }) {
         </Lede>
       </Scroll>
       <CtaBar>
-        <Btn label={T("getstarted")} onPress={ctx.next} />
+        <Animated.View style={{ opacity: popOpacity, transform: [{ scale: popScale }] }}>
+          <Btn label={T("getstarted")} onPress={ctx.next} />
+        </Animated.View>
       </CtaBar>
     </>
   );
@@ -878,10 +891,60 @@ function ScreenProblem({ ctx }: { ctx: Ctx }) {
     { icon: "spark", cat: "Spotify" },
     { icon: "spark", cat: "iCloud+" },
   ];
+
+  /* fault animation refs */
+  const shakeX        = useRef(new Animated.Value(0)).current;
+  const flashOpa      = useRef(new Animated.Value(0)).current;
+  const barScaleX     = useRef(new Animated.Value(0)).current;
+  const barOpa        = useRef(new Animated.Value(0)).current;
+
   const choose = (knows: boolean) => {
     if (answered !== null) return;
     setAnswered(knows);
-    setTimeout(next, 480);
+    if (knows) { setTimeout(next, 480); return; }
+
+    /* faultShake × 2 + faultFlash + faultBar, then advance */
+    const oneShake = Animated.sequence([
+      Animated.timing(shakeX, { toValue: -9, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeX, { toValue:  8, duration: 100, useNativeDriver: true }),
+      Animated.timing(shakeX, { toValue: -6, duration: 100, useNativeDriver: true }),
+      Animated.timing(shakeX, { toValue:  4, duration: 100, useNativeDriver: true }),
+      Animated.timing(shakeX, { toValue:  0, duration: 150, useNativeDriver: true }),
+    ]);
+    const flash = Animated.sequence([
+      Animated.timing(flashOpa, { toValue: 1,    duration: 150, useNativeDriver: true }),
+      Animated.timing(flashOpa, { toValue: 0.55, duration: 125, useNativeDriver: true }),
+      Animated.timing(flashOpa, { toValue: 0.95, duration: 125, useNativeDriver: true }),
+      Animated.timing(flashOpa, { toValue: 0.9,  duration: 287, useNativeDriver: true }),
+      Animated.timing(flashOpa, { toValue: 0,    duration: 563, useNativeDriver: true }),
+    ]);
+    const bar = Animated.sequence([
+      Animated.parallel([
+        Animated.timing(barScaleX, { toValue: 1,    duration: 175, useNativeDriver: true }),
+        Animated.timing(barOpa,    { toValue: 1,    duration: 175, useNativeDriver: true }),
+      ]),
+      Animated.delay(512),
+      Animated.parallel([
+        Animated.timing(barScaleX, { toValue: 1.04, duration: 563, useNativeDriver: true }),
+        Animated.timing(barOpa,    { toValue: 0,    duration: 563, useNativeDriver: true }),
+      ]),
+    ]);
+    Animated.parallel([
+      Animated.sequence([
+        Animated.timing(shakeX, { toValue: -9, duration: 50,  useNativeDriver: true }),
+        Animated.timing(shakeX, { toValue:  8, duration: 100, useNativeDriver: true }),
+        Animated.timing(shakeX, { toValue: -6, duration: 100, useNativeDriver: true }),
+        Animated.timing(shakeX, { toValue:  4, duration: 100, useNativeDriver: true }),
+        Animated.timing(shakeX, { toValue:  0, duration: 150, useNativeDriver: true }),
+        Animated.timing(shakeX, { toValue: -9, duration: 50,  useNativeDriver: true }),
+        Animated.timing(shakeX, { toValue:  8, duration: 100, useNativeDriver: true }),
+        Animated.timing(shakeX, { toValue: -6, duration: 100, useNativeDriver: true }),
+        Animated.timing(shakeX, { toValue:  4, duration: 100, useNativeDriver: true }),
+        Animated.timing(shakeX, { toValue:  0, duration: 150, useNativeDriver: true }),
+      ]),
+      flash,
+      bar,
+    ]).start(() => setTimeout(next, 350));
   };
   return (
     <>
@@ -890,25 +953,27 @@ function ScreenProblem({ ctx }: { ctx: Ctx }) {
         <Title style={{ maxWidth: 300, textAlign: "center" }}>
           Do you know your total bills due next month?
         </Title>
-        <Card style={{ width: "100%", maxWidth: 300, marginVertical: 22, alignItems: "center", paddingVertical: 22, paddingHorizontal: 18 }}>
-          <Low size={12}>Due next month</Low>
-          <View style={{ flexDirection: "row", alignItems: "baseline", marginTop: 4 }}>
-            <Mono size={46} weight="bold">{cur}</Mono>
-            <Mono size={46} weight="bold" color={t.txtLow}>?,???</Mono>
-          </View>
-          <View style={{ width: "100%", gap: 10, marginTop: 18 }}>
-            {rows.map((r, i) => (
-              <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                <Icon name={r.icon as IconName} size={13} color={t.txtMid} />
-                <Txt size={13} style={{ flex: 1 }}>{r.cat}</Txt>
-                <Mono size={13} color={t.txtLow}>{cur}•••</Mono>
-              </View>
-            ))}
-            <Low size={12} style={{ textAlign: "center" }}>
-              + every other subscription you forgot
-            </Low>
-          </View>
-        </Card>
+        <Animated.View style={{ transform: [{ translateX: shakeX }], width: "100%" }}>
+          <Card style={{ width: "100%", maxWidth: 300, marginVertical: 22, alignItems: "center", paddingVertical: 22, paddingHorizontal: 18, alignSelf: "center" }}>
+            <Low size={12}>Due next month</Low>
+            <View style={{ flexDirection: "row", alignItems: "baseline", marginTop: 4 }}>
+              <Mono size={46} weight="bold">{cur}</Mono>
+              <Mono size={46} weight="bold" color={t.txtLow}>?,???</Mono>
+            </View>
+            <View style={{ width: "100%", gap: 10, marginTop: 18 }}>
+              {rows.map((r, i) => (
+                <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                  <Icon name={r.icon as IconName} size={13} color={t.txtMid} />
+                  <Txt size={13} style={{ flex: 1 }}>{r.cat}</Txt>
+                  <Mono size={13} color={t.txtLow}>{cur}•••</Mono>
+                </View>
+              ))}
+              <Low size={12} style={{ textAlign: "center" }}>
+                + every other subscription you forgot
+              </Low>
+            </View>
+          </Card>
+        </Animated.View>
       </Scroll>
       <CtaBar>
         <View style={{ flexDirection: "row", gap: 10 }}>
@@ -916,6 +981,33 @@ function ScreenProblem({ ctx }: { ctx: Ctx }) {
           <Btn label="Honestly, no" onPress={() => choose(false)} style={{ flex: 1 }} />
         </View>
       </CtaBar>
+      {/* faultFlash overlay */}
+      <Animated.View
+        pointerEvents="none"
+        style={{
+          position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+          opacity: flashOpa,
+          backgroundColor: withAlpha(t.semantic.urgent, 0.22),
+          zIndex: 20,
+        }}
+      />
+      {/* faultBar — horizontal scan line at vertical centre */}
+      <Animated.View
+        pointerEvents="none"
+        style={{
+          position: "absolute", left: 0, right: 0,
+          top: "50%",
+          height: 2,
+          backgroundColor: t.semantic.urgent,
+          shadowColor: t.semantic.urgent,
+          shadowOpacity: 0.8,
+          shadowRadius: 9,
+          shadowOffset: { width: 0, height: 0 },
+          opacity: barOpa,
+          transform: [{ scaleX: barScaleX }],
+          zIndex: 21,
+        }}
+      />
     </>
   );
 }
@@ -927,6 +1019,51 @@ function ScreenProblem({ ctx }: { ctx: Ctx }) {
 function ScreenStakes({ ctx }: { ctx: Ctx }) {
   const { t, next } = ctx;
   const cur = ctx.country.cur;
+  const [committed, setCommitted] = useState(false);
+
+  /* commit animation values */
+  const boxScale    = useRef(new Animated.Value(0.25)).current;
+  const boxOpacity  = useRef(new Animated.Value(0)).current;
+  const youScale    = useRef(new Animated.Value(0)).current;
+  const youOpacity  = useRef(new Animated.Value(0)).current;
+  const youRotate   = useRef(new Animated.Value(-6)).current;
+  const ctrlOpacity = useRef(new Animated.Value(0)).current;
+  const ctrlY       = useRef(new Animated.Value(14)).current;
+
+  const commit = () => {
+    setCommitted(true);
+    Animated.parallel([
+      /* commitBoxIn: scale 0.25 → 1.08 → 1, opacity 0 → 1 (0.8s) */
+      Animated.parallel([
+        Animated.timing(boxOpacity, { toValue: 1,    duration: 440, useNativeDriver: true }),
+        Animated.sequence([
+          Animated.timing(boxScale,   { toValue: 1.08, duration: 624, easing: Easing.bezier(0.2, 0.9, 0.3, 1.15), useNativeDriver: true }),
+          Animated.timing(boxScale,   { toValue: 1,    duration: 176, useNativeDriver: true }),
+        ]),
+      ]),
+      /* commitYouIn: scale 0 → 1.25 → 1, rotate −6° → 0 (0.7s, delay 0.5s) */
+      Animated.sequence([
+        Animated.delay(500),
+        Animated.parallel([
+          Animated.timing(youOpacity, { toValue: 1,    duration: 350, useNativeDriver: true }),
+          Animated.sequence([
+            Animated.timing(youScale, { toValue: 1.25, duration: 385, easing: Easing.bezier(0.2, 0.9, 0.3, 1.3), useNativeDriver: true }),
+            Animated.timing(youScale, { toValue: 1,    duration: 315, useNativeDriver: true }),
+          ]),
+          Animated.timing(youRotate,  { toValue: 0,    duration: 700, useNativeDriver: true }),
+        ]),
+      ]),
+      /* commitCtrlIn: opacity 0→1, translateY 14→0 (0.4s, delay 0.8s) */
+      Animated.sequence([
+        Animated.delay(800),
+        Animated.parallel([
+          Animated.timing(ctrlOpacity, { toValue: 1, duration: 400, easing: Easing.bezier(0.2, 0.7, 0.3, 1), useNativeDriver: true }),
+          Animated.timing(ctrlY,       { toValue: 0, duration: 400, easing: Easing.bezier(0.2, 0.7, 0.3, 1), useNativeDriver: true }),
+        ]),
+      ]),
+    ]).start(() => setTimeout(next, 2000));
+  };
+
   return (
     <>
       <Scroll center>
@@ -989,8 +1126,36 @@ function ScreenStakes({ ctx }: { ctx: Ctx }) {
         </View>
       </Scroll>
       <CtaBar>
-        <Btn label="No — let’s fix this" onPress={next} />
+        <Btn label="No — let’s fix this" onPress={commit} />
       </CtaBar>
+
+      {/* commitBoxIn overlay */}
+      {committed && (
+        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: t.canvas, zIndex: 50, justifyContent: "center", alignItems: "center" }}>
+          <View style={{ position: "absolute", width: "140%", height: "50%", left: "-20%", top: "25%", backgroundColor: withAlpha(t.accent, 0.07), borderRadius: 999, transform: [{ scaleY: 0.4 }] }} />
+          <Animated.View style={{
+            opacity: boxOpacity, transform: [{ scale: boxScale }],
+            padding: 36, borderRadius: 28, borderWidth: 1, borderColor: withAlpha(t.accent, 0.28),
+            backgroundColor: t.surface2, alignItems: "center", gap: 8, maxWidth: 300, width: "80%",
+          }}>
+            <Animated.View style={{
+              opacity: youOpacity,
+              transform: [
+                { scale: youScale },
+                { rotate: youRotate.interpolate({ inputRange: [-6, 0], outputRange: ["-6deg", "0deg"] }) },
+              ],
+            }}>
+              <Txt size={52} weight="semibold" color={t.accent} style={{ letterSpacing: -1.5 }}>You</Txt>
+            </Animated.View>
+            <Animated.View style={{ opacity: ctrlOpacity, transform: [{ translateY: ctrlY }], alignItems: "center" }}>
+              <Txt size={21} weight="semibold" color={t.txtHi} style={{ textAlign: "center", lineHeight: 28, letterSpacing: -0.3 }}>
+                will start taking{"\n"}control today
+              </Txt>
+              <View style={{ marginTop: 8, height: 2, width: 140, borderRadius: 2, backgroundColor: t.accent, opacity: 0.7 }} />
+            </Animated.View>
+          </Animated.View>
+        </View>
+      )}
     </>
   );
 }
@@ -1315,24 +1480,24 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
             <>
               <JudithLine>{VLOCAL.gotit}</JudithLine>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 9 }}>
-                <PCell full label={VLOCAL.lblP}>
+                <PCell full label={VLOCAL.lblP} delay={0}>
                   <Txt size={17} weight="semibold">{sample.provider}</Txt>
                 </PCell>
-                <PCell label={VLOCAL.lblA}>
+                <PCell label={VLOCAL.lblA} delay={80}>
                   <Mono size={17} weight="bold">
                     <Mono size={17} weight="bold" color={t.accent}>{cur}</Mono>{fmtNum(sample.amount)}
                   </Mono>
                 </PCell>
-                <PCell label={VLOCAL.lblD}>
+                <PCell label={VLOCAL.lblD} delay={160}>
                   <Txt size={17} weight="semibold">{sample.due} · {VLOCAL.monthly}</Txt>
                 </PCell>
-                <PCell label="Type">
+                <PCell label="Type" delay={240}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
                     <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: kindFor(sample.cat) === "Variable" ? t.semantic.near : t.semantic.ok }} />
                     <Txt size={17} weight="semibold">{kindFor(sample.cat)}</Txt>
                   </View>
                 </PCell>
-                <PCell label={VLOCAL.lblC}>
+                <PCell label={VLOCAL.lblC} delay={320}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
                     <Icon name={sample.icon as IconName} size={14} color={t.accent} />
                     <Txt size={14}>{sample.subtype || sample.cat}</Txt>
@@ -1507,6 +1672,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
         {mode === "listening" && (
           <View style={{ alignItems: "center", paddingTop: 6 }}>
             <Txt size={15} color={t.accent} style={{ textAlign: "center" }}>{T("listening")}</Txt>
+            <ScanSweep accent={t.accent} />
           </View>
         )}
       </Scroll>
@@ -1569,11 +1735,26 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   );
 }
 
-function PCell({ label, full, children }: { label: string; full?: boolean; children: React.ReactNode }) {
-  const t = useTheme();
+function PCell({ label, full, delay = 0, children }: { label: string; full?: boolean; delay?: number; children: React.ReactNode }) {
+  const t    = useTheme();
+  const opa  = useRef(new Animated.Value(0)).current;
+  const tY   = useRef(new Animated.Value(10)).current;
+  useEffect(() => {
+    const anim = Animated.sequence([
+      ...(delay > 0 ? [Animated.delay(delay)] : []),
+      Animated.parallel([
+        Animated.timing(opa, { toValue: 1, duration: 320, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(tY,  { toValue: 0, duration: 320, easing: Easing.bezier(0.2, 0.7, 0.3, 1), useNativeDriver: true }),
+      ]),
+    ]);
+    anim.start();
+    return () => anim.stop();
+  }, []);
   return (
-    <View
+    <Animated.View
       style={{
+        opacity: opa,
+        transform: [{ translateY: tY }],
         width: full ? "100%" : `${(100 - 9 * 0.5) / 2}%` as `${number}%`,
         borderWidth: 1,
         borderColor: t.hair,
@@ -1585,34 +1766,93 @@ function PCell({ label, full, children }: { label: string; full?: boolean; child
     >
       <Txt size={11} color={t.txtLow} style={{ letterSpacing: 0.4, textTransform: "uppercase" }}>{label}</Txt>
       <View style={{ marginTop: 3 }}>{children}</View>
+    </Animated.View>
+  );
+}
+
+/* Animated scan sweep line — shown in listening mode */
+function ScanSweep({ accent }: { accent: string }) {
+  const sweep = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(sweep, { toValue: 1, duration: 950, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(sweep, { toValue: 0, duration: 950, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, []);
+  return (
+    <View style={{ width: "84%", height: 180, marginTop: 10, overflow: "hidden", position: "relative" }}>
+      <Animated.View
+        style={{
+          position: "absolute",
+          left: 0, right: 0, height: 3, borderRadius: 3,
+          backgroundColor: accent,
+          shadowColor: accent, shadowOpacity: 0.75, shadowRadius: 9,
+          shadowOffset: { width: 0, height: 0 },
+          transform: [{ translateY: sweep.interpolate({ inputRange: [0, 1], outputRange: [0, 150] }) }],
+        }}
+      />
     </View>
   );
 }
 
 function MicBtn({ live, onPress }: { live?: boolean; onPress?: () => void }) {
-  const t = useTheme();
+  const t     = useTheme();
+  const ring1 = useRef(new Animated.Value(0)).current;
+  const ring2 = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!live) { ring1.setValue(0); ring2.setValue(0); return; }
+    const makeLoop = (val: Animated.Value, startDelay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(startDelay),
+          Animated.timing(val, { toValue: 1, duration: 1500, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+          Animated.timing(val, { toValue: 0, duration: 0, useNativeDriver: true }),
+        ])
+      );
+    const a1 = makeLoop(ring1, 0);
+    const a2 = makeLoop(ring2, 750);
+    a1.start(); a2.start();
+    return () => { a1.stop(); a2.stop(); };
+  }, [live]);
+
+  const ringStyle = (val: Animated.Value) => ({
+    position: "absolute" as const,
+    width: 76, height: 76, borderRadius: 38,
+    borderWidth: 1.5, borderColor: t.accent,
+    opacity: val.interpolate({ inputRange: [0, 1], outputRange: [0.7, 0] }),
+    transform: [{ scale: val.interpolate({ inputRange: [0, 1], outputRange: [1, 2.4] }) }],
+  });
+
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        {
-          width: 76,
-          height: 76,
-          borderRadius: 38,
-          alignSelf: "center",
-          backgroundColor: t.accent,
-          alignItems: "center",
-          justifyContent: "center",
-          shadowColor: t.accent,
-          shadowOpacity: live ? 0.8 : 0.5,
-          shadowRadius: live ? 20 : 14,
-          shadowOffset: { width: 0, height: 0 },
-        },
-        pressed && { transform: [{ scale: 0.93 }] },
-      ]}
-    >
-      <Icon name="mic" size={28} color={t.onAccent} />
-    </Pressable>
+    <View style={{ alignSelf: "center", alignItems: "center", justifyContent: "center", width: 76, height: 76 }}>
+      {live && <Animated.View style={ringStyle(ring1)} />}
+      {live && <Animated.View style={ringStyle(ring2)} />}
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          {
+            width: 76,
+            height: 76,
+            borderRadius: 38,
+            backgroundColor: t.accent,
+            alignItems: "center",
+            justifyContent: "center",
+            shadowColor: t.accent,
+            shadowOpacity: live ? 0.8 : 0.5,
+            shadowRadius: live ? 20 : 14,
+            shadowOffset: { width: 0, height: 0 },
+          },
+          pressed && { transform: [{ scale: 0.93 }] },
+        ]}
+      >
+        <Icon name="mic" size={28} color={t.onAccent} />
+      </Pressable>
+    </View>
   );
 }
 
