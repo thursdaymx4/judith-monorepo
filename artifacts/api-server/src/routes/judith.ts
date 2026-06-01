@@ -340,6 +340,48 @@ router.get("/sample", async (req, res) => {
   }
 });
 
+// POST /api/judith/ask-onboarding  { text, bills?, persona? } -> { reply, audioBase64, mime }
+// No auth required — interactive AI ask during onboarding feature screens.
+router.post("/ask-onboarding", async (req, res) => {
+  try {
+    const { text, bills: bodyBills, persona: bodyPersona } = req.body ?? {};
+    if (typeof text !== "string" || !text.trim()) {
+      res.status(400).json({ error: "text is required" });
+      return;
+    }
+    const persona = coercePersona(bodyPersona);
+    const voiceId = DEFAULT_VOICE_IDS[persona];
+    const bills = Array.isArray(bodyBills) ? (bodyBills as ClientBill[]) : [];
+    const context = buildClientContext(bills, new Date());
+
+    const anthropic = getAnthropic();
+    const message = await anthropic.messages.create({
+      model: ANTHROPIC_MODEL,
+      max_tokens: 400,
+      system: `${systemPrompt(persona)}\n\nBILL CONTEXT (the only source of truth):\n${context}`,
+      messages: [{ role: "user", content: text.trim() }],
+    });
+    const reply = message.content
+      .map((b) => (b.type === "text" ? b.text : ""))
+      .join(" ")
+      .trim();
+
+    let audioBase64: string | null = null;
+    let mime = "audio/mpeg";
+    try {
+      const audio = await synthesize(reply, voiceId, { live: true });
+      audioBase64 = audio.base64;
+      mime = audio.mime;
+    } catch (ttsErr) {
+      logger.error({ err: ttsErr }, "tts failed during ask-onboarding");
+    }
+    res.json({ reply, audioBase64, mime });
+  } catch (err) {
+    logger.error({ err }, "ask-onboarding failed");
+    res.status(500).json({ error: "Judith could not respond right now" });
+  }
+});
+
 // POST /api/judith/parse-bill  { text, category } -> { provider, amount, dueDay, kind }
 // No auth required — AI extraction of bill details from transcribed onboarding speech.
 router.post("/parse-bill", async (req, res) => {

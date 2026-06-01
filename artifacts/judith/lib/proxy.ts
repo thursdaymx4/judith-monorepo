@@ -121,6 +121,39 @@ export async function fetchSample(
 }
 
 /**
+ * AI ask during onboarding — no auth required.
+ * Accepts the user's bills from the onboarding store as context.
+ */
+export function askOnboarding(
+  text: string,
+  bills?: Array<{
+    provider?: string | null;
+    cat?: string | null;
+    amount?: number | null;
+    dueDays?: number | null;
+    dueLabel?: string | null;
+    status?: string | null;
+  }>,
+  persona?: PersonaId,
+): Promise<AskResult> {
+  return fetch(`${BASE}/ask-onboarding`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text,
+      bills,
+      persona: persona ? PERSONA_MAP[persona] : "professional",
+    }),
+  }).then(async (res) => {
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      throw new Error(`Ask onboarding failed (${res.status}): ${detail}`);
+    }
+    return res.json() as Promise<AskResult>;
+  });
+}
+
+/**
  * AI-powered bill-detail extraction from transcribed speech — no auth required.
  * Returns provider, amount (₱), dueDay (1-31 | null), and kind.
  */

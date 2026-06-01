@@ -27,12 +27,12 @@ import {
   countryFood,
   type Country,
 } from "@/constants/countries";
-import { HOUSES } from "@/constants/data";
+import { HOUSES, QUICK_ASKS } from "@/constants/data";
 import { PERSONAS, type PersonaId } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { fileToBase64, playBase64Mp3 } from "@/lib/audio";
-import { transcribeOnboarding, synthOnboarding, fetchSampleOnboarding, parseBillOnboarding } from "@/lib/proxy";
+import { transcribeOnboarding, synthOnboarding, fetchSampleOnboarding, parseBillOnboarding, askOnboarding } from "@/lib/proxy";
 import type { Theme } from "@/constants/theme";
 
 /* ------------------------------------------------------------------ */
@@ -2131,6 +2131,12 @@ function Insight({ icon, iconColor, label, value, right }: { icon: IconName; ico
 /* 13–15. Feature → Benefit x3                                         */
 /* ================================================================== */
 
+interface FeatureMsg {
+  role: "user" | "judith";
+  text: string;
+}
+type AskMode = "idle" | "listening" | "thinking" | "speaking";
+
 function FeatureShell({
   ctx,
   dotIdx,
@@ -2150,10 +2156,10 @@ function FeatureShell({
   a: string;
   mood: "warm" | "proud" | "joy";
 }) {
-  const { t, persona, next } = ctx;
+  const { t, persona, next, bills } = ctx;
 
-  // floatY: card area gently bobs 0 → -13px → 0 over 5s infinite (prototype floatY)
-  const floatY = useRef(new Animated.Value(0)).current;
+  /* ── demo float animation (shown before first real ask) ── */
+  const floatY  = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
@@ -2163,7 +2169,7 @@ function FeatureShell({
     ).start();
   }, []);
 
-  // bubbleIn: staggered entrance for transcript (0.15s delay) and reply (0.35s delay)
+  /* ── staggered bubble-in for demo Q&A ── */
   const tOpacity = useRef(new Animated.Value(0)).current;
   const tY       = useRef(new Animated.Value(8)).current;
   const tScale   = useRef(new Animated.Value(0.97)).current;
@@ -2191,30 +2197,279 @@ function FeatureShell({
     ]).start();
   }, []);
 
+  /* ── interactive ask state ── */
+  const [messages,  setMessages]  = useState<FeatureMsg[]>([]);
+  const [askMode,   setAskMode]   = useState<AskMode>("idle");
+  const [askErr,    setAskErr]    = useState("");
+  const recorder   = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const scrollRef  = useRef<ScrollView>(null);
+
+  const started = messages.length > 0 || askMode !== "idle";
+
+  /* bills context for the AI (from onboarding store) */
+  const billsCtx = useMemo(
+    () =>
+      bills.map((b) => ({
+        provider: b.provider,
+        cat:      b.cat,
+        amount:   b.amount,
+        dueDays:  b.dueDays,
+        dueLabel: b.due,
+        status:   "unpaid",
+      })),
+    [bills],
+  );
+
+  const doAsk = async (text: string) => {
+    const q2 = text.trim();
+    if (!q2 || askMode === "thinking") return;
+    setAskErr("");
+    setMessages((m) => [...m, { role: "user", text: q2 }]);
+    setAskMode("thinking");
+    requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
+    try {
+      const { reply, audioBase64 } = await askOnboarding(q2, billsCtx, persona);
+      const finalReply = reply?.trim() || "Hmm, I couldn\u2019t answer that just now.";
+      setMessages((m) => [...m, { role: "judith", text: finalReply }]);
+      setAskMode("speaking");
+      if (audioBase64) await playBase64Mp3(audioBase64).catch(() => {});
+    } catch {
+      setMessages((m) => [
+        ...m,
+        { role: "judith", text: "Sorry, I couldn\u2019t connect right now. Try again in a moment." },
+      ]);
+    } finally {
+      setAskMode("idle");
+      requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
+    }
+  };
+
+  const startRec = async () => {
+    if (askMode !== "idle") return;
+    setAskErr("");
+    try {
+      const perm = await AudioModule.requestRecordingPermissionsAsync();
+      if (!perm.granted) {
+        setAskErr("Microphone permission needed to ask by voice.");
+        return;
+      }
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await recorder.prepareToRecordAsync();
+      recorder.record();
+      setAskMode("listening");
+    } catch (e) {
+      setAskErr(String((e as Error)?.message ?? e));
+    }
+  };
+
+  const stopRec = async () => {
+    setAskMode("thinking");
+    try {
+      await recorder.stop();
+      const uri = recorder.uri;
+      if (!uri) throw new Error("No audio captured");
+      const base64 = await fileToBase64(uri);
+      const { text } = await transcribeOnboarding(base64, "audio/m4a");
+      if (text?.trim()) {
+        await doAsk(text);
+      } else {
+        setAskMode("idle");
+      }
+    } catch (e) {
+      setAskErr(String((e as Error)?.message ?? e));
+      setAskMode("idle");
+    }
+  };
+
+  const busy        = askMode === "thinking" || askMode === "speaking";
+  const listening   = askMode === "listening";
+  const avatarState = listening ? "listening" : busy ? "speaking" : started ? "idle" : "speaking";
+
   return (
     <>
-      <Scroll center>
-        <View style={{ flexDirection: "row", gap: 7, justifyContent: "center", marginBottom: 26 }}>
+      <Scroll>
+        {/* ── dot pagination ── */}
+        <View style={{ flexDirection: "row", gap: 7, justifyContent: "center", marginBottom: 22 }}>
           {[0, 1, 2].map((i) => (
-            <View key={i} style={{ width: i === dotIdx ? 20 : 7, height: 7, borderRadius: i === dotIdx ? 4 : 3.5, backgroundColor: i === dotIdx ? t.accent : t.surface3 }} />
+            <View
+              key={i}
+              style={{
+                width: i === dotIdx ? 20 : 7,
+                height: 7,
+                borderRadius: i === dotIdx ? 4 : 3.5,
+                backgroundColor: i === dotIdx ? t.accent : t.surface3,
+              }}
+            />
           ))}
         </View>
-        <Animated.View style={{ alignSelf: "stretch", minHeight: 230, alignItems: "center", justifyContent: "center", transform: [{ translateY: floatY }] }}>
-          <View style={{ gap: 11, width: "100%", alignItems: "center" }}>
-            <JudithAvatar persona={persona} size={72} state="speaking" mood={mood} />
-            <Animated.View style={{ alignSelf: "flex-end", opacity: tOpacity, transform: [{ translateY: tY }, { scale: tScale }] }}>
-              <Transcript>{q}</Transcript>
-            </Animated.View>
-            <Animated.View style={{ opacity: rOpacity, transform: [{ translateY: rY }, { scale: rScale }] }}>
-              <JudithLine>{a}</JudithLine>
-            </Animated.View>
+
+        {/* ── demo Q&A (before first ask) or real conversation ── */}
+        {!started ? (
+          <Animated.View
+            style={{
+              alignSelf: "stretch",
+              minHeight: 220,
+              alignItems: "center",
+              justifyContent: "center",
+              transform: [{ translateY: floatY }],
+            }}
+          >
+            <View style={{ gap: 11, width: "100%", alignItems: "center" }}>
+              <JudithAvatar persona={persona} size={72} state="speaking" mood={mood} />
+              <Animated.View
+                style={{
+                  alignSelf: "flex-end",
+                  opacity: tOpacity,
+                  transform: [{ translateY: tY }, { scale: tScale }],
+                }}
+              >
+                <Transcript>{q}</Transcript>
+              </Animated.View>
+              <Animated.View
+                style={{
+                  opacity: rOpacity,
+                  transform: [{ translateY: rY }, { scale: rScale }],
+                }}
+              >
+                <JudithLine>{a}</JudithLine>
+              </Animated.View>
+            </View>
+          </Animated.View>
+        ) : (
+          <View style={{ minHeight: 220 }}>
+            <View style={{ alignItems: "center", marginBottom: 10 }}>
+              <JudithAvatar persona={persona} size={60} state={avatarState} />
+            </View>
+            <ScrollView
+              ref={scrollRef}
+              scrollEnabled={false}
+              contentContainerStyle={{ gap: 10 }}
+            >
+              {messages.map((m, i) =>
+                m.role === "user" ? (
+                  <View key={i} style={{ alignSelf: "flex-end" }}>
+                    <Transcript>{m.text}</Transcript>
+                  </View>
+                ) : (
+                  <JudithLine key={i}>{m.text}</JudithLine>
+                ),
+              )}
+              {askMode === "thinking" && (
+                <JudithLine>
+                  <Low size={14}>Judith is thinking\u2026</Low>
+                </JudithLine>
+              )}
+            </ScrollView>
           </View>
-        </Animated.View>
-        <Kicker style={{ marginTop: 30, textAlign: "center" }}>{kicker}</Kicker>
+        )}
+
+        {/* ── listening indicator ── */}
+        {listening && (
+          <View style={{ alignItems: "center", marginTop: 6, gap: 4 }}>
+            <VoiceBars accent={t.accent} />
+            <Low size={12}>Listening\u2026</Low>
+          </View>
+        )}
+
+        {/* ── error ── */}
+        {!!askErr && (
+          <Txt
+            size={12}
+            color={t.semantic.urgent}
+            style={{ textAlign: "center", marginTop: 6, paddingHorizontal: 8 }}
+          >
+            {askErr}
+          </Txt>
+        )}
+
+        {/* ── copy block ── */}
+        <Kicker style={{ marginTop: 28, textAlign: "center" }}>{kicker}</Kicker>
         <Title style={{ textAlign: "center", maxWidth: 290 }}>{title}</Title>
         <Lede style={{ textAlign: "center", maxWidth: 285 }}>{lede}</Lede>
+
+        {/* ── quick-ask chips ── */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 8, paddingVertical: 6 }}
+          style={{ marginTop: 6 }}
+        >
+          {QUICK_ASKS.slice(0, 4).map((qa, i) => (
+            <Pressable
+              key={i}
+              onPress={() => doAsk(qa)}
+              disabled={busy || listening}
+              style={{
+                borderWidth: 1,
+                borderColor: t.hair,
+                borderRadius: 20,
+                paddingVertical: 7,
+                paddingHorizontal: 13,
+                backgroundColor: t.surface2,
+                opacity: busy || listening ? 0.4 : 1,
+              }}
+            >
+              <Txt size={13}>{qa}</Txt>
+            </Pressable>
+          ))}
+        </ScrollView>
       </Scroll>
+
       <CtaBar>
+        {/* ── mic row ── */}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 }}>
+          <Pressable
+            onPress={listening ? stopRec : busy ? undefined : startRec}
+            style={{
+              flex: 1,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 10,
+              borderWidth: 1,
+              borderColor: listening ? t.semantic.urgent : t.hair,
+              borderRadius: 14,
+              paddingVertical: 13,
+              paddingHorizontal: 14,
+              backgroundColor: listening
+                ? mix(t.semantic.urgent, t.canvas, 0.12)
+                : t.surface1,
+            }}
+          >
+            <Icon
+              name="mic"
+              size={16}
+              color={listening ? t.semantic.urgent : busy ? t.txtLow : t.txtMid}
+            />
+            <Txt size={14} color={listening ? t.semantic.urgent : t.txtLow}>
+              {listening
+                ? "Tap to send\u2026"
+                : askMode === "thinking"
+                  ? "Judith is thinking\u2026"
+                  : askMode === "speaking"
+                    ? "Judith is speaking\u2026"
+                    : "Tap mic to ask Judith"}
+            </Txt>
+          </Pressable>
+
+          <Pressable
+            onPress={listening ? stopRec : busy ? undefined : startRec}
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: listening ? t.semantic.urgent : busy ? t.surface2 : t.accent,
+            }}
+          >
+            <Icon
+              name="mic"
+              size={22}
+              color={listening ? "#fff" : busy ? t.txtLow : t.onAccent}
+            />
+          </Pressable>
+        </View>
+
         <Btn label={dotIdx === 2 ? T("finish") : T("continue")} onPress={next} />
       </CtaBar>
     </>
