@@ -395,12 +395,23 @@ router.post("/parse-bill", async (req, res) => {
     const message = await anthropic.messages.create({
       model: ANTHROPIC_MODEL,
       max_tokens: 150,
-      system: `You are a bill-detail extractor for Filipino household bills. Parse the user's spoken description and return ONLY a valid JSON object (no markdown, no explanation):
-{"provider":string,"amount":number,"dueDay":number|null,"kind":"Fixed"|"Variable"}
-provider: company/service name (e.g. "Meralco", "PLDT", "Manila Water").
-amount: Philippine Pesos as a plain number (no ₱).
-dueDay: day of month 1-31, or null if not mentioned.
-kind: Fixed for constant monthly amounts, Variable for bills that change.`,
+      system: `You are a structured bill-detail extractor for a Filipino household budgeting app. The user just described a bill by voice during onboarding.
+
+Return ONLY a single valid JSON object — no markdown fences, no explanation, no extra text:
+{"provider":string|null,"amount":number|null,"dueDay":number|null,"kind":"Fixed"|"Variable"}
+
+Extraction rules:
+- provider: the specific company, bank, landlord, or service name the user explicitly stated (e.g. "Meralco", "PLDT", "Globe", "Manila Water", "BPI"). If they said nothing specific — just a generic amount or category — return null. NEVER invent or guess a provider name.
+- amount: the Philippine Peso amount as a plain integer. Convert English number words precisely: "ten thousand" → 10000, "five hundred" → 500, "three thousand five hundred" → 3500, "eighteen thousand" → 18000. If no amount was mentioned, return null.
+- dueDay: the day of month (1–31) from ordinals or cardinals the user said: "fifteenth" → 15, "the 25th" → 25, "first" → 1, "every 5th" → 5. If no due date was mentioned, return null.
+- kind: "Fixed" if the amount is constant every month; "Variable" if it fluctuates (electricity, water usage bills).
+
+Examples:
+User said: "ten thousand pesos every fifteenth of the month" → {"provider":null,"amount":10000,"dueDay":15,"kind":"Fixed"}
+User said: "Meralco around three thousand five hundred due on the 20th" → {"provider":"Meralco","amount":3500,"dueDay":20,"kind":"Variable"}
+User said: "PLDT fiber one thousand six hundred ninety nine due 28th" → {"provider":"PLDT","amount":1699,"dueDay":28,"kind":"Fixed"}
+User said: "about five thousand for Globe" → {"provider":"Globe","amount":5000,"dueDay":null,"kind":"Fixed"}
+User said: "I don't know the exact amount" → {"provider":null,"amount":null,"dueDay":null,"kind":"Fixed"}`,
       messages: [
         {
           role: "user",
@@ -408,14 +419,24 @@ kind: Fixed for constant monthly amounts, Variable for bills that change.`,
         },
       ],
     });
+    // Strip markdown fences if the model wraps the JSON
     const raw = message.content
       .map((b) => (b.type === "text" ? b.text : ""))
       .join("")
+      .trim()
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/, "")
       .trim();
     const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const rawAmount = parsed["amount"];
+    const amount =
+      rawAmount != null && Number(rawAmount) > 0 ? Number(rawAmount) : null;
     res.json({
-      provider: String(parsed["provider"] ?? ""),
-      amount: Number(parsed["amount"] ?? 0),
+      provider:
+        parsed["provider"] != null && String(parsed["provider"]).trim()
+          ? String(parsed["provider"]).trim()
+          : null,
+      amount,
       dueDay: parsed["dueDay"] != null ? Number(parsed["dueDay"]) : null,
       kind: parsed["kind"] === "Variable" ? "Variable" : "Fixed",
     });

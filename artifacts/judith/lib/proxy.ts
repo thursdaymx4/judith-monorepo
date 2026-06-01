@@ -161,8 +161,8 @@ export async function parseBillOnboarding(
   text: string,
   category: string,
 ): Promise<{
-  provider: string;
-  amount: number;
+  provider: string | null;
+  amount: number | null;
   dueDay: number | null;
   kind: "Fixed" | "Variable";
 }> {
@@ -176,8 +176,8 @@ export async function parseBillOnboarding(
     throw new Error(`Parse bill failed (${res.status}): ${detail}`);
   }
   return (await res.json()) as {
-    provider: string;
-    amount: number;
+    provider: string | null;
+    amount: number | null;
     dueDay: number | null;
     kind: "Fixed" | "Variable";
   };

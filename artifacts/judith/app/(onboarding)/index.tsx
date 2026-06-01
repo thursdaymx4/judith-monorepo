@@ -1277,8 +1277,8 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const [heardText, setHeardText] = useState("");
   const [err, setErr] = useState("");
   const [parsedBill, setParsedBill] = useState<{
-    provider: string;
-    amount: number;
+    provider: string | null;
+    amount: number | null;
     dueDay: number | null;
     kind: "Fixed" | "Variable";
   } | null>(null);
