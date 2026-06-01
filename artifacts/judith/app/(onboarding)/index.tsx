@@ -32,7 +32,7 @@ import { PERSONAS, type PersonaId } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { fileToBase64, playBase64Mp3 } from "@/lib/audio";
-import { transcribe, synthOnboarding, fetchSampleOnboarding } from "@/lib/proxy";
+import { transcribeOnboarding, synthOnboarding, fetchSampleOnboarding } from "@/lib/proxy";
 import type { Theme } from "@/constants/theme";
 
 /* ------------------------------------------------------------------ */
@@ -1396,7 +1396,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       const uri = recorder.uri;
       if (!uri) throw new Error("No audio captured");
       const base64 = await fileToBase64(uri);
-      const { text } = await transcribe(base64, "audio/m4a");
+      const { text } = await transcribeOnboarding(base64, "audio/m4a");
       setHeardText(text);
       setMode("parsed");
     } catch (e) {

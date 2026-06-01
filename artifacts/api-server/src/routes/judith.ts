@@ -340,6 +340,27 @@ router.get("/sample", async (req, res) => {
   }
 });
 
+// POST /api/judith/stt-onboarding  { audioBase64, mimeType } -> { text }
+// No auth required — called during onboarding where the user may be a guest.
+router.post("/stt-onboarding", async (req, res) => {
+  try {
+    const { audioBase64, mimeType } = req.body ?? {};
+    if (typeof audioBase64 !== "string" || !audioBase64) {
+      res.status(400).json({ error: "audioBase64 is required" });
+      return;
+    }
+    const buffer = Buffer.from(audioBase64, "base64");
+    const text = await transcribe(
+      buffer,
+      typeof mimeType === "string" ? mimeType : "audio/m4a",
+    );
+    res.json({ text });
+  } catch (err) {
+    logger.error({ err }, "stt-onboarding failed");
+    res.status(500).json({ error: "Transcription failed" });
+  }
+});
+
 // POST /api/judith/tts-onboarding  { text, persona? } -> { audioBase64, mime }
 // No auth required — called during onboarding where the user may be a guest.
 router.post("/tts-onboarding", async (req, res) => {

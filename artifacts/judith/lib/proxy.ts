@@ -121,6 +121,25 @@ export async function fetchSample(
 }
 
 /**
+ * Speech-to-text during onboarding — no auth required.
+ */
+export async function transcribeOnboarding(
+  audioBase64: string,
+  mimeType: string,
+): Promise<{ text: string }> {
+  const res = await fetch(`${BASE}/stt-onboarding`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ audioBase64, mimeType }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`STT onboarding failed (${res.status}): ${detail}`);
+  }
+  return (await res.json()) as { text: string };
+}
+
+/**
  * Synthesize arbitrary text during onboarding — no auth required.
  * Falls back silently on error; callers should catch().
  */
