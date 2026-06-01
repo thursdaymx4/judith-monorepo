@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon, type IconName } from "@/components/Icon";
 import { CAT_ICONS, dueClass, initials, lookupProvider } from "@/constants/data";
+import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import type { Theme } from "@/constants/theme";
 
@@ -595,8 +596,6 @@ export function SheetHeader({ title, onClose }: { title: string; onClose: () => 
 /** Global toast pinned above the tab bar. */
 export function Toast() {
   const t = useTheme();
-  // imported lazily to avoid cycle
-  const { useJudith } = require("@/contexts/JudithStore") as typeof import("@/contexts/JudithStore");
   const { toast } = useJudith();
   const insets = useSafeAreaInsets();
   if (!toast) return null;
