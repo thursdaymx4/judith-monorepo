@@ -1,59 +1,49 @@
-import type { Feather } from "@expo/vector-icons";
+/**
+ * Personas — ported 1:1 from the prototype (j-core PERSONAS, spec §3.4).
+ * Drives voice + copy + avatar style. UI is English-only; greeting lines are
+ * the English variants from the spec.
+ */
 
-export type PersonaId = "professional" | "funny" | "sarcastic" | "mom";
-
-type FeatherName = keyof typeof Feather.glyphMap;
+export type PersonaId = "pro" | "funny" | "sib" | "mama";
 
 export interface Persona {
   id: PersonaId;
+  /** Icon name (see components/Icon). */
+  icon: string;
   name: string;
-  tagline: string;
-  description: string;
-  icon: FeatherName;
-  color: string;
-  sample: string;
+  vibe: string;
+  /** Greeting line (English UI). */
+  line: string;
 }
 
 export const PERSONAS: Persona[] = [
   {
-    id: "professional",
-    name: "Professional",
-    tagline: "Malinaw at kalmado",
-    description: "Clear, calm, respectful. Straight to the point.",
-    icon: "briefcase",
-    color: "#2DD4BF",
-    sample:
-      "Kumusta, ako si Judith. Ipapaalala ko sa'yo ang mga bayarin mo bago pa man sila mag-due.",
+    id: "pro",
+    icon: "spark",
+    name: "Professional peer",
+    vibe: "Clear · calm",
+    line: "I'm Judith. I'll keep your due dates handled — clear, on time, zero stress.",
   },
   {
     id: "funny",
-    name: "Funny Friend",
-    tagline: "Masaya at magaan",
-    description: "Upbeat and playful — still 100% accurate.",
-    icon: "smile",
-    color: "#FBBF24",
-    sample:
-      "Uy, ako si Judith! Wag kang mag-alala sa bills, ako na bahala — wala nang surprise na due date, promise!",
+    icon: "star",
+    name: "Funny friend",
+    vibe: "Warm · playful",
+    line: "Hey, I'm Judith! Your personal reminder so no bill ever catches you off guard.",
   },
   {
-    id: "sarcastic",
-    name: "Sarcastic Sibling",
-    tagline: "Tuyo pero caring",
-    description: "Dry and teasing, but always on your side.",
-    icon: "zap",
-    color: "#8B5CF6",
-    sample:
-      "Hi, si Judith 'to. Oo, ako na naman magpapaalala ng bills mo, kasi 'di ba, lagi mong nakakalimutan?",
+    id: "sib",
+    icon: "bell",
+    name: "Sarcastic sibling",
+    vibe: "Cheeky · blunt",
+    line: "I'm Judith. I'll remind you about your bills… because we both know you'd forget.",
   },
   {
-    id: "mom",
-    name: "Mama mo",
-    tagline: "Mainit at maalaga",
-    description: "Warm, maternal, light guilt-trip. Kumain ka na ba?",
-    icon: "heart",
-    color: "#F1576B",
-    sample:
-      "Anak, si Mama 'to — si Judith. Bantayan ko ang bayarin mo, ha. Oo nga pala, kumain ka na ba?",
+    id: "mama",
+    icon: "droplet",
+    name: "Your Mom",
+    vibe: "Caring · a little naggy",
+    line: "Sweetheart, it's Judith. I'll handle the bills. You — just make sure you eat well.",
   },
 ];
 

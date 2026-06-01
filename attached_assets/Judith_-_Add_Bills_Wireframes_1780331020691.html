@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Judith — Add Bills Wireframes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&family=Gaegu:wght@300;400;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper: #f4f1ea;
+    --paper-2: #fbfaf6;
+    --ink: #2c2a26;
+    --muted: #8a857c;
+    --line: #2c2a26;
+    --faint: #cbc6bb;
+    --accent: oklch(0.6 0.19 292);
+    --accent-soft: oklch(0.6 0.19 292 / 0.12);
+    --pad: 16px;
+    --gap: 12px;
+  }
+  body.no-accent {
+    --accent: #6f6a61;
+    --accent-soft: rgba(90, 86, 78, 0.12);
+  }
+  body.dense { --pad: 11px; --gap: 8px; }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background:
+      radial-gradient(circle at 1px 1px, rgba(44,42,38,0.05) 1px, transparent 0) 0 0 / 22px 22px,
+      var(--paper);
+    color: var(--ink);
+    font-family: 'Gaegu', 'Comic Sans MS', cursive;
+    -webkit-font-smoothing: antialiased;
+    padding: 28px 28px 80px;
+    min-height: 100vh;
+  }
+
+  /* ---------- Top bar ---------- */
+  .topbar {
+    max-width: 1120px;
+    margin: 0 auto 22px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+    border-bottom: 2px dashed var(--faint);
+    padding-bottom: 16px;
+  }
+  .brand h1 {
+    font-size: 30px;
+    margin: 0 0 2px;
+    letter-spacing: 0.3px;
+  }
+  .brand .crumb {
+    font-family: 'Caveat', cursive;
+    font-size: 19px;
+    color: var(--muted);
+  }
+  .brand .crumb b { color: var(--accent); font-weight: 700; }
+
+  .controls { display: flex; gap: 18px; align-items: flex-end; flex-wrap: wrap; }
+  .ctl { display: flex; flex-direction: column; gap: 5px; }
+  .ctl > span {
+    font-family: 'Caveat', cursive;
+    font-size: 15px;
+    color: var(--muted);
+    letter-spacing: 0.4px;
+  }
+  .seg { display: flex; border: 2px solid var(--ink); border-radius: 11px 8px 12px 7px / 7px 12px 8px 11px; overflow: hidden; }
+  .seg button {
+    font-family: 'Gaegu', cursive;
+    font-size: 15px;
+    background: transparent;
+    border: 0;
+    border-right: 2px solid var(--ink);
+    padding: 6px 12px;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  .seg button:last-child { border-right: 0; }
+  .seg button.on { background: var(--ink); color: var(--paper-2); }
+
+  /* ---------- Research note ---------- */
+  .research {
+    max-width: 1120px;
+    margin: 0 auto 26px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    font-family: 'Caveat', cursive;
+    font-size: 18px;
+    color: var(--muted);
+  }
+  .research .tag {
+    font-family: 'Gaegu', cursive;
+    font-size: 13px;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    border: 2px solid var(--ink);
+    border-radius: 9px 6px 10px 6px / 6px 10px 6px 9px;
+    padding: 3px 9px;
+    color: var(--ink);
+    background: var(--paper-2);
+    white-space: nowrap;
+  }
+  .research a { color: var(--accent); text-decoration: none; border-bottom: 1.5px dotted var(--accent); }
+  .research .chips { display: flex; gap: 8px 14px; flex-wrap: wrap; }
+
+  /* ---------- Board ---------- */
+  .board {
+    max-width: 1120px;
+    margin: 0 auto;
+    display: flex;
+    gap: 56px;
+    justify-content: center;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .option { width: 360px; position: relative; }
+  .option > .cap {
+    margin-bottom: 14px;
+  }
+  .cap .name { font-size: 22px; }
+  .cap .name b { color: var(--accent); }
+  .cap .desc {
+    font-family: 'Caveat', cursive;
+    font-size: 18px;
+    color: var(--muted);
+    line-height: 1.15;
+    margin-top: 2px;
+  }
+
+  /* ---------- iOS frame (sketchy) ---------- */
+  .device {
+    position: relative;
+    width: 320px;
+    margin: 0 auto;
+    border: 3px solid var(--ink);
+    border-radius: 46px;
+    padding: 12px;
+    background: var(--paper-2);
+    box-shadow: 6px 8px 0 rgba(44,42,38,0.10);
+  }
+  .screen {
+    position: relative;
+    border: 2px solid var(--ink);
+    border-radius: 34px;
+    background: var(--paper-2);
+    height: 640px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .notch {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 116px; height: 22px;
+    background: var(--ink);
+    border-radius: 0 0 14px 14px;
+    z-index: 6;
+  }
+  .statusbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 9px 22px 4px;
+    font-size: 14px; font-weight: 700;
+    flex: 0 0 auto;
+  }
+  .statusbar .dots { letter-spacing: 2px; }
+  .homebar {
+    position: absolute; bottom: 7px; left: 50%; transform: translateX(-50%);
+    width: 116px; height: 5px; border-radius: 3px; background: var(--ink); opacity: 0.6; z-index: 6;
+  }
+
+  .nav {
+    display: flex; align-items: center; gap: 10px;
+    padding: 4px 18px 10px;
+    flex: 0 0 auto;
+  }
+  .chev {
+    width: 26px; height: 26px; border: 2px solid var(--ink); border-radius: 50%;
+    display: grid; place-items: center; font-size: 16px; line-height: 1;
+  }
+  .steps { display: flex; gap: 5px; margin-left: 4px; flex: 1; }
+  .steps i {
+    height: 5px; flex: 1; background: var(--faint); border-radius: 3px;
+  }
+  .steps i.done { background: var(--ink); }
+  .steps i.now { background: var(--accent); }
+  .skip { font-family: 'Caveat', cursive; font-size: 17px; color: var(--muted); }
+
+  .body {
+    flex: 1 1 auto;
+    overflow: hidden;
+    padding: 0 18px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+    position: relative;
+  }
+
+  /* header block (orb + greeting) */
+  .head { display: flex; gap: 11px; align-items: center; margin-top: 2px; }
+  .orb {
+    flex: 0 0 auto;
+    width: 40px; height: 40px; border-radius: 50%;
+    border: 2px solid var(--accent);
+    position: relative;
+    display: grid; place-items: center;
+  }
+  .orb::before, .orb::after {
+    content: ''; position: absolute; inset: 6px; border-radius: 50%;
+    border: 1.5px solid var(--accent); opacity: 0.55;
+  }
+  .orb::after { inset: 11px; opacity: 0.35; }
+  .orb b { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
+  .htext .t { font-size: 22px; line-height: 1; }
+  .htext .s { font-family: 'Caveat', cursive; font-size: 17px; color: var(--muted); line-height: 1.1; }
+
+  .scrollnote {
+    font-family: 'Caveat', cursive; font-size: 14px; color: var(--muted);
+    text-align: center; opacity: 0.7;
+  }
+
+  /* category grid (Option A) */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
+  .tile {
+    border: 2px solid var(--ink);
+    border-radius: 16px 11px 17px 9px / 9px 17px 11px 16px;
+    padding: var(--pad);
+    display: flex; flex-direction: column; gap: 8px;
+    position: relative;
+    min-height: 78px;
+    background: var(--paper-2);
+  }
+  .tile.sel { border-color: var(--accent); background: var(--accent-soft); }
+  .ico {
+    width: 30px; height: 30px; border-radius: 8px;
+    border: 1.5px solid var(--ink);
+    background-image: repeating-linear-gradient(45deg, var(--faint) 0 3px, transparent 3px 6px);
+  }
+  .tile .lbl { font-size: 17px; line-height: 1; }
+  .tile .badge {
+    position: absolute; top: -9px; right: -7px;
+    min-width: 22px; height: 22px; padding: 0 5px;
+    border-radius: 50%;
+    background: var(--accent); color: #fff;
+    border: 2px solid var(--paper-2);
+    font-size: 13px; font-weight: 700;
+    display: grid; place-items: center;
+  }
+  .tile.add {
+    border-style: dashed; align-items: center; justify-content: center;
+    color: var(--muted); font-size: 17px; flex-direction: row; gap: 6px;
+  }
+  .tile.add .plus { font-size: 22px; line-height: 1; }
+
+  /* bottom sheet (Option A) */
+  .scrim {
+    position: absolute; inset: 0; background: rgba(44,42,38,0.16);
+    z-index: 4;
+  }
+  .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 5;
+    background: var(--paper-2);
+    border: 2px solid var(--ink); border-bottom: 0;
+    border-radius: 26px 26px 0 0;
+    padding: 12px 18px 22px;
+    display: flex; flex-direction: column; gap: 11px;
+    box-shadow: 0 -6px 0 rgba(44,42,38,0.06);
+  }
+  .grab { width: 44px; height: 5px; border-radius: 3px; background: var(--faint); margin: 0 auto 2px; }
+  .sheet .stitle { display: flex; align-items: baseline; gap: 8px; }
+  .sheet .stitle .t { font-size: 21px; }
+  .sheet .stitle .ctx {
+    font-family: 'Caveat', cursive; font-size: 16px; color: var(--accent);
+    border: 1.5px solid var(--accent); border-radius: 20px; padding: 0 9px;
+  }
+  .field { display: flex; flex-direction: column; gap: 3px; }
+  .field label { font-family: 'Caveat', cursive; font-size: 15px; color: var(--muted); }
+  .input {
+    border: 2px solid var(--ink); border-radius: 11px 8px 12px 7px / 7px 12px 8px 11px;
+    padding: 8px 11px; font-size: 16px; color: var(--muted);
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--paper);
+  }
+  .input.mono { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 15px; }
+  .input .peso { color: var(--ink); font-weight: 700; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); }
+
+  /* chips (Option B) */
+  .group { display: flex; flex-direction: column; gap: 7px; }
+  .group > .gname {
+    font-family: 'Caveat', cursive; font-size: 17px; color: var(--ink);
+    letter-spacing: 0.4px;
+  }
+  .chips2 { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    border: 2px solid var(--ink); border-radius: 22px;
+    padding: 6px 13px; font-size: 16px; line-height: 1;
+    display: flex; align-items: center; gap: 6px;
+    background: var(--paper-2);
+  }
+  .chip.sel { border-color: var(--accent); background: var(--accent-soft); }
+  .chip.sel::before { content: '✓'; color: var(--accent); font-weight: 700; }
+  .chip.dashed { border-style: dashed; color: var(--muted); }
+
+  .listhdr {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-top: 2px;
+  }
+  .listhdr .h { font-size: 18px; }
+  .listhdr .c { font-family: 'Caveat', cursive; font-size: 16px; color: var(--muted); }
+  .billrow {
+    border: 2px solid var(--ink); border-radius: 14px 10px 15px 9px / 9px 15px 10px 14px;
+    padding: 10px 12px; display: flex; align-items: center; gap: 10px;
+    background: var(--paper-2);
+  }
+  .billrow .ico { width: 26px; height: 26px; flex: 0 0 auto; }
+  .billrow .meta { flex: 1; line-height: 1.05; }
+  .billrow .meta .p { font-size: 16px; }
+  .billrow .meta .d { font-family: 'Caveat', cursive; font-size: 14px; color: var(--muted); }
+  .billrow .amt { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 15px; font-weight: 700; }
+  .billrow .pen { color: var(--muted); font-size: 15px; }
+  .billrow.addrow { border-style: dashed; justify-content: center; color: var(--accent); gap: 6px; }
+
+  /* sticky CTA */
+  .cta {
+    flex: 0 0 auto;
+    padding: 10px 18px 14px;
+    border-top: 2px dashed var(--faint);
+    background: var(--paper-2);
+  }
+  .btn {
+    border: 2px solid var(--ink); border-radius: 14px 10px 15px 9px / 9px 15px 10px 14px;
+    background: var(--accent); color: #fff;
+    text-align: center; padding: 11px; font-size: 18px; font-weight: 700;
+    box-shadow: 3px 4px 0 rgba(44,42,38,0.18);
+  }
+  .btn.ghost { background: transparent; color: var(--ink); box-shadow: none; margin-top: 8px; padding: 7px; font-weight: 400; }
+
+  /* ---------- annotation callouts ---------- */
+  .note {
+    position: absolute;
+    font-family: 'Caveat', cursive;
+    font-size: 16px;
+    color: var(--accent);
+    line-height: 1.05;
+    max-width: 168px;
+    z-index: 8;
+  }
+  .note b { color: var(--ink); }
+  .note .arrow { display: block; color: var(--accent); font-size: 18px; }
+  body.no-notes .note { display: none; }
+
+  .nA1 { top: 96px; left: -150px; text-align: right; max-width: 140px; }
+  .nA2 { top: 300px; left: -150px; text-align: right; max-width: 140px; }
+  .nA3 { bottom: 150px; right: -158px; }
+  .nB1 { top: 150px; right: -158px; }
+  .nB2 { bottom: 196px; left: -150px; text-align: right; max-width: 140px; }
+  .nB3 { bottom: 70px; right: -156px; }
+
+  .footnote {
+    max-width: 1120px; margin: 40px auto 0; padding-top: 16px;
+    border-top: 2px dashed var(--faint);
+    font-family: 'Caveat', cursive; font-size: 18px; color: var(--muted);
+    text-align: center; line-height: 1.3;
+  }
+  .footnote b { color: var(--accent); }
+
+  @media (max-width: 860px) {
+    .note { display: none; }
+    .board { gap: 32px; }
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">
+      <h1>Judith · Add Bills</h1>
+      <div class="crumb">Onboarding step <b>3 / 4</b> &nbsp;·&nbsp; low-fi wireframes &nbsp;·&nbsp; 2 directions</div>
+    </div>
+    <div class="controls">
+      <div class="ctl">
+        <span>annotations</span>
+        <div class="seg" id="seg-notes">
+          <button data-v="on" class="on">On</button>
+          <button data-v="off">Off</button>
+        </div>
+      </div>
+      <div class="ctl">
+        <span>accent</span>
+        <div class="seg" id="seg-accent">
+          <button data-v="on" class="on">Violet</button>
+          <button data-v="off">Mono</button>
+        </div>
+      </div>
+      <div class="ctl">
+        <span>density</span>
+        <div class="seg" id="seg-density">
+          <button data-v="comfy" class="on">Comfy</button>
+          <button data-v="dense">Dense</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="research">
+    <span class="tag">Mobbin refs</span>
+    <div class="chips">
+      <span>Grid of category cards — <a href="https://mobbin.com/screens/9298db20-de6f-4a0f-b647-af6350b40de1" target="_blank">Fidelity</a></span>
+      <span>· Add-bill detail sheet — <a href="https://mobbin.com/screens/2cd9f512-401e-4d64-9c9b-797fda4597ec" target="_blank">Truebill</a></span>
+      <span>· Grouped multi-select chips — <a href="https://mobbin.com/screens/38dc57ab-c590-4a76-b77d-b7588e5d904a" target="_blank">Revolut</a></span>
+      <span>· Provider / institution picker — <a href="https://mobbin.com/screens/1feff41a-093e-41f8-95ef-21e91b89b575" target="_blank">Origin</a></span>
+    </div>
+  </div>
+
+  <div class="board">
+
+    <!-- ===================== OPTION A ===================== -->
+    <section class="option">
+      <div class="cap">
+        <div class="name">A · <b>Category grid</b> → add sheet</div>
+        <div class="desc">Tap a category, fill one bill at a time in a focused sheet. Best when most users add a few across many categories.</div>
+      </div>
+
+      <div class="device">
+        <div class="notch"></div>
+        <div class="homebar"></div>
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="dots">●●● ▮▮ ▭</span></div>
+          <div class="nav">
+            <div class="chev">‹</div>
+            <div class="steps"><i class="done"></i><i class="done"></i><i class="now"></i><i></i></div>
+            <span class="skip">Skip</span>
+          </div>
+
+          <div class="body">
+            <div class="head">
+              <div class="orb"><b></b></div>
+              <div class="htext">
+                <div class="t">Anong bills ang babantayan natin?</div>
+                <div class="s">Pwede mahigit isa bawat category.</div>
+              </div>
+            </div>
+
+            <div class="grid">
+              <div class="tile sel"><span class="badge">1</span><div class="ico"></div><div class="lbl">Electricity</div></div>
+              <div class="tile"><div class="ico"></div><div class="lbl">Water</div></div>
+              <div class="tile sel"><span class="badge">2</span><div class="ico"></div><div class="lbl">Internet</div></div>
+              <div class="tile"><div class="ico"></div><div class="lbl">Mobile</div></div>
+              <div class="tile"><div class="ico"></div><div class="lbl">Landline</div></div>
+              <div class="tile"><div class="ico"></div><div class="lbl">Credit card</div></div>
+              <div class="tile add"><span class="plus">+</span> Custom</div>
+              <div class="tile" style="opacity:.25"></div>
+            </div>
+
+            <!-- dimming + add sheet -->
+            <div class="scrim"></div>
+          </div>
+
+          <div class="sheet">
+            <div class="grab"></div>
+            <div class="stitle"><span class="t">Magdagdag ng bill</span><span class="ctx">Electricity</span></div>
+            <div class="field">
+              <label>Provider</label>
+              <div class="input">e.g. Meralco <span>⌄</span></div>
+            </div>
+            <div class="row2">
+              <div class="field">
+                <label>Amount</label>
+                <div class="input mono"><span class="peso">₱</span> 3,450</div>
+              </div>
+              <div class="field">
+                <label>Due</label>
+                <div class="input">Every 15th <span>⌄</span></div>
+              </div>
+            </div>
+            <div class="field">
+              <label>Remind me</label>
+              <div class="input">3 days before <span>⌄</span></div>
+            </div>
+            <div class="btn">I-save ang bill</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="note nA1"><b>Companion orb</b>, small here — hero moment is Home &amp; Ask Judith <span class="arrow">↘</span></div>
+      <div class="note nA2">Count badge = how many bills under a category <span class="arrow">↘</span></div>
+      <div class="note nA3"><span class="arrow">↙</span> Truebill-style focused sheet. In hi-fi, <b>₱ amounts use the mono face</b>.</div>
+    </section>
+
+    <!-- ===================== OPTION B ===================== -->
+    <section class="option">
+      <div class="cap">
+        <div class="name">B · <b>Pick chips</b> → running list</div>
+        <div class="desc">Multi-select categories first, then bills accumulate in a list you fill inline. Best for adding many at once, no context switch.</div>
+      </div>
+
+      <div class="device">
+        <div class="notch"></div>
+        <div class="homebar"></div>
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="dots">●●● ▮▮ ▭</span></div>
+          <div class="nav">
+            <div class="chev">‹</div>
+            <div class="steps"><i class="done"></i><i class="done"></i><i class="now"></i><i></i></div>
+            <span class="skip">Skip</span>
+          </div>
+
+          <div class="body">
+            <div class="head">
+              <div class="orb"><b></b></div>
+              <div class="htext">
+                <div class="t">Pili ng mga babantayan natin</div>
+                <div class="s">Tap lahat ng meron ka — idadagdag ko sa baba.</div>
+              </div>
+            </div>
+
+            <div class="group">
+              <div class="gname">Utilities</div>
+              <div class="chips2">
+                <span class="chip sel">Electricity</span>
+                <span class="chip sel">Water</span>
+                <span class="chip sel">Internet</span>
+              </div>
+            </div>
+            <div class="group">
+              <div class="gname">Phone</div>
+              <div class="chips2">
+                <span class="chip sel">Mobile</span>
+                <span class="chip">Landline</span>
+              </div>
+            </div>
+            <div class="group">
+              <div class="gname">Iba pa</div>
+              <div class="chips2">
+                <span class="chip">Credit card</span>
+                <span class="chip dashed">+ Custom</span>
+              </div>
+            </div>
+
+            <div class="listhdr"><span class="h">Mga naidagdag</span><span class="c">4 bills · ₱6,710/buwan</span></div>
+            <div class="billrow">
+              <div class="ico"></div>
+              <div class="meta"><div class="p">Meralco</div><div class="d">Electricity · due 15th</div></div>
+              <span class="amt">₱3,450</span><span class="pen">✎</span>
+            </div>
+            <div class="billrow">
+              <div class="ico"></div>
+              <div class="meta"><div class="p">Maynilad</div><div class="d">Water · due 22nd</div></div>
+              <span class="amt">₱890</span><span class="pen">✎</span>
+            </div>
+            <div class="billrow addrow"><span style="font-size:20px;line-height:1">+</span> Magdagdag ng bill</div>
+            <div class="scrollnote">scroll for more ↓</div>
+          </div>
+
+          <div class="cta">
+            <div class="btn">Susunod →</div>
+            <div class="btn ghost">Tatapusin ko mamaya</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="note nB1"><span class="arrow">↙</span> Revolut-style <b>grouped chips</b>, multi-select in one tap</div>
+      <div class="note nB2">Tiny <b>persistent total</b> reassures before they commit <span class="arrow">↘</span></div>
+      <div class="note nB3"><span class="arrow">↖</span> Rows fill <b>inline</b> — no sheet, no context switch</div>
+    </section>
+
+  </div>
+
+  <div class="footnote">
+    These are <b>structure-only</b> wireframes. The hi-fi build layers the dark canvas, the living glow-orb, and the tabular ₱ face on top of these bones — <b>same skeleton, dark skin.</b>
+  </div>
+
+<script>
+  (function () {
+    var map = {
+      'seg-notes':   { key: 'jw_notes',   on: function(v){ document.body.classList.toggle('no-notes', v === 'off'); } },
+      'seg-accent':  { key: 'jw_accent',  on: function(v){ document.body.classList.toggle('no-accent', v === 'off'); } },
+      'seg-density': { key: 'jw_density', on: function(v){ document.body.classList.toggle('dense', v === 'dense'); } }
+    };
+    Object.keys(map).forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      var cfg = map[id];
+      var saved = null;
+      try { saved = localStorage.getItem(cfg.key); } catch (e) {}
+      if (saved) {
+        [].forEach.call(el.querySelectorAll('button'), function (b) {
+          b.classList.toggle('on', b.dataset.v === saved);
+        });
+        cfg.on(saved);
+      }
+      el.addEventListener('click', function (e) {
+        var b = e.target.closest('button');
+        if (!b) return;
+        [].forEach.call(el.querySelectorAll('button'), function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+        cfg.on(b.dataset.v);
+        try { localStorage.setItem(cfg.key, b.dataset.v); } catch (e) {}
+      });
+    });
+  })();
+</script>
+</body>
+</html>

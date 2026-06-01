@@ -1,90 +1,107 @@
 import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
+  JetBrainsMono_500Medium,
+  JetBrainsMono_700Bold,
+} from "@expo-google-fonts/jetbrains-mono";
+import { PlayfairDisplay_800ExtraBold_Italic } from "@expo-google-fonts/playfair-display";
+import {
+  SpaceGrotesk_400Regular,
+  SpaceGrotesk_500Medium,
+  SpaceGrotesk_600SemiBold,
+  SpaceGrotesk_700Bold,
   useFonts,
-} from "@expo-google-fonts/inter";
+} from "@expo-google-fonts/space-grotesk";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { Splash } from "@/components/Splash";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { SettingsProvider, useSettings } from "@/contexts/SettingsContext";
-import { useColors } from "@/hooks/useColors";
+import { JudithProvider, useJudith } from "@/contexts/JudithStore";
+import { useTheme } from "@/hooks/useTheme";
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
 function NotConfigured() {
-  const colors = useColors();
+  const t = useTheme();
   return (
-    <View style={[styles.center, { backgroundColor: colors.background }]}>
-      <Text style={[styles.title, { color: colors.foreground }]}>Kailangan ng setup</Text>
-      <Text style={[styles.body, { color: colors.mutedForeground }]}>
-        Hindi pa naka-configure ang Supabase. Itakda ang EXPO_PUBLIC_SUPABASE_URL at
+    <View style={[styles.center, { backgroundColor: t.canvas }]}>
+      <Text style={[styles.title, { color: t.txtHi, fontFamily: t.fonts.bold }]}>
+        Setup needed
+      </Text>
+      <Text style={[styles.body, { color: t.txtMid, fontFamily: t.fonts.regular }]}>
+        Supabase is not configured. Set EXPO_PUBLIC_SUPABASE_URL and
         EXPO_PUBLIC_SUPABASE_ANON_KEY.
       </Text>
     </View>
   );
 }
 
+function Loading() {
+  const t = useTheme();
+  return (
+    <View style={[styles.center, { backgroundColor: t.canvas }]}>
+      <ActivityIndicator color={t.accent} size="large" />
+    </View>
+  );
+}
+
 function RootLayoutNav() {
   const { session, loading, configured } = useAuth();
-  const { profile, loading: settingsLoading } = useSettings();
-  const colors = useColors();
+  const { onboarded, hydrated } = useJudith();
+  const t = useTheme();
+  const [splashDone, setSplashDone] = useState(false);
 
   if (!configured) return <NotConfigured />;
+  if (loading || !hydrated) return <Loading />;
 
-  if (loading || (!!session && settingsLoading)) {
-    return (
-      <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator color={colors.primary} size="large" />
-      </View>
-    );
-  }
-
-  const onboarded = !!session && profile.onboarded;
+  const isOnboarded = !!session && onboarded;
+  const modalOpts = { presentation: "modal" as const, headerShown: false };
 
   return (
-    <Stack screenOptions={{ headerBackTitle: "Back" }}>
-      <Stack.Protected guard={onboarded}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="bill/[id]"
-          options={{ presentation: "modal", headerShown: true }}
-        />
-      </Stack.Protected>
-      <Stack.Protected guard={!!session && !profile.onboarded}>
-        <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
-      </Stack.Protected>
-      <Stack.Protected guard={!session}>
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      </Stack.Protected>
-    </Stack>
+    <View style={{ flex: 1 }}>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.canvas } }}>
+        <Stack.Protected guard={isOnboarded}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="ask" options={modalOpts} />
+          <Stack.Screen name="reminders" options={modalOpts} />
+          <Stack.Screen name="devices" options={modalOpts} />
+          <Stack.Screen name="bills" options={modalOpts} />
+          <Stack.Screen name="plans" options={modalOpts} />
+          <Stack.Screen name="bill/[id]" options={modalOpts} />
+        </Stack.Protected>
+        <Stack.Protected guard={!!session && !onboarded}>
+          <Stack.Screen name="(onboarding)" />
+        </Stack.Protected>
+        <Stack.Protected guard={!session}>
+          <Stack.Screen name="(auth)" />
+        </Stack.Protected>
+      </Stack>
+      {!splashDone && <Splash onDone={() => setSplashDone(true)} />}
+    </View>
   );
 }
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    Inter_700Bold,
+    SpaceGrotesk_400Regular,
+    SpaceGrotesk_500Medium,
+    SpaceGrotesk_600SemiBold,
+    SpaceGrotesk_700Bold,
+    JetBrainsMono_500Medium,
+    JetBrainsMono_700Bold,
+    PlayfairDisplay_800ExtraBold_Italic,
   });
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
-    }
+    if (fontsLoaded || fontError) SplashScreen.hideAsync();
   }, [fontsLoaded, fontError]);
 
   if (!fontsLoaded && !fontError) return null;
@@ -93,12 +110,12 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
-          <GestureHandlerRootView>
+          <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
               <AuthProvider>
-                <SettingsProvider>
+                <JudithProvider>
                   <RootLayoutNav />
-                </SettingsProvider>
+                </JudithProvider>
               </AuthProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>
@@ -110,6 +127,6 @@ export default function RootLayout() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 12 },
-  title: { fontSize: 22, fontWeight: "800" },
+  title: { fontSize: 22 },
   body: { fontSize: 15, textAlign: "center", lineHeight: 22 },
 });

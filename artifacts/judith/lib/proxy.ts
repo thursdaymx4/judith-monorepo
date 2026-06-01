@@ -11,6 +11,23 @@ async function authHeader(): Promise<Record<string, string>> {
   return { Authorization: `Bearer ${session.access_token}` };
 }
 
+/** Maps client persona ids to the api-server's persona ids. */
+const PERSONA_MAP: Record<PersonaId, string> = {
+  pro: "professional",
+  funny: "funny",
+  sib: "sarcastic",
+  mama: "mom",
+};
+
+export interface AskBill {
+  provider: string;
+  cat: string;
+  amount: number;
+  dueDays: number;
+  dueLabel: string;
+  status: string;
+}
+
 async function postJson<T>(path: string, body: unknown): Promise<T> {
   const headers = await authHeader();
   const res = await fetch(`${BASE}${path}`, {
@@ -38,15 +55,26 @@ export function transcribe(
   return postJson("/stt", { audioBase64, mimeType });
 }
 
-export function askJudith(text: string): Promise<AskResult> {
-  return postJson("/ask", { text });
+export function askJudith(
+  text: string,
+  bills?: AskBill[],
+  persona?: PersonaId,
+): Promise<AskResult> {
+  return postJson("/ask", {
+    text,
+    bills,
+    persona: persona ? PERSONA_MAP[persona] : undefined,
+  });
 }
 
 export function synthesize(
   text: string,
   persona?: PersonaId,
 ): Promise<{ audioBase64: string; mime: string }> {
-  return postJson("/tts", { text, persona });
+  return postJson("/tts", {
+    text,
+    persona: persona ? PERSONA_MAP[persona] : undefined,
+  });
 }
 
 export interface VoiceOption {
@@ -78,7 +106,9 @@ export async function fetchSample(
   persona: PersonaId,
 ): Promise<{ text: string; audioBase64: string; mime: string }> {
   const headers = await authHeader();
-  const res = await fetch(`${BASE}/sample?persona=${persona}`, { headers });
+  const res = await fetch(`${BASE}/sample?persona=${PERSONA_MAP[persona]}`, {
+    headers,
+  });
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
     throw new Error(`Sample failed (${res.status}): ${detail}`);

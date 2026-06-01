@@ -1,188 +1,203 @@
-import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import React, { useEffect, useMemo } from "react";
-import {
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import React from "react";
+import { Pressable, View } from "react-native";
 
-import { BillCard } from "@/components/BillCard";
-import { JudithOrb } from "@/components/JudithOrb";
-import { EmptyState, SectionLabel } from "@/components/ui";
-import { useAuth } from "@/contexts/AuthContext";
-import { useSettings } from "@/contexts/SettingsContext";
-import { useColors } from "@/hooks/useColors";
+import { JudithAvatar } from "@/components/JudithAvatar";
 import {
-  computeNextDue,
-  daysUntil,
-  listBills,
-  type Bill,
-} from "@/lib/bills";
-import { syncReminders } from "@/lib/notifications";
-import { pesoDisplay } from "@/lib/tagalog";
-
-function greeting(): string {
-  const h = new Date().getHours();
-  if (h < 12) return "Magandang umaga";
-  if (h < 18) return "Magandang hapon";
-  return "Magandang gabi";
-}
+  BellBtn,
+  Card,
+  Dot,
+  Low,
+  Mono,
+  Pill,
+  ProviderLogo,
+  Screen,
+  SectionLabel,
+  SpeechBubble,
+  Txt,
+} from "@/components/ui";
+import { dueClass, type Bill } from "@/constants/data";
+import { useJudith } from "@/contexts/JudithStore";
+import { useTheme } from "@/hooks/useTheme";
 
 export default function HomeScreen() {
-  const colors = useColors();
+  const t = useTheme();
   const router = useRouter();
-  const { user } = useAuth();
-  const { profile } = useSettings();
+  const { bills, persona, money } = useJudith();
 
-  const { data: bills = [], isLoading, refetch, isRefetching } = useQuery({
-    queryKey: ["bills"],
-    queryFn: listBills,
-    enabled: !!user,
-  });
+  const due = bills
+    .filter((b) => b.status !== "paid")
+    .slice()
+    .sort((a, b) => a.dueDays - b.dueDays);
+  const total = due.reduce((s, b) => s + b.amount, 0);
+  const week = due.filter((b) => b.dueDays <= 7);
+  const weekSum = week.reduce((s, b) => s + b.amount, 0);
+  const soon = due.filter((b) => b.dueDays <= 3).length;
 
-  useEffect(() => {
-    void syncReminders(bills, profile.reminders_enabled);
-  }, [bills, profile.reminders_enabled]);
+  const paid = bills.filter((b) => b.status === "paid");
+  const unpaid = bills.filter((b) => b.status !== "paid");
+  const paidAmt = paid.reduce((s, b) => s + b.amount, 0);
+  const unpaidAmt = unpaid.reduce((s, b) => s + b.amount, 0);
+  const grand = paidAmt + unpaidAmt;
+  const pct = grand > 0 ? Math.round((paidAmt / grand) * 100) : 0;
 
-  const { monthTotal, weekTotal, upcoming } = useMemo(() => {
-    const now = new Date();
-    const unpaid = bills.filter((b) => b.status !== "paid");
-    const withDue = unpaid
-      .map((b) => ({ bill: b, due: computeNextDue(b, now) }))
-      .filter((x): x is { bill: Bill; due: Date } => !!x.due)
-      .sort((a, b) => a.due.getTime() - b.due.getTime());
-
-    const fixedAmount = (bill: Bill) =>
-      bill.amount_type === "fixed" && bill.amount ? bill.amount : 0;
-
-    const month = withDue.reduce((sum, { bill, due }) => {
-      const d = daysUntil(due, now);
-      const sameMonth =
-        due.getMonth() === now.getMonth() &&
-        due.getFullYear() === now.getFullYear();
-      return d >= 0 && sameMonth ? sum + fixedAmount(bill) : sum;
-    }, 0);
-
-    const week = withDue.reduce((sum, { bill, due }) => {
-      const d = daysUntil(due, now);
-      return d >= 0 && d <= 7 ? sum + fixedAmount(bill) : sum;
-    }, 0);
-
-    return {
-      monthTotal: month,
-      weekTotal: week,
-      upcoming: withDue.map((x) => x.bill).slice(0, 5),
-    };
-  }, [bills]);
+  const openBill = (b: Bill) => router.push(`/bill/${b.id}`);
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={["top"]}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />
-        }
-      >
-        <View style={styles.header}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.greeting, { color: colors.mutedForeground }]}>{greeting()}</Text>
-            <Text style={[styles.appName, { color: colors.foreground }]}>Judith</Text>
-          </View>
-          <JudithOrb size={64} state="idle" />
+    <Screen contentStyle={{ paddingTop: 4 }}>
+      {/* header */}
+      <View style={{ flexDirection: "row", gap: 12, alignItems: "flex-start", marginBottom: 16 }}>
+        <JudithAvatar persona={persona} size={52} state="idle" />
+        <SpeechBubble>
+          <Txt size={14} weight="semibold" style={{ lineHeight: 17 }}>
+            {due.length > 0
+              ? `${due.length} ${due.length === 1 ? "bill" : "bills"} this month`
+              : "You’re all caught up"}
+          </Txt>
+          <Low size={12} style={{ marginTop: 2 }}>
+            {due.length > 0
+              ? week.length > 0
+                ? `${week.length} due this week — I’ve got it`
+                : "nothing due this week"
+              : "no bills due right now"}
+          </Low>
+        </SpeechBubble>
+        <BellBtn count={soon} onPress={() => router.push("/reminders")} />
+      </View>
+
+      {/* stat duo */}
+      <Card style={{ flexDirection: "row", padding: 0, overflow: "hidden", marginBottom: 14 }}>
+        <View style={{ flex: 1.3, paddingVertical: 14, paddingHorizontal: 15 }}>
+          <Mono size={24} weight="bold">
+            {money(total)}
+          </Mono>
+          <Low size={12} style={{ marginTop: 2 }}>
+            due this month
+          </Low>
         </View>
+        <View style={{ width: 1, backgroundColor: t.hair }} />
+        <View style={{ flex: 1, paddingVertical: 14, paddingHorizontal: 15 }}>
+          <Mono size={24} weight="bold" color={t.semantic.near}>
+            {money(weekSum)}
+          </Mono>
+          <Low size={12} style={{ marginTop: 2 }}>
+            next 7 days
+          </Low>
+        </View>
+      </Card>
 
-        <View style={styles.cards}>
-          <View style={[styles.summary, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>
-              Due ngayong buwan
-            </Text>
-            <Text style={[styles.summaryValue, { color: colors.foreground }]}>
-              {pesoDisplay(monthTotal)}
-            </Text>
+      {/* paid this month */}
+      <Card style={{ marginBottom: 14, paddingVertical: 14, paddingHorizontal: 15 }}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 9 }}>
+          <Txt size={14} weight="semibold">
+            Paid this month
+          </Txt>
+          <Mono size={13} weight="bold" color={t.semantic.ok}>
+            {pct}%
+          </Mono>
+        </View>
+        <View style={{ height: 12, borderRadius: 7, backgroundColor: t.surface3, overflow: "hidden" }}>
+          <View style={{ height: "100%", width: `${pct}%`, borderRadius: 7, backgroundColor: t.semantic.ok }} />
+        </View>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 9 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Dot kind="ok" />
+            <Txt size={12}>
+              {paid.length} paid · <Mono size={12}>{money(paidAmt)}</Mono>
+            </Txt>
           </View>
-          <View style={[styles.summary, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.summaryLabel, { color: colors.mutedForeground }]}>
-              Due sa 7 araw
-            </Text>
-            <Text style={[styles.summaryValue, { color: colors.foreground }]}>
-              {pesoDisplay(weekTotal)}
-            </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.surface3 }} />
+            <Txt size={12}>
+              {unpaid.length} unpaid · <Mono size={12}>{money(unpaidAmt)}</Mono>
+            </Txt>
           </View>
         </View>
+      </Card>
 
-        <Pressable
-          onPress={() => router.push("/(tabs)/ask")}
-          style={({ pressed }) => [
-            styles.askBanner,
-            { backgroundColor: colors.accent, opacity: pressed ? 0.9 : 1 },
-          ]}
-        >
-          <View style={{ flex: 1 }}>
-            <Text style={styles.askTitle}>Tanungin si Judith</Text>
-            <Text style={styles.askSub}>"Magkano ang bill ko ngayong buwan?"</Text>
-          </View>
-          <JudithOrb size={52} state="speaking" />
-        </Pressable>
+      {/* timeline */}
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4, marginBottom: 12 }}>
+        <SectionLabel style={{ marginTop: 0, marginBottom: 0 }}>Your timeline</SectionLabel>
+        <Pill onPress={() => router.push("/bills")} style={{ paddingVertical: 4, paddingHorizontal: 11 }}>
+          <Txt size={12} color={t.txtMid}>
+            See all · {due.length}
+          </Txt>
+        </Pill>
+      </View>
 
-        <View style={styles.section}>
-          <View style={styles.sectionHead}>
-            <SectionLabel>Mga paparating</SectionLabel>
-            {bills.length > 0 ? (
-              <Pressable onPress={() => router.push("/(tabs)/bills")}>
-                <Text style={[styles.link, { color: colors.primary }]}>Tingnan lahat</Text>
-              </Pressable>
-            ) : null}
-          </View>
-
-          {isLoading ? (
-            <Text style={{ color: colors.mutedForeground }}>Naglo-load…</Text>
-          ) : upcoming.length === 0 ? (
-            <EmptyState
-              icon="inbox"
-              title="Wala pang bayarin"
-              subtitle="Magdagdag ng bill para simulan ang pagbabantay ni Judith."
-            />
-          ) : (
-            <View style={styles.list}>
-              {upcoming.map((bill) => (
-                <BillCard key={bill.id} bill={bill} />
-              ))}
-            </View>
-          )}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+      <View>
+        {due.map((b, i) => {
+          const cls = dueClass(b.dueDays);
+          const last = i === due.length - 1;
+          return (
+            <Pressable
+              key={b.id}
+              onPress={() => openBill(b)}
+              style={({ pressed }) => [
+                { flexDirection: "row", alignItems: "stretch", gap: 10, marginBottom: last ? 0 : 12 },
+                pressed && { opacity: 0.85 },
+              ]}
+            >
+              {/* rail */}
+              <View style={{ width: 14, alignItems: "center" }}>
+                <View style={{ position: "absolute", top: 0, bottom: -12, width: 2, backgroundColor: t.hair }} />
+                <View
+                  style={{
+                    marginTop: 18,
+                    width: 11,
+                    height: 11,
+                    borderRadius: 6,
+                    backgroundColor: t.semantic[cls],
+                    borderWidth: 3,
+                    borderColor: t.canvas,
+                    shadowColor: t.semantic[cls],
+                    shadowOpacity: 0.9,
+                    shadowRadius: 6,
+                    shadowOffset: { width: 0, height: 0 },
+                  }}
+                />
+              </View>
+              {/* date */}
+              <View style={{ width: 34, alignItems: "center", justifyContent: "center" }}>
+                <Mono size={15} weight="bold">
+                  {b.dueDate}
+                </Mono>
+                <Low size={9} style={{ textTransform: "uppercase", letterSpacing: 0.5 }}>
+                  Jun
+                </Low>
+              </View>
+              {/* card */}
+              <View
+                style={{
+                  flex: 1,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 11,
+                  borderWidth: 1,
+                  borderColor: t.hair,
+                  borderRadius: t.radius.md,
+                  backgroundColor: t.surface2,
+                  paddingVertical: 11,
+                  paddingHorizontal: 12,
+                }}
+              >
+                <ProviderLogo provider={b.provider} cat={b.cat} size={34} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Txt size={14} weight="medium">
+                    {b.provider}
+                  </Txt>
+                  <Low size={12} style={{ marginTop: 2 }}>
+                    {b.cat} · in {b.dueDays}d
+                  </Low>
+                </View>
+                <Mono size={14} color={t.semantic[cls]}>
+                  {money(b.amount)}
+                </Mono>
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  content: { padding: 20, paddingBottom: 120, gap: 20 },
-  header: { flexDirection: "row", alignItems: "center" },
-  greeting: { fontSize: 15 },
-  appName: { fontSize: 30, fontWeight: "800" },
-  cards: { flexDirection: "row", gap: 12 },
-  summary: { flex: 1, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, padding: 16, gap: 4 },
-  summaryLabel: { fontSize: 12, fontWeight: "600" },
-  summaryValue: { fontSize: 20, fontWeight: "800" },
-  summarySub: { fontSize: 13, fontWeight: "700" },
-  askBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 20,
-    padding: 18,
-    gap: 12,
-  },
-  askTitle: { color: "#fff", fontSize: 18, fontWeight: "800" },
-  askSub: { color: "rgba(255,255,255,0.85)", fontSize: 13, marginTop: 2 },
-  section: { gap: 12 },
-  sectionHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  link: { fontSize: 13, fontWeight: "700" },
-  list: { gap: 10 },
-});

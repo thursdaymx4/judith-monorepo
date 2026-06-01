@@ -1,118 +1,120 @@
-import { BlurView } from "expo-blur";
-import { isLiquidGlassAvailable } from "expo-glass-effect";
-import { Tabs } from "expo-router";
-import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
-import { SymbolView } from "expo-symbols";
-import { Feather } from "@expo/vector-icons";
+import { Tabs, usePathname, useRouter } from "expo-router";
 import React from "react";
-import { ActivityIndicator, Platform, StyleSheet, View, useColorScheme } from "react-native";
+import { Pressable, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Paywall } from "@/components/Paywall";
-import { PAYWALL_ENABLED } from "@/constants/config";
-import { useSettings } from "@/contexts/SettingsContext";
-import { useColors } from "@/hooks/useColors";
+import { Icon, type IconName } from "@/components/Icon";
+import { JudithAvatar } from "@/components/JudithAvatar";
+import { Toast } from "@/components/ui";
+import { useJudith } from "@/contexts/JudithStore";
+import { useTheme } from "@/hooks/useTheme";
 
-type FeatherName = keyof typeof Feather.glyphMap;
-type SFName = React.ComponentProps<typeof SymbolView>["name"];
-
-const TABS: {
-  name: string;
-  title: string;
-  feather: FeatherName;
-  sf: { default: SFName; selected: SFName };
-}[] = [
-  { name: "index", title: "Home", feather: "home", sf: { default: "house", selected: "house.fill" } },
-  { name: "bills", title: "Bills", feather: "file-text", sf: { default: "doc.text", selected: "doc.text.fill" } },
-  { name: "ask", title: "Ask", feather: "mic", sf: { default: "mic", selected: "mic.fill" } },
-  { name: "settings", title: "Settings", feather: "settings", sf: { default: "gearshape", selected: "gearshape.fill" } },
+const TABS: { name: string; label: string; icon: IconName }[] = [
+  { name: "index", label: "Home", icon: "home" },
+  { name: "calendar", label: "Calendar", icon: "cal" },
+  { name: "insights", label: "Insights", icon: "chart" },
+  { name: "settings", label: "Settings", icon: "gear" },
 ];
 
-function NativeTabLayout() {
-  return (
-    <NativeTabs>
-      {TABS.map((t) => (
-        <NativeTabs.Trigger key={t.name} name={t.name}>
-          <Icon sf={{ default: t.sf.default, selected: t.sf.selected }} />
-          <Label>{t.title}</Label>
-        </NativeTabs.Trigger>
-      ))}
-    </NativeTabs>
-  );
-}
+type TabBarProps = {
+  state: { index: number; routes: { key: string; name: string }[] };
+  navigation: {
+    emit: (e: { type: "tabPress"; target: string; canPreventDefault: true }) => {
+      defaultPrevented: boolean;
+    };
+    navigate: (name: string) => void;
+  };
+};
 
-function ClassicTabLayout() {
-  const colors = useColors();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const isIOS = Platform.OS === "ios";
-  const isWeb = Platform.OS === "web";
-
+function TabBar({ state, navigation }: TabBarProps) {
+  const t = useTheme();
+  const insets = useSafeAreaInsets();
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.mutedForeground,
-        headerShown: false,
-        tabBarStyle: {
-          position: "absolute",
-          backgroundColor: isIOS ? "transparent" : colors.background,
-          borderTopWidth: isWeb ? 1 : 0,
-          borderTopColor: colors.border,
-          elevation: 0,
-          ...(isWeb ? { height: 84 } : {}),
-        },
-        tabBarBackground: () =>
-          isIOS ? (
-            <BlurView intensity={100} tint={isDark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
-          ) : isWeb ? (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]} />
-          ) : null,
+    <View
+      style={{
+        flexDirection: "row",
+        backgroundColor: t.surface1,
+        borderTopWidth: 1,
+        borderTopColor: t.hair,
+        paddingTop: 8,
+        paddingBottom: Math.max(insets.bottom, 8),
       }}
     >
-      {TABS.map((t) => (
-        <Tabs.Screen
-          key={t.name}
-          name={t.name}
-          options={{
-            title: t.title,
-            tabBarIcon: ({ color }) =>
-              isIOS ? (
-                <SymbolView name={t.sf.default} tintColor={color} size={24} />
-              ) : (
-                <Feather name={t.feather} size={22} color={color} />
-              ),
-          }}
-        />
-      ))}
-    </Tabs>
+      {state.routes.map((route, i) => {
+        const meta = TABS.find((x) => x.name === route.name);
+        if (!meta) return null;
+        const focused = state.index === i;
+        const color = focused ? t.accent : t.txtLow;
+        return (
+          <Pressable
+            key={route.key}
+            onPress={() => {
+              const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
+              if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
+            }}
+            style={{ flex: 1, alignItems: "center", gap: 4, paddingVertical: 4 }}
+          >
+            <Icon name={meta.icon} size={22} color={color} />
+            <Text style={{ fontFamily: t.fonts.medium, fontSize: 11, color }}>{meta.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 
-export default function TabLayout() {
-  const colors = useColors();
-  const { hasAccess, loading } = useSettings();
-
-  if (PAYWALL_ENABLED && !hasAccess) {
-    if (loading) {
-      return (
-        <View style={[styles.center, { backgroundColor: colors.background }]}>
-          <ActivityIndicator color={colors.primary} size="large" />
-        </View>
-      );
-    }
-    return (
-      <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <Paywall />
-      </View>
-    );
-  }
-
-  if (isLiquidGlassAvailable()) {
-    return <NativeTabLayout />;
-  }
-  return <ClassicTabLayout />;
+function AvatarFab() {
+  const t = useTheme();
+  const router = useRouter();
+  const { persona } = useJudith();
+  return (
+    <Pressable
+      onPress={() => router.push("/ask")}
+      style={({ pressed }) => [
+        {
+          position: "absolute",
+          right: 16,
+          bottom: 80,
+          width: 58,
+          height: 58,
+          borderRadius: 29,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: t.surface1,
+          borderWidth: 1,
+          borderColor: t.hair,
+          shadowColor: "#000",
+          shadowOpacity: 0.35,
+          shadowRadius: 14,
+          shadowOffset: { width: 0, height: 8 },
+          elevation: 8,
+        },
+        pressed && { transform: [{ scale: 0.94 }] },
+      ]}
+    >
+      <JudithAvatar persona={persona} size={50} badge />
+    </Pressable>
+  );
 }
 
-const styles = StyleSheet.create({
-  center: { flex: 1 },
-});
+export default function TabsLayout() {
+  const t = useTheme();
+  const pathname = usePathname();
+  const showFab = !pathname.endsWith("/settings");
+
+  return (
+    <View style={{ flex: 1, backgroundColor: t.canvas }}>
+      <Tabs
+        tabBar={(props) => <TabBar {...props} />}
+        screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: t.canvas } }}
+      >
+        <Tabs.Screen name="index" />
+        <Tabs.Screen name="calendar" />
+        <Tabs.Screen name="insights" />
+        <Tabs.Screen name="settings" />
+      </Tabs>
+      {showFab && <AvatarFab />}
+      <Toast />
+    </View>
+  );
+}

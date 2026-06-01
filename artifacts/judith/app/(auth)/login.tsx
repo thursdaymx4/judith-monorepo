@@ -1,158 +1,183 @@
-import * as Haptics from "expo-haptics";
 import React, { useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { ActivityIndicator, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { JudithOrb } from "@/components/JudithOrb";
-import { Button } from "@/components/ui";
+import { JudithAvatar } from "@/components/JudithAvatar";
+import { Btn, Low, Txt } from "@/components/ui";
 import { useAuth } from "@/contexts/AuthContext";
-import { useColors } from "@/hooks/useColors";
+import { useJudith } from "@/contexts/JudithStore";
+import { useTheme } from "@/hooks/useTheme";
 
 export default function LoginScreen() {
-  const colors = useColors();
+  const t = useTheme();
+  const insets = useSafeAreaInsets();
+  const { persona } = useJudith();
   const { signInWithOtp, verifyOtp } = useAuth();
-
-  const [step, setStep] = useState<"email" | "otp">("email");
+  const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [err, setErr] = useState("");
 
-  const sendCode = async () => {
-    if (!email.includes("@")) {
-      setError("Maglagay ng wastong email.");
-      return;
-    }
+  const inputStyle = {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: t.hair,
+    backgroundColor: t.surface1,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    color: t.txtHi,
+    fontFamily: t.fonts.regular,
+    fontSize: 15,
+  } as const;
+
+  const send = async () => {
+    setErr("");
     setBusy(true);
-    setError(null);
     try {
       await signInWithOtp(email);
-      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setStep("otp");
+      setStep("code");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "May mali. Subukan ulit.");
+      setErr(e instanceof Error ? e.message : "Something went wrong");
     } finally {
       setBusy(false);
     }
   };
 
-  const confirm = async () => {
-    if (code.trim().length < 4) {
-      setError("Ilagay ang code mula sa email mo.");
-      return;
-    }
+  const verify = async () => {
+    setErr("");
     setBusy(true);
-    setError(null);
     try {
       await verifyOtp(email, code);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Mali ang code. Subukan ulit.");
+      setErr(e instanceof Error ? e.message : "Invalid code");
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.flex}
+    <View style={{ flex: 1, backgroundColor: t.canvas }}>
+      {/* scroll center */}
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          paddingHorizontal: 22,
+          paddingTop: insets.top + 14,
+          paddingBottom: 26,
+        }}
       >
-        <View style={styles.content}>
-          <View style={styles.hero}>
-            <JudithOrb size={140} state="idle" />
-            <Text style={[styles.title, { color: colors.foreground }]}>Judith</Text>
-            <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-              Ang personal mong due date assistant
-            </Text>
-          </View>
+        <JudithAvatar persona={persona} size={92} state="idle" />
 
-          <View style={styles.form}>
-            {step === "email" ? (
-              <>
-                <Text style={[styles.label, { color: colors.mutedForeground }]}>
-                  Email
-                </Text>
+        <Txt
+          size={12}
+          weight="semibold"
+          color={t.accent}
+          style={{
+            letterSpacing: 1.92,
+            textTransform: "uppercase",
+            marginTop: 26,
+            marginBottom: 8,
+          }}
+        >
+          Welcome back
+        </Txt>
+
+        <Txt
+          size={27}
+          weight="semibold"
+          style={{
+            lineHeight: 30,
+            letterSpacing: -0.4,
+            textAlign: "center",
+            maxWidth: 280,
+            marginTop: 4,
+          }}
+        >
+          {step === "email" ? "Sign in to Judith" : "Check your email"}
+        </Txt>
+
+        <Txt
+          size={15}
+          color={t.txtMid}
+          style={{ lineHeight: 21, textAlign: "center", maxWidth: 270, marginTop: 10 }}
+        >
+          {step === "email"
+            ? "Your due dates, handled — pick up right where you left off."
+            : `I sent a 6-digit code to ${email}.`}
+        </Txt>
+
+        {/* fields */}
+        <View style={{ marginTop: 26, width: "100%" }}>
+          {step === "email" ? (
+            <View style={{ width: "100%", gap: 11 }}>
+              <View>
+                <Txt size={12} color={t.txtMid} style={{ marginBottom: 6 }}>
+                  Email or mobile
+                </Txt>
                 <TextInput
+                  style={inputStyle}
+                  placeholder="you@email.com"
+                  placeholderTextColor={t.txtLow}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="email-address"
                   value={email}
                   onChangeText={setEmail}
-                  placeholder="ikaw@email.com"
-                  placeholderTextColor={colors.mutedForeground}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  autoComplete="email"
-                  style={[
-                    styles.input,
-                    { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground },
-                  ]}
                 />
-                <Button label="Ipadala ang code" onPress={sendCode} loading={busy} style={styles.cta} />
-              </>
-            ) : (
-              <>
-                <Text style={[styles.label, { color: colors.mutedForeground }]}>
-                  Code na ipinadala sa {email}
-                </Text>
+              </View>
+            </View>
+          ) : (
+            <View style={{ width: "100%", gap: 11 }}>
+              <View>
+                <Txt size={12} color={t.txtMid} style={{ marginBottom: 6 }}>
+                  6-digit code
+                </Txt>
                 <TextInput
+                  style={inputStyle}
+                  placeholder="••••••"
+                  placeholderTextColor={t.txtLow}
+                  keyboardType="number-pad"
                   value={code}
                   onChangeText={setCode}
-                  placeholder="123456"
-                  placeholderTextColor={colors.mutedForeground}
-                  keyboardType="number-pad"
-                  style={[
-                    styles.input,
-                    styles.code,
-                    { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground },
-                  ]}
                 />
-                <Button label="Mag-login" onPress={confirm} loading={busy} style={styles.cta} />
-                <Button
-                  label="Baguhin ang email"
-                  variant="ghost"
-                  onPress={() => {
-                    setStep("email");
-                    setCode("");
-                    setError(null);
-                  }}
-                  style={styles.secondary}
-                />
-              </>
-            )}
-            {error ? (
-              <Text style={[styles.error, { color: colors.destructive }]}>{error}</Text>
-            ) : null}
-          </View>
+              </View>
+            </View>
+          )}
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      </View>
+
+      {/* cta-bar */}
+      <View
+        style={{
+          paddingHorizontal: 22,
+          paddingTop: 12,
+          paddingBottom: insets.bottom + 20,
+          gap: 9,
+        }}
+      >
+        {step === "email" ? (
+          <Btn label={busy ? "" : "Send code"} onPress={send}>
+            {busy && <ActivityIndicator color={t.onAccent} />}
+          </Btn>
+        ) : (
+          <>
+            <Btn label={busy ? "" : "Log in"} onPress={verify}>
+              {busy && <ActivityIndicator color={t.onAccent} />}
+            </Btn>
+            <Btn label="Use a different email" variant="ghost" onPress={() => setStep("email")} />
+          </>
+        )}
+
+        {!!err && (
+          <Low size={13} color={t.semantic.urgent} style={{ textAlign: "center", paddingTop: 4 }}>
+            {err}
+          </Low>
+        )}
+      </View>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  flex: { flex: 1 },
-  content: { flex: 1, justifyContent: "center", paddingHorizontal: 24, gap: 40 },
-  hero: { alignItems: "center", gap: 8 },
-  title: { fontSize: 40, fontWeight: "800", marginTop: 8 },
-  subtitle: { fontSize: 15, textAlign: "center" },
-  form: { gap: 10 },
-  label: { fontSize: 13, fontWeight: "600", marginBottom: 2 },
-  input: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 15,
-    fontSize: 16,
-  },
-  code: { letterSpacing: 8, textAlign: "center", fontSize: 22 },
-  cta: { marginTop: 6 },
-  secondary: { marginTop: 2 },
-  error: { fontSize: 13, textAlign: "center", marginTop: 4 },
-});

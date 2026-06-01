@@ -1,349 +1,399 @@
-import { Feather } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
-import React, { useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import React from "react";
+import { Pressable, Text, View } from "react-native";
 
-import { JudithOrb } from "@/components/JudithOrb";
-import { Button, SectionLabel } from "@/components/ui";
-import { PRICE_LABEL } from "@/constants/config";
+import { Icon, type IconName } from "@/components/Icon";
+import { Dot, Low, Mono, Screen, Txt, mix } from "@/components/ui";
+import { VOICES } from "@/constants/data";
 import { PERSONAS } from "@/constants/personas";
-import { useAuth } from "@/contexts/AuthContext";
-import { useSettings } from "@/contexts/SettingsContext";
-import { useColors } from "@/hooks/useColors";
-import { listBills } from "@/lib/bills";
-import { playBase64Mp3 } from "@/lib/audio";
-import { syncReminders } from "@/lib/notifications";
-import { fetchSample, fetchVoices, previewVoice } from "@/lib/proxy";
-import {
-  getMonthlyPackage,
-  isPurchasesConfigured,
-  purchasePackage,
-  restorePurchases,
-} from "@/lib/purchases";
+import { useJudith, type Toggles } from "@/contexts/JudithStore";
+import { useTheme } from "@/hooks/useTheme";
 
-const VOICE_PREVIEW_LINE =
-  "Kumusta, ako si Judith. Ganito ang boses ko kapag nagpapaalala ng bayarin.";
+interface ToggleDef {
+  key: keyof Toggles;
+  icon: IconName;
+  t: string;
+  s: string;
+}
 
-export default function SettingsScreen() {
-  const colors = useColors();
-  const { user, signOut } = useAuth();
-  const { profile, setPersona, setVoice, setRemindersEnabled, hasAccess, refresh } =
-    useSettings();
-  const { data: bills = [] } = useQuery({
-    queryKey: ["bills"],
-    queryFn: listBills,
-    enabled: !!user,
-  });
-  const {
-    data: voices = [],
-    isLoading: voicesLoading,
-    isError: voicesError,
-  } = useQuery({
-    queryKey: ["voices"],
-    queryFn: fetchVoices,
-    enabled: !!user,
-    staleTime: 1000 * 60 * 60,
-  });
+const TOGGLE_DEFS: ToggleDef[] = [
+  { key: "dueReminders", icon: "bell", t: "Due-date reminders", s: "Before every bill" },
+  { key: "widget", icon: "grid", t: "Home-screen widget", s: "Next due bill at a glance" },
+  { key: "watch", icon: "watch", t: "Apple Watch", s: "Glanceable on your wrist" },
+  { key: "nudges", icon: "wallet", t: "Payment nudges", s: "Remind me to pay, not autopay" },
+];
 
-  const [sampling, setSampling] = useState<string | null>(null);
-  const [previewing, setPreviewing] = useState<string | null>(null);
-  const [subBusy, setSubBusy] = useState<"restore" | "subscribe" | null>(null);
-  const [subMessage, setSubMessage] = useState<string | null>(null);
-
-  const playSample = async (personaId: string) => {
-    setSampling(personaId);
-    try {
-      const res = await fetchSample(personaId as never);
-      await playBase64Mp3(res.audioBase64);
-    } catch {
-      // ignore sample failures silently
-    } finally {
-      setSampling(null);
-    }
-  };
-
-  const playVoicePreview = async (voiceId: string) => {
-    setPreviewing(voiceId);
-    try {
-      const res = await previewVoice(voiceId, VOICE_PREVIEW_LINE);
-      await playBase64Mp3(res.audioBase64);
-    } catch {
-      // ignore preview failures silently
-    } finally {
-      setPreviewing(null);
-    }
-  };
-
-  const toggleReminders = async (enabled: boolean) => {
-    await setRemindersEnabled(enabled);
-    await syncReminders(bills, enabled);
-  };
-
-  const handleRestore = async () => {
-    setSubBusy("restore");
-    setSubMessage(null);
-    try {
-      const ok = await restorePurchases();
-      await refresh();
-      setSubMessage(
-        ok ? "Na-restore ang Premium mo." : "Walang nahanap na subscription.",
-      );
-    } catch {
-      setSubMessage("Hindi ma-restore ngayon. Subukan ulit mamaya.");
-    } finally {
-      setSubBusy(null);
-    }
-  };
-
-  const handleSubscribe = async () => {
-    setSubBusy("subscribe");
-    setSubMessage(null);
-    try {
-      const pkg = await getMonthlyPackage();
-      if (!pkg) {
-        setSubMessage("Wala pang available na plano ngayon.");
-        return;
-      }
-      const ok = await purchasePackage(pkg);
-      await refresh();
-      if (ok) setSubMessage("Salamat! Aktibo na ang Premium mo.");
-    } catch {
-      setSubMessage("Hindi natuloy ang pag-subscribe. Subukan ulit.");
-    } finally {
-      setSubBusy(null);
-    }
-  };
-
+function IcoBox({
+  name,
+  size = 38,
+  iconSize,
+  color,
+  borderColor,
+}: {
+  name: IconName;
+  size?: number;
+  iconSize: number;
+  color: string;
+  borderColor?: string;
+}) {
+  const t = useTheme();
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={["top"]}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.title, { color: colors.foreground }]}>Mga Setting</Text>
-
-        <View style={styles.section}>
-          <SectionLabel>Persona ni Judith</SectionLabel>
-          <View style={styles.list}>
-            {PERSONAS.map((p) => {
-              const active = profile.persona === p.id;
-              return (
-                <Pressable
-                  key={p.id}
-                  onPress={() => void setPersona(p.id)}
-                  style={[
-                    styles.personaRow,
-                    {
-                      backgroundColor: colors.card,
-                      borderColor: active ? p.color : colors.border,
-                      borderWidth: active ? 2 : StyleSheet.hairlineWidth,
-                    },
-                  ]}
-                >
-                  <View style={[styles.personaIcon, { backgroundColor: colors.secondary }]}>
-                    <Feather name={p.icon} size={20} color={p.color} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.personaName, { color: colors.foreground }]}>{p.name}</Text>
-                    <Text style={[styles.personaDesc, { color: colors.mutedForeground }]} numberOfLines={1}>
-                      {p.description}
-                    </Text>
-                  </View>
-                  <Pressable
-                    hitSlop={10}
-                    onPress={() => void playSample(p.id)}
-                    style={[styles.playBtn, { backgroundColor: colors.secondary }]}
-                  >
-                    <Feather
-                      name={sampling === p.id ? "loader" : "play"}
-                      size={16}
-                      color={colors.foreground}
-                    />
-                  </Pressable>
-                  {active ? <Feather name="check-circle" size={20} color={p.color} /> : null}
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <SectionLabel>Boses ni Judith</SectionLabel>
-          {voicesLoading ? (
-            <View style={[styles.row, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <ActivityIndicator color={colors.primary} />
-              <Text style={[styles.rowSub, { color: colors.mutedForeground, flex: 1 }]}>
-                Kinukuha ang mga boses…
-              </Text>
-            </View>
-          ) : voicesError ? (
-            <View style={[styles.row, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Feather name="alert-circle" size={18} color={colors.mutedForeground} />
-              <Text style={[styles.rowSub, { color: colors.mutedForeground, flex: 1 }]}>
-                Hindi ma-load ang mga boses ngayon.
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.list}>
-              {voices.map((v) => {
-                const active = profile.voice_id === v.id;
-                return (
-                  <Pressable
-                    key={v.id}
-                    onPress={() => void setVoice(v.id)}
-                    style={[
-                      styles.personaRow,
-                      {
-                        backgroundColor: colors.card,
-                        borderColor: active ? colors.primary : colors.border,
-                        borderWidth: active ? 2 : StyleSheet.hairlineWidth,
-                      },
-                    ]}
-                  >
-                    <View style={[styles.personaIcon, { backgroundColor: colors.secondary }]}>
-                      <Feather name="mic" size={18} color={colors.primary} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.personaName, { color: colors.foreground }]} numberOfLines={1}>
-                        {v.name}
-                      </Text>
-                      {v.category ? (
-                        <Text style={[styles.personaDesc, { color: colors.mutedForeground }]} numberOfLines={1}>
-                          {v.category}
-                        </Text>
-                      ) : null}
-                    </View>
-                    <Pressable
-                      hitSlop={10}
-                      onPress={() => void playVoicePreview(v.id)}
-                      style={[styles.playBtn, { backgroundColor: colors.secondary }]}
-                    >
-                      <Feather
-                        name={previewing === v.id ? "loader" : "play"}
-                        size={16}
-                        color={colors.foreground}
-                      />
-                    </Pressable>
-                    {active ? <Feather name="check-circle" size={20} color={colors.primary} /> : null}
-                  </Pressable>
-                );
-              })}
-            </View>
-          )}
-        </View>
-
-        <View style={styles.section}>
-          <SectionLabel>Mga paalala</SectionLabel>
-          <View style={[styles.row, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.rowTitle, { color: colors.foreground }]}>Mga reminder</Text>
-              <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
-                Paalala bago mag-due ang bill
-              </Text>
-            </View>
-            <Switch
-              value={profile.reminders_enabled}
-              onValueChange={(v) => void toggleReminders(v)}
-              trackColor={{ true: colors.primary, false: colors.border }}
-            />
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <SectionLabel>Subscription</SectionLabel>
-          <View style={[styles.subCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <JudithOrb size={48} state="idle" />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.rowTitle, { color: colors.foreground }]}>
-                {hasAccess ? "Premium aktibo" : "Judith Premium"}
-              </Text>
-              <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
-                {hasAccess ? "Salamat sa pag-subscribe!" : `${PRICE_LABEL} — buong access`}
-              </Text>
-            </View>
-          </View>
-
-          {!isPurchasesConfigured ? (
-            <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
-              Hindi pa naka-set up ang billing sa device na ito.
-            </Text>
-          ) : (
-            <View style={styles.list}>
-              {!hasAccess ? (
-                <Button
-                  label={subBusy === "subscribe" ? "Sandali lang…" : `Mag-subscribe — ${PRICE_LABEL}`}
-                  icon="zap"
-                  onPress={() => void handleSubscribe()}
-                  disabled={subBusy !== null}
-                />
-              ) : null}
-              <Button
-                label={subBusy === "restore" ? "Nire-restore…" : "I-restore ang subscription"}
-                variant="ghost"
-                icon="refresh-ccw"
-                onPress={() => void handleRestore()}
-                disabled={subBusy !== null}
-              />
-            </View>
-          )}
-          {subMessage ? (
-            <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>{subMessage}</Text>
-          ) : null}
-        </View>
-
-        <View style={styles.section}>
-          <View style={[styles.row, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Feather name="mail" size={18} color={colors.mutedForeground} />
-            <Text style={[styles.rowSub, { color: colors.mutedForeground, flex: 1 }]} numberOfLines={1}>
-              {user?.email ?? "—"}
-            </Text>
-          </View>
-          <Button label="Mag-logout" variant="ghost" icon="log-out" onPress={() => void signOut()} />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 11,
+        borderWidth: 1,
+        borderColor: borderColor ?? t.hair,
+        backgroundColor: t.surface3,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Icon name={name} size={iconSize} color={color} />
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  content: { padding: 20, paddingBottom: 120, gap: 24 },
-  title: { fontSize: 28, fontWeight: "800" },
-  section: { gap: 12 },
-  list: { gap: 10 },
-  personaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 12,
-    borderRadius: 16,
-  },
-  personaIcon: { width: 42, height: 42, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  personaName: { fontSize: 16, fontWeight: "700" },
-  personaDesc: { fontSize: 13, marginTop: 1 },
-  playBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  rowTitle: { fontSize: 16, fontWeight: "700" },
-  rowSub: { fontSize: 13, marginTop: 1 },
-  subCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    padding: 16,
-    borderRadius: 18,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-});
+function Toggle({ on, onPress }: { on: boolean; onPress: () => void }) {
+  const t = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        width: 46,
+        height: 28,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: on ? t.accent : t.hair,
+        backgroundColor: on ? t.accent : t.surface3,
+      }}
+    >
+      <View
+        style={{
+          position: "absolute",
+          top: 2,
+          left: 2,
+          width: 22,
+          height: 22,
+          borderRadius: 11,
+          backgroundColor: "#fff",
+          transform: [{ translateX: on ? 18 : 0 }],
+        }}
+      />
+    </Pressable>
+  );
+}
+
+function VoiceLabel({ children }: { children: React.ReactNode }) {
+  const t = useTheme();
+  return (
+    <Text
+      style={{
+        fontFamily: t.fonts.medium,
+        fontSize: 13,
+        color: t.txtMid,
+        letterSpacing: 0.5,
+        textTransform: "uppercase",
+        marginTop: 18,
+        marginBottom: 10,
+      }}
+    >
+      Voice{" "}
+      <Text style={{ color: t.txtLow, textTransform: "none", letterSpacing: 0 }}>{children}</Text>
+    </Text>
+  );
+}
+
+function SettingsLabel({ children }: { children: React.ReactNode }) {
+  const t = useTheme();
+  return (
+    <Text
+      style={{
+        fontFamily: t.fonts.medium,
+        fontSize: 13,
+        color: t.txtMid,
+        letterSpacing: 0.5,
+        textTransform: "uppercase",
+        marginTop: 18,
+        marginBottom: 10,
+      }}
+    >
+      {children}
+    </Text>
+  );
+}
+
+export default function SettingsScreen() {
+  const t = useTheme();
+  const router = useRouter();
+  const { persona, setPersona, voiceId, setVoice, toggles, setToggle, asksLeft, tier, theme, setTheme, restart, money } =
+    useJudith();
+
+  const subscribed = tier !== "free";
+  const isPro = tier === "unlimited";
+
+  const rowBase = {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 13,
+    paddingVertical: 14,
+    paddingHorizontal: 15,
+    borderWidth: 1,
+    borderColor: t.hair,
+    backgroundColor: t.surface2,
+  };
+
+  return (
+    <Screen contentStyle={{ paddingTop: 8, paddingBottom: 24 }}>
+      <Text
+        style={{
+          fontFamily: t.fonts.semibold,
+          fontSize: 28,
+          color: t.txtHi,
+          letterSpacing: -0.56,
+          marginTop: 6,
+          marginBottom: 14,
+        }}
+      >
+        Settings
+      </Text>
+
+      {/* plan */}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 14,
+          borderWidth: 1,
+          borderColor: mix(t.accent, t.surface2, 0.3),
+          borderRadius: t.radius.md,
+          backgroundColor: mix(t.accent, t.surface2, 0.14),
+          padding: t.space.pad,
+        }}
+      >
+        <IcoBox
+          name="star"
+          size={44}
+          iconSize={20}
+          color={t.accent}
+          borderColor={mix(t.accent, t.surface2, 0.4)}
+        />
+        <View style={{ flex: 1 }}>
+          <Txt size={14} weight="semibold">
+            Judith Premium
+          </Txt>
+          <Low size={12}>
+            <Mono size={12}>{money(199)}</Mono> · Lifetime · Active
+          </Low>
+        </View>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+          <Dot kind="ok" />
+          <Txt size={12} color={t.semantic.ok}>
+            Active
+          </Txt>
+        </View>
+      </View>
+
+      {/* asks */}
+      <Pressable
+        onPress={() => router.push("/plans")}
+        style={({ pressed }) => [
+          { ...rowBase, borderRadius: t.radius.md, marginTop: 12 },
+          pressed && { transform: [{ scale: 0.99 }] },
+        ]}
+      >
+        <IcoBox name={subscribed ? "star" : "spark"} iconSize={18} color={t.accent} />
+        <View style={{ flex: 1 }}>
+          <Txt size={15} weight="medium">
+            {subscribed ? (isPro ? "Judith Unlimited" : "Judith+") : "Ask Judith"}
+          </Txt>
+          <Low size={12} style={{ marginTop: 1 }}>
+            {subscribed ? (
+              isPro ? (
+                <>
+                  Unlimited asks · <Mono size={12}>{money(199)}</Mono>/mo
+                </>
+              ) : (
+                <>
+                  <Mono size={12}>{asksLeft}</Mono> of 50 asks left · <Mono size={12}>{money(99)}</Mono>/mo
+                </>
+              )
+            ) : (
+              <>
+                <Mono size={12}>{asksLeft}</Mono> free asks left
+              </>
+            )}
+          </Low>
+        </View>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor: t.surface2,
+            borderWidth: 1,
+            borderColor: t.hair,
+            borderRadius: 20,
+            paddingVertical: 6,
+            paddingHorizontal: 12,
+          }}
+        >
+          <Text style={{ fontFamily: t.fonts.bold, fontSize: 13, color: t.accent }}>
+            {subscribed ? (isPro ? "Manage" : "Upgrade") : "Go unlimited"}
+          </Text>
+        </View>
+      </Pressable>
+
+      {/* appearance */}
+      <SettingsLabel>Appearance</SettingsLabel>
+      <View style={{ flexDirection: "row", gap: 10 }}>
+        {(["dark", "light"] as const).map((mode) => {
+          const on = theme === mode;
+          return (
+            <Pressable
+              key={mode}
+              onPress={() => setTheme(mode)}
+              style={{
+                flex: 1,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 9,
+                padding: 16,
+                borderRadius: t.radius.md,
+                borderWidth: 1,
+                borderColor: on ? t.accent : t.hair,
+                backgroundColor: t.surface2,
+              }}
+            >
+              <Icon name={mode === "dark" ? "moon" : "sun"} size={17} color={on ? t.txtHi : t.txtMid} />
+              <Text style={{ fontFamily: t.fonts.semibold, fontSize: 15, color: on ? t.txtHi : t.txtMid }}>
+                {mode === "dark" ? "Dark" : "Light"}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* persona */}
+      <SettingsLabel>Judith's personality</SettingsLabel>
+      <View style={{ borderRadius: t.radius.md, overflow: "hidden" }}>
+        {PERSONAS.map((p, i) => {
+          const on = persona === p.id;
+          return (
+            <Pressable
+              key={p.id}
+              onPress={() => setPersona(p.id)}
+              style={{ ...rowBase, borderTopWidth: i === 0 ? 1 : 0, borderBottomWidth: 0 }}
+            >
+              <IcoBox name={p.icon as IconName} iconSize={17} color={on ? t.accent : t.txtMid} />
+              <View style={{ flex: 1 }}>
+                <Txt size={15} weight="medium">
+                  {p.name}
+                </Txt>
+                <Low size={12} style={{ marginTop: 1 }}>
+                  {p.vibe}
+                </Low>
+              </View>
+              {on ? <Icon name="check" size={18} color={t.accent} /> : <View style={{ width: 18 }} />}
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* voice */}
+      <VoiceLabel>· powered by ElevenLabs</VoiceLabel>
+      <View style={{ borderRadius: t.radius.md, overflow: "hidden" }}>
+        {VOICES.map((v, i) => {
+          const on = voiceId === v.id;
+          return (
+            <Pressable
+              key={v.id}
+              onPress={() => setVoice(v.id)}
+              style={{ ...rowBase, borderTopWidth: i === 0 ? 1 : 0, borderBottomWidth: 0 }}
+            >
+              <IcoBox name="play" iconSize={15} color={on ? t.accent : t.txtMid} />
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <Txt size={15} weight="medium">
+                    {v.name}
+                  </Txt>
+                  {v.tag && (
+                    <View
+                      style={{
+                        marginLeft: 4,
+                        borderWidth: 1,
+                        borderColor: t.accent,
+                        borderRadius: 22,
+                        paddingVertical: 2,
+                        paddingHorizontal: 7,
+                        backgroundColor: mix(t.accent, t.surface2, 0.16),
+                      }}
+                    >
+                      <Text style={{ fontFamily: t.fonts.regular, fontSize: 9, color: t.txtHi }}>{v.tag}</Text>
+                    </View>
+                  )}
+                </View>
+                <Low size={12} style={{ marginTop: 1 }}>
+                  {v.desc}
+                </Low>
+              </View>
+              {on ? <Icon name="check" size={18} color={t.accent} /> : <View style={{ width: 18 }} />}
+            </Pressable>
+          );
+        })}
+      </View>
+      <Low size={12} style={{ marginTop: 8, lineHeight: 17 }}>
+        Judith always speaks in English, in the voice you choose — even when your bills are local.
+      </Low>
+
+      {/* reminders */}
+      <SettingsLabel>Reminders & devices</SettingsLabel>
+      <View style={{ borderRadius: t.radius.md, overflow: "hidden" }}>
+        {TOGGLE_DEFS.map((d, i) => {
+          const on = toggles[d.key];
+          return (
+            <View key={d.key} style={{ ...rowBase, borderTopWidth: i === 0 ? 1 : 0, borderBottomWidth: 0 }}>
+              <IcoBox name={d.icon} iconSize={17} color={on ? t.accent : t.txtMid} />
+              <View style={{ flex: 1 }}>
+                <Txt size={15} weight="medium">
+                  {d.t}
+                </Txt>
+                <Low size={12} style={{ marginTop: 1 }}>
+                  {d.s}
+                </Low>
+              </View>
+              <Toggle on={on} onPress={() => setToggle(d.key, !on)} />
+            </View>
+          );
+        })}
+      </View>
+
+      <Pressable
+        onPress={() => router.push("/devices")}
+        style={({ pressed }) => [
+          { ...rowBase, borderRadius: t.radius.md, marginTop: 9 },
+          pressed && { transform: [{ scale: 0.99 }] },
+        ]}
+      >
+        <IcoBox name="watch" iconSize={17} color={t.accent} />
+        <View style={{ flex: 1 }}>
+          <Txt size={15} weight="medium">
+            Preview on your devices
+          </Txt>
+          <Low size={12} style={{ marginTop: 1 }}>
+            Widgets & Apple Watch concepts
+          </Low>
+        </View>
+        <Icon name="chev" size={16} color={t.txtMid} />
+      </Pressable>
+
+      <View style={{ alignItems: "center", marginTop: 22 }}>
+        <Low size={12}>Judith v1.0 · Made for the Philippines</Low>
+        <Pressable onPress={restart} style={{ marginTop: 6 }}>
+          <Low size={12}>Restart demo</Low>
+        </Pressable>
+      </View>
+    </Screen>
+  );
+}

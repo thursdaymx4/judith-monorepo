@@ -12,15 +12,25 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useColors } from "@/hooks/useColors";
+import { ACCENTS, DARK } from "@/constants/theme";
 
 export type ErrorFallbackProps = {
   error: Error;
   resetError: () => void;
 };
 
+// Hardcoded (dark) palette: this renders above the theme provider on crash.
+const colors = {
+  background: DARK.canvas,
+  card: DARK.surface2,
+  foreground: DARK.txtHi,
+  mutedForeground: DARK.txtMid,
+  border: DARK.hair,
+  primary: ACCENTS.mint,
+  primaryForeground: DARK.onAccent,
+};
+
 export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
-  const colors = useColors();
   const insets = useSafeAreaInsets();
 
   const [isModalVisible, setIsModalVisible] = useState(false);

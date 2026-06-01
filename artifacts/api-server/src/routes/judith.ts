@@ -144,6 +144,41 @@ function buildBillsContext(bills: BillRow[], today: Date): string {
   return `${summary.join("\n")}\n\nBILLS:\n${lines.join("\n")}`;
 }
 
+interface ClientBill {
+  provider?: string | null;
+  cat?: string | null;
+  amount?: number | null;
+  dueDays?: number | null;
+  dueLabel?: string | null;
+  status?: string | null;
+}
+
+function pesoStr(n: number): string {
+  return `₱${Math.round(n).toLocaleString("en-US")}`;
+}
+
+function buildClientContext(bills: ClientBill[], today: Date): string {
+  const due = bills.filter((b) => b.status !== "paid");
+  const total = due.reduce((s, b) => s + (b.amount ?? 0), 0);
+  const dueThisWeek = due
+    .filter((b) => (b.dueDays ?? 0) >= 0 && (b.dueDays ?? 0) <= 7)
+    .reduce((s, b) => s + (b.amount ?? 0), 0);
+  const lines = bills.map((b) => {
+    const days = b.dueDays ?? 0;
+    const when =
+      days === 0 ? "due TODAY" : days < 0 ? `OVERDUE by ${Math.abs(days)} day(s)` : `due in ${days} day(s)`;
+    return `- ${b.provider ?? "Bill"} (${b.cat ?? "Other"}): ${pesoStr(b.amount ?? 0)}, ${b.dueLabel ?? "—"}, ${when}, ${b.status ?? "unpaid"}.`;
+  });
+  return [
+    `Today is ${englishDate(today)} (${englishWeekday(today)}).`,
+    `Total still due (unpaid): ${pesoStr(total)}.`,
+    `Total of bills due within 7 days: ${pesoStr(dueThisWeek)}.`,
+    "",
+    "BILLS:",
+    lines.join("\n"),
+  ].join("\n");
+}
+
 async function loadUserData(userId: string) {
   const admin = getSupabaseAdmin();
   const [profileRes, billsRes] = await Promise.all([
@@ -190,14 +225,25 @@ router.post("/ask", async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
-    const { text } = req.body ?? {};
+    const { text, bills: bodyBills, persona: bodyPersona } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
       res.status(400).json({ error: "text is required" });
       return;
     }
 
-    const { persona, voiceId, bills } = await loadUserData(user.id);
-    const context = buildBillsContext(bills, new Date());
+    let persona: PersonaId;
+    let voiceId: string;
+    let context: string;
+    if (Array.isArray(bodyBills)) {
+      persona = coercePersona(bodyPersona);
+      voiceId = DEFAULT_VOICE_IDS[persona];
+      context = buildClientContext(bodyBills as ClientBill[], new Date());
+    } else {
+      const data = await loadUserData(user.id);
+      persona = data.persona;
+      voiceId = data.voiceId;
+      context = buildBillsContext(data.bills, new Date());
+    }
 
     const anthropic = getAnthropic();
     const message = await anthropic.messages.create({
