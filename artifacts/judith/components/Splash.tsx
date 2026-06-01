@@ -1,5 +1,5 @@
 import { LinearGradient } from "expo-linear-gradient";
-import React, { useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { Animated, Easing, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -17,10 +17,10 @@ interface FloatCat {
 }
 
 const CATS: FloatCat[] = [
-  { icon: "zap", t: "Electricity", color: "#f28f29", pos: { top: 120, left: 16 }, delay: 0 },
-  { icon: "wifi", t: "Internet", color: "#a289f8", pos: { top: 172, right: 14 }, delay: 600 },
-  { icon: "droplet", t: "Water", color: "#32b3e6", pos: { bottom: 248, left: 20 }, delay: 1200 },
-  { icon: "spark", t: "Subscriptions", color: "#df86d7", pos: { bottom: 200, right: 16 }, delay: 900 },
+  { icon: "zap",     t: "Electricity",  color: "#f28f29", pos: { top: 120,    left: 16 },  delay: 0    },
+  { icon: "wifi",    t: "Internet",      color: "#a289f8", pos: { top: 172,    right: 14 }, delay: 600  },
+  { icon: "droplet", t: "Water",         color: "#32b3e6", pos: { bottom: 248, left: 20 },  delay: 1200 },
+  { icon: "spark",   t: "Subscriptions", color: "#df86d7", pos: { bottom: 200, right: 16 }, delay: 900  },
 ];
 
 function mixAlpha(hex: string, alpha: number): string {
@@ -31,7 +31,7 @@ function mixAlpha(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-function FloatPill({ cat }: { cat: FloatCat }) {
+function FloatPill({ cat, decoExit }: { cat: FloatCat; decoExit: Animated.Value }) {
   const t = useTheme();
   const y = useRef(new Animated.Value(0)).current;
 
@@ -73,6 +73,7 @@ function FloatPill({ cat }: { cat: FloatCat }) {
         borderWidth: 1,
         borderColor: "rgba(255,255,255,0.14)",
         transform: [{ translateY: y }],
+        opacity: decoExit.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
       }}
     >
       <View
@@ -89,7 +90,14 @@ function FloatPill({ cat }: { cat: FloatCat }) {
       >
         <Icon name={cat.icon} size={15} color={cat.color} />
       </View>
-      <Text style={{ fontSize: 13, fontWeight: "600", color: t.txtHi, fontFamily: t.fonts.semibold }}>
+      <Text
+        style={{
+          fontSize: 13,
+          fontWeight: "600",
+          color: t.txtHi,
+          fontFamily: t.fonts.semibold,
+        }}
+      >
         {cat.t}
       </Text>
     </Animated.View>
@@ -102,105 +110,195 @@ export function Splash({ onDone }: { onDone: () => void }) {
   const { persona } = useJudith();
   const insets = useSafeAreaInsets();
 
-  const word = useRef(new Animated.Value(0)).current;
-  const tag = useRef(new Animated.Value(0)).current;
-  const foot = useRef(new Animated.Value(0)).current;
+  // ── entry animations ──────────────────────────────────────────────────────
+  const word  = useRef(new Animated.Value(0)).current;
+  const tag   = useRef(new Animated.Value(0)).current;
+  const foot  = useRef(new Animated.Value(0)).current;
   const bloom = useRef(new Animated.Value(0)).current;
 
+  // ── exit animations ───────────────────────────────────────────────────────
+  const exitOpacity = useRef(new Animated.Value(1)).current; // entire overlay
+  const wordExitY   = useRef(new Animated.Value(0)).current; // wordmark slides up
+  const decoExit    = useRef(new Animated.Value(0)).current; // pills/bloom (0=visible, 1=gone)
+  const avatarScale = useRef(new Animated.Value(1)).current;
+
+  const startExit = useCallback(() => {
+    // wordmark slides up and fades (covered by overlay fade, but exits faster)
+    Animated.timing(wordExitY, {
+      toValue: -26,
+      duration: 360,
+      easing: Easing.ease,
+      useNativeDriver: true,
+    }).start();
+    // pills + bloom bg fade out
+    Animated.timing(decoExit, {
+      toValue: 1,
+      duration: 420,
+      easing: Easing.ease,
+      useNativeDriver: true,
+    }).start();
+    // avatar shrinks toward header position (matches prototype judToAuth scale)
+    Animated.timing(avatarScale, {
+      toValue: 0.7,
+      duration: 540,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+    // full overlay cross-dissolve (slightly delayed so wordmark exits first)
+    Animated.timing(exitOpacity, {
+      toValue: 0,
+      duration: 480,
+      delay: 80,
+      easing: Easing.ease,
+      useNativeDriver: true,
+    }).start();
+
+    setTimeout(onDone, 600);
+  }, [onDone, wordExitY, decoExit, avatarScale, exitOpacity]);
+
   useEffect(() => {
-    Animated.timing(word, { toValue: 1, duration: 1000, delay: 500, useNativeDriver: true }).start();
-    Animated.timing(tag, { toValue: 1, duration: 900, delay: 1050, useNativeDriver: true }).start();
-    Animated.timing(foot, { toValue: 1, duration: 800, delay: 2800, useNativeDriver: true }).start();
+    // entry sequences
+    Animated.timing(word,  { toValue: 1, duration: 1000, delay: 500,  useNativeDriver: true }).start();
+    Animated.timing(tag,   { toValue: 1, duration: 900,  delay: 1050, useNativeDriver: true }).start();
+    Animated.timing(foot,  { toValue: 1, duration: 800,  delay: 2800, useNativeDriver: true }).start();
     Animated.loop(
       Animated.sequence([
         Animated.timing(bloom, { toValue: 1, duration: 7000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
         Animated.timing(bloom, { toValue: 0, duration: 7000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
       ]),
     ).start();
-    const timer = setTimeout(onDone, 4600);
-    return () => clearTimeout(timer);
-  }, [word, tag, foot, bloom, onDone]);
 
-  const bloomTransform = {
-    transform: [
-      { scale: bloom.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] }) },
-      { translateY: bloom.interpolate({ inputRange: [0, 1], outputRange: [0, -10] }) },
-    ],
-  };
+    const timer = setTimeout(startExit, 4600);
+    return () => clearTimeout(timer);
+  }, [word, tag, foot, bloom, startExit]);
 
   return (
-    <Pressable
-      onPress={onDone}
-      style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: t.canvas, zIndex: 100 }}
+    <Animated.View
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: t.canvas,
+        zIndex: 100,
+        opacity: exitOpacity,
+      }}
     >
-      {/* bloom background — three soft radial blobs approximated with gradients */}
-      <Animated.View style={[{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }, bloomTransform]}>
-        <LinearGradient
-          colors={[mixAlpha(t.accent, 0.3), "transparent"]}
-          start={{ x: 0.28, y: 0.32 }}
-          end={{ x: 0.7, y: 0.7 }}
-          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-        />
-        <LinearGradient
-          colors={["transparent", mixAlpha("#df86d7", 0.26), "transparent"]}
-          start={{ x: 0.9, y: 0.2 }}
-          end={{ x: 0.3, y: 1 }}
-          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-        />
-        <LinearGradient
-          colors={["transparent", mixAlpha("#f0c14d", 0.22)]}
-          start={{ x: 0.5, y: 0.3 }}
-          end={{ x: 0.5, y: 1 }}
-          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-        />
-      </Animated.View>
+      <Pressable onPress={startExit} style={{ flex: 1 }}>
+        {/* bloom background */}
+        <Animated.View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            opacity: decoExit.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+            transform: [
+              { scale: bloom.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] }) },
+              { translateY: bloom.interpolate({ inputRange: [0, 1], outputRange: [0, -10] }) },
+            ],
+          }}
+        >
+          <LinearGradient
+            colors={[mixAlpha(t.accent, 0.3), "transparent"]}
+            start={{ x: 0.28, y: 0.32 }}
+            end={{ x: 0.7, y: 0.7 }}
+            style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+          />
+          <LinearGradient
+            colors={["transparent", mixAlpha("#df86d7", 0.26), "transparent"]}
+            start={{ x: 0.9, y: 0.2 }}
+            end={{ x: 0.3, y: 1 }}
+            style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+          />
+          <LinearGradient
+            colors={["transparent", mixAlpha("#f0c14d", 0.22)]}
+            start={{ x: 0.5, y: 0.3 }}
+            end={{ x: 0.5, y: 1 }}
+            style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+          />
+        </Animated.View>
 
-      {/* floating category pills */}
-      {CATS.map((c) => (
-        <FloatPill key={c.t} cat={c} />
-      ))}
+        {/* floating category pills */}
+        {CATS.map((c) => (
+          <FloatPill key={c.t} cat={c} decoExit={decoExit} />
+        ))}
 
-      {/* persistent avatar */}
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingBottom: 80 }}>
-        <JudithAvatar persona={persona} size={132} state="listening" />
-        <Animated.View style={{ marginTop: 30, alignItems: "center", opacity: word }}>
-          <Text
+        {/* avatar — scales down toward header as it exits (prototype judToAuth) */}
+        <View
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            paddingBottom: 80,
+          }}
+        >
+          <Animated.View style={{ transform: [{ scale: avatarScale }] }}>
+            <JudithAvatar persona={persona} size={132} state="listening" />
+          </Animated.View>
+
+          {/* "Judith" wordmark — Space Grotesk SemiBold, weight:600, matching prototype .splash-word */}
+          <Animated.View
             style={{
-              fontSize: 44,
-              color: t.txtHi,
-              fontFamily: t.fonts.display,
-              letterSpacing: -0.8,
+              marginTop: 30,
+              alignItems: "center",
+              opacity: word,
+              transform: [{ translateY: wordExitY }],
             }}
           >
-            Judith
-          </Text>
-        </Animated.View>
-        <Animated.View style={{ marginTop: 4, flexDirection: "row", opacity: tag }}>
-          <Text style={{ fontSize: 15, color: t.txtMid, fontFamily: t.fonts.regular }}>
-            Due Dates,{" "}
-          </Text>
-          <Text style={{ fontSize: 15, color: t.accent, fontWeight: "800", fontFamily: t.fonts.bold }}>
-            Handled.
-          </Text>
-        </Animated.View>
-      </View>
+            <Text
+              style={{
+                fontSize: 44,
+                color: t.txtHi,
+                fontFamily: t.fonts.semibold,
+                letterSpacing: -0.88,
+              }}
+            >
+              Judith
+            </Text>
+          </Animated.View>
 
-      <Animated.Text
-        style={{
-          position: "absolute",
-          bottom: insets.bottom + 34,
-          left: 0,
-          right: 0,
-          textAlign: "center",
-          fontSize: 12,
-          color: t.txtLow,
-          letterSpacing: 0.5,
-          fontFamily: t.fonts.regular,
-          opacity: foot,
-        }}
-      >
-        tap to continue
-      </Animated.Text>
-    </Pressable>
+          {/* tagline */}
+          <Animated.View
+            style={{ marginTop: 4, flexDirection: "row", opacity: tag }}
+          >
+            <Text
+              style={{ fontSize: 15, color: t.txtMid, fontFamily: t.fonts.regular }}
+            >
+              Due Dates,{" "}
+            </Text>
+            <Text
+              style={{
+                fontSize: 15,
+                color: t.accent,
+                fontWeight: "800",
+                fontFamily: t.fonts.bold,
+              }}
+            >
+              Handled.
+            </Text>
+          </Animated.View>
+        </View>
+
+        <Animated.Text
+          style={{
+            position: "absolute",
+            bottom: insets.bottom + 34,
+            left: 0,
+            right: 0,
+            textAlign: "center",
+            fontSize: 12,
+            color: t.txtLow,
+            letterSpacing: 0.5,
+            fontFamily: t.fonts.regular,
+            opacity: foot,
+          }}
+        >
+          tap to continue
+        </Animated.Text>
+      </Pressable>
+    </Animated.View>
   );
 }

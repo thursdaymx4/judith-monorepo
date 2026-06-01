@@ -55,14 +55,15 @@ function Loading() {
 
 function RootLayoutNav() {
   const { session, loading, configured, recoveryActive } = useAuth();
-  const { onboarded, hydrated } = useJudith();
+  const { onboarded, hydrated, guest } = useJudith();
   const t = useTheme();
   const [splashDone, setSplashDone] = useState(false);
 
   if (!configured) return <NotConfigured />;
   if (loading || !hydrated) return <Loading />;
 
-  const isOnboarded = !!session && onboarded && !recoveryActive;
+  const authed = !!session || guest;
+  const isOnboarded = authed && onboarded && !recoveryActive;
   const modalOpts = { presentation: "modal" as const, headerShown: false };
 
   return (
@@ -77,10 +78,10 @@ function RootLayoutNav() {
           <Stack.Screen name="plans" options={modalOpts} />
           <Stack.Screen name="bill/[id]" options={modalOpts} />
         </Stack.Protected>
-        <Stack.Protected guard={!!session && !onboarded && !recoveryActive}>
+        <Stack.Protected guard={authed && !onboarded && !recoveryActive}>
           <Stack.Screen name="(onboarding)" />
         </Stack.Protected>
-        <Stack.Protected guard={!session || recoveryActive}>
+        <Stack.Protected guard={!authed || recoveryActive}>
           <Stack.Screen name="(auth)" />
         </Stack.Protected>
       </Stack>

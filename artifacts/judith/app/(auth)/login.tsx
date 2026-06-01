@@ -22,7 +22,7 @@ type Busy = null | "submit" | "google" | "apple";
 export default function LoginScreen() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
-  const { persona } = useJudith();
+  const { persona, setGuest } = useJudith();
   const { signInWithPassword, signUp, signInWithProvider, resetPassword } = useAuth();
 
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -249,6 +249,16 @@ export default function LoginScreen() {
             <Txt size={14} weight="semibold" color={t.accent}>
               {mode === "login" ? "Create an account" : "Log in"}
             </Txt>
+          </Txt>
+        </Pressable>
+
+        <Pressable
+          onPress={() => setGuest(true)}
+          disabled={anyBusy}
+          style={{ paddingTop: 4, paddingBottom: 2 }}
+        >
+          <Txt size={12} color={t.txtLow} style={{ textAlign: "center" }}>
+            Skip for now →
           </Txt>
         </Pressable>
       </View>

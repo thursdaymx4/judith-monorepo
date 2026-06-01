@@ -43,6 +43,8 @@ interface PersistShape {
   onboarded: boolean;
   /** Onboarding resume index (saved from step `intro` onward). */
   onbIdx: number;
+  /** Dev/testing bypass: skip Supabase auth and enter the app as a guest. */
+  guest: boolean;
 }
 
 const DEFAULTS: PersistShape = {
@@ -57,6 +59,7 @@ const DEFAULTS: PersistShape = {
   toggles: { dueReminders: true, widget: true, watch: false, nudges: true },
   onboarded: false,
   onbIdx: 0,
+  guest: false,
 };
 
 interface JudithStoreValue extends PersistShape {
@@ -87,6 +90,7 @@ interface JudithStoreValue extends PersistShape {
   /* lifecycle */
   setOnboarded: (v: boolean) => void;
   setOnbIdx: (i: number) => void;
+  setGuest: (v: boolean) => void;
   restart: () => void;
 }
 
@@ -205,6 +209,7 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
         patch({ toggles: { ...state.toggles, [key]: v } }),
       setOnboarded: (v) => patch({ onboarded: v }),
       setOnbIdx: (i) => patch({ onbIdx: i }),
+      setGuest: (v) => patch({ guest: v }),
       restart: () => {
         setState({ ...DEFAULTS });
         AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
