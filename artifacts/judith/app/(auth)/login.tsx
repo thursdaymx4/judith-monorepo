@@ -5,14 +5,15 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Text,
   TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Icon } from "@/components/Icon";
+import { IntroScreenGlow } from "@/components/GlowBlob";
 import { JudithAvatar } from "@/components/JudithAvatar";
-import { Btn, Low, Txt } from "@/components/ui";
+import { Btn } from "@/components/ui";
 import { useAuth, type OAuthProvider } from "@/contexts/AuthContext";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
@@ -33,13 +34,12 @@ export default function LoginScreen() {
   const [notice, setNotice] = useState("");
 
   const inputStyle = {
-    width: "100%",
     borderWidth: 1,
     borderColor: t.hair,
     backgroundColor: t.surface1,
     borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     color: t.txtHi,
     fontFamily: t.fonts.regular,
     fontSize: 15,
@@ -112,156 +112,261 @@ export default function LoginScreen() {
       style={{ flex: 1, backgroundColor: t.canvas }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
+      {/* ── intro-screen persistent background glow (same as splash).
+           radial-gradient(95% 55% at 50% 38%, accent 22%, transparent 62%) */}
+      <IntroScreenGlow />
+
       <ScrollView
         contentContainerStyle={{
           flexGrow: 1,
-          justifyContent: "center",
-          paddingHorizontal: 22,
-          paddingTop: insets.top + 18,
-          paddingBottom: 18,
+          paddingHorizontal: 26,
+          paddingTop: insets.top + 40,
+          paddingBottom: insets.bottom + 26,
         }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* header */}
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 13, marginBottom: 26 }}>
-          <JudithAvatar persona={persona} size={64} state="idle" />
-          <View style={{ flex: 1 }}>
-            <Txt
-              size={12}
-              weight="semibold"
-              color={t.accent}
-              style={{ letterSpacing: 1.92, textTransform: "uppercase", marginBottom: 4 }}
-            >
-              {mode === "login" ? "Welcome back" : "Get started"}
-            </Txt>
-            <Txt size={26} weight="semibold" style={{ letterSpacing: -0.4, lineHeight: 30 }}>
-              {mode === "login" ? "Hi, I’m Judith" : "Create your account"}
-            </Txt>
-          </View>
+        {/* ── avatar — centred, is-auth scale (prototype top:92px, scale:0.7×132=92px) */}
+        <View style={{ alignItems: "center", marginBottom: 18 }}>
+          <JudithAvatar persona={persona} size={92} state="idle" />
         </View>
 
-        {/* socials */}
-        <Btn
-          variant="soft"
-          icon="apple"
-          label={busy === "apple" ? "" : "Continue with Apple"}
-          onPress={() => oauth("apple")}
-          style={{ marginBottom: 9 }}
-        >
-          {busy === "apple" && <ActivityIndicator color={t.txtHi} />}
-        </Btn>
-        <Btn
-          variant="soft"
-          icon="google"
-          label={busy === "google" ? "" : "Continue with Google"}
-          onPress={() => oauth("google")}
-        >
-          {busy === "google" && <ActivityIndicator color={t.txtHi} />}
-        </Btn>
+        {/* ── intro-auth-head: kicker + title + lede */}
+        <View style={{ alignItems: "center", marginBottom: 24 }}>
+          {/* .kicker: 12px uppercase letter-spacing:0.16em accent */}
+          <Text
+            style={{
+              fontSize: 12,
+              fontFamily: t.fonts.semibold,
+              fontWeight: "600",
+              letterSpacing: 1.92,
+              textTransform: "uppercase",
+              color: t.accent,
+              marginBottom: 6,
+            }}
+          >
+            {mode === "login" ? "Welcome" : "Get started"}
+          </Text>
 
-        {/* divider */}
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 16 }}>
-          <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
-          <Txt size={12} color={t.txtLow}>
-            or use email
-          </Txt>
-          <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
-        </View>
+          {/* .title 25px */}
+          <Text
+            style={{
+              fontSize: 25,
+              fontFamily: t.fonts.semibold,
+              fontWeight: "600",
+              letterSpacing: -0.4,
+              color: t.txtHi,
+              textAlign: "center",
+              marginBottom: 8,
+            }}
+          >
+            {mode === "login" ? "Hi, I'm Judith" : "Create your account"}
+          </Text>
 
-        {/* fields */}
-        <View style={{ gap: 11 }}>
-          <View>
-            <Txt size={12} color={t.txtMid} style={{ marginBottom: 6 }}>
-              Email or mobile
-            </Txt>
-            <TextInput
-              style={inputStyle}
-              placeholder="you@email.com"
-              placeholderTextColor={t.txtLow}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              value={email}
-              onChangeText={setEmail}
-            />
-          </View>
-          <View>
-            <Txt size={12} color={t.txtMid} style={{ marginBottom: 6 }}>
-              Password
-            </Txt>
-            <TextInput
-              style={inputStyle}
-              placeholder="••••••••"
-              placeholderTextColor={t.txtLow}
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-              value={password}
-              onChangeText={setPassword}
-            />
-          </View>
+          {/* .lede 14px txtMid */}
           {mode === "login" && (
-            <Pressable onPress={forgot} disabled={anyBusy} style={{ alignSelf: "flex-end" }}>
-              <Txt size={12} color={t.txtMid}>
+            <Text
+              style={{
+                fontSize: 14,
+                fontFamily: t.fonts.regular,
+                color: t.txtMid,
+                textAlign: "center",
+                lineHeight: 20,
+              }}
+            >
+              {"Your bills & due dates \u2014 handled, on time, no stress."}
+            </Text>
+          )}
+        </View>
+
+        {/* ── social buttons */}
+        <View style={{ gap: 10, marginBottom: 6 }}>
+          <Btn
+            variant="soft"
+            icon="apple"
+            label={busy === "apple" ? "" : "Continue with Apple"}
+            onPress={() => oauth("apple")}
+          >
+            {busy === "apple" && <ActivityIndicator color={t.txtHi} />}
+          </Btn>
+
+          {/* Google button — prototype: <span class="g-badge">G</span> + text */}
+          <Pressable
+            onPress={() => oauth("google")}
+            disabled={anyBusy}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
+              borderRadius: 16,
+              paddingVertical: 14,
+              paddingHorizontal: 18,
+              backgroundColor: t.surface2,
+              borderWidth: 1,
+              borderColor: t.hair,
+            }}
+          >
+            {busy === "google" ? (
+              <ActivityIndicator color={t.txtHi} />
+            ) : (
+              <>
+                <Text
+                  style={{
+                    fontSize: 15,
+                    fontWeight: "800",
+                    color: "#4285F4",
+                    fontFamily: t.fonts.bold,
+                  }}
+                >
+                  G
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 15,
+                    fontWeight: "500",
+                    color: t.txtHi,
+                    fontFamily: t.fonts.medium,
+                  }}
+                >
+                  Continue with Google
+                </Text>
+              </>
+            )}
+          </Pressable>
+        </View>
+
+        {/* ── "or use email" divider */}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 14 }}>
+          <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
+          <Text style={{ fontSize: 12, color: t.txtLow, fontFamily: t.fonts.regular }}>
+            or use email
+          </Text>
+          <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
+        </View>
+
+        {/* ── email + password fields */}
+        <View style={{ gap: 10 }}>
+          <TextInput
+            style={inputStyle}
+            placeholder="you@email.com"
+            placeholderTextColor={t.txtLow}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+          />
+          <TextInput
+            style={inputStyle}
+            placeholder="Password"
+            placeholderTextColor={t.txtLow}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            value={password}
+            onChangeText={setPassword}
+          />
+          {mode === "login" && (
+            <Pressable
+              onPress={forgot}
+              disabled={anyBusy}
+              style={{ alignSelf: "flex-end", paddingVertical: 2 }}
+            >
+              <Text style={{ fontSize: 12, color: t.txtMid, fontFamily: t.fonts.regular }}>
                 Forgot password?
-              </Txt>
+              </Text>
             </Pressable>
           )}
         </View>
-      </ScrollView>
 
-      {/* cta-bar */}
-      <View
-        style={{
-          paddingHorizontal: 22,
-          paddingTop: 12,
-          paddingBottom: insets.bottom + 16,
-          gap: 10,
-        }}
-      >
+        {/* ── feedback */}
         {!!notice && (
-          <Low size={13} color={t.accent} style={{ textAlign: "center" }}>
+          <Text
+            style={{
+              marginTop: 12,
+              fontSize: 13,
+              color: t.accent,
+              textAlign: "center",
+              fontFamily: t.fonts.regular,
+            }}
+          >
             {notice}
-          </Low>
+          </Text>
         )}
         {!!err && (
-          <Low size={13} color={t.semantic.urgent} style={{ textAlign: "center" }}>
+          <Text
+            style={{
+              marginTop: 12,
+              fontSize: 13,
+              color: t.semantic.urgent,
+              textAlign: "center",
+              fontFamily: t.fonts.regular,
+            }}
+          >
             {err}
-          </Low>
+          </Text>
         )}
 
-        <Btn label={busy === "submit" ? "" : mode === "login" ? "Log in" : "Create account"} onPress={submit}>
-          {busy === "submit" && <ActivityIndicator color={t.onAccent} />}
-        </Btn>
+        {/* ── Log in button — btn-primary: accent bg, dark text */}
+        <View style={{ marginTop: 20, gap: 10 }}>
+          <Btn
+            label={busy === "submit" ? "" : mode === "login" ? "Log in" : "Create account"}
+            onPress={submit}
+          >
+            {busy === "submit" && <ActivityIndicator color={t.onAccent} />}
+          </Btn>
 
-        <Pressable
-          onPress={() => {
-            setMode((m) => (m === "login" ? "signup" : "login"));
-            setErr("");
-            setNotice("");
-          }}
-          disabled={anyBusy}
-          style={{ paddingTop: 2 }}
-        >
-          <Txt size={14} color={t.txtMid} style={{ textAlign: "center" }}>
-            {mode === "login" ? "New to Judith? " : "Already have an account? "}
-            <Txt size={14} weight="semibold" color={t.accent}>
-              {mode === "login" ? "Create an account" : "Log in"}
-            </Txt>
-          </Txt>
-        </Pressable>
+          {/* .auth-foot: "New to Judith? Create an account" */}
+          <Pressable
+            onPress={() => {
+              setMode((m) => (m === "login" ? "signup" : "login"));
+              setErr("");
+              setNotice("");
+            }}
+            disabled={anyBusy}
+            style={{ paddingTop: 4 }}
+          >
+            <Text
+              style={{
+                fontSize: 14,
+                color: t.txtMid,
+                textAlign: "center",
+                fontFamily: t.fonts.regular,
+              }}
+            >
+              {mode === "login" ? "New to Judith? " : "Already have an account? "}
+              <Text
+                style={{
+                  color: t.accent,
+                  fontWeight: "600",
+                  fontFamily: t.fonts.semibold,
+                }}
+              >
+                {mode === "login" ? "Create an account" : "Log in"}
+              </Text>
+            </Text>
+          </Pressable>
 
-        <Pressable
-          onPress={() => setGuest(true)}
-          disabled={anyBusy}
-          style={{ paddingTop: 4, paddingBottom: 2 }}
-        >
-          <Txt size={12} color={t.txtLow} style={{ textAlign: "center" }}>
-            Skip for now →
-          </Txt>
-        </Pressable>
-      </View>
+          {/* skip for now */}
+          <Pressable
+            onPress={() => setGuest(true)}
+            disabled={anyBusy}
+            style={{ paddingVertical: 6 }}
+          >
+            <Text
+              style={{
+                fontSize: 12,
+                color: t.txtLow,
+                textAlign: "center",
+                fontFamily: t.fonts.regular,
+              }}
+            >
+              Skip for now →
+            </Text>
+          </Pressable>
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }

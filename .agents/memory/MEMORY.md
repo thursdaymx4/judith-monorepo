@@ -1,3 +1,4 @@
+- [Judith bloom-bg](judith-bloom-bg.md) — RN radial-gradient approximation: solid borderRadius:9999 View + filter:blur(70px) per-blob; base IntroScreenGlow lives outside deco-exit container.
 - [Judith due-date logic](judith-due-date.md) — monthly due-day computation is duplicated server+client; keep both in lockstep and clamp to days-in-month, never to 28.
 - [Judith Anthropic model](judith-anthropic-model.md) — ask flow's pinned default model is load-bearing (no env override); an EOL'd default silently breaks the whole assistant.
 - [Judith Ask AI contract](judith-ask-ai-contract.md) — local store feeds /ask via {bills,persona}; never send placeholder voiceId (use server DEFAULT_VOICE_IDS[persona]); buildClientContext date must be runtime.

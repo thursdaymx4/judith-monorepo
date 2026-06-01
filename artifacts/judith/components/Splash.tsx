@@ -1,29 +1,22 @@
-import { LinearGradient } from "expo-linear-gradient";
 import React, { useCallback, useEffect, useRef } from "react";
-import { Animated, Easing, Pressable, Text, View } from "react-native";
+import {
+  Animated,
+  Easing,
+  Platform,
+  Pressable,
+  Text,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { GlowBlob, IntroScreenGlow } from "@/components/GlowBlob";
 import { Icon, type IconName } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 
-interface FloatCat {
-  icon: IconName;
-  t: string;
-  color: string;
-  pos: { top?: number; bottom?: number; left?: number; right?: number };
-  delay: number;
-}
-
-const CATS: FloatCat[] = [
-  { icon: "zap",     t: "Electricity",  color: "#f28f29", pos: { top: 120,    left: 16 },  delay: 0    },
-  { icon: "wifi",    t: "Internet",      color: "#a289f8", pos: { top: 172,    right: 14 }, delay: 600  },
-  { icon: "droplet", t: "Water",         color: "#32b3e6", pos: { bottom: 248, left: 20 },  delay: 1200 },
-  { icon: "spark",   t: "Subscriptions", color: "#df86d7", pos: { bottom: 200, right: 16 }, delay: 900  },
-];
-
-function mixAlpha(hex: string, alpha: number): string {
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function hexAlpha(hex: string, alpha: number): string {
   const h = hex.replace("#", "");
   const r = parseInt(h.slice(0, 2), 16);
   const g = parseInt(h.slice(2, 4), 16);
@@ -31,7 +24,64 @@ function mixAlpha(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-function FloatPill({ cat, decoExit }: { cat: FloatCat; decoExit: Animated.Value }) {
+// ─── Bloom background ────────────────────────────────────────────────────────
+// Three precise blobs matching prototype .bloom-bg exactly:
+//   radial-gradient(40% 30% at 28% 32%, accent 30%, transparent 70%)
+//   radial-gradient(45% 32% at 74% 60%, oklch(0.78 0.15 330) 28%, transparent 70%)  → purple
+//   radial-gradient(40% 30% at 52% 78%, oklch(0.8  0.14 75)  26%, transparent 70%)  → amber
+// Each GlowBlob applies its own filter:blur(70px) on web to simulate the
+// natural transparent-edge of a CSS radial-gradient. The prototype's blur(6px)
+// was on a container whose bg was already transparent at 70% — we replicate
+// that soft fade by blurring each solid ellipse heavily.
+function BloomBg({ decoExit }: { decoExit: Animated.Value }) {
+  return (
+    <Animated.View
+      style={{
+        position: "absolute",
+        top: 0, left: 0, right: 0, bottom: 0,
+        opacity: decoExit.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+      }}
+    >
+      {/* blob 1 — teal/accent: 40% × 30% at 28% 32% */}
+      <GlowBlob cx={0.28} cy={0.32} rw={0.40} rh={0.30}
+        color="rgba(41,213,165,0.55)" webBlurPx={70} />
+      {/* blob 2 — purple: 45% × 32% at 74% 60% (oklch 0.78 0.15 330 → #df86d7) */}
+      <GlowBlob cx={0.74} cy={0.60} rw={0.45} rh={0.32}
+        color="rgba(223,134,215,0.55)" webBlurPx={70} />
+      {/* blob 3 — amber: 40% × 30% at 52% 78% (oklch 0.8 0.14 75 → #f7b83d) */}
+      <GlowBlob cx={0.52} cy={0.78} rw={0.40} rh={0.30}
+        color="rgba(247,184,61,0.50)" webBlurPx={70} />
+    </Animated.View>
+  );
+}
+
+// ─── Floating pill ────────────────────────────────────────────────────────────
+// Prototype .float-pill positions: fc1-fc4 (top/bottom, left/right).
+interface FloatCat {
+  icon: IconName;
+  label: string;
+  color: string;
+  pos: { top?: number; bottom?: number; left?: number; right?: number };
+  floatDelay: number;
+}
+const FLOAT_CATS: FloatCat[] = [
+  { icon: "zap",     label: "Electricity",  color: "#f28f29",
+    pos: { top: 120,    left: 16 },   floatDelay: 0    },
+  { icon: "wifi",    label: "Internet",      color: "#a289f8",
+    pos: { top: 172,    right: 14 },  floatDelay: 900  },
+  { icon: "droplet", label: "Water",         color: "#32b3e6",
+    pos: { bottom: 248, left: 20 },   floatDelay: 600  },
+  { icon: "spark",   label: "Subscriptions", color: "#df86d7",
+    pos: { bottom: 200, right: 16 },  floatDelay: 1400 },
+];
+
+function FloatPill({
+  cat,
+  decoOpacity,
+}: {
+  cat: FloatCat;
+  decoOpacity: Animated.AnimatedInterpolation<number>;
+}) {
   const t = useTheme();
   const y = useRef(new Animated.Value(0)).current;
 
@@ -41,7 +91,7 @@ function FloatPill({ cat, decoExit }: { cat: FloatCat; decoExit: Animated.Value 
         Animated.timing(y, {
           toValue: -10,
           duration: 2500,
-          delay: cat.delay,
+          delay: cat.floatDelay,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
@@ -55,7 +105,7 @@ function FloatPill({ cat, decoExit }: { cat: FloatCat; decoExit: Animated.Value 
     );
     loop.start();
     return () => loop.stop();
-  }, [y, cat.delay]);
+  }, [y, cat.floatDelay]);
 
   return (
     <Animated.View
@@ -69,13 +119,19 @@ function FloatPill({ cat, decoExit }: { cat: FloatCat; decoExit: Animated.Value 
         paddingLeft: 9,
         paddingRight: 14,
         borderRadius: 999,
-        backgroundColor: mixAlpha(t.surface2, 0.82),
+        backgroundColor: hexAlpha(t.surface2, 0.82),
         borderWidth: 1,
         borderColor: "rgba(255,255,255,0.14)",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 10 },
+        shadowRadius: 18,
+        shadowOpacity: 0.7,
+        elevation: 8,
+        opacity: decoOpacity,
         transform: [{ translateY: y }],
-        opacity: decoExit.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
       }}
     >
+      {/* icon badge */}
       <View
         style={{
           width: 30,
@@ -83,9 +139,9 @@ function FloatPill({ cat, decoExit }: { cat: FloatCat; decoExit: Animated.Value 
           borderRadius: 9,
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: mixAlpha(cat.color, 0.18),
+          backgroundColor: hexAlpha(cat.color, 0.18),
           borderWidth: 1,
-          borderColor: mixAlpha(cat.color, 0.4),
+          borderColor: hexAlpha(cat.color, 0.40),
         }}
       >
         <Icon name={cat.icon} size={15} color={cat.color} />
@@ -98,53 +154,70 @@ function FloatPill({ cat, decoExit }: { cat: FloatCat; decoExit: Animated.Value 
           fontFamily: t.fonts.semibold,
         }}
       >
-        {cat.t}
+        {cat.label}
       </Text>
     </Animated.View>
   );
 }
 
-/** Bloom splash (FLOW_DEFAULTS splashStyle=bloom). Shown on cold start. */
+// ─── Splash ───────────────────────────────────────────────────────────────────
+/**
+ * Bloom splash screen — matches prototype IntroShell stage-splash.
+ * Background layers (bottom to top):
+ *   1. canvas #0a0b0e
+ *   2. intro-screen base glow: large teal radial at 50% 38% (accent 22%)
+ *   3. bloom-bg three blobs with filter:blur(6px)  ← fade on exit
+ *   4. float pills                                  ← fade on exit
+ *   5. avatar (scales 1→0.7 on exit, judToAuth)
+ *   6. "Judith" wordmark + "Due Dates, Handled." tagline
+ *   7. "tap to continue" footer
+ */
 export function Splash({ onDone }: { onDone: () => void }) {
   const t = useTheme();
   const { persona } = useJudith();
   const insets = useSafeAreaInsets();
 
-  // ── entry animations ──────────────────────────────────────────────────────
-  const word  = useRef(new Animated.Value(0)).current;
-  const tag   = useRef(new Animated.Value(0)).current;
-  const foot  = useRef(new Animated.Value(0)).current;
-  const bloom = useRef(new Animated.Value(0)).current;
+  // ── entry Animated values ─────────────────────────────────────────────────
+  const word    = useRef(new Animated.Value(0)).current; // wordmark opacity
+  const tag     = useRef(new Animated.Value(0)).current; // "Due Dates," opacity
+  const foot    = useRef(new Animated.Value(0)).current; // footer opacity
+  // "Handled." spring punch-in — handledIn 1s cubic(.18,1.5,.4,1) delay 1.9s
+  const handled = useRef(new Animated.Value(0)).current;
 
-  // ── exit animations ───────────────────────────────────────────────────────
-  const exitOpacity = useRef(new Animated.Value(1)).current; // entire overlay
-  const wordExitY   = useRef(new Animated.Value(0)).current; // wordmark slides up
-  const decoExit    = useRef(new Animated.Value(0)).current; // pills/bloom (0=visible, 1=gone)
-  const avatarScale = useRef(new Animated.Value(1)).current;
+  // ── exit Animated values ──────────────────────────────────────────────────
+  const exitOpacity = useRef(new Animated.Value(1)).current; // whole overlay
+  const wordExitY   = useRef(new Animated.Value(0)).current; // wordOut: slide -26px
+  const decoExit    = useRef(new Animated.Value(0)).current; // deco fade (0=visible,1=gone)
+  const avatarScale = useRef(new Animated.Value(1)).current; // judToAuth: 1→0.7
 
   const startExit = useCallback(() => {
-    // wordmark slides up and fades (covered by overlay fade, but exits faster)
-    Animated.timing(wordExitY, {
-      toValue: -26,
-      duration: 360,
-      easing: Easing.ease,
-      useNativeDriver: true,
-    }).start();
-    // pills + bloom bg fade out
+    // wordOut: translateY -26px + fade — 420ms
+    Animated.parallel([
+      Animated.timing(wordExitY, {
+        toValue: -26,
+        duration: 360,
+        easing: Easing.ease,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // deco + pills fade out — 420ms
     Animated.timing(decoExit, {
       toValue: 1,
       duration: 420,
       easing: Easing.ease,
       useNativeDriver: true,
     }).start();
-    // avatar shrinks toward header position (matches prototype judToAuth scale)
+
+    // judToAuth: avatar scale 1→0.7 — 540ms
     Animated.timing(avatarScale, {
       toValue: 0.7,
       duration: 540,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
-    // full overlay cross-dissolve (slightly delayed so wordmark exits first)
+
+    // full overlay cross-dissolve — 480ms at 80ms delay
     Animated.timing(exitOpacity, {
       toValue: 0,
       duration: 480,
@@ -157,118 +230,133 @@ export function Splash({ onDone }: { onDone: () => void }) {
   }, [onDone, wordExitY, decoExit, avatarScale, exitOpacity]);
 
   useEffect(() => {
-    // entry sequences
-    Animated.timing(word,  { toValue: 1, duration: 1000, delay: 500,  useNativeDriver: true }).start();
-    Animated.timing(tag,   { toValue: 1, duration: 900,  delay: 1050, useNativeDriver: true }).start();
-    Animated.timing(foot,  { toValue: 1, duration: 800,  delay: 2800, useNativeDriver: true }).start();
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(bloom, { toValue: 1, duration: 7000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(bloom, { toValue: 0, duration: 7000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ]),
-    ).start();
+    // splashWord: opacity+translateY  delay 0.5s / 1.05s
+    Animated.timing(word, { toValue: 1, duration: 1000, delay: 500,  easing: Easing.ease, useNativeDriver: true }).start();
+    Animated.timing(tag,  { toValue: 1, duration: 900,  delay: 1050, easing: Easing.ease, useNativeDriver: true }).start();
+    // footer: delay 2.8s
+    Animated.timing(foot, { toValue: 1, duration: 800,  delay: 2800, easing: Easing.ease, useNativeDriver: true }).start();
 
-    const timer = setTimeout(startExit, 4600);
-    return () => clearTimeout(timer);
-  }, [word, tag, foot, bloom, startExit]);
+    // handledIn: spring punch-in at 1.9s
+    Animated.sequence([
+      Animated.delay(1900),
+      Animated.spring(handled, {
+        toValue: 1,
+        tension: 120,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // auto-advance after 4.6s
+    const t2 = setTimeout(startExit, 4600);
+    return () => clearTimeout(t2);
+  }, [word, tag, foot, handled, startExit]);
+
+  // "Handled." interpolated style — scale: 2.6→0.9→1.08→1 (mirrors handledIn keyframes)
+  const handledOpacity = handled.interpolate({
+    inputRange: [0, 0.45, 1],
+    outputRange: [0, 1, 1],
+  });
+  const handledScale = handled.interpolate({
+    inputRange: [0, 0.50, 0.70, 0.85, 1],
+    outputRange: [2.6, 1.2,  0.9,  1.08, 1.0],
+    extrapolate: "clamp",
+  });
+
+  // decoExit drives all deco opacity (bloom blobs handled inside BloomBg)
+  const decoOpacity = decoExit.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
 
   return (
     <Animated.View
       style={{
         position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
+        top: 0, left: 0, right: 0, bottom: 0,
         backgroundColor: t.canvas,
         zIndex: 100,
         opacity: exitOpacity,
       }}
     >
-      <Pressable onPress={startExit} style={{ flex: 1 }}>
-        {/* bloom background */}
+      {/* 1. Intro-screen base glow — persists through exit cross-dissolve.
+           radial-gradient(95% 55% at 50% 38%, accent 22%, transparent 62%) */}
+      <IntroScreenGlow />
+
+      {/* 2. Three bloom blobs (filter:blur 6px) — fade with deco */}
+      <BloomBg decoExit={decoExit} />
+
+      {/* 3. Floating category pills — fade with deco */}
+      {FLOAT_CATS.map((c) => (
+        <FloatPill key={c.label} cat={c} decoOpacity={decoOpacity} />
+      ))}
+
+      {/* 4. Tap anywhere to skip */}
+      <Pressable
+        onPress={startExit}
+        style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+      />
+
+      {/* 5. Avatar + wordmark (centred, above tap area via pointerEvents) */}
+      <View
+        style={{
+          position: "absolute",
+          top: 0, left: 0, right: 0, bottom: 0,
+          alignItems: "center",
+          justifyContent: "center",
+          paddingBottom: 80,
+          pointerEvents: "none",
+        }}
+      >
+        {/* Avatar — judToAuth: scale 1→0.7 on exit */}
+        <Animated.View style={{ transform: [{ scale: avatarScale }] }}>
+          <JudithAvatar persona={persona} size={132} state="listening" />
+        </Animated.View>
+
+        {/* "Judith" wordmark — splashWord + wordOut */}
         <Animated.View
           style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            opacity: decoExit.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+            marginTop: 30,
+            alignItems: "center",
+            opacity: word,
             transform: [
-              { scale: bloom.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] }) },
-              { translateY: bloom.interpolate({ inputRange: [0, 1], outputRange: [0, -10] }) },
+              {
+                translateY: word.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [9, 0],
+                }),
+              },
+              { translateY: wordExitY },
             ],
           }}
         >
-          <LinearGradient
-            colors={[mixAlpha(t.accent, 0.3), "transparent"]}
-            start={{ x: 0.28, y: 0.32 }}
-            end={{ x: 0.7, y: 0.7 }}
-            style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-          />
-          <LinearGradient
-            colors={["transparent", mixAlpha("#df86d7", 0.26), "transparent"]}
-            start={{ x: 0.9, y: 0.2 }}
-            end={{ x: 0.3, y: 1 }}
-            style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-          />
-          <LinearGradient
-            colors={["transparent", mixAlpha("#f0c14d", 0.22)]}
-            start={{ x: 0.5, y: 0.3 }}
-            end={{ x: 0.5, y: 1 }}
-            style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-          />
-        </Animated.View>
-
-        {/* floating category pills */}
-        {CATS.map((c) => (
-          <FloatPill key={c.t} cat={c} decoExit={decoExit} />
-        ))}
-
-        {/* avatar — scales down toward header as it exits (prototype judToAuth) */}
-        <View
-          style={{
-            flex: 1,
-            alignItems: "center",
-            justifyContent: "center",
-            paddingBottom: 80,
-          }}
-        >
-          <Animated.View style={{ transform: [{ scale: avatarScale }] }}>
-            <JudithAvatar persona={persona} size={132} state="listening" />
-          </Animated.View>
-
-          {/* "Judith" wordmark — Space Grotesk SemiBold, weight:600, matching prototype .splash-word */}
-          <Animated.View
+          <Text
             style={{
-              marginTop: 30,
-              alignItems: "center",
-              opacity: word,
-              transform: [{ translateY: wordExitY }],
+              fontSize: 44,
+              color: t.txtHi,
+              fontFamily: t.fonts.semibold,
+              letterSpacing: -0.88,
             }}
           >
-            <Text
-              style={{
-                fontSize: 44,
-                color: t.txtHi,
-                fontFamily: t.fonts.semibold,
-                letterSpacing: -0.88,
-              }}
-            >
-              Judith
-            </Text>
-          </Animated.View>
+            Judith
+          </Text>
+        </Animated.View>
 
-          {/* tagline */}
-          <Animated.View
-            style={{ marginTop: 4, flexDirection: "row", opacity: tag }}
+        {/* tagline — "Due Dates, " fades 1.05s; "Handled." punches 1.9s */}
+        <View style={{ marginTop: 4, flexDirection: "row", alignItems: "center" }}>
+          <Animated.Text
+            style={{
+              fontSize: 15,
+              color: t.txtMid,
+              fontFamily: t.fonts.regular,
+              opacity: tag,
+            }}
           >
-            <Text
-              style={{ fontSize: 15, color: t.txtMid, fontFamily: t.fonts.regular }}
-            >
-              Due Dates,{" "}
-            </Text>
+            {"Due Dates,\u00a0"}
+          </Animated.Text>
+          <Animated.View
+            style={{
+              opacity: handledOpacity,
+              transform: [{ scale: handledScale }],
+            }}
+          >
             <Text
               style={{
                 fontSize: 15,
@@ -281,24 +369,26 @@ export function Splash({ onDone }: { onDone: () => void }) {
             </Text>
           </Animated.View>
         </View>
+      </View>
 
-        <Animated.Text
-          style={{
-            position: "absolute",
-            bottom: insets.bottom + 34,
-            left: 0,
-            right: 0,
-            textAlign: "center",
-            fontSize: 12,
-            color: t.txtLow,
-            letterSpacing: 0.5,
-            fontFamily: t.fonts.regular,
-            opacity: foot,
-          }}
-        >
-          tap to continue
-        </Animated.Text>
-      </Pressable>
+      {/* 6. "tap to continue" footer */}
+      <Animated.Text
+        style={{
+          position: "absolute",
+          bottom: insets.bottom + 34,
+          left: 0,
+          right: 0,
+          textAlign: "center",
+          fontSize: 12,
+          color: t.txtLow,
+          letterSpacing: 0.5,
+          fontFamily: t.fonts.regular,
+          opacity: foot,
+          pointerEvents: "none",
+        }}
+      >
+        tap to continue
+      </Animated.Text>
     </Animated.View>
   );
 }
