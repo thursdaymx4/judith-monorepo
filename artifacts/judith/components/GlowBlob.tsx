@@ -1,18 +1,12 @@
-import React from "react";
-import { Platform, useWindowDimensions, View } from "react-native";
-
 /**
- * A soft glowing ellipse that approximates a CSS radial-gradient blob.
- *
- * The prototype uses CSS radial-gradient(W H at X% Y%, color 0%, transparent 70%),
- * which produces a solid center that naturally fades to transparent at its edges.
- * Since RN has no radial-gradient, we replicate the soft fade with a large
- * filter:blur on web. On native the blob renders without blur (still tinted).
- *
- * cx/cy = center as fraction of screen width/height (0–1)
- * rw/rh = ellipse radius as fraction of screen width/height (0–1)
- * webBlurPx = CSS filter blur in px applied per-blob on web (default 70)
+ * Native fallback for GlowBlob / IntroScreenGlow.
+ * On native (iOS/Android) we can't use CSS radial-gradient, so we render
+ * a solid semi-transparent ellipse at the blob's center position.
+ * The opacity values match the prototype's centre-colour opacities.
  */
+import React from "react";
+import { useWindowDimensions, View } from "react-native";
+
 export interface GlowBlobProps {
   cx: number;
   cy: number;
@@ -22,56 +16,38 @@ export interface GlowBlobProps {
   webBlurPx?: number;
 }
 
-export function GlowBlob({
-  cx,
-  cy,
-  rw,
-  rh,
-  color,
-  webBlurPx = 70,
-}: GlowBlobProps) {
+export function GlowBlob({ cx, cy, rw, rh, color }: GlowBlobProps) {
   const { width, height } = useWindowDimensions();
-  const bw = rw * width;
-  const bh = rh * height;
-
-  const webFilter =
-    Platform.OS === "web"
-      ? ({ filter: `blur(${webBlurPx}px)` } as object)
-      : {};
-
+  // On native: diameter = 2 × semi-axis (rw/rh are radii, matching CSS)
+  const bw = 2 * rw * width;
+  const bh = 2 * rh * height;
   return (
     <View
-      style={[
-        {
-          position: "absolute",
-          left: cx * width - bw / 2,
-          top: cy * height - bh / 2,
-          width: bw,
-          height: bh,
-          borderRadius: 9999,
-          backgroundColor: color,
-        },
-        webFilter,
-      ]}
+      style={{
+        position: "absolute",
+        left: cx * width - rw * width,
+        top: cy * height - rh * height,
+        width: bw,
+        height: bh,
+        borderRadius: 9999,
+        backgroundColor: color,
+      }}
     />
   );
 }
 
-/**
- * The persistent intro-screen background glow —
- * prototype: radial-gradient(95% 55% at 50% 38%, accent 22%, transparent 62%)
- * Accent mint = #29d5a5 at 22% opacity.
- * Rendered on BOTH the Splash and Login screens so the glow carries through.
- */
 export function IntroScreenGlow() {
+  const { width, height } = useWindowDimensions();
   return (
-    <GlowBlob
-      cx={0.50}
-      cy={0.38}
-      rw={0.95}
-      rh={0.55}
-      color="rgba(41,213,165,0.22)"
-      webBlurPx={80}
+    <View
+      style={{
+        position: "absolute",
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(41,213,165,0.13)",
+      }}
     />
   );
 }

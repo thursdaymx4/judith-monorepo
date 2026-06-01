@@ -6,6 +6,8 @@ import {
 } from "expo-audio";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Animated,
+  Easing,
   Pressable,
   ScrollView,
   TextInput,
@@ -478,6 +480,69 @@ interface Ctx {
   next: () => void;
 }
 
+/* ------------------------------------------------------------------ */
+/* Shared animation helpers                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Animated voice equaliser bars — prototype `.vo-wave.on i` / `voBar` keyframe.
+ * Each bar loops height 7px → 24px → 7px (700ms), staggered by 100ms per bar.
+ */
+function VoiceBars({ accent, on = true }: { accent: string; on?: boolean }) {
+  const heights = useRef(
+    Array.from({ length: 7 }, () => new Animated.Value(7)),
+  ).current;
+
+  useEffect(() => {
+    if (!on) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const anims: Animated.CompositeAnimation[] = [];
+    heights.forEach((h, i) => {
+      const tid = setTimeout(() => {
+        const loop = Animated.loop(
+          Animated.sequence([
+            Animated.timing(h, {
+              toValue: 24,
+              duration: 350,
+              easing: Easing.inOut(Easing.ease),
+              useNativeDriver: false,
+            }),
+            Animated.timing(h, {
+              toValue: 7,
+              duration: 350,
+              easing: Easing.inOut(Easing.ease),
+              useNativeDriver: false,
+            }),
+          ]),
+        );
+        anims.push(loop);
+        loop.start();
+      }, i * 100);
+      timers.push(tid);
+    });
+    return () => {
+      timers.forEach(clearTimeout);
+      anims.forEach((a) => a.stop());
+    };
+  }, [on]);
+
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 4, height: 26 }}>
+      {heights.map((h, i) => (
+        <Animated.View
+          key={i}
+          style={{
+            width: 4,
+            height: h,
+            borderRadius: 3,
+            backgroundColor: accent,
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
 /* ================================================================== */
 /* 1. Welcome                                                          */
 /* ================================================================== */
@@ -725,11 +790,26 @@ function ScreenPersona({ ctx }: { ctx: Ctx }) {
 function ScreenLateFee({ ctx }: { ctx: Ctx }) {
   const { t, persona, next } = ctx;
   const cur = ctx.country.cur;
+
+  // lockDrop: notification slides down from above on mount (prototype lockDrop keyframe)
+  const dropOpacity = useRef(new Animated.Value(0)).current;
+  const dropY       = useRef(new Animated.Value(-12)).current;
+  const dropScale   = useRef(new Animated.Value(0.97)).current;
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(dropOpacity, { toValue: 1, duration: 550, easing: Easing.bezier(0.2, 0.8, 0.2, 1), useNativeDriver: true }),
+      Animated.timing(dropY,       { toValue: 0, duration: 550, easing: Easing.bezier(0.2, 0.8, 0.2, 1), useNativeDriver: true }),
+      Animated.timing(dropScale,   { toValue: 1, duration: 550, easing: Easing.bezier(0.2, 0.8, 0.2, 1), useNativeDriver: true }),
+    ]).start();
+  }, []);
+
   return (
     <>
       <Scroll center>
-        <View
+        <Animated.View
           style={{
+            opacity: dropOpacity,
+            transform: [{ translateY: dropY }, { scale: dropScale }],
             flexDirection: "row",
             alignItems: "center",
             gap: 11,
@@ -763,7 +843,7 @@ function ScreenLateFee({ ctx }: { ctx: Ctx }) {
             <Low size={11}>Posted to your account</Low>
           </View>
           <Mono size={15} weight="bold" color={t.semantic.urgent}>−{cur}500</Mono>
-        </View>
+        </Animated.View>
         <JudithAvatar persona={persona} size={84} state="speaking" />
         <Title style={{ maxWidth: 300, marginTop: 16, textAlign: "center" }}>
           Missed a bill — and{" "}
@@ -925,10 +1005,8 @@ function ScreenIntro({ ctx }: { ctx: Ctx }) {
     <>
       <Scroll center>
         <JudithAvatar persona={persona} size={76} state="speaking" />
-        <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 4, height: 26, marginTop: 12 }}>
-          {[0, 1, 2, 3, 4, 5, 6].map((i) => (
-            <View key={i} style={{ width: 4, height: 8 + (i % 3) * 6, borderRadius: 3, backgroundColor: t.accent }} />
-          ))}
+        <View style={{ marginTop: 12 }}>
+          <VoiceBars accent={t.accent} />
         </View>
         <Kicker style={{ marginTop: 14, textAlign: "center" }}>Before we start</Kicker>
         <Title style={{ maxWidth: 300, textAlign: "center" }}>
@@ -1777,6 +1855,46 @@ function FeatureShell({
   mood: "warm" | "proud" | "joy";
 }) {
   const { t, persona, next } = ctx;
+
+  // floatY: card area gently bobs 0 → -13px → 0 over 5s infinite (prototype floatY)
+  const floatY = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatY, { toValue: -13, duration: 2500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(floatY, { toValue: 0,   duration: 2500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ]),
+    ).start();
+  }, []);
+
+  // bubbleIn: staggered entrance for transcript (0.15s delay) and reply (0.35s delay)
+  const tOpacity = useRef(new Animated.Value(0)).current;
+  const tY       = useRef(new Animated.Value(8)).current;
+  const tScale   = useRef(new Animated.Value(0.97)).current;
+  const rOpacity = useRef(new Animated.Value(0)).current;
+  const rY       = useRef(new Animated.Value(8)).current;
+  const rScale   = useRef(new Animated.Value(0.97)).current;
+  useEffect(() => {
+    const ease = Easing.bezier(0.2, 0.8, 0.2, 1);
+    const dur  = 400;
+    Animated.sequence([
+      Animated.delay(150),
+      Animated.parallel([
+        Animated.timing(tOpacity, { toValue: 1, duration: dur, easing: ease, useNativeDriver: true }),
+        Animated.timing(tY,       { toValue: 0, duration: dur, easing: ease, useNativeDriver: true }),
+        Animated.timing(tScale,   { toValue: 1, duration: dur, easing: ease, useNativeDriver: true }),
+      ]),
+    ]).start();
+    Animated.sequence([
+      Animated.delay(350),
+      Animated.parallel([
+        Animated.timing(rOpacity, { toValue: 1, duration: dur, easing: ease, useNativeDriver: true }),
+        Animated.timing(rY,       { toValue: 0, duration: dur, easing: ease, useNativeDriver: true }),
+        Animated.timing(rScale,   { toValue: 1, duration: dur, easing: ease, useNativeDriver: true }),
+      ]),
+    ]).start();
+  }, []);
+
   return (
     <>
       <Scroll center>
@@ -1785,13 +1903,17 @@ function FeatureShell({
             <View key={i} style={{ width: i === dotIdx ? 20 : 7, height: 7, borderRadius: i === dotIdx ? 4 : 3.5, backgroundColor: i === dotIdx ? t.accent : t.surface3 }} />
           ))}
         </View>
-        <View style={{ alignSelf: "stretch", minHeight: 230, alignItems: "center", justifyContent: "center" }}>
+        <Animated.View style={{ alignSelf: "stretch", minHeight: 230, alignItems: "center", justifyContent: "center", transform: [{ translateY: floatY }] }}>
           <View style={{ gap: 11, width: "100%", alignItems: "center" }}>
             <JudithAvatar persona={persona} size={72} state="speaking" mood={mood} />
-            <Transcript style={{ alignSelf: "flex-end" }}>{q}</Transcript>
-            <JudithLine>{a}</JudithLine>
+            <Animated.View style={{ alignSelf: "flex-end", opacity: tOpacity, transform: [{ translateY: tY }, { scale: tScale }] }}>
+              <Transcript>{q}</Transcript>
+            </Animated.View>
+            <Animated.View style={{ opacity: rOpacity, transform: [{ translateY: rY }, { scale: rScale }] }}>
+              <JudithLine>{a}</JudithLine>
+            </Animated.View>
           </View>
-        </View>
+        </Animated.View>
         <Kicker style={{ marginTop: 30, textAlign: "center" }}>{kicker}</Kicker>
         <Title style={{ textAlign: "center", maxWidth: 290 }}>{title}</Title>
         <Lede style={{ textAlign: "center", maxWidth: 285 }}>{lede}</Lede>
@@ -1959,8 +2081,32 @@ export default function OnboardingScreen() {
   );
   const [bills, setBills] = useState<OnbBill[]>([]);
 
+  // vIn: screen entrance — opacity 0→1 + translateY 8→0 (400ms, prototype vIn keyframe)
+  const vInOpacity = useRef(new Animated.Value(0)).current;
+  const vInY      = useRef(new Animated.Value(8)).current;
+
   useEffect(() => {
     if (idx >= SAVE_FROM) setOnbIdx(idx);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idx]);
+
+  useEffect(() => {
+    vInOpacity.setValue(0);
+    vInY.setValue(8);
+    Animated.parallel([
+      Animated.timing(vInOpacity, {
+        toValue: 1,
+        duration: 400,
+        easing: Easing.bezier(0.2, 0.7, 0.3, 1),
+        useNativeDriver: true,
+      }),
+      Animated.timing(vInY, {
+        toValue: 0,
+        duration: 400,
+        easing: Easing.bezier(0.2, 0.7, 0.3, 1),
+        useNativeDriver: true,
+      }),
+    ]).start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idx]);
 
@@ -2034,7 +2180,15 @@ export default function OnboardingScreen() {
         )}
       </View>
 
-      <Comp ctx={ctx} key={screen.id + idx} />
+      <Animated.View
+        style={{
+          flex: 1,
+          opacity: vInOpacity,
+          transform: [{ translateY: vInY }],
+        }}
+      >
+        <Comp ctx={ctx} key={screen.id + idx} />
+      </Animated.View>
     </View>
   );
 }

@@ -25,32 +25,36 @@ function hexAlpha(hex: string, alpha: number): string {
 }
 
 // ─── Bloom background ────────────────────────────────────────────────────────
-// Three precise blobs matching prototype .bloom-bg exactly:
+// Three blobs matching prototype .bloom-bg exactly:
 //   radial-gradient(40% 30% at 28% 32%, accent 30%, transparent 70%)
-//   radial-gradient(45% 32% at 74% 60%, oklch(0.78 0.15 330) 28%, transparent 70%)  → purple
-//   radial-gradient(40% 30% at 52% 78%, oklch(0.8  0.14 75)  26%, transparent 70%)  → amber
-// Each GlowBlob applies its own filter:blur(70px) on web to simulate the
-// natural transparent-edge of a CSS radial-gradient. The prototype's blur(6px)
-// was on a container whose bg was already transparent at 70% — we replicate
-// that soft fade by blurring each solid ellipse heavily.
+//   radial-gradient(45% 32% at 74% 60%, purple 28%, transparent 70%)
+//   radial-gradient(40% 30% at 52% 78%, amber  26%, transparent 70%)
+// On web, GlowBlob resolves to GlowBlob.web.tsx which renders a real CSS
+// radial-gradient div — identical to the prototype. The container Animated.View
+// gets filter:blur(6px), matching .bloom-bg exactly.
+// On native, GlowBlob.tsx renders a low-opacity solid ellipse approximation.
+const BLOOM_WEB_STYLE = Platform.OS === "web"
+  ? ({ filter: "blur(6px)" } as object)
+  : {};
+
 function BloomBg({ decoExit }: { decoExit: Animated.Value }) {
   return (
     <Animated.View
-      style={{
-        position: "absolute",
-        top: 0, left: 0, right: 0, bottom: 0,
-        opacity: decoExit.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
-      }}
+      style={[
+        {
+          position: "absolute",
+          top: 0, left: 0, right: 0, bottom: 0,
+          opacity: decoExit.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+        },
+        BLOOM_WEB_STYLE,
+      ]}
     >
-      {/* blob 1 — teal/accent: 40% × 30% at 28% 32% */}
-      <GlowBlob cx={0.28} cy={0.32} rw={0.40} rh={0.30}
-        color="rgba(41,213,165,0.55)" webBlurPx={70} />
-      {/* blob 2 — purple: 45% × 32% at 74% 60% (oklch 0.78 0.15 330 → #df86d7) */}
-      <GlowBlob cx={0.74} cy={0.60} rw={0.45} rh={0.32}
-        color="rgba(223,134,215,0.55)" webBlurPx={70} />
-      {/* blob 3 — amber: 40% × 30% at 52% 78% (oklch 0.8 0.14 75 → #f7b83d) */}
-      <GlowBlob cx={0.52} cy={0.78} rw={0.40} rh={0.30}
-        color="rgba(247,184,61,0.50)" webBlurPx={70} />
+      {/* blob 1 — teal/accent: 40% × 30% semi-axis at 28% 32% */}
+      <GlowBlob cx={0.28} cy={0.32} rw={0.40} rh={0.30} color="rgba(41,213,165,0.30)" />
+      {/* blob 2 — purple #df86d7: 45% × 32% semi-axis at 74% 60% */}
+      <GlowBlob cx={0.74} cy={0.60} rw={0.45} rh={0.32} color="rgba(223,134,215,0.28)" />
+      {/* blob 3 — amber #f7b83d: 40% × 30% semi-axis at 52% 78% */}
+      <GlowBlob cx={0.52} cy={0.78} rw={0.40} rh={0.30} color="rgba(247,184,61,0.26)" />
     </Animated.View>
   );
 }
