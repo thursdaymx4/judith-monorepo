@@ -1,23 +1,36 @@
 import React, { useState } from "react";
-import { ActivityIndicator, TextInput, View } from "react-native";
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  TextInput,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Btn, Low, Txt } from "@/components/ui";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, type OAuthProvider } from "@/contexts/AuthContext";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
+
+type Busy = null | "submit" | "google" | "apple";
 
 export default function LoginScreen() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const { persona } = useJudith();
-  const { signInWithOtp, verifyOtp } = useAuth();
-  const [step, setStep] = useState<"email" | "code">("email");
+  const { signInWithPassword, signUp, signInWithProvider, resetPassword } = useAuth();
+
+  const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState<Busy>(null);
   const [err, setErr] = useState("");
+  const [notice, setNotice] = useState("");
 
   const inputStyle = {
     width: "100%",
@@ -32,152 +45,213 @@ export default function LoginScreen() {
     fontSize: 15,
   } as const;
 
-  const send = async () => {
+  const msg = (e: unknown, fallback: string) =>
+    e instanceof Error ? e.message : fallback;
+
+  const submit = async () => {
     setErr("");
-    setBusy(true);
+    setNotice("");
+    if (!email.trim() || !password) {
+      setErr("Enter your email and password.");
+      return;
+    }
+    setBusy("submit");
     try {
-      await signInWithOtp(email);
-      setStep("code");
+      if (mode === "login") {
+        await signInWithPassword(email, password);
+      } else {
+        const { needsConfirmation } = await signUp(email, password);
+        if (needsConfirmation) {
+          setNotice("Check your email to confirm your account, then log in.");
+          setMode("login");
+          setPassword("");
+        }
+      }
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Something went wrong");
+      setErr(msg(e, "Something went wrong"));
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
 
-  const verify = async () => {
+  const oauth = async (provider: OAuthProvider) => {
     setErr("");
-    setBusy(true);
+    setNotice("");
+    setBusy(provider);
     try {
-      await verifyOtp(email, code);
+      await signInWithProvider(provider);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Invalid code");
+      setErr(msg(e, "Sign-in failed"));
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
+
+  const forgot = async () => {
+    setErr("");
+    setNotice("");
+    if (!email.trim()) {
+      setErr("Enter your email first, then tap Forgot password.");
+      return;
+    }
+    setBusy("submit");
+    try {
+      await resetPassword(email);
+      setNotice("Password reset link sent to your email.");
+    } catch (e) {
+      setErr(msg(e, "Could not send reset link"));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const anyBusy = busy !== null;
 
   return (
-    <View style={{ flex: 1, backgroundColor: t.canvas }}>
-      {/* scroll center */}
-      <View
-        style={{
-          flex: 1,
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: t.canvas }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={{
+          flexGrow: 1,
           justifyContent: "center",
-          alignItems: "center",
           paddingHorizontal: 22,
-          paddingTop: insets.top + 14,
-          paddingBottom: 26,
+          paddingTop: insets.top + 18,
+          paddingBottom: 18,
         }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <JudithAvatar persona={persona} size={92} state="idle" />
+        {/* header */}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 13, marginBottom: 26 }}>
+          <JudithAvatar persona={persona} size={64} state="idle" />
+          <View style={{ flex: 1 }}>
+            <Txt
+              size={12}
+              weight="semibold"
+              color={t.accent}
+              style={{ letterSpacing: 1.92, textTransform: "uppercase", marginBottom: 4 }}
+            >
+              {mode === "login" ? "Welcome back" : "Get started"}
+            </Txt>
+            <Txt size={26} weight="semibold" style={{ letterSpacing: -0.4, lineHeight: 30 }}>
+              {mode === "login" ? "Hi, I’m Judith" : "Create your account"}
+            </Txt>
+          </View>
+        </View>
 
-        <Txt
-          size={12}
-          weight="semibold"
-          color={t.accent}
-          style={{
-            letterSpacing: 1.92,
-            textTransform: "uppercase",
-            marginTop: 26,
-            marginBottom: 8,
-          }}
+        {/* socials */}
+        <Btn
+          variant="soft"
+          icon="apple"
+          label={busy === "apple" ? "" : "Continue with Apple"}
+          onPress={() => oauth("apple")}
+          style={{ marginBottom: 9 }}
         >
-          Welcome back
-        </Txt>
+          {busy === "apple" && <ActivityIndicator color={t.txtHi} />}
+        </Btn>
+        <Btn
+          variant="soft"
+          icon="google"
+          label={busy === "google" ? "" : "Continue with Google"}
+          onPress={() => oauth("google")}
+        >
+          {busy === "google" && <ActivityIndicator color={t.txtHi} />}
+        </Btn>
 
-        <Txt
-          size={27}
-          weight="semibold"
-          style={{
-            lineHeight: 30,
-            letterSpacing: -0.4,
-            textAlign: "center",
-            maxWidth: 280,
-            marginTop: 4,
-          }}
-        >
-          {step === "email" ? "Sign in to Judith" : "Check your email"}
-        </Txt>
-
-        <Txt
-          size={15}
-          color={t.txtMid}
-          style={{ lineHeight: 21, textAlign: "center", maxWidth: 270, marginTop: 10 }}
-        >
-          {step === "email"
-            ? "Your due dates, handled — pick up right where you left off."
-            : `I sent a 6-digit code to ${email}.`}
-        </Txt>
+        {/* divider */}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 16 }}>
+          <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
+          <Txt size={12} color={t.txtLow}>
+            or use email
+          </Txt>
+          <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
+        </View>
 
         {/* fields */}
-        <View style={{ marginTop: 26, width: "100%" }}>
-          {step === "email" ? (
-            <View style={{ width: "100%", gap: 11 }}>
-              <View>
-                <Txt size={12} color={t.txtMid} style={{ marginBottom: 6 }}>
-                  Email or mobile
-                </Txt>
-                <TextInput
-                  style={inputStyle}
-                  placeholder="you@email.com"
-                  placeholderTextColor={t.txtLow}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  keyboardType="email-address"
-                  value={email}
-                  onChangeText={setEmail}
-                />
-              </View>
-            </View>
-          ) : (
-            <View style={{ width: "100%", gap: 11 }}>
-              <View>
-                <Txt size={12} color={t.txtMid} style={{ marginBottom: 6 }}>
-                  6-digit code
-                </Txt>
-                <TextInput
-                  style={inputStyle}
-                  placeholder="••••••"
-                  placeholderTextColor={t.txtLow}
-                  keyboardType="number-pad"
-                  value={code}
-                  onChangeText={setCode}
-                />
-              </View>
-            </View>
+        <View style={{ gap: 11 }}>
+          <View>
+            <Txt size={12} color={t.txtMid} style={{ marginBottom: 6 }}>
+              Email or mobile
+            </Txt>
+            <TextInput
+              style={inputStyle}
+              placeholder="you@email.com"
+              placeholderTextColor={t.txtLow}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
+            />
+          </View>
+          <View>
+            <Txt size={12} color={t.txtMid} style={{ marginBottom: 6 }}>
+              Password
+            </Txt>
+            <TextInput
+              style={inputStyle}
+              placeholder="••••••••"
+              placeholderTextColor={t.txtLow}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              value={password}
+              onChangeText={setPassword}
+            />
+          </View>
+          {mode === "login" && (
+            <Pressable onPress={forgot} disabled={anyBusy} style={{ alignSelf: "flex-end" }}>
+              <Txt size={12} color={t.txtMid}>
+                Forgot password?
+              </Txt>
+            </Pressable>
           )}
         </View>
-      </View>
+      </ScrollView>
 
       {/* cta-bar */}
       <View
         style={{
           paddingHorizontal: 22,
           paddingTop: 12,
-          paddingBottom: insets.bottom + 20,
-          gap: 9,
+          paddingBottom: insets.bottom + 16,
+          gap: 10,
         }}
       >
-        {step === "email" ? (
-          <Btn label={busy ? "" : "Send code"} onPress={send}>
-            {busy && <ActivityIndicator color={t.onAccent} />}
-          </Btn>
-        ) : (
-          <>
-            <Btn label={busy ? "" : "Log in"} onPress={verify}>
-              {busy && <ActivityIndicator color={t.onAccent} />}
-            </Btn>
-            <Btn label="Use a different email" variant="ghost" onPress={() => setStep("email")} />
-          </>
+        {!!notice && (
+          <Low size={13} color={t.accent} style={{ textAlign: "center" }}>
+            {notice}
+          </Low>
         )}
-
         {!!err && (
-          <Low size={13} color={t.semantic.urgent} style={{ textAlign: "center", paddingTop: 4 }}>
+          <Low size={13} color={t.semantic.urgent} style={{ textAlign: "center" }}>
             {err}
           </Low>
         )}
+
+        <Btn label={busy === "submit" ? "" : mode === "login" ? "Log in" : "Create account"} onPress={submit}>
+          {busy === "submit" && <ActivityIndicator color={t.onAccent} />}
+        </Btn>
+
+        <Pressable
+          onPress={() => {
+            setMode((m) => (m === "login" ? "signup" : "login"));
+            setErr("");
+            setNotice("");
+          }}
+          disabled={anyBusy}
+          style={{ paddingTop: 2 }}
+        >
+          <Txt size={14} color={t.txtMid} style={{ textAlign: "center" }}>
+            {mode === "login" ? "New to Judith? " : "Already have an account? "}
+            <Txt size={14} weight="semibold" color={t.accent}>
+              {mode === "login" ? "Create an account" : "Log in"}
+            </Txt>
+          </Txt>
+        </Pressable>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }

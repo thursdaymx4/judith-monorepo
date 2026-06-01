@@ -2,4 +2,5 @@
 - [Judith Anthropic model](judith-anthropic-model.md) — ask flow's pinned default model is load-bearing (no env override); an EOL'd default silently breaks the whole assistant.
 - [Judith Ask AI contract](judith-ask-ai-contract.md) — local store feeds /ask via {bills,persona}; never send placeholder voiceId (use server DEFAULT_VOICE_IDS[persona]); buildClientContext date must be runtime.
 - [Judith require()-hook crash](judith-require-hook-react-compiler.md) — React Compiler is ON; never obtain a hook via runtime require() (causes intermittent "Invalid hook call"); use static top-level import.
+- [Judith auth flow](judith-auth-flow.md) — social-login + Supabase OAuth/password/reset; recoveryActive flag must be set BEFORE establishing the recovery session or routing ejects the reset screen.
 - [Judith Supabase URL](judith-supabase-url.md) — EXPO_PUBLIC_SUPABASE_URL must be the API origin (<ref>.supabase.co), NOT the dashboard URL; dashboard URL returns HTML → "JSON Parse error: Unexpected character: <"; client self-heals.
