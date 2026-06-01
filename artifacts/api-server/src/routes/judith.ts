@@ -340,4 +340,36 @@ router.get("/sample", async (req, res) => {
   }
 });
 
+// POST /api/judith/tts-onboarding  { text, persona? } -> { audioBase64, mime }
+// No auth required — called during onboarding where the user may be a guest.
+router.post("/tts-onboarding", async (req, res) => {
+  try {
+    const { text, persona } = req.body ?? {};
+    if (typeof text !== "string" || !text.trim() || text.length > 350) {
+      res.status(400).json({ error: "text must be non-empty and under 350 chars" });
+      return;
+    }
+    const chosen = coercePersona(persona);
+    const audio = await synthesize(text.trim(), DEFAULT_VOICE_IDS[chosen], { live: false });
+    res.json({ audioBase64: audio.base64, mime: audio.mime });
+  } catch (err) {
+    logger.error({ err }, "tts-onboarding failed");
+    res.status(500).json({ error: "Speech synthesis failed" });
+  }
+});
+
+// GET /api/judith/sample-onboarding?persona=  -> { text, audioBase64, mime }
+// No auth required — persona voice preview during onboarding.
+router.get("/sample-onboarding", async (req, res) => {
+  try {
+    const persona = coercePersona(req.query["persona"]);
+    const text = SAMPLE_LINES[persona];
+    const audio = await synthesize(text, DEFAULT_VOICE_IDS[persona], { live: false });
+    res.json({ text, audioBase64: audio.base64, mime: audio.mime });
+  } catch (err) {
+    logger.error({ err }, "sample-onboarding failed");
+    res.status(500).json({ error: "Sample playback failed" });
+  }
+});
+
 export default router;

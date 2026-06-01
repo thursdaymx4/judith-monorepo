@@ -32,7 +32,7 @@ import { PERSONAS, type PersonaId } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { fileToBase64, playBase64Mp3 } from "@/lib/audio";
-import { transcribe } from "@/lib/proxy";
+import { transcribe, synthOnboarding, fetchSampleOnboarding } from "@/lib/proxy";
 import type { Theme } from "@/constants/theme";
 
 /* ------------------------------------------------------------------ */
@@ -652,15 +652,23 @@ function ScreenLanguage({ ctx }: { ctx: Ctx }) {
   const { t, persona, next } = ctx;
   const [voiceLang, setVoiceLang] = useState("en");
   const [speaking, setSpeaking] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const langReqId = useRef(0);
 
-  const playSample = (code: string) => {
+  const playSample = async (code: string) => {
+    const id = ++langReqId.current;
     setVoiceLang(code);
     setSpeaking(true);
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setSpeaking(false), 2800);
+    try {
+      const text = VOICE_SAMPLE[code] ?? VOICE_SAMPLE["en"]!;
+      const { audioBase64 } = await synthOnboarding(text, persona);
+      if (id !== langReqId.current) return;
+      await playBase64Mp3(audioBase64);
+    } catch {
+      /* silently skip if TTS unavailable */
+    } finally {
+      if (id === langReqId.current) setSpeaking(false);
+    }
   };
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
   return (
     <>
@@ -725,15 +733,22 @@ function ScreenPersona({ ctx }: { ctx: Ctx }) {
   const { t, persona, setPersona, next } = ctx;
   const [speakId, setSpeakId] = useState<PersonaId | null>(null);
   const selected = PERSONAS.find((p) => p.id === persona);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const personaReqId = useRef(0);
 
-  const playLine = (id: PersonaId) => {
+  const playLine = async (id: PersonaId) => {
+    const reqId = ++personaReqId.current;
     setPersona(id);
     setSpeakId(id);
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setSpeakId(null), 2600);
+    try {
+      const { audioBase64 } = await fetchSampleOnboarding(id);
+      if (reqId !== personaReqId.current) return;
+      await playBase64Mp3(audioBase64);
+    } catch {
+      /* silently skip if TTS unavailable */
+    } finally {
+      if (reqId === personaReqId.current) setSpeakId(null);
+    }
   };
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
   return (
     <>
@@ -1396,6 +1411,22 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       : phase === "loans"
         ? `Loan ${loanDone + 1} of ${loanN} — lender, the monthly amount, and the due date?`
         : PROMPTS[sample.cat] || "Tell me about this bill.";
+
+  /* Auto-play Judith's prompt aloud each time a new question appears. */
+  const lastPlayedPromptKey = useRef("");
+  useEffect(() => {
+    if (mode !== "prompt") return;
+    const key = `${phase}-${idx}-${cardDone}-${loanDone}`;
+    if (key === lastPlayedPromptKey.current) return;
+    lastPlayedPromptKey.current = key;
+    let cancelled = false;
+    synthOnboarding(promptText, persona)
+      .then(({ audioBase64 }) => {
+        if (!cancelled) return playBase64Mp3(audioBase64);
+      })
+      .catch(() => { /* silently skip if TTS unavailable */ });
+    return () => { cancelled = true; };
+  }, [mode, phase, idx, cardDone, loanDone, promptText, persona]);
 
   const progress = Math.min(idx + (mode === "done" ? 0 : 1), SAMPLES.length);
   const showConvo = mode === "prompt" || mode === "listening" || mode === "transcribing" || mode === "parsed";

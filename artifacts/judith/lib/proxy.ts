@@ -119,3 +119,42 @@ export async function fetchSample(
     mime: string;
   };
 }
+
+/**
+ * Synthesize arbitrary text during onboarding — no auth required.
+ * Falls back silently on error; callers should catch().
+ */
+export async function synthOnboarding(
+  text: string,
+  persona?: PersonaId,
+): Promise<{ audioBase64: string; mime: string }> {
+  const res = await fetch(`${BASE}/tts-onboarding`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text,
+      persona: persona ? PERSONA_MAP[persona] : "professional",
+    }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`TTS onboarding failed (${res.status}): ${detail}`);
+  }
+  return (await res.json()) as { audioBase64: string; mime: string };
+}
+
+/**
+ * Fetch the persona's pre-baked greeting sample during onboarding — no auth required.
+ */
+export async function fetchSampleOnboarding(
+  persona: PersonaId,
+): Promise<{ text: string; audioBase64: string; mime: string }> {
+  const res = await fetch(
+    `${BASE}/sample-onboarding?persona=${PERSONA_MAP[persona]}`,
+  );
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Sample onboarding failed (${res.status}): ${detail}`);
+  }
+  return (await res.json()) as { text: string; audioBase64: string; mime: string };
+}
