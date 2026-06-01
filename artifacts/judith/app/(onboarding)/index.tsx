@@ -32,7 +32,7 @@ import { PERSONAS, type PersonaId } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { fileToBase64, playBase64Mp3 } from "@/lib/audio";
-import { transcribeOnboarding, synthOnboarding, fetchSampleOnboarding } from "@/lib/proxy";
+import { transcribeOnboarding, synthOnboarding, fetchSampleOnboarding, parseBillOnboarding } from "@/lib/proxy";
 import type { Theme } from "@/constants/theme";
 
 /* ------------------------------------------------------------------ */
@@ -1261,6 +1261,12 @@ function highlight(text: string, toks: string[], accent: string): React.ReactNod
   return parts;
 }
 
+function ordinal(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`;
+}
+
 function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const { t, persona, bills, addBill, next } = ctx;
   const cur = ctx.country.cur;
@@ -1270,6 +1276,12 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const [idx, setIdx] = useState(0);
   const [heardText, setHeardText] = useState("");
   const [err, setErr] = useState("");
+  const [parsedBill, setParsedBill] = useState<{
+    provider: string;
+    amount: number;
+    dueDay: number | null;
+    kind: "Fixed" | "Variable";
+  } | null>(null);
   const [formCat, setFormCat] = useState<{ cat: string; icon: string } | null>(null);
   const [manualReturn, setManualReturn] = useState<VMode>("prompt");
   const [form, setForm] = useState<{ provider: string; amount: string; due: string; kind: "Fixed" | "Variable"; subtype?: string; house?: string }>({ provider: "", amount: "", due: "", kind: "Fixed", house: HOUSES[0] });
@@ -1292,6 +1304,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
 
   const advanceAfterItem = () => {
     setHeardText("");
+    setParsedBill(null);
     if (phase === "cards") {
       const d = cardDone + 1;
       setCardDone(d);
@@ -1323,13 +1336,13 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
 
   const confirm = () => {
     addBill({
-      provider: sample.provider,
+      provider: parsedBill?.provider || sample.provider,
       cat: sample.cat,
       icon: sample.icon,
-      amount: sample.amount,
-      due: sample.due,
-      dueDays: sample.dueDays,
-      kind: kindFor(sample.cat),
+      amount: parsedBill?.amount ?? sample.amount,
+      due: parsedBill?.dueDay != null ? ordinal(parsedBill.dueDay) : sample.due,
+      dueDays: parsedBill?.dueDay ?? sample.dueDays,
+      kind: parsedBill?.kind ?? kindFor(sample.cat),
       subtype: sample.subtype,
       house: HOUSES[0],
     });
@@ -1398,6 +1411,13 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       const base64 = await fileToBase64(uri);
       const { text } = await transcribeOnboarding(base64, "audio/m4a");
       setHeardText(text);
+      /* Parse transcribed text into structured bill fields */
+      try {
+        const parsed = await parseBillOnboarding(text, sample.cat);
+        setParsedBill(parsed);
+      } catch {
+        setParsedBill(null); /* falls back to sample data in PCells */
+      }
       setMode("parsed");
     } catch (e) {
       setErr(`Couldn’t transcribe that: ${String((e as Error)?.message ?? e)}`);
@@ -1512,20 +1532,25 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
               <JudithLine>{VLOCAL.gotit}</JudithLine>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 9 }}>
                 <PCell full label={VLOCAL.lblP} delay={0}>
-                  <Txt size={17} weight="semibold">{sample.provider}</Txt>
+                  <Txt size={17} weight="semibold">
+                    {parsedBill?.provider || sample.provider}
+                  </Txt>
                 </PCell>
                 <PCell label={VLOCAL.lblA} delay={80}>
                   <Mono size={17} weight="bold">
-                    <Mono size={17} weight="bold" color={t.accent}>{cur}</Mono>{fmtNum(sample.amount)}
+                    <Mono size={17} weight="bold" color={t.accent}>{cur}</Mono>
+                    {fmtNum(parsedBill?.amount ?? sample.amount)}
                   </Mono>
                 </PCell>
                 <PCell label={VLOCAL.lblD} delay={160}>
-                  <Txt size={17} weight="semibold">{sample.due} · {VLOCAL.monthly}</Txt>
+                  <Txt size={17} weight="semibold">
+                    {parsedBill?.dueDay != null ? ordinal(parsedBill.dueDay) : sample.due} · {VLOCAL.monthly}
+                  </Txt>
                 </PCell>
                 <PCell label="Type" delay={240}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: kindFor(sample.cat) === "Variable" ? t.semantic.near : t.semantic.ok }} />
-                    <Txt size={17} weight="semibold">{kindFor(sample.cat)}</Txt>
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: (parsedBill?.kind ?? kindFor(sample.cat)) === "Variable" ? t.semantic.near : t.semantic.ok }} />
+                    <Txt size={17} weight="semibold">{parsedBill?.kind ?? kindFor(sample.cat)}</Txt>
                   </View>
                 </PCell>
                 <PCell label={VLOCAL.lblC} delay={320}>

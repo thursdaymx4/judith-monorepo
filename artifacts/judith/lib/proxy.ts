@@ -121,6 +121,36 @@ export async function fetchSample(
 }
 
 /**
+ * AI-powered bill-detail extraction from transcribed speech — no auth required.
+ * Returns provider, amount (₱), dueDay (1-31 | null), and kind.
+ */
+export async function parseBillOnboarding(
+  text: string,
+  category: string,
+): Promise<{
+  provider: string;
+  amount: number;
+  dueDay: number | null;
+  kind: "Fixed" | "Variable";
+}> {
+  const res = await fetch(`${BASE}/parse-bill`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, category }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Parse bill failed (${res.status}): ${detail}`);
+  }
+  return (await res.json()) as {
+    provider: string;
+    amount: number;
+    dueDay: number | null;
+    kind: "Fixed" | "Variable";
+  };
+}
+
+/**
  * Speech-to-text during onboarding — no auth required.
  */
 export async function transcribeOnboarding(

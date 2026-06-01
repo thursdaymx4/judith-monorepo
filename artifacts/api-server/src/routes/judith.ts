@@ -340,6 +340,49 @@ router.get("/sample", async (req, res) => {
   }
 });
 
+// POST /api/judith/parse-bill  { text, category } -> { provider, amount, dueDay, kind }
+// No auth required — AI extraction of bill details from transcribed onboarding speech.
+router.post("/parse-bill", async (req, res) => {
+  try {
+    const { text, category } = req.body ?? {};
+    if (typeof text !== "string" || !text.trim()) {
+      res.status(400).json({ error: "text is required" });
+      return;
+    }
+    const anthropic = getAnthropic();
+    const message = await anthropic.messages.create({
+      model: ANTHROPIC_MODEL,
+      max_tokens: 150,
+      system: `You are a bill-detail extractor for Filipino household bills. Parse the user's spoken description and return ONLY a valid JSON object (no markdown, no explanation):
+{"provider":string,"amount":number,"dueDay":number|null,"kind":"Fixed"|"Variable"}
+provider: company/service name (e.g. "Meralco", "PLDT", "Manila Water").
+amount: Philippine Pesos as a plain number (no ₱).
+dueDay: day of month 1-31, or null if not mentioned.
+kind: Fixed for constant monthly amounts, Variable for bills that change.`,
+      messages: [
+        {
+          role: "user",
+          content: `Category: ${typeof category === "string" ? category : "General"}\nUser said: "${text.trim()}"`,
+        },
+      ],
+    });
+    const raw = message.content
+      .map((b) => (b.type === "text" ? b.text : ""))
+      .join("")
+      .trim();
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    res.json({
+      provider: String(parsed["provider"] ?? ""),
+      amount: Number(parsed["amount"] ?? 0),
+      dueDay: parsed["dueDay"] != null ? Number(parsed["dueDay"]) : null,
+      kind: parsed["kind"] === "Variable" ? "Variable" : "Fixed",
+    });
+  } catch (err) {
+    logger.error({ err }, "parse-bill failed");
+    res.status(500).json({ error: "Could not parse bill" });
+  }
+});
+
 // POST /api/judith/stt-onboarding  { audioBase64, mimeType } -> { text }
 // No auth required — called during onboarding where the user may be a guest.
 router.post("/stt-onboarding", async (req, res) => {
