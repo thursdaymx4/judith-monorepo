@@ -1365,7 +1365,14 @@ function ordinal(n: number): string {
 function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const { t, persona, bills, addBill, next, language } = ctx;
   const cur = ctx.country.cur;
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
+  // ── Voice Activity Detection refs ─────────────────────────────────
+  const vadIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const silenceRef = useRef<{ timer: ReturnType<typeof setTimeout> | null; hasSpeech: boolean }>({ timer: null, hasSpeech: false });
+  const clearVad = () => {
+    if (vadIntervalRef.current !== null) { clearInterval(vadIntervalRef.current); vadIntervalRef.current = null; }
+    if (silenceRef.current.timer !== null) { clearTimeout(silenceRef.current.timer); silenceRef.current.timer = null; }
+  };
 
   const [mode, setMode] = useState<VMode>("prompt");
   const [idx, setIdx] = useState(0);
@@ -1545,12 +1552,34 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       await recorder.prepareToRecordAsync();
       recorder.record();
       setMode("listening");
+      // ── Start silence detection (VAD) ───────────────────────────────
+      clearVad();
+      silenceRef.current = { timer: null, hasSpeech: false };
+      const vadStart = Date.now();
+      const VAD_THRESHOLD_DB = -50;  // dBFS; below this = silence
+      const VAD_MIN_MS = 800;        // ignore first 800 ms while mic settles
+      const VAD_SILENCE_MS = 1500;   // 1.5 s of silence after speech → auto-stop
+      vadIntervalRef.current = setInterval(() => {
+        if (Date.now() - vadStart < VAD_MIN_MS) return;
+        const db = recorder.getStatus().metering;
+        if (db == null) return; // device doesn’t support metering
+        if (db > VAD_THRESHOLD_DB) {
+          silenceRef.current.hasSpeech = true;
+          if (silenceRef.current.timer !== null) { clearTimeout(silenceRef.current.timer); silenceRef.current.timer = null; }
+        } else if (silenceRef.current.hasSpeech && silenceRef.current.timer === null) {
+          silenceRef.current.timer = setTimeout(() => {
+            clearVad();
+            void stopListeningRef.current();
+          }, VAD_SILENCE_MS);
+        }
+      }, 100);
     } catch (e) {
       setErr(`Couldn’t start recording: ${String((e as Error)?.message ?? e)}`);
     }
   };
 
   const stopListening = async () => {
+    clearVad(); // cancel any pending silence timer
     setMode("transcribing");
     try {
       await recorder.stop();
@@ -1578,6 +1607,9 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       setMode("prompt");
     }
   };
+  // Ref so the VAD interval always calls the latest stopListening closure
+  const stopListeningRef = useRef(stopListening);
+  useEffect(() => { stopListeningRef.current = stopListening; });
 
   const isFil = language === "fil";
   const promptText =
