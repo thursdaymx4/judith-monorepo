@@ -226,9 +226,9 @@ const VOICE_PROMPTS_FIL: Record<string, string> = {
 
 /** Supplementary voice lines for each Feature screen — not reading the UI, just personality. */
 const FEATURE_VOICES = [
-  "Try it — ask me anything about your bills. Just tap the mic and talk.",
-  "Ask me which bills are due this week. I know all your due dates.",
-  "I can even tell you if it\u2019s safe to spend before a big due date. Ask me anything.",
+  "Go ahead — tap the mic and just talk to me. Ask anything. I'm listening.",
+  "Try asking 'what's due this week?' I'll tell you everything, right now.",
+  "Ask me if it's safe to spend before payday. I'll check what's coming and give you a straight answer.",
 ];
 
 /**
@@ -250,12 +250,12 @@ const VOICE_LINES_FIL: Record<string, string> = {
     "Sandali lang — ginagawa ko na ang iyong dashboard ngayon.",
   "Here\u2019s everything I know about your bills. Take a look \u2014 you can always adjust anything later.":
     "Ito ang lahat ng alam ko sa iyong mga bills. Tingnan mo — maaari mong baguhin kahit anong oras.",
-  "Try it \u2014 ask me anything about your bills. Just tap the mic and talk.":
-    "Subukan mo — tanungin mo ako tungkol sa iyong mga bills. I-tap lang ang mic at magsalita.",
-  "Ask me which bills are due this week. I know all your due dates.":
-    "Tanungin mo kung aling bills ang due ngayong linggo. Alam ko ang lahat ng due dates mo.",
-  "I can even tell you if it\u2019s safe to spend before a big due date. Ask me anything.":
-    "Masasabi ko rin kung ligtas bang gumastos bago ang malaking due date. Tanungin mo ako ng kahit ano.",
+  "Go ahead \u2014 tap the mic and just talk to me. Ask anything. I'm listening.":
+    "Sige — i-tap ang mic at kausapin mo ako. Tanungin mo ako ng kahit ano. Nakikinig ako.",
+  "Try asking 'what\u2019s due this week?' I'll tell you everything, right now.":
+    "Subukan mong itanong: 'Ano ang due ngayong linggo?' Sasabihin ko sa'yo lahat, ngayon na.",
+  "Ask me if it\u2019s safe to spend before payday. I'll check what\u2019s coming and give you a straight answer.":
+    "Tanungin mo ako kung ligtas bang gumastos bago sweldo. Titingnan ko ang mga darating at susugurin kita.",
   "You\u2019ve got eight free asks to start. Want to keep the conversation going? Pick a plan that fits and I\u2019m all yours.":
     "Mayroon kang walong libreng tanong para magsimula. Gusto mong magpatuloy? Pumili ng plano na angkop sa\u2019yo at para mo na ako.",
 };
@@ -3187,8 +3187,8 @@ function ScreenSummary({ ctx }: { ctx: Ctx }) {
         ? `Tracking this could save you ${cur}450 or more in late fees a year.`
         : "I'll keep you on top of every due date.";
     const line = isFilipino(ctx.language)
-      ? `Heto ang buong larawan — ${cur}${fmtNum(total)} bawat buwan, ${n} bayarin. Ang pinakamalaki ay ${biggest.provider} sa ${cur}${fmtNum(biggest.amount)}. Susunod na mag-e-expire: ${nextDue.provider}, sa loob ng ${nextDue.dueDays} araw. Hawak ko na ito.`
-      : `Here's the full picture — ${cur}${fmtNum(total)} a month across ${n} bill${n === 1 ? "" : "s"}. Your biggest is ${biggest.provider} at ${cur}${fmtNum(biggest.amount)}. Next up: ${nextDue.provider} in ${nextDue.dueDays} day${nextDue.dueDays === 1 ? "" : "s"}. ${savings}`;
+      ? `${n} bayarin, ${cur}${fmtNum(total)} bawat buwan. Ang pinakamalaki ay ${biggest.provider} — ${cur}${fmtNum(biggest.amount)}. Susunod na due: ${nextDue.provider}, ${nextDue.dueDays} araw na lang. Hawak ko na ito.`
+      : `Okay — ${n} bill${n === 1 ? "" : "s"}, ${cur}${fmtNum(total)} a month. ${biggest.provider}'s the big one at ${cur}${fmtNum(biggest.amount)}. First up is ${nextDue.provider} — due in ${nextDue.dueDays} day${nextDue.dueDays === 1 ? "" : "s"}. ${savings}`;
     synthOnboarding(line, ctx.persona)
       .then(({ audioBase64 }) => {
         if (!cancelled) playBase64Mp3(audioBase64).catch(() => {});
