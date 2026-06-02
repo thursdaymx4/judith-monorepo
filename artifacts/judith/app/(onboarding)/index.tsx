@@ -1493,8 +1493,10 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const [cardDone, setCardDone] = useState(0);
   const [loanN, setLoanN] = useState(0);
   const [loanDone, setLoanDone] = useState(0);
-  const [screenshotStatus, setScreenshotStatus] = useState<"idle" | "loading" | "done">("idle");
+  const [screenshotStatus, setScreenshotStatus] = useState<"idle" | "loading" | "editing">("idle");
   const [screenshotBills, setScreenshotBills] = useState<{ provider: string; amount: number | null; dueDay: number | null }[]>([]);
+  type DraftSub = { id: number; provider: string; amount: string; dueDay: string; frequency: "monthly" | "annual" };
+  const [draftSubs, setDraftSubs] = useState<DraftSub[]>([]);
   const [parsedEditing, setParsedEditing] = useState(false);
   const [parsedEdits, setParsedEdits] = useState<{ provider: string; amount: string; dueDay: string; kind: "Fixed" | "Variable"; frequency: "monthly" | "annual" }>({ provider: "", amount: "", dueDay: "", kind: "Fixed", frequency: "monthly" });
 
@@ -1514,6 +1516,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     setParsedEditing(false);
     setScreenshotStatus("idle");
     setScreenshotBills([]);
+    setDraftSubs([]);
     if (phase === "cards") {
       const d = cardDone + 1;
       setCardDone(d);
@@ -1622,28 +1625,50 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
         base64,
         asset.mimeType || "image/jpeg",
       );
-      for (const sub of subscriptions) {
-        const b: OnbBill = {
-          provider: sub.provider,
-          cat: "Phone subscription",
-          icon: "spark",
-          amount: sub.amount ?? 0,
-          due: sub.dueDay ? ordinal(sub.dueDay) : (sub.frequency === "annual" ? "annual" : "monthly"),
-          dueDays: sub.dueDay ?? 20,
-          kind: "Fixed",
-          frequency: sub.frequency ?? "monthly",
-        };
-        addBill(b);
-        saveBill(onbBillToStoreBill(b));
-      }
       setScreenshotBills(subscriptions);
-      setScreenshotStatus("done");
+      setDraftSubs(subscriptions.map((sub, i) => ({
+        id: i,
+        provider: sub.provider,
+        amount: sub.amount != null ? String(sub.amount) : "",
+        dueDay: sub.dueDay != null ? String(sub.dueDay) : "",
+        frequency: (sub.frequency === "annual" ? "annual" : "monthly") as "monthly" | "annual",
+      })));
+      setScreenshotStatus("editing");
     } catch {
       setErr(isFilipino(language)
         ? "Hindi nabasa ang screenshot. Subukan muli o magsalita na lang."
         : "Couldn't read that screenshot. Try a clearer image or speak instead.");
       setScreenshotStatus("idle");
     }
+  };
+
+  /* Confirm scanned subscriptions — save all drafts then jump to breather */
+  const confirmScan = () => {
+    for (const sub of draftSubs) {
+      if (!sub.provider.trim()) continue;
+      const amount = parseFloat(sub.amount.replace(/,/g, "")) || 0;
+      const dueDay = parseInt(sub.dueDay) || 20;
+      const b: OnbBill = {
+        provider: sub.provider.trim(),
+        cat: "Phone subscription",
+        icon: "spark",
+        amount,
+        due: sub.frequency === "annual" ? "annual" : ordinal(dueDay),
+        dueDays: dueDay,
+        kind: "Fixed",
+        frequency: sub.frequency,
+      };
+      addBill(b);
+      saveBill(onbBillToStoreBill(b));
+    }
+    setDraftSubs([]);
+    setScreenshotBills([]);
+    setScreenshotStatus("idle");
+    // Skip remaining group-1 scripted prompts (TV/Streaming, Web app) — jump straight to breather
+    const lastGroup1Idx = SAMPLES.reduce((acc, s, i) => s.group === 1 ? i : acc, 0);
+    setIdx(lastGroup1Idx);
+    setBreatherGroup(1);
+    setMode("breather");
   };
 
   /* real capture + transcription */
@@ -1856,26 +1881,76 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
               </JudithLine>
             </View>
           )}
-          {mode === "prompt" && !done && isPhoneSub && screenshotStatus === "done" && (
+          {mode === "prompt" && !done && isPhoneSub && screenshotStatus === "editing" && (
             <>
               <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
                 <JudithAvatar persona={persona} size={44} state="speaking" />
                 <JudithLine style={{ flex: 1 }}>
                   {isFil
-                    ? `Nakuha ko! ${screenshotBills.length} subscription ang nadagdag sa listahan mo.`
-                    : `Got them! Added ${screenshotBills.length} subscription${screenshotBills.length !== 1 ? "s" : ""} to your list.`}
+                    ? `${draftSubs.length} subscription ang nakita ko. I-check at i-edit kung may mali.`
+                    : `Found ${draftSubs.length} subscription${draftSubs.length !== 1 ? "s" : ""}. Review and fix anything that looks off, then confirm.`}
                 </JudithLine>
               </View>
-              <View style={{ gap: 7, marginTop: 4 }}>
-                {screenshotBills.map((b, i) => (
-                  <View key={i} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 13, paddingVertical: 9, borderRadius: 12, borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface2 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <View style={{ gap: 9, marginTop: 6 }}>
+                {draftSubs.map((sub, i) => (
+                  <View key={sub.id} style={{ borderRadius: 14, borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface2, overflow: "hidden" }}>
+                    {/* Provider row */}
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 13, paddingTop: 11, paddingBottom: 8 }}>
                       <Icon name="spark" size={13} color={t.accent} />
-                      <Txt size={14} weight="medium">{b.provider}</Txt>
+                      <TextInput
+                        value={sub.provider}
+                        onChangeText={(v) => setDraftSubs((ds) => ds.map((d, j) => j === i ? { ...d, provider: v } : d))}
+                        style={{ flex: 1, color: t.txtHi, fontSize: 14, fontWeight: "600" }}
+                        placeholder="Provider name"
+                        placeholderTextColor={t.txtLow}
+                        returnKeyType="done"
+                      />
+                      <Pressable
+                        onPress={() => setDraftSubs((ds) => ds.filter((_, j) => j !== i))}
+                        hitSlop={10}
+                      >
+                        <Icon name="x" size={15} color={t.txtLow} />
+                      </Pressable>
                     </View>
-                    {b.amount != null && <Mono size={13} color={t.txtMid}>{cur}{fmtNum(b.amount)}</Mono>}
+                    {/* Amount + due row */}
+                    <View style={{ flexDirection: "row", alignItems: "center", borderTopWidth: 1, borderTopColor: t.hair }}>
+                      <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 13, paddingVertical: 9 }}>
+                        <Mono size={13} color={t.accent}>{cur}</Mono>
+                        <TextInput
+                          value={sub.amount}
+                          onChangeText={(v) => setDraftSubs((ds) => ds.map((d, j) => j === i ? { ...d, amount: v } : d))}
+                          keyboardType="numeric"
+                          style={{ color: t.txtHi, fontSize: 14, minWidth: 60 }}
+                          placeholder="0"
+                          placeholderTextColor={t.txtLow}
+                          returnKeyType="done"
+                        />
+                      </View>
+                      <View style={{ width: 1, height: 30, backgroundColor: t.hair }} />
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 13, paddingVertical: 9 }}>
+                        <Low size={12}>due</Low>
+                        <TextInput
+                          value={sub.dueDay}
+                          onChangeText={(v) => setDraftSubs((ds) => ds.map((d, j) => j === i ? { ...d, dueDay: v } : d))}
+                          keyboardType="numeric"
+                          style={{ color: t.txtHi, fontSize: 13, width: 28, textAlign: "center" }}
+                          placeholder="1"
+                          placeholderTextColor={t.txtLow}
+                          maxLength={2}
+                          returnKeyType="done"
+                        />
+                        <Low size={12}>· {sub.frequency === "annual" ? "annual" : "monthly"}</Low>
+                      </View>
+                    </View>
                   </View>
                 ))}
+                <Pressable
+                  onPress={() => setDraftSubs((ds) => [...ds, { id: Date.now(), provider: "", amount: "", dueDay: "", frequency: "monthly" }])}
+                  style={{ flexDirection: "row", alignItems: "center", gap: 7, paddingVertical: 6, paddingHorizontal: 2 }}
+                >
+                  <Icon name="plus" size={14} color={t.txtMid} />
+                  <Txt size={13} color={t.txtMid}>{isFil ? "Dagdagan" : "Add another"}</Txt>
+                </Pressable>
               </View>
             </>
           )}
@@ -2306,10 +2381,13 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                 <Low size={13}>{isFil ? "Isang sandali…" : "One moment…"}</Low>
               </View>
             )}
-            {isPhoneSub && screenshotStatus === "done" && (
-              <Btn label={isFil ? "Ituloy →" : "Continue →"} onPress={advanceAfterItem} />
+            {isPhoneSub && screenshotStatus === "editing" && (
+              <Btn
+                label={isFil ? `I-confirm ang ${draftSubs.length} →` : `Confirm ${draftSubs.length} →`}
+                onPress={confirmScan}
+              />
             )}
-            {screenshotStatus !== "done" && screenshotStatus !== "loading" && (
+            {screenshotStatus !== "editing" && screenshotStatus !== "loading" && (
               <>
                 <MicBtn onPress={startListening} />
                 <View style={{ flexDirection: "row", justifyContent: "center", gap: 18, marginTop: 2 }}>
