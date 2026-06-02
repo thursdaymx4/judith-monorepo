@@ -4,7 +4,7 @@ import {
   setAudioModeAsync,
   useAudioRecorder,
 } from "expo-audio";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as ImagePicker from "expo-image-picker";
 import {
   Animated,
@@ -638,6 +638,218 @@ function VoiceBars({ accent, on = true }: { accent: string; on?: boolean }) {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Welcome-word map (country code → native greeting for stamp screen) */
+/* ------------------------------------------------------------------ */
+const WELCOME_WORDS: Record<string, string> = {
+  PH: "Mabuhay",        ID: "Selamat Datang",  MY: "Selamat Datang",
+  SG: "Welcome",        TH: "ยินดีต้อนรับ",      VN: "Xin Chào",
+  JP: "ようこそ",          KR: "환영합니다",         CN: "欢迎",
+  HK: "歡迎",            TW: "歡迎",             IN: "स्वागत है",
+  US: "Welcome",        CA: "Welcome",          MX: "Bienvenido",
+  BR: "Bem-vindo",      AR: "Bienvenido",       CO: "Bienvenido",
+  CL: "Bienvenido",     GB: "Welcome",          IE: "Welcome",
+  ES: "Bienvenido",     PT: "Bem-vindo",        FR: "Bienvenue",
+  DE: "Willkommen",     IT: "Benvenuto",        NL: "Welkom",
+  BE: "Welkom",         SE: "Välkommen",        DK: "Velkommen",
+  NO: "Velkommen",      FI: "Tervetuloa",       PL: "Witaj",
+  CZ: "Vítejte",        SK: "Vitajte",          RO: "Bun venit",
+  BG: "Добре дошли",    HR: "Dobrodošli",       GR: "Καλώς ήρθατε",
+  HU: "Üdvözöljük",    UA: "Ласкаво просимо",  RU: "Добро пожаловать",
+  TR: "Hoş geldiniz",   SA: "أهلاً وسهلاً",     AE: "أهلاً وسهلاً",
+  EG: "أهلاً وسهلاً",   NG: "Ẹ Káàbọ̀",         ZA: "Welcome",
+  AU: "Welcome",        NZ: "Welcome",
+};
+
+/**
+ * WordTransitionOverlay — country flag + welcome word stamps in.
+ * Prototype: `.word-stamp` / `wordStamp` + `wordUp` keyframes.
+ * Auto-dismisses after ~1.9s total.
+ */
+function WordTransitionOverlay({
+  country,
+  onDone,
+}: {
+  country: Country;
+  onDone: () => void;
+}) {
+  const t    = useTheme();
+  const word = WELCOME_WORDS[country.code] ?? "Welcome";
+
+  const flagScale   = useRef(new Animated.Value(2.2)).current;
+  const flagOpacity = useRef(new Animated.Value(0)).current;
+  const wordScale   = useRef(new Animated.Value(2.2)).current;
+  const wordOpacity = useRef(new Animated.Value(0)).current;
+  const subOpacity  = useRef(new Animated.Value(0)).current;
+  const subY        = useRef(new Animated.Value(14)).current;
+  const wrapOpacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    /* flag stamp — 0.5s, cubic-bezier(0.3, 1.4, 0.5, 1) */
+    Animated.parallel([
+      Animated.timing(flagOpacity, { toValue: 1, duration: 150, useNativeDriver: true }),
+      Animated.timing(flagScale, {
+        toValue: 1, duration: 500,
+        easing: Easing.bezier(0.3, 1.4, 0.5, 1), useNativeDriver: true,
+      }),
+    ]).start();
+
+    /* word stamp — 0.5s, delay 0.1s */
+    Animated.sequence([
+      Animated.delay(100),
+      Animated.parallel([
+        Animated.timing(wordOpacity, { toValue: 1, duration: 150, useNativeDriver: true }),
+        Animated.timing(wordScale, {
+          toValue: 1, duration: 500,
+          easing: Easing.bezier(0.3, 1.4, 0.5, 1), useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+
+    /* subtitle word-up — 0.5s, delay 1.0s */
+    Animated.sequence([
+      Animated.delay(1000),
+      Animated.parallel([
+        Animated.timing(subOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.timing(subY,       { toValue: 0, duration: 500, useNativeDriver: true }),
+      ]),
+    ]).start();
+
+    /* fade out overlay then call onDone */
+    const timer = setTimeout(() => {
+      Animated.timing(wrapOpacity, { toValue: 0, duration: 300, useNativeDriver: true })
+        .start(({ finished }) => { if (finished) onDone(); });
+    }, 1600);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{
+        position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 60,
+        opacity: wrapOpacity, backgroundColor: t.canvas,
+        alignItems: "center", justifyContent: "center",
+      }}
+    >
+      <View style={{ alignItems: "center", gap: 12 }}>
+        <Animated.Text
+          style={{ fontSize: 40, opacity: flagOpacity, transform: [{ scale: flagScale }] }}
+        >
+          {country.flag}
+        </Animated.Text>
+        <Animated.Text
+          style={{
+            fontSize: 46, fontFamily: t.fonts.bold, letterSpacing: -0.92,
+            color: t.accent, opacity: wordOpacity, transform: [{ scale: wordScale }],
+          }}
+        >
+          {word}
+        </Animated.Text>
+        <Animated.Text
+          style={{
+            fontSize: 14, fontFamily: t.fonts.regular, color: t.txtMid,
+            opacity: subOpacity, transform: [{ translateY: subY }],
+          }}
+        >
+          Welcome to Judith
+        </Animated.Text>
+      </View>
+    </Animated.View>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Question-mark transition (after late-fee hook, before problem)      */
+/* ------------------------------------------------------------------ */
+const QM_MARKS = [
+  { leftPct: 0.12, fontSize: 64, duration: 1100, delay:   0, angle: -8 },
+  { leftPct: 0.38, fontSize: 96, duration: 1300, delay: 120, angle:  5 },
+  { leftPct: 0.65, fontSize: 48, duration:  950, delay: 250, angle: -12 },
+  { leftPct: 0.22, fontSize: 40, duration: 1050, delay: 180, angle: 10 },
+  { leftPct: 0.78, fontSize: 56, duration: 1200, delay:  80, angle: -5 },
+  { leftPct: 0.50, fontSize: 32, duration:  800, delay: 330, angle:  8 },
+];
+
+/**
+ * QuestionTransitionOverlay — ? marks bubble up from below.
+ * Prototype: `.qm-wrap` / `.qmRise` / `.qmVeil` keyframes.
+ */
+function QuestionTransitionOverlay({ onDone }: { onDone: () => void }) {
+  const t               = useTheme();
+  const { width, height } = useWindowDimensions();
+  const veilOpacity  = useRef(new Animated.Value(0)).current;
+  const translations = useRef(QM_MARKS.map(() => new Animated.Value(0))).current;
+  const opacities    = useRef(QM_MARKS.map(() => new Animated.Value(0))).current;
+
+  useEffect(() => {
+    /* veil: 0 → 0.92 (25%) | hold | 0.92 → 0 (last 25%) over 1250ms */
+    Animated.sequence([
+      Animated.timing(veilOpacity, { toValue: 0.92, duration: 312, useNativeDriver: true }),
+      Animated.timing(veilOpacity, { toValue: 0.92, duration: 626, useNativeDriver: true }),
+      Animated.timing(veilOpacity, { toValue: 0,    duration: 312, useNativeDriver: true }),
+    ]).start();
+
+    QM_MARKS.forEach((qm, i) => {
+      const rise = -(height * 1.15);
+      Animated.sequence([
+        Animated.delay(qm.delay),
+        Animated.parallel([
+          Animated.timing(translations[i], {
+            toValue: rise, duration: qm.duration,
+            easing: Easing.bezier(0.4, 0, 0.4, 1), useNativeDriver: true,
+          }),
+          Animated.sequence([
+            Animated.timing(opacities[i], { toValue: 1, duration: Math.round(qm.duration * 0.20), useNativeDriver: true }),
+            Animated.timing(opacities[i], { toValue: 1, duration: Math.round(qm.duration * 0.70), useNativeDriver: true }),
+            Animated.timing(opacities[i], { toValue: 0, duration: Math.round(qm.duration * 0.10), useNativeDriver: true }),
+          ]),
+        ]),
+      ]).start();
+    });
+
+    const timer = setTimeout(onDone, 1400);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <View
+      pointerEvents="none"
+      style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 60, overflow: "hidden" }}
+    >
+      <Animated.View
+        style={{
+          position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: t.canvas, opacity: veilOpacity,
+        }}
+      />
+      {QM_MARKS.map((qm, i) => (
+        <Animated.Text
+          key={i}
+          style={{
+            position: "absolute",
+            top: height + 20,
+            left: Math.round(qm.leftPct * width),
+            fontSize: qm.fontSize,
+            fontFamily: t.fonts.bold,
+            color: t.accent,
+            opacity: opacities[i],
+            transform: [
+              { translateY: translations[i] },
+              { rotate: `${qm.angle}deg` },
+            ],
+            textShadowColor: t.accent,
+            textShadowRadius: 18,
+            textShadowOffset: { width: 0, height: 0 },
+          }}
+        >
+          ?
+        </Animated.Text>
+      ))}
+    </View>
+  );
+}
+
 /* ================================================================== */
 /* 1. Welcome                                                          */
 /* ================================================================== */
@@ -1226,27 +1438,40 @@ function ScreenStakes({ ctx }: { ctx: Ctx }) {
   useOnbVoice("These are real numbers. A missed payment hits your credit, your wallet, and your peace of mind. I\u2019m here to make sure it never gets to that.", persona, ctx.language);
   const [committed, setCommitted] = useState(false);
 
-  /* commit animation values */
+  /* commit animation values — mirrors prototype `.commit-*` keyframes */
   const boxScale    = useRef(new Animated.Value(0.25)).current;
   const boxOpacity  = useRef(new Animated.Value(0)).current;
   const youScale    = useRef(new Animated.Value(0)).current;
   const youOpacity  = useRef(new Animated.Value(0)).current;
   const youRotate   = useRef(new Animated.Value(-6)).current;
+  const lineOpacity = useRef(new Animated.Value(0)).current;
+  const lineY       = useRef(new Animated.Value(12)).current;
   const ctrlOpacity = useRef(new Animated.Value(0)).current;
   const ctrlY       = useRef(new Animated.Value(14)).current;
+  const todayOpacity = useRef(new Animated.Value(0)).current;
+  const todayY       = useRef(new Animated.Value(12)).current;
+  const ulineScale   = useRef(new Animated.Value(0)).current;
 
   const commit = () => {
     setCommitted(true);
+    const fadeUp = (opacity: Animated.Value, y: Animated.Value, delay: number) =>
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.parallel([
+          Animated.timing(opacity, { toValue: 1, duration: 500, easing: Easing.bezier(0.2, 0.7, 0.3, 1), useNativeDriver: true }),
+          Animated.timing(y,       { toValue: 0, duration: 500, easing: Easing.bezier(0.2, 0.7, 0.3, 1), useNativeDriver: true }),
+        ]),
+      ]);
     Animated.parallel([
       /* commitBoxIn: scale 0.25 → 1.08 → 1, opacity 0 → 1 (0.8s) */
       Animated.parallel([
         Animated.timing(boxOpacity, { toValue: 1,    duration: 440, useNativeDriver: true }),
         Animated.sequence([
-          Animated.timing(boxScale,   { toValue: 1.08, duration: 624, easing: Easing.bezier(0.2, 0.9, 0.3, 1.15), useNativeDriver: true }),
-          Animated.timing(boxScale,   { toValue: 1,    duration: 176, useNativeDriver: true }),
+          Animated.timing(boxScale, { toValue: 1.08, duration: 624, easing: Easing.bezier(0.2, 0.9, 0.3, 1.15), useNativeDriver: true }),
+          Animated.timing(boxScale, { toValue: 1,    duration: 176, useNativeDriver: true }),
         ]),
       ]),
-      /* commitYouIn: scale 0 → 1.25 → 1, rotate −6° → 0 (0.7s, delay 0.5s) */
+      /* "You" — commitYouIn: stamp from scale 0, rotate −6°→0, delay 0.5s */
       Animated.sequence([
         Animated.delay(500),
         Animated.parallel([
@@ -1255,16 +1480,19 @@ function ScreenStakes({ ctx }: { ctx: Ctx }) {
             Animated.timing(youScale, { toValue: 1.25, duration: 385, easing: Easing.bezier(0.2, 0.9, 0.3, 1.3), useNativeDriver: true }),
             Animated.timing(youScale, { toValue: 1,    duration: 315, useNativeDriver: true }),
           ]),
-          Animated.timing(youRotate,  { toValue: 0,    duration: 700, useNativeDriver: true }),
+          Animated.timing(youRotate, { toValue: 0, duration: 700, useNativeDriver: true }),
         ]),
       ]),
-      /* commitCtrlIn: opacity 0→1, translateY 14→0 (0.4s, delay 0.8s) */
+      /* "will start taking" — commitFadeUp at 1.7s */
+      fadeUp(lineOpacity, lineY, 1700),
+      /* "control" — commitCtrlIn at 2.3s */
+      fadeUp(ctrlOpacity, ctrlY, 2300),
+      /* "today" — commitFadeUp at 3.9s */
+      fadeUp(todayOpacity, todayY, 3900),
+      /* underline scaleX 0→1 at 4.5s (commitUline) */
       Animated.sequence([
-        Animated.delay(800),
-        Animated.parallel([
-          Animated.timing(ctrlOpacity, { toValue: 1, duration: 400, easing: Easing.bezier(0.2, 0.7, 0.3, 1), useNativeDriver: true }),
-          Animated.timing(ctrlY,       { toValue: 0, duration: 400, easing: Easing.bezier(0.2, 0.7, 0.3, 1), useNativeDriver: true }),
-        ]),
+        Animated.delay(4500),
+        Animated.timing(ulineScale, { toValue: 1, duration: 600, easing: Easing.bezier(0.6, 0, 0.3, 1), useNativeDriver: true }),
       ]),
     ]).start(() => setTimeout(next, 2000));
   };
@@ -1335,31 +1563,119 @@ function ScreenStakes({ ctx }: { ctx: Ctx }) {
         <Btn label="No — let’s fix this" onPress={commit} />
       </CtaBar>
 
-      {/* commitBoxIn overlay */}
+      {/* CommitTransition overlay — `.commit-wrap` / `.commit-card` from prototype */}
       {committed && (
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: t.canvas, zIndex: 50, justifyContent: "center", alignItems: "center" }}>
-          <View style={{ position: "absolute", width: "140%", height: "50%", left: "-20%", top: "25%", backgroundColor: withAlpha(t.accent, 0.07), borderRadius: 999, transform: [{ scaleY: 0.4 }] }} />
-          <Animated.View style={{
-            opacity: boxOpacity, transform: [{ scale: boxScale }],
-            padding: 36, borderRadius: 28, borderWidth: 1, borderColor: withAlpha(t.accent, 0.28),
-            backgroundColor: t.surface2, alignItems: "center", gap: 8, maxWidth: 300, width: "80%",
-          }}>
-            <Animated.View style={{
-              opacity: youOpacity,
-              transform: [
-                { scale: youScale },
-                { rotate: youRotate.interpolate({ inputRange: [-6, 0], outputRange: ["-6deg", "0deg"] }) },
-              ],
-            }}>
-              <Txt size={52} weight="semibold" color={t.accent} style={{ letterSpacing: -1.5 }}>You</Txt>
-            </Animated.View>
-            <Animated.View style={{ opacity: ctrlOpacity, transform: [{ translateY: ctrlY }], alignItems: "center" }}>
-              <Txt size={21} weight="semibold" color={t.txtHi} style={{ textAlign: "center", lineHeight: 28, letterSpacing: -0.3 }}>
-                will start taking{"\n"}control today
-              </Txt>
-              <View style={{ marginTop: 8, height: 2, width: 140, borderRadius: 2, backgroundColor: t.accent, opacity: 0.7 }} />
-            </Animated.View>
+        <View
+          style={{
+            position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 50,
+            justifyContent: "center", alignItems: "center",
+            backgroundColor: t.canvas,
+          }}
+        >
+          {/* radial accent glow behind card */}
+          <View
+            style={{
+              position: "absolute", width: "140%", height: "55%", left: "-20%", top: "22%",
+              backgroundColor: withAlpha(t.accent, 0.07), borderRadius: 999,
+              transform: [{ scaleY: 0.4 }],
+            }}
+          />
+
+          {/* Phase 1: green "Start today" box zooms in (.commit-box / commitBoxIn) */}
+          <Animated.View
+            style={{
+              position: "absolute",
+              opacity: boxOpacity,
+              transform: [{ scale: boxScale }],
+              width: 190, paddingVertical: 26, paddingHorizontal: 18, borderRadius: 22,
+              borderWidth: 1, borderColor: withAlpha(t.semantic.ok, 0.45),
+              backgroundColor: mix(t.semantic.ok, t.surface2, 0.12),
+              alignItems: "center", gap: 8,
+              shadowColor: t.semantic.ok, shadowOpacity: 0.7, shadowRadius: 60, shadowOffset: { width: 0, height: 24 },
+            }}
+          >
+            <Txt size={12} weight="semibold" color={t.txtMid} style={{ letterSpacing: 0.5, textTransform: "uppercase" }}>Start today</Txt>
+            <View style={{ width: 46, height: 46, borderRadius: 14, borderWidth: 1, borderColor: withAlpha(t.semantic.ok, 0.4), alignItems: "center", justifyContent: "center" }}>
+              <Icon name="check" size={22} color={t.semantic.ok} />
+            </View>
+            <Mono size={30} weight="bold" color={t.semantic.ok}>{cur}0</Mono>
+            <Low size={12}>in late fees</Low>
           </Animated.View>
+
+          {/* Phase 2: commit-card text ("You will start taking control today") */}
+          <View style={{ alignItems: "center", gap: 0 }}>
+            {/* "You" — Playfair Display italic, green, commitYouIn stamp */}
+            <Animated.Text
+              style={{
+                fontFamily: t.fonts.display,
+                fontSize: 64, lineHeight: 68,
+                color: t.semantic.ok,
+                textShadowColor: withAlpha(t.semantic.ok, 0.5),
+                textShadowRadius: 34,
+                textShadowOffset: { width: 0, height: 0 },
+                opacity: youOpacity,
+                transform: [
+                  { scale: youScale },
+                  { rotate: youRotate.interpolate({ inputRange: [-6, 0], outputRange: ["-6deg", "0deg"] }) },
+                ],
+              }}
+            >
+              You
+            </Animated.Text>
+
+            {/* "will start taking" — commitFadeUp at 1.7s */}
+            <Animated.Text
+              style={{
+                fontFamily: t.fonts.medium,
+                fontSize: 20, color: t.txtMid,
+                opacity: lineOpacity,
+                transform: [{ translateY: lineY }],
+              }}
+            >
+              will start taking
+            </Animated.Text>
+
+            {/* "control" — Playfair Display italic, commitCtrlIn at 2.3s */}
+            <Animated.Text
+              style={{
+                fontFamily: t.fonts.display,
+                fontSize: 60, lineHeight: 66,
+                color: t.txtHi,
+                textShadowColor: withAlpha(t.accent, 0.45),
+                textShadowRadius: 32,
+                textShadowOffset: { width: 0, height: 0 },
+                opacity: ctrlOpacity,
+                transform: [{ translateY: ctrlY }],
+              }}
+            >
+              control
+            </Animated.Text>
+
+            {/* "today" + animated underline — commitFadeUp at 3.9s */}
+            <Animated.View
+              style={{
+                alignItems: "center",
+                opacity: todayOpacity,
+                transform: [{ translateY: todayY }],
+                marginTop: 4,
+              }}
+            >
+              <Txt size={32} weight="bold" color={t.accent} style={{ letterSpacing: -0.3 }}>
+                today
+              </Txt>
+              {/* commitUline: scaleX 0→1 at 4.5s */}
+              <Animated.View
+                style={{
+                  height: 3, width: 110, borderRadius: 3,
+                  backgroundColor: t.accent,
+                  shadowColor: t.accent, shadowOpacity: 1, shadowRadius: 12, shadowOffset: { width: 0, height: 0 },
+                  transform: [{ scaleX: ulineScale }],
+                  transformOrigin: "left",
+                  marginTop: -2,
+                }}
+              />
+            </Animated.View>
+          </View>
         </View>
       )}
     </>
@@ -3477,6 +3793,8 @@ export default function OnboardingScreen() {
 
   const screen = FLOW[idx]!;
 
+  const [trans, setTrans] = useState<"word" | "question" | null>(null);
+
   const advance = (toIdx: number) => {
     if (toIdx >= FLOW.length) {
       setOnboarded(true);
@@ -3484,7 +3802,12 @@ export default function OnboardingScreen() {
     }
     setIdx(toIdx);
   };
-  const next = () => advance(idx + 1);
+  const finishTrans = () => { setTrans(null); advance(idx + 1); };
+  const next = () => {
+    if (screen.id === "country")  { setTrans("word");     return; }
+    if (screen.id === "latefee")  { setTrans("question"); return; }
+    advance(idx + 1);
+  };
   const back = () => setIdx((i) => Math.max(i - 1, 0));
   const addBill = (b: OnbBill) => setBills((arr) => [...arr, b]);
 
@@ -3554,6 +3877,16 @@ export default function OnboardingScreen() {
       >
         <Comp ctx={ctx} key={screen.id + idx} />
       </Animated.View>
+
+      {/* WordTransition — stamp overlay after country selection */}
+      {trans === "word" && (
+        <WordTransitionOverlay country={country} onDone={finishTrans} />
+      )}
+
+      {/* QuestionTransition — ? marks bubbling up after late-fee hook */}
+      {trans === "question" && (
+        <QuestionTransitionOverlay onDone={finishTrans} />
+      )}
     </View>
   );
 }
