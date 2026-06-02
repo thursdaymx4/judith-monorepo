@@ -32,8 +32,11 @@ import {
 import { HOUSES, QUICK_ASKS, type Bill } from "@/constants/data";
 import { LANGUAGES, langSample, langDesc, isFilipino, sttHint } from "@/constants/languages";
 import { PERSONAS, type PersonaId } from "@/constants/personas";
+import { LinearGradient } from "expo-linear-gradient";
 import { useJudith } from "@/contexts/JudithStore";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useTheme } from "@/hooks/useTheme";
+import { haptics } from "@/lib/haptics";
 import { fileToBase64, playBase64Mp3, stopCurrentAudio } from "@/lib/audio";
 import { transcribeOnboarding, synthOnboarding, fetchSampleOnboarding, parseBillOnboarding, parseSubscriptionScreenshot, askOnboarding } from "@/lib/proxy";
 import type { Theme } from "@/constants/theme";
@@ -695,8 +698,19 @@ function WordTransitionOverlay({
   const subOpacity  = useRef(new Animated.Value(0)).current;
   const subY        = useRef(new Animated.Value(18)).current;
   const wrapOpacity = useRef(new Animated.Value(1)).current;
+  const shakeX      = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    const doShake = () =>
+      Animated.sequence([
+        Animated.timing(shakeX, { toValue: 1,   duration: 40, useNativeDriver: true }),
+        Animated.timing(shakeX, { toValue: -1,  duration: 55, useNativeDriver: true }),
+        Animated.timing(shakeX, { toValue: 0.5, duration: 55, useNativeDriver: true }),
+        Animated.timing(shakeX, { toValue: 0,   duration: 60, useNativeDriver: true }),
+      ]).start();
+    /* haptic + shake synced to each stamp impact */
+    const h1 = setTimeout(() => { haptics.medium(); doShake(); }, 230);
+    const h2 = setTimeout(() => { haptics.heavy(); doShake(); }, 560);
     /* flag stamp — 750ms spring, cubic-bezier(0.2, 1.6, 0.4, 1) */
     Animated.parallel([
       Animated.timing(flagOpacity, { toValue: 1, duration: 120, useNativeDriver: true }),
@@ -733,7 +747,7 @@ function WordTransitionOverlay({
       Animated.timing(wrapOpacity, { toValue: 0, duration: 500, useNativeDriver: true })
         .start(({ finished }) => { if (finished) onDone(); });
     }, 3400);
-    return () => clearTimeout(timer);
+    return () => { clearTimeout(timer); clearTimeout(h1); clearTimeout(h2); };
   }, []);
 
   return (
@@ -745,7 +759,7 @@ function WordTransitionOverlay({
         alignItems: "center", justifyContent: "center",
       }}
     >
-      <View style={{ alignItems: "center", gap: 12 }}>
+      <Animated.View style={{ alignItems: "center", gap: 12, transform: [{ translateX: shakeX.interpolate({ inputRange: [-1, 1], outputRange: [-7, 7] }) }] }}>
         <Animated.Text
           style={{ fontSize: 40, opacity: flagOpacity, transform: [{ scale: flagScale }] }}
         >
@@ -767,7 +781,7 @@ function WordTransitionOverlay({
         >
           Welcome to Judith
         </Animated.Text>
-      </View>
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -978,6 +992,7 @@ function ScreenLanguage({ ctx }: { ctx: Ctx }) {
   const langReqId = useRef(0);
 
   const playSample = async (code: string) => {
+    haptics.light();
     const id = ++langReqId.current;
     setVoiceLang(code);
     setLanguage(code);
@@ -1021,6 +1036,7 @@ function ScreenLanguage({ ctx }: { ctx: Ctx }) {
         justifyContent: "center",
       }}
     >
+      {active && speaking && <PulseRing color={t.accent} />}
       <Icon name={active && speaking ? "spark" : "play"} size={15} color={t.accent} />
     </View>
   );
@@ -1150,6 +1166,7 @@ function ScreenPersona({ ctx }: { ctx: Ctx }) {
   }, []);
 
   const playLine = async (id: PersonaId) => {
+    haptics.light();
     const reqId = ++personaReqId.current;
     setPersona(id);
     setSpeakId(id);
@@ -1185,6 +1202,12 @@ function ScreenPersona({ ctx }: { ctx: Ctx }) {
                   backgroundColor: t.surface2,
                   padding: 15,
                   gap: 10,
+                  transform: [{ translateY: on ? -2 : 0 }],
+                  shadowColor: t.accent,
+                  shadowOpacity: on ? 0.34 : 0,
+                  shadowRadius: on ? 14 : 0,
+                  shadowOffset: { width: 0, height: 4 },
+                  elevation: on ? 6 : 0,
                 }}
               >
                 <JudithAvatar persona={p.id} size={52} state={speakId === p.id ? "speaking" : "idle"} />
@@ -1329,8 +1352,9 @@ function ScreenProblem({ ctx }: { ctx: Ctx }) {
   const choose = (knows: boolean) => {
     if (answered !== null) return;
     setAnswered(knows);
-    if (knows) { setTimeout(next, 480); return; }
+    if (knows) { haptics.light(); setTimeout(next, 480); return; }
 
+    haptics.error();
     /* faultShake × 2 + faultFlash + faultBar, then advance */
     const oneShake = Animated.sequence([
       Animated.timing(shakeX, { toValue: -9, duration: 50, useNativeDriver: true }),
@@ -1467,6 +1491,9 @@ function ScreenStakes({ ctx }: { ctx: Ctx }) {
 
   const commit = () => {
     setCommitted(true);
+    haptics.medium();
+    setTimeout(() => haptics.light(), 500);
+    setTimeout(() => haptics.heavy(), 4500);
     const fadeUp = (opacity: Animated.Value, y: Animated.Value, delay: number) =>
       Animated.sequence([
         Animated.delay(delay),
@@ -3767,6 +3794,76 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
 /* flow controller                                                    */
 /* ================================================================== */
 
+/** Concentric ring that expands and fades, looping — "tap to hear me" affordance. */
+function PulseRing({ color }: { color: string }) {
+  const reduce = useReducedMotion();
+  const p = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (reduce) return;
+    const loop = Animated.loop(
+      Animated.timing(p, { toValue: 1, duration: 1400, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [reduce, p]);
+  if (reduce) return null;
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{
+        position: "absolute",
+        width: 34,
+        height: 34,
+        borderRadius: 17,
+        borderWidth: 2,
+        borderColor: color,
+        opacity: p.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] }),
+        transform: [{ scale: p.interpolate({ inputRange: [0, 1], outputRange: [1, 2.1] }) }],
+      }}
+    />
+  );
+}
+
+/** Light diagonal accent sweep that wipes across when leaving the welcome screen. */
+function SweepOverlay({ onDone }: { onDone: () => void }) {
+  const t = useTheme();
+  const reduce = useReducedMotion();
+  const { width } = useWindowDimensions();
+  const x = useRef(new Animated.Value(-width * 1.4)).current;
+  useEffect(() => {
+    haptics.light();
+    if (reduce) { onDone(); return; }
+    Animated.timing(x, {
+      toValue: width * 1.4,
+      duration: 620,
+      easing: Easing.bezier(0.6, 0, 0.3, 1),
+      useNativeDriver: true,
+    }).start(({ finished }) => { if (finished) onDone(); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  if (reduce) return null;
+  return (
+    <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 60, overflow: "hidden" }}>
+      <Animated.View
+        style={{
+          position: "absolute",
+          top: -120,
+          bottom: -120,
+          width: width * 0.9,
+          transform: [{ translateX: x }, { rotate: "12deg" }],
+        }}
+      >
+        <LinearGradient
+          colors={[withAlpha(t.accent, 0), withAlpha(t.accent, 0.5), withAlpha(t.accent, 0)]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={{ flex: 1 }}
+        />
+      </Animated.View>
+    </View>
+  );
+}
+
 const FLOW: { id: string; C: (p: { ctx: Ctx }) => React.ReactElement }[] = [
   { id: "welcome", C: ScreenWelcome },
   { id: "country", C: ScreenCountry },
@@ -3840,7 +3937,7 @@ export default function OnboardingScreen() {
 
   const screen = FLOW[idx]!;
 
-  const [trans, setTrans] = useState<"word" | "question" | null>(null);
+  const [trans, setTrans] = useState<"word" | "question" | "sweep" | null>(null);
 
   const advance = (toIdx: number) => {
     if (toIdx >= FLOW.length) {
@@ -3851,6 +3948,7 @@ export default function OnboardingScreen() {
   };
   const finishTrans = () => { setTrans(null); advance(idx + 1); };
   const next = () => {
+    if (screen.id === "welcome")  { setTrans("sweep");    return; }
     if (screen.id === "country")  { setTrans("word");     return; }
     if (screen.id === "latefee")  { setTrans("question"); return; }
     advance(idx + 1);
@@ -3934,6 +4032,9 @@ export default function OnboardingScreen() {
       {trans === "question" && (
         <QuestionTransitionOverlay onDone={finishTrans} />
       )}
+
+      {/* Sweep — light accent wipe leaving the welcome screen */}
+      {trans === "sweep" && <SweepOverlay onDone={finishTrans} />}
     </View>
   );
 }

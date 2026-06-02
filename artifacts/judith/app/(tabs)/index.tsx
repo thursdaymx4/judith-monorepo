@@ -19,12 +19,90 @@ import {
 } from "@/components/ui";
 import { dueClass, dueShort, isPartialBill, partialPct, totalOwed, type Bill } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
+import { useCountUp } from "@/hooks/useCountUp";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useTheme } from "@/hooks/useTheme";
+
+/** Timeline rail dot — pulses an expanding halo when the bill is urgent/overdue. */
+function PulseDot({ color, active, reduce }: { color: string; active: boolean; reduce: boolean }) {
+  const t = useTheme();
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!active || reduce) return;
+    const loop = Animated.loop(
+      Animated.timing(pulse, {
+        toValue: 1,
+        duration: 1600,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: true,
+      }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [active, reduce, pulse]);
+  return (
+    <View style={{ marginTop: 18, width: 11, height: 11, alignItems: "center", justifyContent: "center" }}>
+      {active && !reduce && (
+        <Animated.View
+          style={{
+            position: "absolute",
+            width: 11,
+            height: 11,
+            borderRadius: 6,
+            backgroundColor: color,
+            opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0] }),
+            transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 2.8] }) }],
+          }}
+        />
+      )}
+      <View
+        style={{
+          width: 11,
+          height: 11,
+          borderRadius: 6,
+          backgroundColor: color,
+          borderWidth: 3,
+          borderColor: t.canvas,
+          shadowColor: color,
+          shadowOpacity: 0.9,
+          shadowRadius: 6,
+          shadowOffset: { width: 0, height: 0 },
+        }}
+      />
+    </View>
+  );
+}
+
+/** Wraps a timeline row in a one-shot rise+fade reveal, staggered by index. */
+function StaggerRow({
+  index,
+  reduce,
+  children,
+  style,
+}: {
+  index: number;
+  reduce: boolean;
+  children: React.ReactNode;
+  style?: any;
+}) {
+  const op = useRef(new Animated.Value(reduce ? 1 : 0)).current;
+  const ty = useRef(new Animated.Value(reduce ? 0 : 10)).current;
+  useEffect(() => {
+    if (reduce) return;
+    Animated.parallel([
+      Animated.timing(op, { toValue: 1, duration: 360, delay: index * 80, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(ty, { toValue: 0, duration: 360, delay: index * 80, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+    ]).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return <Animated.View style={[style, { opacity: op, transform: [{ translateY: ty }] }]}>{children}</Animated.View>;
+}
 
 export default function HomeScreen() {
   const t = useTheme();
   const router = useRouter();
   const { bills, persona, money } = useJudith();
+  const reduce = useReducedMotion();
 
   const due = bills
     .filter((b) => b.status !== "paid")
@@ -51,13 +129,21 @@ export default function HomeScreen() {
 
   const pctAnim = useRef(new Animated.Value(pct)).current;
   useEffect(() => {
+    if (reduce) {
+      pctAnim.setValue(pct);
+      return;
+    }
     Animated.timing(pctAnim, {
       toValue: pct,
       duration: 700,
       easing: Easing.bezier(0.22, 1, 0.36, 1),
       useNativeDriver: false,
     }).start();
-  }, [pct]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pct, reduce]);
+
+  const totalA = useCountUp(total);
+  const weekA = useCountUp(weekSum);
 
   const openBill = (b: Bill) => router.push(`/bill/${b.id}`);
 
@@ -120,7 +206,7 @@ export default function HomeScreen() {
       <Card style={{ flexDirection: "row", padding: 0, overflow: "hidden", marginBottom: 14 }}>
         <View style={{ flex: 1.3, paddingVertical: 14, paddingHorizontal: 15 }}>
           <Mono size={24} weight="bold">
-            {money(total)}
+            {money(Math.round(totalA))}
           </Mono>
           <Low size={12} style={{ marginTop: 2 }}>
             due this month
@@ -129,7 +215,7 @@ export default function HomeScreen() {
         <View style={{ width: 1, backgroundColor: t.hair }} />
         <View style={{ flex: 1, paddingVertical: 14, paddingHorizontal: 15 }}>
           <Mono size={24} weight="bold" color={t.semantic.near}>
-            {money(weekSum)}
+            {money(Math.round(weekA))}
           </Mono>
           <Low size={12} style={{ marginTop: 2 }}>
             next 7 days
@@ -188,31 +274,21 @@ export default function HomeScreen() {
           const cls = dueClass(b.dueDays);
           const last = i === due.length - 1;
           return (
+            <StaggerRow key={b.id} index={i} reduce={reduce} style={{ marginBottom: last ? 0 : 12 }}>
             <Pressable
-              key={b.id}
               onPress={() => openBill(b)}
               style={({ pressed }) => [
-                { flexDirection: "row", alignItems: "stretch", gap: 10, marginBottom: last ? 0 : 12 },
+                { flexDirection: "row", alignItems: "stretch", gap: 10 },
                 pressed && { opacity: 0.85 },
               ]}
             >
               {/* rail */}
               <View style={{ width: 14, alignItems: "center" }}>
                 <View style={{ position: "absolute", top: 0, bottom: -12, width: 2, backgroundColor: t.hair }} />
-                <View
-                  style={{
-                    marginTop: 18,
-                    width: 11,
-                    height: 11,
-                    borderRadius: 6,
-                    backgroundColor: t.semantic[cls],
-                    borderWidth: 3,
-                    borderColor: t.canvas,
-                    shadowColor: t.semantic[cls],
-                    shadowOpacity: 0.9,
-                    shadowRadius: 6,
-                    shadowOffset: { width: 0, height: 0 },
-                  }}
+                <PulseDot
+                  color={t.semantic[cls]}
+                  active={cls === "overdue" || cls === "urgent"}
+                  reduce={reduce}
                 />
               </View>
               {/* date */}
@@ -277,6 +353,7 @@ export default function HomeScreen() {
                 );
               })()}
             </Pressable>
+            </StaggerRow>
           );
         })}
       </View>

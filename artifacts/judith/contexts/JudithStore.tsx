@@ -42,6 +42,8 @@ interface PersistShape {
   accent: AccentId;
   countryCode: string;
   toggles: Toggles;
+  /** Accessibility: disable non-essential animation (instant states). */
+  reduceMotion: boolean;
   onboarded: boolean;
   /** Onboarding resume index (saved from step `intro` onward). */
   onbIdx: number;
@@ -60,6 +62,7 @@ const DEFAULTS: PersistShape = {
   accent: "mint",
   countryCode: DEFAULT_COUNTRY.code,
   toggles: { dueReminders: true, widget: true, watch: false, nudges: true },
+  reduceMotion: false,
   onboarded: false,
   onbIdx: 0,
   guest: false,
@@ -95,6 +98,7 @@ interface JudithStoreValue extends PersistShape {
   setAccent: (a: AccentId) => void;
   setCountry: (code: string) => void;
   setToggle: (key: keyof Toggles, value: boolean) => void;
+  setReduceMotion: (v: boolean) => void;
   /* lifecycle */
   setOnboarded: (v: boolean) => void;
   setOnbIdx: (i: number) => void;
@@ -247,6 +251,7 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       setCountry: (code) => patch({ countryCode: code }),
       setToggle: (key, v) =>
         patch({ toggles: { ...state.toggles, [key]: v } }),
+      setReduceMotion: (v) => patch({ reduceMotion: v }),
       setOnboarded: (v) => patch({ onboarded: v }),
       setOnbIdx: (i) => patch({ onbIdx: i }),
       setGuest: (v) => patch({ guest: v }),

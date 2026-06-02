@@ -107,7 +107,7 @@ function SettingsLabel({ children }: { children: React.ReactNode }) {
 export default function SettingsScreen() {
   const t = useTheme();
   const router = useRouter();
-  const { persona, setPersona, toggles, setToggle, asksLeft, tier, theme, setTheme, restart, money, bills } =
+  const { persona, setPersona, toggles, setToggle, reduceMotion, setReduceMotion, asksLeft, tier, theme, setTheme, restart, money, bills } =
     useJudith();
 
   const subscribed = tier !== "free";
@@ -315,6 +315,23 @@ export default function SettingsScreen() {
             </View>
           );
         })}
+      </View>
+
+      {/* accessibility */}
+      <SettingsLabel>Accessibility</SettingsLabel>
+      <View style={{ borderRadius: t.radius.md, overflow: "hidden" }}>
+        <View style={{ ...rowBase, borderTopWidth: 1, borderBottomWidth: 0 }}>
+          <IcoBox name="sliders" iconSize={17} color={reduceMotion ? t.accent : t.txtMid} />
+          <View style={{ flex: 1 }}>
+            <Txt size={15} weight="medium">
+              Reduce motion
+            </Txt>
+            <Low size={12} style={{ marginTop: 1 }}>
+              Calm the animations — instant transitions
+            </Low>
+          </View>
+          <Toggle on={reduceMotion} onPress={() => setReduceMotion(!reduceMotion)} />
+        </View>
       </View>
 
       <Pressable

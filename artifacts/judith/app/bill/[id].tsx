@@ -7,6 +7,7 @@ import { Btn, Card, Low, Mono, ProviderLogo, Screen, SheetHeader, Txt } from "@/
 import { dueClass, isPartialBill, partialPct, totalOwed } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
+import { haptics } from "@/lib/haptics";
 
 export default function BillDetailModal() {
   const t = useTheme();
@@ -235,6 +236,7 @@ export default function BillDetailModal() {
           label={paid ? "Mark as unpaid" : overdue ? "Mark paid — catch up" : "Mark as fully paid"}
           variant={paid ? "soft" : "primary"}
           onPress={() => {
+            if (!paid) haptics.success();
             togglePaid(bill.id);
             router.back();
           }}

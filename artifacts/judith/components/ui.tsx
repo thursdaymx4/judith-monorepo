@@ -1,5 +1,7 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  Animated,
+  Easing,
   Pressable,
   ScrollView,
   StyleProp,
@@ -15,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon, type IconName } from "@/components/Icon";
 import { CAT_ICONS, dueClass, initials, isPartialBill, lookupProvider, partialPct, totalOwed } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useTheme } from "@/hooks/useTheme";
 import type { Theme } from "@/constants/theme";
 
@@ -618,14 +621,49 @@ export function SheetHeader({ title, onClose }: { title: string; onClose: () => 
   );
 }
 
-/** Global toast pinned above the tab bar. */
+/** Global toast pinned above the tab bar. Slides up + fades in, then back down. */
 export function Toast() {
   const t = useTheme();
   const { toast } = useJudith();
   const insets = useSafeAreaInsets();
-  if (!toast) return null;
+  const reduce = useReducedMotion();
+  const [shown, setShown] = useState(false);
+  const anim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (toast) {
+      setShown(true);
+      if (reduce) {
+        anim.setValue(1);
+      } else {
+        Animated.spring(anim, {
+          toValue: 1,
+          tension: 140,
+          friction: 14,
+          useNativeDriver: true,
+        }).start();
+      }
+    } else if (shown) {
+      if (reduce) {
+        anim.setValue(0);
+        setShown(false);
+      } else {
+        Animated.timing(anim, {
+          toValue: 0,
+          duration: 200,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }).start(({ finished }) => {
+          if (finished) setShown(false);
+        });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toast]);
+
+  if (!shown) return null;
   return (
-    <View
+    <Animated.View
       pointerEvents="none"
       style={{
         position: "absolute",
@@ -640,10 +678,14 @@ export function Toast() {
         paddingVertical: 12,
         paddingHorizontal: 15,
         alignItems: "center",
+        opacity: anim,
+        transform: [
+          { translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) },
+        ],
       }}
     >
       <Text style={{ fontFamily: t.fonts.medium, fontSize: 14, color: t.txtHi }}>{toast}</Text>
-    </View>
+    </Animated.View>
   );
 }
 

@@ -57,3 +57,9 @@ description: Canonical timing, easing, and font rules for all Judith animations 
 ## How to apply
 Check this file before writing ANY animation, transition, or splash/login screen code.
 Deviating from these specs requires explicit user approval.
+
+## Motion accessibility + haptics (infrastructure)
+- `lib/haptics.ts` (light/medium/heavy/success/error/selection) is the only way to fire haptics — native-guarded + promise-safe so it no-ops on web.
+- `hooks/useReducedMotion.ts` = OS AccessibilityInfo OR the persisted `reduceMotion` store flag; `hooks/useCountUp.ts` honors it.
+- **Haptics are INDEPENDENT of reduce-motion** — keep firing them even when motion is skipped (a calmer-motion user still wants tactile feedback).
+- Reduce-motion gating scope: gate NEW/decorative motion (count-ups, stagger, pulse halos/rings, toast slide, home paid-% bar, onboarding sweep). The cinematic onboarding interstitials (stamp, question, latefee, fault, fork commit, vIn entrance) are core narrative and are intentionally NOT gated — gating them is a separate, larger decision needing user sign-off.

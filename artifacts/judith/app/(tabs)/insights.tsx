@@ -10,6 +10,7 @@ import { Low, Mono, ProviderLogo, Screen, Txt, mix } from "@/components/ui";
 import { CAT_COLORS } from "@/constants/theme";
 import { TREND_6MO } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
+import { useCountUp } from "@/hooks/useCountUp";
 import { useTheme } from "@/hooks/useTheme";
 
 type RangeKey = "1m" | "3m" | "6m" | "1y";
@@ -285,6 +286,7 @@ export default function InsightsScreen() {
       (provF === "All" || b.provider === provF),
   );
   const total = active.reduce((s, b) => s + b.amount, 0);
+  const totalA = useCountUp(total);
   const prev = TREND_6MO[TREND_6MO.length - 2]!.a;
   const delta = total - prev;
   const deltaPct = prev > 0 ? Math.round((delta / prev) * 100) : 0;
@@ -430,7 +432,7 @@ export default function InsightsScreen() {
             <Low size={12}>Total monthly bills</Low>
             <View style={{ flexDirection: "row", alignItems: "baseline", gap: 11, flexWrap: "wrap" }}>
               <Mono size={40} weight="semibold" style={{ letterSpacing: -0.8 }}>
-                {money(total)}
+                {money(Math.round(totalA))}
               </Mono>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
                 <Icon name="trend" size={14} color={deltaColor} />

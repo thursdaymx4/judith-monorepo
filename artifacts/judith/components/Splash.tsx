@@ -14,6 +14,7 @@ import { Icon, type IconName } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
+import { haptics } from "@/lib/haptics";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function hexAlpha(hex: string, alpha: number): string {
@@ -251,9 +252,11 @@ export function Splash({ onDone }: { onDone: () => void }) {
       }),
     ]).start();
 
+    // haptic synced to "Handled." punch-in at 1.9s
+    const t1 = setTimeout(() => haptics.heavy(), 1900);
     // auto-advance after 4.6s
     const t2 = setTimeout(startExit, 4600);
-    return () => clearTimeout(t2);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [word, tag, foot, handled, startExit]);
 
   // "Handled." interpolated style — scale: 2.6→0.9→1.08→1 (mirrors handledIn keyframes)
