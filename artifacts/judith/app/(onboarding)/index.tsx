@@ -1460,6 +1460,8 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const [loanDone, setLoanDone] = useState(0);
   const [screenshotStatus, setScreenshotStatus] = useState<"idle" | "loading" | "done">("idle");
   const [screenshotBills, setScreenshotBills] = useState<{ provider: string; amount: number | null; dueDay: number | null }[]>([]);
+  const [parsedEditing, setParsedEditing] = useState(false);
+  const [parsedEdits, setParsedEdits] = useState<{ provider: string; amount: string; dueDay: string; kind: "Fixed" | "Variable"; frequency: "monthly" | "annual" }>({ provider: "", amount: "", dueDay: "", kind: "Fixed", frequency: "monthly" });
 
   const scriptedItem = SAMPLES[Math.min(idx, SAMPLES.length - 1)]!;
   const sample: Sample =
@@ -1474,6 +1476,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const advanceAfterItem = () => {
     setHeardText("");
     setParsedBill(null);
+    setParsedEditing(false);
     setScreenshotStatus("idle");
     setScreenshotBills([]);
     if (phase === "cards") {
@@ -1816,7 +1819,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
             </Transcript>
           )}
 
-          {mode === "parsed" && (
+          {mode === "parsed" && !parsedEditing && (
             <>
               <JudithLine>{VLOCAL.gotit}</JudithLine>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 9 }}>
@@ -1852,6 +1855,57 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                 </PCell>
               </View>
             </>
+          )}
+          {mode === "parsed" && parsedEditing && (
+            <View style={{ alignSelf: "stretch", marginTop: 4 }}>
+              <JudithLine>Got it — fix anything that looks off:</JudithLine>
+              <View style={{ marginTop: 12 }}>
+                <FieldLabel>Provider</FieldLabel>
+                <Input
+                  value={parsedEdits.provider}
+                  onChangeText={(v) => setParsedEdits({ ...parsedEdits, provider: v })}
+                  placeholder="Provider name"
+                />
+              </View>
+              <View style={{ flexDirection: "row", gap: 12, marginTop: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <FieldLabel>Amount</FieldLabel>
+                  <Input
+                    value={parsedEdits.amount}
+                    onChangeText={(v) => setParsedEdits({ ...parsedEdits, amount: v.replace(/[^0-9.]/g, "") })}
+                    placeholder={cur + " 0"}
+                    keyboardType="numeric"
+                    mono
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <FieldLabel>Due day (1–31)</FieldLabel>
+                  <Input
+                    value={parsedEdits.dueDay}
+                    onChangeText={(v) => setParsedEdits({ ...parsedEdits, dueDay: v.replace(/[^0-9]/g, "") })}
+                    placeholder="e.g. 15"
+                    keyboardType="numeric"
+                    mono
+                  />
+                </View>
+              </View>
+              <View style={{ marginTop: 10 }}>
+                <FieldLabel>Billing</FieldLabel>
+                <Seg
+                  options={["Monthly", "Annual"]}
+                  value={parsedEdits.frequency === "annual" ? "Annual" : "Monthly"}
+                  onChange={(v) => setParsedEdits({ ...parsedEdits, frequency: v === "Annual" ? "annual" : "monthly" })}
+                />
+              </View>
+              <View style={{ marginTop: 10 }}>
+                <FieldLabel>Type</FieldLabel>
+                <Seg
+                  options={["Fixed", "Variable"]}
+                  value={parsedEdits.kind}
+                  onChange={(v) => setParsedEdits({ ...parsedEdits, kind: v as "Fixed" | "Variable" })}
+                />
+              </View>
+            </View>
           )}
 
           {err !== "" && showConvo && (
@@ -2083,11 +2137,36 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
         )}
         {mode === "listening" && <MicBtn live onPress={stopListening} />}
         {mode === "transcribing" && <MicBtn live />}
-        {mode === "parsed" && (
+        {mode === "parsed" && !parsedEditing && (
           <>
             <Txt size={14} color={t.txtMid} style={{ textAlign: "center", marginBottom: 2 }}>{T("confirmQ")}</Txt>
             <Btn label={T("yes")} onPress={confirm} />
-            <Btn label={T("edit")} variant="soft" onPress={() => setMode("prompt")} />
+            <Btn label={T("edit")} variant="soft" onPress={() => {
+              setParsedEditing(true);
+              setParsedEdits({
+                provider: parsedBill?.provider ?? sample.provider,
+                amount: String(parsedBill?.amount ?? sample.amount),
+                dueDay: String(parsedBill?.dueDay ?? sample.dueDays),
+                kind: parsedBill?.kind ?? kindFor(sample.cat),
+                frequency: parsedBill?.frequency ?? "monthly",
+              });
+            }} />
+          </>
+        )}
+        {mode === "parsed" && parsedEditing && (
+          <>
+            <Btn label="Save changes" onPress={() => {
+              const d = parseInt(parsedEdits.dueDay, 10);
+              setParsedBill({
+                provider: parsedEdits.provider.trim() || null,
+                amount: parseFloat(parsedEdits.amount) || null,
+                dueDay: Number.isFinite(d) && d >= 1 && d <= 31 ? d : null,
+                kind: parsedEdits.kind,
+                frequency: parsedEdits.frequency,
+              });
+              setParsedEditing(false);
+            }} />
+            <Btn label="Cancel" variant="ghost" onPress={() => setParsedEditing(false)} />
           </>
         )}
         {mode === "manualCats" && (
@@ -2977,7 +3056,6 @@ const FLOW: { id: string; C: (p: { ctx: Ctx }) => React.ReactElement }[] = [
   { id: "latefee", C: ScreenLateFee },
   { id: "problem", C: ScreenProblem },
   { id: "stakes", C: ScreenStakes },
-  { id: "intro", C: ScreenIntro },
   { id: "voice", C: ScreenVoiceAdd },
   { id: "congrats", C: ScreenCongrats },
   { id: "personalizing", C: ScreenPersonalizing },
@@ -2987,10 +3065,10 @@ const FLOW: { id: string; C: (p: { ctx: Ctx }) => React.ReactElement }[] = [
   { id: "feature3", C: ScreenFeature3 },
   { id: "askpaywall", C: ScreenAskPaywall },
 ];
-const SETUP = ["country", "language", "persona", "problem", "stakes", "intro", "voice", "congrats", "summary"];
+const SETUP = ["country", "language", "persona", "problem", "stakes", "voice", "congrats", "summary"];
 const NO_BACK = ["welcome", "personalizing"];
 const SKIPPABLE = ["country", "persona"];
-const SAVE_FROM = FLOW.findIndex((f) => f.id === "intro");
+const SAVE_FROM = FLOW.findIndex((f) => f.id === "voice");
 
 export default function OnboardingScreen() {
   const t = useTheme();

@@ -30,6 +30,21 @@ interface ScanRow {
   include: boolean;
 }
 
+function scanDueLabel(nextDue: string | null, dueDay: number | null, frequency: "monthly" | "annual"): string {
+  if (nextDue) {
+    const d = new Date(`${nextDue}T00:00:00`);
+    if (!Number.isNaN(d.getTime())) {
+      const M = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      const yr = new Date().getFullYear();
+      return d.getFullYear() === yr
+        ? `${M[d.getMonth()]} ${d.getDate()}`
+        : `${M[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+    }
+  }
+  if (dueDay != null) return frequency === "annual" ? `day ${dueDay} · yearly` : `day ${dueDay} · monthly`;
+  return "";
+}
+
 const BILL_WORDS =
   /bill|due|owe|owed|pay|paid|payment|total|month|week|today|tomorrow|balance|card|loan|rent|mortgage|electric|water|internet|mobile|subscription|netflix|spotify|meralco|when|how much|magkano|cost|charge|fee|money|budget|afford|salary|spend/i;
 
@@ -532,8 +547,7 @@ export default function AskModal() {
                 </Pressable>
               </View>
               <Low size={13} style={{ marginTop: 4 }}>
-                Tap to include or skip each one, then check the amount and how
-                often it bills before adding.
+                Got {scanRows?.length ?? 0} subscription{(scanRows?.length ?? 0) !== 1 ? "s" : ""} — verify the amount, due day, and billing frequency before adding.
               </Low>
             </View>
 
@@ -650,6 +664,40 @@ export default function AskModal() {
                         </Pressable>
                       ))}
                     </View>
+                  </View>
+
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 6,
+                        flex: 1,
+                        backgroundColor: t.surface1,
+                        borderWidth: 1,
+                        borderColor: t.hair,
+                        borderRadius: 10,
+                        paddingHorizontal: 11,
+                        paddingVertical: 6,
+                      }}
+                    >
+                      <Txt size={12.5} color={t.txtLow}>Day</Txt>
+                      <TextInput
+                        value={r.dueDay != null ? String(r.dueDay) : ""}
+                        onChangeText={(v) => {
+                          const n = parseInt(v.replace(/\D/g, ""), 10);
+                          patchScanRow(i, { dueDay: Number.isFinite(n) && n >= 1 && n <= 31 ? n : null, nextDue: null });
+                        }}
+                        keyboardType="numeric"
+                        placeholder="–"
+                        placeholderTextColor={t.txtLow}
+                        maxLength={2}
+                        style={{ color: t.txtHi, fontSize: 14, fontFamily: t.fonts.mono, width: 28, paddingVertical: 0 }}
+                      />
+                    </View>
+                    <Txt size={12.5} color={t.txtMid} style={{ flex: 2 }}>
+                      {scanDueLabel(r.nextDue, r.dueDay, r.frequency) || "date not found"}
+                    </Txt>
                   </View>
                 </View>
               ))}
