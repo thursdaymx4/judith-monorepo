@@ -489,6 +489,74 @@ router.post("/tts-onboarding", async (req, res) => {
   }
 });
 
+// POST /api/judith/parse-subscription-screenshot  { imageBase64, mimeType } -> { subscriptions }
+// No auth required — vision extraction of active subscriptions from a screenshot.
+router.post("/parse-subscription-screenshot", async (req, res) => {
+  try {
+    const { imageBase64, mimeType } = req.body ?? {};
+    if (typeof imageBase64 !== "string" || !imageBase64) {
+      res.status(400).json({ error: "imageBase64 is required" });
+      return;
+    }
+    const mime = (typeof mimeType === "string" && mimeType
+      ? mimeType
+      : "image/jpeg") as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+    const anthropic = getAnthropic();
+    const message = await anthropic.messages.create({
+      model: ANTHROPIC_MODEL,
+      max_tokens: 600,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: { type: "base64", media_type: mime, data: imageBase64 },
+            },
+            {
+              type: "text",
+              text: `Extract the ACTIVE subscriptions from this phone subscriptions screen screenshot.
+
+Return ONLY a valid JSON array — no markdown fences, no explanation, nothing else:
+[{"provider":"string","amount":number|null,"dueDay":number|null}]
+
+Rules:
+- provider: the service/app name exactly as shown (e.g. "YouTube Premium", "Spotify", "iCloud+", "Netflix")
+- amount: the numeric price as a plain number (e.g. 249 for ₱249.00 or $2.99). Null if not shown.
+- dueDay: the calendar day (1-31) it renews, extracted from the renewal date shown (e.g. "Renews 30 June" → 30, "Renews 11 May 2027" → 11). Null if not determinable.
+- Include ONLY active/current subscriptions. Ignore expired, inactive, or cancelled ones entirely.
+- Return [] if no active subscriptions are visible.`,
+            },
+          ],
+        },
+      ],
+    });
+    const raw = message.content
+      .map((b) => (b.type === "text" ? b.text : ""))
+      .join("")
+      .trim()
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/, "")
+      .trim();
+    const parsed = JSON.parse(raw) as unknown[];
+    const subscriptions = (Array.isArray(parsed) ? parsed : [])
+      .filter((s): s is Record<string, unknown> => typeof s === "object" && s !== null)
+      .map((s) => ({
+        provider: typeof s["provider"] === "string" && s["provider"].trim()
+          ? s["provider"].trim()
+          : "Subscription",
+        amount: s["amount"] != null && Number(s["amount"]) > 0 ? Number(s["amount"]) : null,
+        dueDay: s["dueDay"] != null && Number(s["dueDay"]) >= 1 && Number(s["dueDay"]) <= 31
+          ? Number(s["dueDay"])
+          : null,
+      }));
+    res.json({ subscriptions });
+  } catch (err) {
+    logger.error({ err }, "parse-subscription-screenshot failed");
+    res.status(500).json({ error: "Could not parse screenshot" });
+  }
+});
+
 // GET /api/judith/sample-onboarding?persona=  -> { text, audioBase64, mime }
 // No auth required — persona voice preview during onboarding.
 router.get("/sample-onboarding", async (req, res) => {

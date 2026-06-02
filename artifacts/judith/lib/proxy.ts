@@ -154,6 +154,28 @@ export function askOnboarding(
 }
 
 /**
+ * Vision AI extraction of active subscriptions from a phone subscriptions screenshot.
+ * No auth required — called during onboarding.
+ */
+export async function parseSubscriptionScreenshot(
+  imageBase64: string,
+  mimeType: string,
+): Promise<{ subscriptions: { provider: string; amount: number | null; dueDay: number | null }[] }> {
+  const res = await fetch(`${BASE}/parse-subscription-screenshot`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ imageBase64, mimeType }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Parse screenshot failed (${res.status}): ${detail}`);
+  }
+  return res.json() as Promise<{
+    subscriptions: { provider: string; amount: number | null; dueDay: number | null }[];
+  }>;
+}
+
+/**
  * AI-powered bill-detail extraction from transcribed speech — no auth required.
  * Returns provider, amount (₱), dueDay (1-31 | null), and kind.
  */

@@ -5,9 +5,11 @@ import {
   useAudioRecorder,
 } from "expo-audio";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import * as ImagePicker from "expo-image-picker";
 import {
   Animated,
   Easing,
+  Platform,
   Pressable,
   ScrollView,
   TextInput,
@@ -32,7 +34,7 @@ import { PERSONAS, type PersonaId } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { fileToBase64, playBase64Mp3, stopCurrentAudio } from "@/lib/audio";
-import { transcribeOnboarding, synthOnboarding, fetchSampleOnboarding, parseBillOnboarding, askOnboarding } from "@/lib/proxy";
+import { transcribeOnboarding, synthOnboarding, fetchSampleOnboarding, parseBillOnboarding, parseSubscriptionScreenshot, askOnboarding } from "@/lib/proxy";
 import type { Theme } from "@/constants/theme";
 
 /* ------------------------------------------------------------------ */
@@ -187,7 +189,7 @@ const PROMPTS: Record<string, string> = {
   Water: "Next, your water. Provider, amount, and the due date?",
   Internet: "And your internet. Provider, amount, due date?",
   Mobile: "Now your phone plan — which carrier, how much, and when’s it due?",
-  "Phone subscription": "Phone subscriptions — iCloud, Apple Music, Spotify? Name one, the cost, the date.",
+  "Phone subscription": "The fastest way is to screenshot your Subscriptions list in Settings, then upload it. Or tell me each one — iCloud, Spotify, Apple Music.",
   "TV / Streaming": "Streaming — Netflix, Disney+, HBO? Which one, how much, when?",
   "Web app": "Any web apps? Canva, Notion, ChatGPT… name it, the cost, the date.",
   "Credit card": "Now the heavy ones. A credit card — which bank, the amount due, and the date?",
@@ -201,7 +203,7 @@ const PROMPTS_FIL: Record<string, string> = {
   Water: "Tubig naman — provider, halaga, at petsa ng due?",
   Internet: "Internet mo — provider, bayad, at due date?",
   Mobile: "Phone plan — anong network, magkano, at kailan bayaran?",
-  "Phone subscription": "Mga phone subscriptions — iCloud, Spotify, Apple Music? Pangalan, bayad, petsa.",
+  "Phone subscription": "Pinaka-mabilis: mag-screenshot ng iyong Subscriptions sa Settings tapos i-upload. O sabihin mo sa akin isa-isa — iCloud, Spotify, at iba pa.",
   "TV / Streaming": "Streaming — Netflix, Disney+? Alin, magkano, kelan?",
   "Web app": "Mga web apps — Canva, Notion, ChatGPT? Pangalan, bayad, petsa.",
   "Credit card": "Yung credit cards — anong bangko, magkano ang due, at kailan?",
@@ -1383,6 +1385,8 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const [cardDone, setCardDone] = useState(0);
   const [loanN, setLoanN] = useState(0);
   const [loanDone, setLoanDone] = useState(0);
+  const [screenshotStatus, setScreenshotStatus] = useState<"idle" | "loading" | "done">("idle");
+  const [screenshotBills, setScreenshotBills] = useState<{ provider: string; amount: number | null; dueDay: number | null }[]>([]);
 
   const scriptedItem = SAMPLES[Math.min(idx, SAMPLES.length - 1)]!;
   const sample: Sample =
@@ -1397,6 +1401,8 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const advanceAfterItem = () => {
     setHeardText("");
     setParsedBill(null);
+    setScreenshotStatus("idle");
+    setScreenshotBills([]);
     if (phase === "cards") {
       const d = cardDone + 1;
       setCardDone(d);
@@ -1474,6 +1480,51 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       house: form.house,
     });
     setMode(manualReturn);
+  };
+
+  /* Screenshot upload — encouraged for Phone subscription category */
+  const handleUploadScreenshot = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      setErr(language === "fil"
+        ? "Kailangan ng pahintulot para ma-access ang iyong photos."
+        : "Photo library permission is needed to upload a screenshot.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"] as ImagePicker.MediaType[],
+      base64: true,
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.[0]?.base64) return;
+    const asset = result.assets[0]!;
+    const base64 = asset.base64!;
+    setScreenshotStatus("loading");
+    setErr("");
+    try {
+      const { subscriptions } = await parseSubscriptionScreenshot(
+        base64,
+        asset.mimeType || "image/jpeg",
+      );
+      for (const sub of subscriptions) {
+        addBill({
+          provider: sub.provider,
+          cat: "Phone subscription",
+          icon: "spark",
+          amount: sub.amount ?? 0,
+          due: sub.dueDay ? ordinal(sub.dueDay) : "monthly",
+          dueDays: sub.dueDay ?? 20,
+          kind: "Fixed",
+        });
+      }
+      setScreenshotBills(subscriptions);
+      setScreenshotStatus("done");
+    } catch {
+      setErr(language === "fil"
+        ? "Hindi nabasa ang screenshot. Subukan muli o magsalita na lang."
+        : "Couldn't read that screenshot. Try a clearer image or speak instead.");
+      setScreenshotStatus("idle");
+    }
   };
 
   /* real capture + transcription */
@@ -1556,6 +1607,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
 
   const progress = Math.min(idx + (mode === "done" ? 0 : 1), SAMPLES.length);
   const showConvo = mode === "prompt" || mode === "listening" || mode === "transcribing" || mode === "parsed";
+  const isPhoneSub = phase === "scripted" && sample.cat === "Phone subscription";
 
   return (
     <>
@@ -1592,11 +1644,42 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
 
         {/* conversation area */}
         <View style={{ gap: 11, marginTop: 14, minHeight: 210 }}>
-          {showConvo && !done && (
+          {showConvo && !done && (!isPhoneSub || screenshotStatus === "idle") && (
             <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
               <JudithAvatar persona={persona} size={44} state={mode === "listening" ? "listening" : "speaking"} />
               <JudithLine style={{ flex: 1 }}>{promptText}</JudithLine>
             </View>
+          )}
+          {mode === "prompt" && !done && isPhoneSub && screenshotStatus === "loading" && (
+            <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
+              <JudithAvatar persona={persona} size={44} state="speaking" />
+              <JudithLine style={{ flex: 1 }}>
+                {isFil ? "Binabasa ko ang iyong screenshot…" : "Reading your screenshot…"}
+              </JudithLine>
+            </View>
+          )}
+          {mode === "prompt" && !done && isPhoneSub && screenshotStatus === "done" && (
+            <>
+              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
+                <JudithAvatar persona={persona} size={44} state="speaking" />
+                <JudithLine style={{ flex: 1 }}>
+                  {isFil
+                    ? `Nakuha ko! ${screenshotBills.length} subscription ang nadagdag sa listahan mo.`
+                    : `Got them! Added ${screenshotBills.length} subscription${screenshotBills.length !== 1 ? "s" : ""} to your list.`}
+                </JudithLine>
+              </View>
+              <View style={{ gap: 7, marginTop: 4 }}>
+                {screenshotBills.map((b, i) => (
+                  <View key={i} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 13, paddingVertical: 9, borderRadius: 12, borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface2 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <Icon name="spark" size={13} color={t.accent} />
+                      <Txt size={14} weight="medium">{b.provider}</Txt>
+                    </View>
+                    {b.amount != null && <Mono size={13} color={t.txtMid}>{cur}{fmtNum(b.amount)}</Mono>}
+                  </View>
+                ))}
+              </View>
+            </>
           )}
 
           {mode === "count" && (
@@ -1843,16 +1926,57 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       <CtaBar>
         {mode === "prompt" && (
           <>
-            <MicBtn onPress={startListening} />
-            <View style={{ flexDirection: "row", justifyContent: "center", gap: 18, marginTop: 2 }}>
-              <Pressable onPress={() => { setManualReturn("prompt"); setMode("manualCats"); }} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                <Icon name="keyboard" size={15} color={t.txtMid} />
-                <Txt size={14} color={t.txtMid}>{T("tapInstead")}</Txt>
-              </Pressable>
-              <Pressable onPress={skipOne}>
-                <Txt size={14} color={t.txtMid}>I don’t have this →</Txt>
-              </Pressable>
-            </View>
+            {/* Phone subscription: screenshot upload is the primary encouraged path */}
+            {isPhoneSub && screenshotStatus === "idle" && (
+              <>
+                <Pressable
+                  onPress={handleUploadScreenshot}
+                  style={{ borderWidth: 1.5, borderColor: t.accent, borderRadius: 16, backgroundColor: mix(t.accent, t.surface2, 0.1), padding: 16 }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                    <View style={{ width: 42, height: 42, borderRadius: 11, backgroundColor: mix(t.accent, t.canvas, 0.18), alignItems: "center", justifyContent: "center" }}>
+                      <Icon name="camera" size={20} color={t.accent} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Txt size={15} weight="semibold">Upload a screenshot</Txt>
+                      <Low size={12}>
+                        {Platform.OS === "ios"
+                          ? "Settings → [Your Name] → Subscriptions"
+                          : "Play Store → Profile → Payments & subscriptions"}
+                      </Low>
+                    </View>
+                    <Icon name="chevron" size={16} color={t.accent} />
+                  </View>
+                </Pressable>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 2 }}>
+                  <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
+                  <Low size={12}>or speak</Low>
+                  <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
+                </View>
+              </>
+            )}
+            {isPhoneSub && screenshotStatus === "loading" && (
+              <View style={{ alignItems: "center", paddingVertical: 8 }}>
+                <Low size={13}>{isFil ? "Isang sandali…" : "One moment…"}</Low>
+              </View>
+            )}
+            {isPhoneSub && screenshotStatus === "done" && (
+              <Btn label={isFil ? "Ituloy →" : "Continue →"} onPress={advanceAfterItem} />
+            )}
+            {screenshotStatus !== "done" && screenshotStatus !== "loading" && (
+              <>
+                <MicBtn onPress={startListening} />
+                <View style={{ flexDirection: "row", justifyContent: "center", gap: 18, marginTop: 2 }}>
+                  <Pressable onPress={() => { setManualReturn("prompt"); setMode("manualCats"); }} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <Icon name="keyboard" size={15} color={t.txtMid} />
+                    <Txt size={14} color={t.txtMid}>{T("tapInstead")}</Txt>
+                  </Pressable>
+                  <Pressable onPress={skipOne}>
+                    <Txt size={14} color={t.txtMid}>I don’t have this →</Txt>
+                  </Pressable>
+                </View>
+              </>
+            )}
           </>
         )}
         {mode === "listening" && <MicBtn live onPress={stopListening} />}
