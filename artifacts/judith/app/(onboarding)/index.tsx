@@ -1483,8 +1483,9 @@ function ScreenProblem({ ctx }: { ctx: Ctx }) {
     <>
       <Scroll center>
         <JudithAvatar persona={persona} size={64} state="idle" />
-        <Title style={{ maxWidth: 300, textAlign: "center", marginTop: 22 }}>
-          Let's avoid late fees and start taking control.
+        <Kicker style={{ textAlign: "center", marginTop: 14 }}>Quick question</Kicker>
+        <Title style={{ maxWidth: 300, textAlign: "center" }}>
+          Do you know your total bills due next month?
         </Title>
         <Animated.View style={{ transform: [{ translateX: shakeX }], width: "100%" }}>
           <Card style={{ width: "100%", maxWidth: 300, marginVertical: 22, alignItems: "center", paddingVertical: 22, paddingHorizontal: 18, alignSelf: "center" }}>
@@ -1509,7 +1510,10 @@ function ScreenProblem({ ctx }: { ctx: Ctx }) {
         </Animated.View>
       </Scroll>
       <CtaBar>
-        <Btn label="Shall we?" onPress={() => choose(true)} />
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <Btn label="Yes, roughly" variant="soft" onPress={() => choose(true)} style={{ flex: 1 }} />
+          <Btn label="Honestly, no" onPress={() => choose(false)} style={{ flex: 1 }} />
+        </View>
       </CtaBar>
       {/* faultFlash overlay */}
       <Animated.View
