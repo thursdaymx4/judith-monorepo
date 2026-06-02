@@ -165,6 +165,7 @@ export async function parseBillOnboarding(
   amount: number | null;
   dueDay: number | null;
   kind: "Fixed" | "Variable";
+  skip: boolean;
 }> {
   const res = await fetch(`${BASE}/parse-bill`, {
     method: "POST",
@@ -180,6 +181,7 @@ export async function parseBillOnboarding(
     amount: number | null;
     dueDay: number | null;
     kind: "Fixed" | "Variable";
+    skip: boolean;
   };
 }
 

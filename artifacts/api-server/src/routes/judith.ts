@@ -398,20 +398,23 @@ router.post("/parse-bill", async (req, res) => {
       system: `You are a structured bill-detail extractor for a Filipino household budgeting app. The user just described a bill by voice during onboarding.
 
 Return ONLY a single valid JSON object — no markdown fences, no explanation, no extra text:
-{"provider":string|null,"amount":number|null,"dueDay":number|null,"kind":"Fixed"|"Variable"}
+{"provider":string|null,"amount":number|null,"dueDay":number|null,"kind":"Fixed"|"Variable","skip":boolean}
 
 Extraction rules:
-- provider: the specific company, bank, landlord, or service name the user explicitly stated (e.g. "Meralco", "PLDT", "Globe", "Manila Water", "BPI"). If they said nothing specific — just a generic amount or category — return null. NEVER invent or guess a provider name.
-- amount: the Philippine Peso amount as a plain integer. Convert English number words precisely: "ten thousand" → 10000, "five hundred" → 500, "three thousand five hundred" → 3500, "eighteen thousand" → 18000. If no amount was mentioned, return null.
-- dueDay: the day of month (1–31) from ordinals or cardinals the user said: "fifteenth" → 15, "the 25th" → 25, "first" → 1, "every 5th" → 5. If no due date was mentioned, return null.
-- kind: "Fixed" if the amount is constant every month; "Variable" if it fluctuates (electricity, water usage bills).
+- provider: ONLY the exact company, bank, landlord, or service name the user EXPLICITLY SAID (e.g. "Meralco", "PLDT", "Globe", "Manila Water", "BPI", "Ayala"). If they did NOT name a specific provider — even if you know common providers for this category — return null. The category field is context only; it MUST NEVER influence or suggest the provider value. NEVER invent, infer, or guess a provider name.
+- amount: the Philippine Peso amount as a plain integer. Convert English number words precisely: "ten thousand" → 10000, "five hundred" → 500, "three thousand five hundred" → 3500. If no amount was mentioned, return null.
+- dueDay: the day of month (1–31) from ordinals or cardinals the user said: "fifteenth" → 15, "the 25th" → 25, "every 5th" → 5. If no due date was mentioned, return null.
+- kind: "Fixed" if the amount is constant every month; "Variable" if it fluctuates (e.g. electricity, water).
+- skip: true ONLY if the user indicated they have NO payment for this category (e.g. "I own my house", "I own it outright", "no mortgage", "wala akong utang", "no rent", "hindi ko binabayaran"). False in all other cases.
 
 Examples:
-User said: "ten thousand pesos every fifteenth of the month" → {"provider":null,"amount":10000,"dueDay":15,"kind":"Fixed"}
-User said: "Meralco around three thousand five hundred due on the 20th" → {"provider":"Meralco","amount":3500,"dueDay":20,"kind":"Variable"}
-User said: "PLDT fiber one thousand six hundred ninety nine due 28th" → {"provider":"PLDT","amount":1699,"dueDay":28,"kind":"Fixed"}
-User said: "about five thousand for Globe" → {"provider":"Globe","amount":5000,"dueDay":null,"kind":"Fixed"}
-User said: "I don't know the exact amount" → {"provider":null,"amount":null,"dueDay":null,"kind":"Fixed"}`,
+User said: "ten thousand pesos every twenty-fifth of the month" → {"provider":null,"amount":10000,"dueDay":25,"kind":"Fixed","skip":false}
+User said: "Meralco around three thousand five hundred due on the 20th" → {"provider":"Meralco","amount":3500,"dueDay":20,"kind":"Variable","skip":false}
+User said: "PLDT fiber one thousand six hundred ninety nine due 28th" → {"provider":"PLDT","amount":1699,"dueDay":28,"kind":"Fixed","skip":false}
+User said: "about five thousand for Globe" → {"provider":"Globe","amount":5000,"dueDay":null,"kind":"Fixed","skip":false}
+User said: "I own my house, no mortgage" → {"provider":null,"amount":null,"dueDay":null,"kind":"Fixed","skip":true}
+User said: "sarili ko yung bahay" → {"provider":null,"amount":null,"dueDay":null,"kind":"Fixed","skip":true}
+User said: "I don't know the exact amount" → {"provider":null,"amount":null,"dueDay":null,"kind":"Fixed","skip":false}`,
       messages: [
         {
           role: "user",
@@ -439,6 +442,7 @@ User said: "I don't know the exact amount" → {"provider":null,"amount":null,"d
       amount,
       dueDay: parsed["dueDay"] != null ? Number(parsed["dueDay"]) : null,
       kind: parsed["kind"] === "Variable" ? "Variable" : "Fixed",
+      skip: parsed["skip"] === true,
     });
   } catch (err) {
     logger.error({ err }, "parse-bill failed");

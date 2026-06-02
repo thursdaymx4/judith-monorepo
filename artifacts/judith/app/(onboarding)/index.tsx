@@ -55,7 +55,7 @@ const STR: Record<string, string> = {
   tapInstead: "Type instead",
   confirmQ: "Did I get that right?",
   yes: "Yes, that’s right",
-  edit: "Fix it",
+  edit: "Let me fix it",
   congratsT: "All set.",
   congratsL: "Judith now watches every due date for you.",
   summaryT: "Your money, this month",
@@ -1340,6 +1340,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     amount: number | null;
     dueDay: number | null;
     kind: "Fixed" | "Variable";
+    skip?: boolean;
   } | null>(null);
   const [formCat, setFormCat] = useState<{ cat: string; icon: string } | null>(null);
   const [manualReturn, setManualReturn] = useState<VMode>("prompt");
@@ -1473,6 +1474,12 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       /* Parse transcribed text into structured bill fields */
       try {
         const parsed = await parseBillOnboarding(text, sample.cat);
+        if (parsed.skip) {
+          // User owns their home / has no payment for this category — skip it silently.
+          setParsedBill(null);
+          advanceAfterItem();
+          return;
+        }
         setParsedBill(parsed);
       } catch {
         setParsedBill(null); /* falls back to sample data in PCells */
