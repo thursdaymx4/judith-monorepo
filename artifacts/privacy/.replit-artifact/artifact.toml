@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/privacy/"
+title = "Judith Privacy Policy"
+version = "1.0.0"
+id = "artifacts/privacy"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/privacy/" ]
+localPort = 20100
+
+[services.development]
+run = "pnpm --filter @workspace/privacy run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/privacy", "run", "build" ]
+publicDir = "artifacts/privacy/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20100"
+BASE_PATH = "/privacy/"
