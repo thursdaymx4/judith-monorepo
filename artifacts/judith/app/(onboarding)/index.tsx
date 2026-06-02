@@ -276,7 +276,7 @@ function useOnbVoice(line: string, persona: PersonaId, language = "en") {
     played.current = true;
     let cancelled = false;
     const utterance = (isFilipino(language) ? VOICE_LINES_FIL[line] : undefined) ?? line;
-    synthOnboarding(utterance, persona)
+    synthOnboarding(utterance, persona, language)
       .then(({ audioBase64 }) => {
         if (!cancelled) playBase64Mp3(audioBase64).catch(() => {});
       })
@@ -982,7 +982,7 @@ function ScreenLanguage({ ctx }: { ctx: Ctx }) {
     setLanguage(code);
     setSpeaking(true);
     try {
-      const { audioBase64 } = await synthOnboarding(langSample(code), persona);
+      const { audioBase64 } = await synthOnboarding(langSample(code), persona, code);
       if (id !== langReqId.current) return;
       await playBase64Mp3(audioBase64);
     } catch {
@@ -1135,7 +1135,7 @@ function ScreenLanguage({ ctx }: { ctx: Ctx }) {
 /* ================================================================== */
 
 function ScreenPersona({ ctx }: { ctx: Ctx }) {
-  const { t, persona, setPersona, next } = ctx;
+  const { t, persona, language, setPersona, next } = ctx;
   const [speakId, setSpeakId] = useState<PersonaId | null>(null);
   const selected = PERSONAS.find((p) => p.id === persona);
   const personaReqId = useRef(0);
@@ -1144,7 +1144,7 @@ function ScreenPersona({ ctx }: { ctx: Ctx }) {
   // "Play voice" taps are instant (hits the in-memory cache, no network round-trip).
   useEffect(() => {
     PERSONAS.forEach((p) => {
-      fetchSampleOnboarding(p.id).catch(() => {});
+      fetchSampleOnboarding(p.id, language).catch(() => {});
     });
   }, []);
 
@@ -1153,7 +1153,7 @@ function ScreenPersona({ ctx }: { ctx: Ctx }) {
     setPersona(id);
     setSpeakId(id);
     try {
-      const { audioBase64 } = await fetchSampleOnboarding(id);
+      const { audioBase64 } = await fetchSampleOnboarding(id, language);
       if (reqId !== personaReqId.current) return;
       await playBase64Mp3(audioBase64);
     } catch {
@@ -3395,7 +3395,7 @@ function FeatureShell({
     setAskMode("thinking");
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
     try {
-      const { reply, audioBase64 } = await askOnboarding(q2, billsCtx, persona);
+      const { reply, audioBase64 } = await askOnboarding(q2, billsCtx, persona, language);
       const finalReply = reply?.trim() || "Hmm, I couldn\u2019t answer that just now.";
       setMessages((m) => [...m, { role: "judith", text: finalReply }]);
       setAskMode("speaking");

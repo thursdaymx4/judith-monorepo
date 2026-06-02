@@ -79,22 +79,26 @@ export function askJudith(
   text: string,
   bills?: AskBill[],
   persona?: PersonaId,
+  language?: string,
 ): Promise<AskResult> {
   return postJson("/ask", {
     text,
     bills,
     persona: persona ? PERSONA_MAP[persona] : undefined,
     localDate: localDateString(),
+    language,
   });
 }
 
 export function synthesize(
   text: string,
   persona?: PersonaId,
+  language?: string,
 ): Promise<{ audioBase64: string; mime: string }> {
   return postJson("/tts", {
     text,
     persona: persona ? PERSONA_MAP[persona] : undefined,
+    language,
   });
 }
 
@@ -125,9 +129,11 @@ export function previewVoice(
 
 export async function fetchSample(
   persona: PersonaId,
+  language?: string,
 ): Promise<{ text: string; audioBase64: string; mime: string }> {
   const headers = await authHeader();
-  const res = await fetch(`${BASE}/sample?persona=${PERSONA_MAP[persona]}`, {
+  const lang = language ? `&language=${encodeURIComponent(language)}` : "";
+  const res = await fetch(`${BASE}/sample?persona=${PERSONA_MAP[persona]}${lang}`, {
     headers,
   });
   if (!res.ok) {
@@ -156,6 +162,7 @@ export function askOnboarding(
     status?: string | null;
   }>,
   persona?: PersonaId,
+  language?: string,
 ): Promise<AskResult> {
   return fetch(`${BASE}/ask-onboarding`, {
     method: "POST",
@@ -165,6 +172,7 @@ export function askOnboarding(
       bills,
       persona: persona ? PERSONA_MAP[persona] : "professional",
       localDate: localDateString(),
+      language,
     }),
   }).then(async (res) => {
     if (!res.ok) {
@@ -265,8 +273,9 @@ const _synthCache = new Map<string, { audioBase64: string; mime: string }>();
 export async function synthOnboarding(
   text: string,
   persona?: PersonaId,
+  language?: string,
 ): Promise<{ audioBase64: string; mime: string }> {
-  const cacheKey = `${text}__${persona ?? "pro"}`;
+  const cacheKey = `${text}__${persona ?? "pro"}__${language ?? "en"}`;
   const hit = _synthCache.get(cacheKey);
   if (hit) return hit;
 
@@ -276,6 +285,7 @@ export async function synthOnboarding(
     body: JSON.stringify({
       text,
       persona: persona ? PERSONA_MAP[persona] : "professional",
+      language,
     }),
   });
   if (!res.ok) {
@@ -287,27 +297,31 @@ export async function synthOnboarding(
   return result;
 }
 
-/** In-memory sample cache keyed by PersonaId. Populated by ScreenPersona prefetch. */
-const _sampleCache = new Map<PersonaId, { text: string; audioBase64: string; mime: string }>();
+/** In-memory sample cache keyed by `${persona}__${language}`. */
+const _sampleCache = new Map<string, { text: string; audioBase64: string; mime: string }>();
 
 /**
  * Fetch the persona's pre-baked greeting sample during onboarding — no auth required.
  * Results are cached so repeated taps and prefetch warm-ups are instant.
+ * Pass `language` so Filipino/Taglish users hear the right native-speaker voice.
  */
 export async function fetchSampleOnboarding(
   persona: PersonaId,
+  language?: string,
 ): Promise<{ text: string; audioBase64: string; mime: string }> {
-  const hit = _sampleCache.get(persona);
+  const cacheKey = `${persona}__${language ?? "en"}`;
+  const hit = _sampleCache.get(cacheKey);
   if (hit) return hit;
 
+  const lang = language ? `&language=${encodeURIComponent(language)}` : "";
   const res = await fetch(
-    `${BASE}/sample-onboarding?persona=${PERSONA_MAP[persona]}`,
+    `${BASE}/sample-onboarding?persona=${PERSONA_MAP[persona]}${lang}`,
   );
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
     throw new Error(`Sample onboarding failed (${res.status}): ${detail}`);
   }
   const result = (await res.json()) as { text: string; audioBase64: string; mime: string };
-  _sampleCache.set(persona, result);
+  _sampleCache.set(cacheKey, result);
   return result;
 }

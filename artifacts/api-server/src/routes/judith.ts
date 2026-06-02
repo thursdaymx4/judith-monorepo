@@ -8,6 +8,7 @@ import { getAnthropic, ANTHROPIC_MODEL } from "../lib/anthropic";
 import { transcribe, synthesize, listVoices } from "../lib/elevenlabs";
 import {
   DEFAULT_VOICE_IDS,
+  getVoiceId,
   systemPrompt,
   type PersonaId,
 } from "../lib/personas";
@@ -263,7 +264,7 @@ router.post("/ask", async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
-    const { text, bills: bodyBills, persona: bodyPersona, localDate } = req.body ?? {};
+    const { text, bills: bodyBills, persona: bodyPersona, localDate, language } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
       res.status(400).json({ error: "text is required" });
       return;
@@ -275,7 +276,7 @@ router.post("/ask", async (req, res) => {
     let context: string;
     if (Array.isArray(bodyBills)) {
       persona = coercePersona(bodyPersona);
-      voiceId = DEFAULT_VOICE_IDS[persona];
+      voiceId = getVoiceId(persona, typeof language === "string" ? language : undefined);
       context = buildClientContext(bodyBills as ClientBill[], today);
     } else {
       const data = await loadUserData(user.id);
@@ -320,18 +321,19 @@ router.post("/tts", async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
-    const { text, persona, voiceId: bodyVoiceId } = req.body ?? {};
+    const { text, persona, voiceId: bodyVoiceId, language } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
       res.status(400).json({ error: "text is required" });
       return;
     }
     const { voiceId, persona: profilePersona } = await loadUserData(user.id);
     const chosen = persona ? coercePersona(persona) : profilePersona;
+    const lang = typeof language === "string" ? language : undefined;
     const voice =
       typeof bodyVoiceId === "string" && bodyVoiceId
         ? bodyVoiceId
         : persona
-          ? DEFAULT_VOICE_IDS[chosen]
+          ? getVoiceId(chosen, lang)
           : voiceId;
     const audio = await synthesize(text.trim(), voice, { live: false });
     res.json({ audioBase64: audio.base64, mime: audio.mime });
@@ -371,8 +373,9 @@ router.get("/sample", async (req, res) => {
     const user = await requireUser(req, res);
     if (!user) return;
     const persona = coercePersona(req.query["persona"]);
+    const language = typeof req.query["language"] === "string" ? req.query["language"] : undefined;
     const text = SAMPLE_LINES[persona];
-    const audio = await synthesize(text, DEFAULT_VOICE_IDS[persona], { live: false });
+    const audio = await synthesize(text, getVoiceId(persona, language), { live: false });
     res.json({ text, audioBase64: audio.base64, mime: audio.mime });
   } catch (err) {
     logger.error({ err }, "sample failed");
@@ -384,13 +387,13 @@ router.get("/sample", async (req, res) => {
 // No auth required — interactive AI ask during onboarding feature screens.
 router.post("/ask-onboarding", async (req, res) => {
   try {
-    const { text, bills: bodyBills, persona: bodyPersona, localDate } = req.body ?? {};
+    const { text, bills: bodyBills, persona: bodyPersona, localDate, language } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
       res.status(400).json({ error: "text is required" });
       return;
     }
     const persona = coercePersona(bodyPersona);
-    const voiceId = DEFAULT_VOICE_IDS[persona];
+    const voiceId = getVoiceId(persona, typeof language === "string" ? language : undefined);
     const bills = Array.isArray(bodyBills) ? (bodyBills as ClientBill[]) : [];
     const context = buildClientContext(bills, parseLocalDate(localDate));
 
@@ -522,13 +525,13 @@ router.post("/stt-onboarding", async (req, res) => {
 // No auth required — called during onboarding where the user may be a guest.
 router.post("/tts-onboarding", async (req, res) => {
   try {
-    const { text, persona } = req.body ?? {};
+    const { text, persona, language } = req.body ?? {};
     if (typeof text !== "string" || !text.trim() || text.length > 350) {
       res.status(400).json({ error: "text must be non-empty and under 350 chars" });
       return;
     }
     const chosen = coercePersona(persona);
-    const audio = await synthesize(text.trim(), DEFAULT_VOICE_IDS[chosen], { live: true });
+    const audio = await synthesize(text.trim(), getVoiceId(chosen, typeof language === "string" ? language : undefined), { live: true });
     res.json({ audioBase64: audio.base64, mime: audio.mime });
   } catch (err) {
     logger.error({ err }, "tts-onboarding failed");
@@ -615,8 +618,9 @@ Rules:
 router.get("/sample-onboarding", async (req, res) => {
   try {
     const persona = coercePersona(req.query["persona"]);
+    const language = typeof req.query["language"] === "string" ? req.query["language"] : undefined;
     const text = SAMPLE_LINES[persona];
-    const audio = await synthesize(text, DEFAULT_VOICE_IDS[persona], { live: true });
+    const audio = await synthesize(text, getVoiceId(persona, language), { live: true });
     res.json({ text, audioBase64: audio.base64, mime: audio.mime });
   } catch (err) {
     logger.error({ err }, "sample-onboarding failed");

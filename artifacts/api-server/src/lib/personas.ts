@@ -8,6 +8,24 @@ export const DEFAULT_VOICE_IDS: Record<PersonaId, string> = {
   mom: "P1hTNpVDMG973fukK9V2", // Ate Ada — warm, maternal, Filipino/Tagalog (unchanged)
 };
 
+/** Filipino/Taglish voice IDs — used when the user's language is "fil". */
+export const FILIPINO_VOICE_IDS: Record<PersonaId, string> = {
+  professional: "n6WaB3rOlZSC9y8yEPEz",
+  funny: "cvnP6nKXpiWGFASDWN3Y",
+  mom: "gILcvhAz18uV9ARSsU4u",
+  sarcastic: "RGymW84CSmfVugnA5tvA",
+};
+
+/**
+ * Returns the correct ElevenLabs voice ID for a persona + language combo.
+ * Filipino/Taglish ("fil") gets its own set of native-speaker voices;
+ * all other languages fall back to the global defaults.
+ */
+export function getVoiceId(persona: PersonaId, language?: string): string {
+  if (language === "fil") return FILIPINO_VOICE_IDS[persona];
+  return DEFAULT_VOICE_IDS[persona];
+}
+
 const TONE: Record<PersonaId, string> = {
   professional: `You sound like a smart, trusted financial friend — calm, warm, slightly informal.
 Not corporate, not stiff. Like a kapwa who actually knows what they're talking about.
