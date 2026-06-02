@@ -1511,7 +1511,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
 
   const confirm = () => {
     const b: OnbBill = {
-      provider: parsedBill?.provider || sample.provider,
+      provider: parsedBill?.provider || sample.cat,
       cat: sample.cat,
       icon: sample.icon,
       amount: parsedBill?.amount ?? sample.amount,
@@ -1692,6 +1692,17 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
           return;
         }
         setParsedBill(parsed);
+        // Provider unknown — open edit mode so the user can name it rather than assuming.
+        if (!parsed.provider) {
+          setParsedEditing(true);
+          setParsedEdits({
+            provider: "",
+            amount: String(parsed.amount ?? sample.amount),
+            dueDay: String(parsed.dueDay ?? sample.dueDays),
+            kind: parsed.kind ?? kindFor(sample.cat),
+            frequency: parsed.frequency ?? "monthly",
+          });
+        }
       } catch {
         setParsedBill(null); /* falls back to sample data in PCells */
       }
@@ -1852,8 +1863,8 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
               <JudithLine>{VLOCAL.gotit}</JudithLine>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 9 }}>
                 <PCell full label={VLOCAL.lblP} delay={0}>
-                  <Txt size={17} weight="semibold">
-                    {parsedBill?.provider || sample.provider}
+                  <Txt size={17} weight="semibold" color={parsedBill?.provider ? t.txtHi : t.semantic.near}>
+                    {parsedBill?.provider || "Who is this with?"}
                   </Txt>
                 </PCell>
                 <PCell label={VLOCAL.lblA} delay={80}>
@@ -2172,7 +2183,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
             <Btn label={T("edit")} variant="soft" onPress={() => {
               setParsedEditing(true);
               setParsedEdits({
-                provider: parsedBill?.provider ?? sample.provider,
+                provider: parsedBill?.provider ?? "",
                 amount: String(parsedBill?.amount ?? sample.amount),
                 dueDay: String(parsedBill?.dueDay ?? sample.dueDays),
                 kind: parsedBill?.kind ?? kindFor(sample.cat),
