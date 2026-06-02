@@ -1621,7 +1621,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       const vadStart = Date.now();
       const VAD_THRESHOLD_DB = -50;  // dBFS; below this = silence
       const VAD_MIN_MS = 800;        // ignore first 800 ms while mic settles
-      const VAD_SILENCE_MS = 1500;   // 1.5 s of silence after speech → auto-stop
+      const VAD_SILENCE_MS = 3000;   // 3 s of silence after speech → auto-stop
       vadIntervalRef.current = setInterval(() => {
         if (Date.now() - vadStart < VAD_MIN_MS) return;
         const db = recorder.getStatus().metering;
