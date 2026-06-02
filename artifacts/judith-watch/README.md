@@ -1,7 +1,7 @@
 # Judith for Apple Watch
 
 A native watchOS companion app for Judith. Mark bills paid from your wrist, glance at
-what's due, and stay on top of late fees without opening the phone.
+what's due, and stay on top of late Fix - t without opening the phone.
 
 ## Targets
 

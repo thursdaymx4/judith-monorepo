@@ -1573,8 +1573,8 @@ function ScreenStakes({ ctx }: { ctx: Ctx }) {
   const commit = () => {
     setCommitted(true);
     haptics.medium();
-    setTimeout(() => haptics.light(), 500);
-    setTimeout(() => haptics.heavy(), 4500);
+    setTimeout(() => haptics.light(), 1500);
+    setTimeout(() => haptics.heavy(), 5500);
     const fadeUp = (opacity: Animated.Value, y: Animated.Value, delay: number) =>
       Animated.sequence([
         Animated.delay(delay),
@@ -1597,9 +1597,9 @@ function ScreenStakes({ ctx }: { ctx: Ctx }) {
         Animated.delay(250),
         Animated.timing(boxOpacity, { toValue: 0, duration: 350, easing: Easing.out(Easing.quad), useNativeDriver: true }),
       ]),
-      /* "You" — commitYouIn: stamp from scale 0, rotate −6°→0, delay 0.5s */
+      /* "You" — commitYouIn: stamp from scale 0, rotate −6°→0, delay 1.5s (after box fade-out) */
       Animated.sequence([
-        Animated.delay(500),
+        Animated.delay(1500),
         Animated.parallel([
           Animated.timing(youOpacity, { toValue: 1,    duration: 350, useNativeDriver: true }),
           Animated.sequence([
@@ -1609,15 +1609,15 @@ function ScreenStakes({ ctx }: { ctx: Ctx }) {
           Animated.timing(youRotate, { toValue: 0, duration: 700, useNativeDriver: true }),
         ]),
       ]),
-      /* "will start taking" — commitFadeUp at 1.7s */
-      fadeUp(lineOpacity, lineY, 1700),
-      /* "control" — commitCtrlIn at 2.3s */
-      fadeUp(ctrlOpacity, ctrlY, 2300),
-      /* "today" — commitFadeUp at 3.9s */
-      fadeUp(todayOpacity, todayY, 3900),
-      /* underline scaleX 0→1 at 4.5s (commitUline) */
+      /* "will start taking" — commitFadeUp at 2.7s */
+      fadeUp(lineOpacity, lineY, 2700),
+      /* "control" — commitCtrlIn at 3.3s */
+      fadeUp(ctrlOpacity, ctrlY, 3300),
+      /* "today" — commitFadeUp at 4.9s */
+      fadeUp(todayOpacity, todayY, 4900),
+      /* underline scaleX 0→1 at 5.5s (commitUline) */
       Animated.sequence([
-        Animated.delay(4500),
+        Animated.delay(5500),
         Animated.timing(ulineScale, { toValue: 1, duration: 600, easing: Easing.bezier(0.6, 0, 0.3, 1), useNativeDriver: true }),
       ]),
     ]).start(() => setTimeout(next, 2000));
