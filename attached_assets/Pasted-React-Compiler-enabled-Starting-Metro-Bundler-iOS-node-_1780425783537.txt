@@ -1,0 +1,39 @@
+React Compiler enabled
+Starting Metro Bundler
+iOS node_modules/.pnpm/expo-router@6.0.24_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__4094ee48018c5b5c8f1246009fce9036/node_modules/expo-router/entry.js ▓▓▓▓░░░░░░░░░░░░ 31.2% (230/412)
+iOS node_modules/.pnpm/expo-router@6.0.24_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__4094ee48018c5b5c8f1246009fce9036/node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 75.6% (857/998)
+iOS node_modules/.pnpm/expo-router@6.0.24_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__4094ee48018c5b5c8f1246009fce9036/node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 97.5% (1765/1792)
+iOS Bundling failed 8759ms node_modules/.pnpm/expo-router@6.0.24_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__4094ee48018c5b5c8f1246009fce9036/node_modules/expo-router/entry.js (1792 modules)
+Unable to resolve module @/hooks/useReducedMotion from /Users/expo/workingdir/build/artifacts/judith/app/(onboarding)/index.tsx: @/hooks/useReducedMotion could not be found within the project or in these directories:
+  node_modules
+  ../../node_modules
+  node_modules
+  ../../node_modules
+  35 | import { LinearGradient } from "expo-linear-gradient";
+  36 | import { useJudith } from "@/contexts/JudithStore";
+> 37 | import { useReducedMotion } from "@/hooks/useReducedMotion";
+     |                                   ^
+  38 | import { useTheme } from "@/hooks/useTheme";
+  39 | import { haptics } from "@/lib/haptics";
+  40 | import { fileToBase64, playBase64Mp3, stopCurrentAudio } from "@/lib/audio";
+Import stack:
+ artifacts/judith/app/(onboarding)/index.tsx
+ | import "@/hooks/useReducedMotion"
+ artifacts/judith/app (require.context)
+Error: Unable to resolve module @/hooks/useReducedMotion from /Users/expo/workingdir/build/artifacts/judith/app/(onboarding)/index.tsx: @/hooks/useReducedMotion could not be found within the project or in these directories:
+  node_modules
+  ../../node_modules
+  node_modules
+  ../../node_modules
+  35 | import { LinearGradient } from "expo-linear-gradient";
+  36 | import { useJudith } from "@/contexts/JudithStore";
+> 37 | import { useReducedMotion } from "@/hooks/useReducedMotion";
+     |                                   ^
+  38 | import { useTheme } from "@/hooks/useTheme";
+  39 | import { haptics } from "@/lib/haptics";
+  40 | import { fileToBase64, playBase64Mp3, stopCurrentAudio } from "@/lib/audio";
+Import stack:
+ artifacts/judith/app/(onboarding)/index.tsx
+ | import "@/hooks/useReducedMotion"
+ artifacts/judith/app (require.context)
+pnpm expo export:embed --eager --platform ios --dev false exited with non-zero code: 1

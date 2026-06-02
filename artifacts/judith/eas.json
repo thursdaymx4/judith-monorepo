@@ -23,6 +23,9 @@
       },
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_NO_CAPABILITY_SYNC": "1"
       }
     }
   },
@@ -30,7 +33,7 @@
     "production": {
       "ios": {
         "language": "en-US",
-        "appleTeamId": "YOUR_APPLE_TEAM_ID"
+        "appleTeamId": "88JK8X8BT7"
       }
     }
   }
