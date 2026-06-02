@@ -42,6 +42,19 @@ interface BillRow {
   snoozed_until: string | null;
 }
 
+/**
+ * Parses a YYYY-MM-DD string sent by the client (device-local date) and returns
+ * a Date in the server's local midnight. Falls back to server's now() if the
+ * string is absent or malformed — better than crashing.
+ */
+function parseLocalDate(raw: unknown): Date {
+  if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const d = new Date(`${raw}T00:00:00`);
+    if (!isNaN(d.getTime())) return d;
+  }
+  return new Date();
+}
+
 function startOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
@@ -235,11 +248,12 @@ router.post("/ask", async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
-    const { text, bills: bodyBills, persona: bodyPersona } = req.body ?? {};
+    const { text, bills: bodyBills, persona: bodyPersona, localDate } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
       res.status(400).json({ error: "text is required" });
       return;
     }
+    const today = parseLocalDate(localDate);
 
     let persona: PersonaId;
     let voiceId: string;
@@ -247,12 +261,12 @@ router.post("/ask", async (req, res) => {
     if (Array.isArray(bodyBills)) {
       persona = coercePersona(bodyPersona);
       voiceId = DEFAULT_VOICE_IDS[persona];
-      context = buildClientContext(bodyBills as ClientBill[], new Date());
+      context = buildClientContext(bodyBills as ClientBill[], today);
     } else {
       const data = await loadUserData(user.id);
       persona = data.persona;
       voiceId = data.voiceId;
-      context = buildBillsContext(data.bills, new Date());
+      context = buildBillsContext(data.bills, today);
     }
 
     const anthropic = getAnthropic();
@@ -354,7 +368,7 @@ router.get("/sample", async (req, res) => {
 // No auth required — interactive AI ask during onboarding feature screens.
 router.post("/ask-onboarding", async (req, res) => {
   try {
-    const { text, bills: bodyBills, persona: bodyPersona } = req.body ?? {};
+    const { text, bills: bodyBills, persona: bodyPersona, localDate } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
       res.status(400).json({ error: "text is required" });
       return;
@@ -362,7 +376,7 @@ router.post("/ask-onboarding", async (req, res) => {
     const persona = coercePersona(bodyPersona);
     const voiceId = DEFAULT_VOICE_IDS[persona];
     const bills = Array.isArray(bodyBills) ? (bodyBills as ClientBill[]) : [];
-    const context = buildClientContext(bills, new Date());
+    const context = buildClientContext(bills, parseLocalDate(localDate));
 
     const anthropic = getAnthropic();
     const message = await anthropic.messages.create({

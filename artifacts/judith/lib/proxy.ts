@@ -49,6 +49,15 @@ export interface AskResult {
   mime: string;
 }
 
+/** Returns today's date as YYYY-MM-DD in the device's local timezone. */
+function localDateString(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export function transcribe(
   audioBase64: string,
   mimeType: string,
@@ -66,6 +75,7 @@ export function askJudith(
     text,
     bills,
     persona: persona ? PERSONA_MAP[persona] : undefined,
+    localDate: localDateString(),
   });
 }
 
@@ -145,6 +155,7 @@ export function askOnboarding(
       text,
       bills,
       persona: persona ? PERSONA_MAP[persona] : "professional",
+      localDate: localDateString(),
     }),
   }).then(async (res) => {
     if (!res.ok) {
