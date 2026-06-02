@@ -1890,6 +1890,38 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                     : "And loans — personal, car, housing, anything. How many?"}
                 </JudithLine>
               </View>
+              {/* Card recap — shown when moving to the loans phase */}
+              {phase === "loans" && bills.filter((b) => b.cat === "Credit card").length > 0 && (() => {
+                const cards = bills.filter((b) => b.cat === "Credit card");
+                const cardTotal = cards.reduce((s, b) => s + b.amount, 0);
+                return (
+                  <View style={{ alignSelf: "stretch", marginTop: 14 }}>
+                    <Low size={11} style={{ marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>Cards logged · {cur}{fmtNum(cardTotal)}/mo</Low>
+                    <View style={{ borderRadius: 12, borderWidth: 1, borderColor: t.hair, overflow: "hidden" }}>
+                      {cards.map((b, i) => (
+                        <View
+                          key={`card-${i}`}
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 10,
+                            paddingVertical: 10,
+                            paddingHorizontal: 14,
+                            borderBottomWidth: i < cards.length - 1 ? 1 : 0,
+                            borderBottomColor: t.hair,
+                            backgroundColor: t.surface2,
+                          }}
+                        >
+                          <Icon name="card" size={13} color={t.accent} />
+                          <Txt size={13} weight="medium" style={{ flex: 1 }} numberOfLines={1}>{b.provider}</Txt>
+                          <Low size={11} style={{ marginRight: 6 }}>{b.due}</Low>
+                          <Mono size={13} weight="semibold">{cur}{fmtNum(b.amount)}</Mono>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                );
+              })()}
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 9, marginTop: 16 }}>
                 {[0, 1, 2, 3, 4, 5].map((k) => (
                   <Pressable
@@ -2043,6 +2075,30 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                     <Low size={13}>/mo</Low>
                   </View>
                 </View>
+                {bills.length > 0 && (
+                  <View style={{ alignSelf: "stretch", marginTop: 12, borderRadius: 14, borderWidth: 1, borderColor: t.hair, overflow: "hidden" }}>
+                    {bills.map((b, i) => (
+                      <View
+                        key={`${b.provider}-${i}`}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 10,
+                          paddingVertical: 10,
+                          paddingHorizontal: 14,
+                          borderBottomWidth: i < bills.length - 1 ? 1 : 0,
+                          borderBottomColor: t.hair,
+                          backgroundColor: t.surface2,
+                        }}
+                      >
+                        <Icon name={b.icon as IconName} size={13} color={t.accent} />
+                        <Txt size={13} weight="medium" style={{ flex: 1 }} numberOfLines={1}>{b.provider}</Txt>
+                        <Low size={11} style={{ marginRight: 6 }}>{b.cat}</Low>
+                        <Mono size={13} weight="semibold">{cur}{fmtNum(b.amount)}</Mono>
+                      </View>
+                    ))}
+                  </View>
+                )}
                 <View style={{ marginTop: 14, paddingVertical: 13, paddingHorizontal: 16, borderRadius: 14, borderWidth: 1, borderStyle: "dashed", borderColor: withAlpha(t.accent, 0.45), backgroundColor: mix(t.accent, t.canvas, 0.07), maxWidth: 300 }}>
                   <Txt size={15} weight="semibold">{g.askTitle}</Txt>
                   <Low size={12} style={{ marginTop: 2 }}>{g.askSub}</Low>
@@ -2059,12 +2115,51 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
 
           {mode === "more" && (() => {
             const total = bills.reduce((s, b) => s + (b.amount || 0), 0);
+            const moreSections = [
+              { label: "Essentials", filter: (b: OnbBill) => ["Rent / Mortgage","Electricity","Water","Internet"].includes(b.cat) },
+              { label: "Subscriptions", filter: (b: OnbBill) => ["Mobile","Phone subscription","TV / Streaming","Web app"].includes(b.cat) },
+              { label: "Cards", filter: (b: OnbBill) => b.cat === "Credit card" },
+              { label: "Loans", filter: (b: OnbBill) => b.cat === "Personal loan" },
+              { label: "Other", filter: (b: OnbBill) => !["Rent / Mortgage","Electricity","Water","Internet","Mobile","Phone subscription","TV / Streaming","Web app","Credit card","Personal loan"].includes(b.cat) },
+            ].map(s => ({ ...s, items: bills.filter(s.filter) })).filter(s => s.items.length > 0);
             return (
               <View style={{ alignItems: "center" }}>
                 <JudithAvatar persona={persona} size={68} state="speaking" />
                 <JudithLine style={{ marginTop: 12 }}>
                   That’s {bills.length} so far — {cur}{fmtNum(total)}/mo. Any more cards, loans, or anything else? Gym, insurance, tuition? Let’s not miss any.
                 </JudithLine>
+                {moreSections.length > 0 && (
+                  <View style={{ alignSelf: "stretch", marginTop: 14, gap: 12 }}>
+                    {moreSections.map((sec) => (
+                      <View key={sec.label}>
+                        <Low size={11} style={{ marginBottom: 5, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                          {sec.label} · {cur}{fmtNum(sec.items.reduce((s, b) => s + b.amount, 0))}/mo
+                        </Low>
+                        <View style={{ borderRadius: 12, borderWidth: 1, borderColor: t.hair, overflow: "hidden" }}>
+                          {sec.items.map((b, i) => (
+                            <View
+                              key={`more-${sec.label}-${i}`}
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                gap: 10,
+                                paddingVertical: 10,
+                                paddingHorizontal: 14,
+                                borderBottomWidth: i < sec.items.length - 1 ? 1 : 0,
+                                borderBottomColor: t.hair,
+                                backgroundColor: t.surface2,
+                              }}
+                            >
+                              <Icon name={b.icon as IconName} size={13} color={t.accent} />
+                              <Txt size={13} weight="medium" style={{ flex: 1 }} numberOfLines={1}>{b.provider}</Txt>
+                              <Mono size={13} weight="semibold">{cur}{fmtNum(b.amount)}</Mono>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
             );
           })()}
