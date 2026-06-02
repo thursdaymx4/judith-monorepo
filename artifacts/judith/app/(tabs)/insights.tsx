@@ -8,13 +8,10 @@ import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Low, Mono, ProviderLogo, Screen, Txt, mix } from "@/components/ui";
 import { CAT_COLORS } from "@/constants/theme";
-import { TREND_6MO } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
 import { useCountUp } from "@/hooks/useCountUp";
 import { useTheme } from "@/hooks/useTheme";
 
-type RangeKey = "1m" | "3m" | "6m" | "1y";
-interface TrendPoint { m: string; a: number }
 interface CatSlice { cat: string; value: number; color: string }
 
 /* ---- donut ---- */
@@ -44,79 +41,55 @@ function Donut({ segments, total, size = 130 }: { segments: CatSlice[]; total: n
   );
 }
 
-/* ---- trend bars — last bar shows paid overlay ---- */
-function TrendBars({ data, paidFrac }: { data: TrendPoint[]; paidFrac: number }) {
+/* ---- paid vs billed bar ---- */
+function PaidBilledBar({ paidTotal, billedTotal, paidFrac, money }: {
+  paidTotal: number; billedTotal: number; paidFrac: number; money: (n: number) => string;
+}) {
   const t = useTheme();
-  const max = Math.max(...data.map((d) => d.a), 1);
+  const paidPct = Math.round(paidFrac * 100);
   return (
-    <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8, height: 110, marginTop: 8 }}>
-      {data.map((d, i) => {
-        const h = Math.max(8, (d.a / max) * 100);
-        const last = i === data.length - 1;
-        const colors: [string, string] = last
-          ? [t.accent, mix(t.accent, t.surface3, 0.45)]
-          : [mix(t.accent, t.surface3, 0.22), t.surface3];
-        return (
-          <View key={d.m + i} style={{ flex: 1, flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: 6, height: "100%" }}>
-            <Mono size={9} weight="medium" color={t.txtLow}>
-              {d.a >= 1000 ? (d.a / 1000).toFixed(1) + "k" : String(d.a)}
-            </Mono>
-            <View style={{ width: "100%", height: `${h}%`, position: "relative" }}>
-              <LinearGradient
-                colors={colors}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
-                style={{
-                  width: "100%", height: "100%",
-                  borderTopLeftRadius: 7, borderTopRightRadius: 7,
-                  borderBottomLeftRadius: 4, borderBottomRightRadius: 4,
-                  ...(last ? { shadowColor: t.accent, shadowOpacity: 0.55, shadowRadius: 8, shadowOffset: { width: 0, height: 0 } } : {}),
-                }}
-              />
-              {/* paid overlay on current month bar */}
-              {last && paidFrac > 0 && (
-                <View
-                  style={{
-                    position: "absolute", bottom: 0, left: 0, right: 0,
-                    height: `${Math.round(paidFrac * 100)}%`,
-                    borderTopLeftRadius: paidFrac >= 0.98 ? 7 : 3,
-                    borderTopRightRadius: paidFrac >= 0.98 ? 7 : 3,
-                    borderBottomLeftRadius: 4, borderBottomRightRadius: 4,
-                    backgroundColor: t.semantic.ok,
-                    opacity: 0.55,
-                  }}
-                />
-              )}
-            </View>
-            <Txt size={10} weight={last ? "bold" : "regular"} color={last ? t.accent : t.txtLow}>{d.m}</Txt>
+    <View style={{ gap: 10, marginTop: 16 }}>
+      {/* billed bar with paid overlay */}
+      <View>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+          <Low size={11}>Billed this month</Low>
+          <Mono size={11} weight="semibold">{money(billedTotal)}</Mono>
+        </View>
+        <View style={{ height: 10, borderRadius: 5, backgroundColor: t.surface3, overflow: "hidden" }}>
+          <LinearGradient
+            colors={[t.accent, mix(t.accent, t.surface3, 0.4)]}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={{ width: "100%", height: "100%", borderRadius: 5 }}
+          />
+        </View>
+      </View>
+      <View>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+          <Low size={11}>Paid so far</Low>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+            <Txt size={11} weight="semibold" color={paidPct === 100 ? t.semantic.ok : t.txtHi}>{money(paidTotal)}</Txt>
+            <Low size={10}>({paidPct}%)</Low>
           </View>
-        );
-      })}
-    </View>
-  );
-}
-
-/* ---- range selector ---- */
-function SegRange({ range, setRange }: { range: RangeKey; setRange: (r: RangeKey) => void }) {
-  const t = useTheme();
-  const ranges: [RangeKey, string][] = [["1m", "1M"], ["3m", "3M"], ["6m", "6M"], ["1y", "1Y"]];
-  return (
-    <View style={{ flexDirection: "row", backgroundColor: t.surface2, borderWidth: 1, borderColor: t.hair, borderRadius: 11, padding: 3, gap: 2 }}>
-      {ranges.map(([v, l]) => {
-        const on = range === v;
-        return (
-          <Pressable key={v} onPress={() => setRange(v)} style={{ borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10, alignItems: "center", justifyContent: "center", backgroundColor: on ? t.accent : "transparent" }}>
-            <Txt size={12} weight="semibold" color={on ? t.onAccent : t.txtMid}>{l}</Txt>
-          </Pressable>
-        );
-      })}
+        </View>
+        <View style={{ height: 10, borderRadius: 5, backgroundColor: t.surface3, overflow: "hidden" }}>
+          {paidFrac > 0 && (
+            <LinearGradient
+              colors={[t.semantic.ok, mix(t.semantic.ok, t.surface3, 0.3)]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={{ width: `${paidPct}%`, height: "100%", borderRadius: 5 }}
+            />
+          )}
+        </View>
+      </View>
     </View>
   );
 }
 
 type TrayKey = "cat" | "prov" | "house" | null;
 
-function FChip({ active, label, icon, onPress }: { active: boolean; label: string; icon: "home" | "layers" | "grid"; onPress: () => void }) {
+function FChip({ active, label, icon, onPress }: {
+  active: boolean; label: string; icon: "home" | "layers" | "grid"; onPress: () => void;
+}) {
   const t = useTheme();
   const color = active ? t.accent : t.txtMid;
   return (
@@ -142,7 +115,6 @@ export default function InsightsScreen() {
   const router = useRouter();
   const { bills, persona, money } = useJudith();
 
-  const [range, setRange] = useState<RangeKey>("6m");
   const [catF, setCatF] = useState("All");
   const [provF, setProvF] = useState("All");
   const [houseF, setHouseF] = useState("All");
@@ -150,9 +122,13 @@ export default function InsightsScreen() {
 
   const houses = Array.from(new Set(bills.map((b) => b.house).filter((h): h is string => Boolean(h))));
   const multiHouse = houses.length > 1;
-  const allCats = Array.from(new Set(bills.filter((b) => houseF === "All" || b.house === houseF).map((b) => b.cat)));
+  const allCats = Array.from(new Set(
+    bills.filter((b) => houseF === "All" || b.house === houseF).map((b) => b.cat)
+  ));
   const allProvs = Array.from(new Set(
-    bills.filter((b) => (houseF === "All" || b.house === houseF) && (catF === "All" || b.cat === catF)).map((b) => b.provider)
+    bills
+      .filter((b) => (houseF === "All" || b.house === houseF) && (catF === "All" || b.cat === catF))
+      .map((b) => b.provider)
   ));
 
   const active = bills.filter(
@@ -162,39 +138,24 @@ export default function InsightsScreen() {
       (provF === "All" || b.provider === provF),
   );
 
-  // Billed = sum of all active bill amounts (what was logged)
-  const total = active.reduce((s, b) => s + b.amount, 0);
-  const totalA = useCountUp(total);
+  // Real totals only — from the user's actual logged bills
+  const billedTotal = active.reduce((s, b) => s + b.amount, 0);
+  const billedTotalA = useCountUp(billedTotal);
 
-  // Paid = sum of what has actually been paid
   const paidTotal = active.reduce((s, b) => {
     if (b.status === "paid") return s + b.amount;
     return s + (b.amountPaid ?? 0);
   }, 0);
-  const unpaidTotal = total - paidTotal;
-  const paidPct = total > 0 ? Math.round((paidTotal / total) * 100) : 0;
-  const paidFrac = total > 0 ? paidTotal / total : 0;
-
-  // Scale TREND_6MO so last bar = real current total (not fake sample total)
-  const lastTrend = TREND_6MO[TREND_6MO.length - 1]!.a;
-  const scale = total > 0 && lastTrend > 0 ? total / lastTrend : 1;
-  const nMap: Record<RangeKey, number> = { "1m": 2, "3m": 3, "6m": 6, "1y": 6 };
-  const trendData: TrendPoint[] = TREND_6MO.slice(-nMap[range]).map((d) => ({
-    m: d.m,
-    a: Math.round(d.a * scale),
-  }));
-
-  // % change vs previous month
-  const prev = trendData[trendData.length - 2]?.a ?? 0;
-  const delta = total - prev;
-  const deltaPct = prev > 0 ? Math.round((delta / prev) * 100) : 0;
-  const deltaColor = delta >= 0 ? t.semantic.urgent : t.semantic.ok;
+  const unpaidTotal = billedTotal - paidTotal;
+  const paidFrac = billedTotal > 0 ? paidTotal / billedTotal : 0;
+  const paidPct = Math.round(paidFrac * 100);
 
   const catMap: Record<string, number> = {};
   active.forEach((b) => { catMap[b.cat] = (catMap[b.cat] || 0) + b.amount; });
   const cats: CatSlice[] = Object.keys(catMap)
     .map((cat) => ({ cat, value: catMap[cat]!, color: CAT_COLORS[cat] || t.accent }))
     .sort((a, b) => b.value - a.value);
+
   const providers = active.slice().sort((a, b) => b.amount - a.amount).slice(0, 5);
   const biggest = active.slice().sort((a, b) => b.amount - a.amount)[0];
   const providerCount = new Set(active.map((b) => b.provider)).size;
@@ -202,17 +163,22 @@ export default function InsightsScreen() {
   const card = { borderWidth: 1, borderColor: t.hair, borderRadius: t.radius.md, backgroundColor: t.surface2, padding: t.space.pad } as const;
   const sectionLabel = { fontFamily: t.fonts.medium, fontSize: 13, color: t.txtMid, letterSpacing: 0.5, textTransform: "uppercase" as const, marginTop: 18, marginBottom: 10 };
 
+  // Current month label for display
+  const now = new Date();
+  const monthLabel = now.toLocaleString("default", { month: "long" });
+  const yearLabel = now.getFullYear();
+
   return (
     <Screen>
       {/* header */}
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 6, marginBottom: 12 }}>
         <Txt size={28} weight="semibold" style={{ letterSpacing: -0.56 }}>Insights</Txt>
+        <Low size={12}>{monthLabel} {yearLabel}</Low>
       </View>
 
       {/* filters */}
       <View style={{ marginBottom: 14 }}>
         <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-          <SegRange range={range} setRange={setRange} />
           {multiHouse && (
             <FChip active={houseF !== "All"} label={houseF === "All" ? "All homes" : houseF} icon="home" onPress={() => setOpen(open === "house" ? null : "house")} />
           )}
@@ -244,50 +210,23 @@ export default function InsightsScreen() {
 
       {active.length === 0 ? (
         <View style={[card, { alignItems: "center", paddingVertical: 30, paddingHorizontal: 16 }]}>
-          <Low>No bills match these filters.</Low>
+          <Low>No bills logged yet.</Low>
         </View>
       ) : (
         <>
-          {/* ── total monthly bills + trend bars ── */}
+          {/* ── total billed + paid vs billed ── */}
           <View style={[card, { marginBottom: 12 }]}>
-            {/* card header: label + % badge top-right */}
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-              <Low size={12}>Total monthly bills</Low>
-              {prev > 0 && (
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: mix(deltaColor, t.surface3, 0.15), borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3 }}>
-                  <Icon name="trend" size={11} color={deltaColor} />
-                  <Txt size={11} weight="semibold" color={deltaColor}>
-                    {delta >= 0 ? "+" : ""}{deltaPct}% vs prev
-                  </Txt>
-                </View>
-              )}
-            </View>
-
-            {/* big billed amount */}
+            <Low size={12}>Total billed this month</Low>
             <Mono size={36} weight="semibold" style={{ letterSpacing: -0.8, marginTop: 2 }}>
-              {money(Math.round(totalA))}
+              {money(Math.round(billedTotalA))}
             </Mono>
 
-            <TrendBars data={trendData} paidFrac={paidFrac} />
-
-            {/* paid vs billed progress row */}
-            <View style={{ marginTop: 14, gap: 6 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.semantic.ok }} />
-                  <Low size={11}>Paid  <Txt size={11} weight="semibold" color={t.semantic.ok}>{money(paidTotal)}</Txt></Low>
-                </View>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                  <Low size={11}>Remaining  <Txt size={11} weight="semibold" color={t.txtMid}>{money(unpaidTotal)}</Txt></Low>
-                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.surface3 }} />
-                </View>
-              </View>
-              {/* thin progress bar */}
-              <View style={{ height: 5, borderRadius: 3, backgroundColor: t.surface3, overflow: "hidden" }}>
-                <View style={{ width: `${paidPct}%`, height: "100%", borderRadius: 3, backgroundColor: t.semantic.ok }} />
-              </View>
-              <Low size={10} style={{ textAlign: "right" }}>{paidPct}% paid this month</Low>
-            </View>
+            <PaidBilledBar
+              paidTotal={paidTotal}
+              billedTotal={billedTotal}
+              paidFrac={paidFrac}
+              money={money}
+            />
           </View>
 
           {/* KPI grid */}
@@ -299,22 +238,21 @@ export default function InsightsScreen() {
             </View>
             <View style={[card, { width: "47.5%", paddingVertical: 14, paddingHorizontal: 15, gap: 2 }]}>
               <Low size={11}>Avg / bill</Low>
-              <Mono size={19} weight="semibold">{active.length ? money(total / active.length) : "—"}</Mono>
-              <Low size={11}>{active.length} bills</Low>
+              <Mono size={19} weight="semibold">{active.length ? money(billedTotal / active.length) : "—"}</Mono>
+              <Low size={11}>{active.length} {active.length === 1 ? "bill" : "bills"}</Low>
             </View>
             <View style={[card, { width: "47.5%", paddingVertical: 14, paddingHorizontal: 15, gap: 2 }]}>
               <Low size={11}>Providers</Low>
               <Mono size={19} weight="semibold">{providerCount}</Mono>
               <Low size={11}>across {cats.length} {cats.length === 1 ? "category" : "categories"}</Low>
             </View>
-            {/* Paid this month — replaces static "on-time rate" */}
             <View style={[card, { width: "47.5%", paddingVertical: 14, paddingHorizontal: 15, gap: 2 }]}>
-              <Low size={11}>Paid this month</Low>
-              <Mono size={19} weight="semibold" color={paidPct === 100 ? t.semantic.ok : t.txtHi}>
-                {money(paidTotal)}
+              <Low size={11}>Still owed</Low>
+              <Mono size={19} weight="semibold" color={unpaidTotal > 0 ? t.semantic.urgent : t.semantic.ok}>
+                {money(unpaidTotal)}
               </Mono>
               <Low size={11} color={paidPct === 100 ? t.semantic.ok : t.txtMid}>
-                {paidPct}% of {money(total)}
+                {paidPct === 100 ? "All paid ✓" : `${paidPct}% paid`}
               </Low>
             </View>
           </View>
@@ -323,10 +261,10 @@ export default function InsightsScreen() {
           <Txt style={sectionLabel}>WHERE IT GOES</Txt>
           <View style={[card, { flexDirection: "row", gap: 16, alignItems: "center" }]}>
             <View style={{ position: "relative" }}>
-              <Donut segments={cats} total={total} size={130} />
+              <Donut segments={cats} total={billedTotal} size={130} />
               <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
                 <Low size={10}>monthly</Low>
-                <Mono size={15} weight="semibold">{money(total)}</Mono>
+                <Mono size={15} weight="semibold">{money(billedTotal)}</Mono>
               </View>
             </View>
             <View style={{ flex: 1, flexDirection: "column", gap: 9 }}>
@@ -334,7 +272,7 @@ export default function InsightsScreen() {
                 <View key={c.cat} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                   <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.color, shadowColor: c.color, shadowOpacity: 0.9, shadowRadius: 4, shadowOffset: { width: 0, height: 0 } }} />
                   <Txt size={13} style={{ flex: 1 }}>{c.cat}</Txt>
-                  <Low size={11}>{total > 0 ? Math.round((c.value / total) * 100) : 0}%</Low>
+                  <Low size={11}>{billedTotal > 0 ? Math.round((c.value / billedTotal) * 100) : 0}%</Low>
                   <Mono size={12} weight="semibold" style={{ minWidth: 52, textAlign: "right" }}>{money(c.value)}</Mono>
                 </View>
               ))}
@@ -350,7 +288,7 @@ export default function InsightsScreen() {
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Txt size={15} weight="medium">{b.provider}</Txt>
                   <Low size={12} style={{ marginTop: 2 }}>
-                    {b.cat} · {total > 0 ? Math.round((b.amount / total) * 100) : 0}% of bills
+                    {b.cat} · {billedTotal > 0 ? Math.round((b.amount / billedTotal) * 100) : 0}% of bills
                   </Low>
                 </View>
                 <Mono size={15} weight="semibold">{money(b.amount)}</Mono>
