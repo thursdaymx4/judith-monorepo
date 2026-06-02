@@ -13,12 +13,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Chip, Low, Muted, Pill, SpeechBubble, Txt, mix } from "@/components/ui";
-import { QUICK_ASKS, makeSubscriptionBill } from "@/constants/data";
+import { QUICK_ASKS, makeBillFromAction, makeSubscriptionBill } from "@/constants/data";
 import { getPersona } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { fileToBase64, playBase64Mp3 } from "@/lib/audio";
-import { type AskBill, askJudith, parseSubscriptionScreenshot, transcribe } from "@/lib/proxy";
+import { type AddBillAction, type AskBill, askJudith, parseSubscriptionScreenshot, transcribe } from "@/lib/proxy";
 import { sttHint } from "@/constants/languages";
 
 /**
@@ -68,7 +68,7 @@ export default function AskModal() {
   const t = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { bills, asksLeft, tier, persona, language, consumeAsk, saveBill } = useJudith();
+  const { bills, asksLeft, tier, persona, language, consumeAsk, saveBill, showToast } = useJudith();
   const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
 
   const unlimited = tier === "unlimited";
@@ -202,11 +202,16 @@ export default function AskModal() {
     setBusy(true);
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
     try {
-      const { reply, audioBase64 } = await askJudith(q, askBills(), persona);
+      const { reply, audioBase64, action } = await askJudith(q, askBills(), persona);
       const finalReply = reply?.trim() || localFallback(q);
       setMessages((m) => [...m, { role: "judith", text: finalReply }]);
       if (audioBase64) {
         playBase64Mp3(audioBase64).catch(() => {});
+      }
+      if (action?.type === "add_bill") {
+        const bill = makeBillFromAction(action as AddBillAction);
+        saveBill(bill);
+        showToast(`Added: ${bill.provider}`);
       }
     } catch {
       setMessages((m) => [...m, { role: "judith", text: localFallback(q) }]);

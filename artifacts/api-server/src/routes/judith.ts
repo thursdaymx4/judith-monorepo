@@ -47,6 +47,21 @@ interface BillRow {
  * a Date in the server's local midnight. Falls back to server's now() if the
  * string is absent or malformed — better than crashing.
  */
+/**
+ * Extracts an <<ACTION:{...}>> tag appended by the AI at the end of its reply.
+ * Returns the action object and the reply text stripped of the tag (used for TTS).
+ */
+function parseAction(raw: string): { cleanText: string; action: Record<string, unknown> | null } {
+  const match = /<<ACTION:(\{[^>]+\})>>\s*$/.exec(raw);
+  if (!match) return { cleanText: raw.trim(), action: null };
+  try {
+    const action = JSON.parse(match[1]!) as Record<string, unknown>;
+    return { cleanText: raw.slice(0, match.index).trim(), action };
+  } catch {
+    return { cleanText: raw.trim(), action: null };
+  }
+}
+
 function parseLocalDate(raw: unknown): Date {
   if (typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw)) {
     const d = new Date(`${raw}T00:00:00`);
@@ -272,15 +287,16 @@ router.post("/ask", async (req, res) => {
     const anthropic = getAnthropic();
     const message = await anthropic.messages.create({
       model: ANTHROPIC_MODEL,
-      max_tokens: 250,
+      max_tokens: 350,
       system: `${systemPrompt(persona)}\n\nBILL CONTEXT (the only source of truth):\n${context}`,
       messages: [{ role: "user", content: text.trim() }],
     });
 
-    const reply = message.content
+    const rawReply = message.content
       .map((b) => (b.type === "text" ? b.text : ""))
       .join(" ")
       .trim();
+    const { cleanText: reply, action } = parseAction(rawReply);
 
     let audioBase64: string | null = null;
     let mime = "audio/mpeg";
@@ -292,7 +308,7 @@ router.post("/ask", async (req, res) => {
       logger.error({ err: ttsErr }, "tts failed during ask");
     }
 
-    res.json({ reply, audioBase64, mime });
+    res.json({ reply, audioBase64, mime, action });
   } catch (err) {
     logger.error({ err }, "ask failed");
     res.status(500).json({ error: "Judith could not respond right now" });
@@ -385,10 +401,11 @@ router.post("/ask-onboarding", async (req, res) => {
       system: `${systemPrompt(persona)}\n\nBILL CONTEXT (the only source of truth):\n${context}`,
       messages: [{ role: "user", content: text.trim() }],
     });
-    const reply = message.content
+    const rawReply = message.content
       .map((b) => (b.type === "text" ? b.text : ""))
       .join(" ")
       .trim();
+    const { cleanText: reply, action } = parseAction(rawReply);
 
     let audioBase64: string | null = null;
     let mime = "audio/mpeg";
@@ -400,7 +417,7 @@ router.post("/ask-onboarding", async (req, res) => {
     } catch (ttsErr) {
       logger.error({ err: ttsErr }, "tts failed during ask-onboarding");
     }
-    res.json({ reply, audioBase64, mime });
+    res.json({ reply, audioBase64, mime, action });
   } catch (err) {
     logger.error({ err }, "ask-onboarding failed");
     res.status(500).json({ error: "Judith could not respond right now" });

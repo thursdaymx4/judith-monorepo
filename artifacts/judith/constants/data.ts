@@ -306,6 +306,41 @@ function resolveNextDue(sub: ScannedSubscription, today: Date): Date {
   return candidate;
 }
 
+/**
+ * Build a store Bill from a voice-extracted add_bill action.
+ * Computes the next occurrence of dueDay relative to today.
+ */
+export function makeBillFromAction(
+  a: { provider: string; cat: string; amount: number; dueDay: number },
+  today: Date = new Date(),
+): Bill {
+  const base = startOfDay(today);
+  const day = Math.max(1, Math.min(31, Math.round(a.dueDay)));
+  const dayFor = (y: number, m: number) => Math.min(day, daysInMonth(y, m));
+  let candidate = new Date(base.getFullYear(), base.getMonth(), dayFor(base.getFullYear(), base.getMonth()));
+  if (candidate <= base) {
+    const y = base.getFullYear();
+    const m = base.getMonth() + 1;
+    candidate = new Date(y, m, dayFor(y, m));
+  }
+  const dueDays = Math.max(0, Math.round((startOfDay(candidate).getTime() - base.getTime()) / 86_400_000));
+  const dueLabel = `${MONTHS[candidate.getMonth()]} ${candidate.getDate()}`;
+  const icon = CAT_ICONS[a.cat] ?? "spark";
+  return {
+    id: `voice-${Date.now()}`,
+    provider: a.provider.trim() || "Bill",
+    cat: a.cat || "Other",
+    icon,
+    amount: Math.max(0, a.amount),
+    dueDays,
+    dueDate: day,
+    dueLabel,
+    status: "due",
+    kind: "Fixed",
+    frequency: "monthly",
+  };
+}
+
 /** Build a store Bill from a verified scanned subscription. */
 export function makeSubscriptionBill(
   sub: ScannedSubscription,

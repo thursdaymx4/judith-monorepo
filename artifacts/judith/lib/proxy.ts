@@ -43,10 +43,19 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
   return (await res.json()) as T;
 }
 
+export interface AddBillAction {
+  type: "add_bill";
+  provider: string;
+  cat: string;
+  amount: number;
+  dueDay: number;
+}
+
 export interface AskResult {
   reply: string;
   audioBase64: string | null;
   mime: string;
+  action?: AddBillAction | null;
 }
 
 /** Returns today's date as YYYY-MM-DD in the device's local timezone. */
