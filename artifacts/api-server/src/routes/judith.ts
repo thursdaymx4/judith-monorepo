@@ -524,16 +524,17 @@ router.post("/parse-subscription-screenshot", async (req, res) => {
             },
             {
               type: "text",
-              text: `Extract the ACTIVE subscriptions from this phone subscriptions screen screenshot.
+              text: `Today's date is ${new Date().toISOString().slice(0, 10)}. Extract the ACTIVE subscriptions from this phone subscriptions screen screenshot.
 
 Return ONLY a valid JSON array — no markdown fences, no explanation, nothing else:
-[{"provider":"string","amount":number|null,"dueDay":number|null}]
+[{"provider":"string","amount":number|null,"dueDay":number|null,"frequency":"monthly"|"annual","nextDue":"YYYY-MM-DD"|null}]
 
 Rules:
 - provider: the service/app name exactly as shown (e.g. "YouTube Premium", "Spotify", "iCloud+", "Netflix")
 - amount: the numeric price as a plain number (e.g. 249 for ₱249.00 or $2.99). Null if not shown.
 - dueDay: the calendar day (1-31) it renews, extracted from the renewal date shown (e.g. "Renews 30 June" → 30, "Renews 11 May 2027" → 11). Null if not determinable.
 - frequency: "annual" if the subscription renews yearly (e.g. "Renews 11 May 2027", "Annual", "Yearly"); "monthly" if it renews every month (e.g. "Renews 15 Jul", "Monthly"). Default to "monthly" if not determinable.
+- nextDue: the FULL next renewal/expiry date as YYYY-MM-DD. Resolve relative dates against today's date — a month/day with no year (e.g. "Renews 30 June", "Expires on 30 June") means the next such date that is today or later. Keep an explicit year when shown (e.g. "Renews 11 May 2027" → "2027-05-11"). Null if no date is shown.
 - Include ONLY active/current subscriptions. Ignore expired, inactive, or cancelled ones entirely.
 - Return [] if no active subscriptions are visible.`,
             },
@@ -560,6 +561,9 @@ Rules:
           ? Number(s["dueDay"])
           : null,
         frequency: s["frequency"] === "annual" ? ("annual" as const) : ("monthly" as const),
+        nextDue: typeof s["nextDue"] === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s["nextDue"])
+          ? s["nextDue"]
+          : null,
       }));
     res.json({ subscriptions });
   } catch (err) {

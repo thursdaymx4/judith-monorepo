@@ -4,21 +4,31 @@ import {
   setAudioModeAsync,
   useAudioRecorder,
 } from "expo-audio";
+import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
-import { Pressable, ScrollView, TextInput, View } from "react-native";
+import { Modal, Pressable, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
-import { Chip, Low, Muted, Pill, SpeechBubble, Txt } from "@/components/ui";
-import { QUICK_ASKS } from "@/constants/data";
+import { Chip, Low, Muted, Pill, SpeechBubble, Txt, mix } from "@/components/ui";
+import { QUICK_ASKS, makeSubscriptionBill } from "@/constants/data";
 import { getPersona } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { fileToBase64, playBase64Mp3 } from "@/lib/audio";
-import { type AskBill, askJudith, transcribe } from "@/lib/proxy";
+import { type AskBill, askJudith, parseSubscriptionScreenshot, transcribe } from "@/lib/proxy";
 import { sttHint } from "@/constants/languages";
+
+interface ScanRow {
+  provider: string;
+  amount: string;
+  dueDay: number | null;
+  frequency: "monthly" | "annual";
+  nextDue: string | null;
+  include: boolean;
+}
 
 const BILL_WORDS =
   /bill|due|owe|owed|pay|paid|payment|total|month|week|today|tomorrow|balance|card|loan|rent|mortgage|electric|water|internet|mobile|subscription|netflix|spotify|meralco|when|how much|magkano|cost|charge|fee|money|budget|afford|salary|spend/i;
@@ -32,7 +42,7 @@ export default function AskModal() {
   const t = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { bills, asksLeft, tier, persona, language, consumeAsk } = useJudith();
+  const { bills, asksLeft, tier, persona, language, consumeAsk, saveBill } = useJudith();
   const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
 
   const unlimited = tier === "unlimited";
@@ -53,6 +63,79 @@ export default function AskModal() {
     if (silenceRef.current.timer !== null) { clearTimeout(silenceRef.current.timer); silenceRef.current.timer = null; }
   };
   useEffect(() => clearVad, []);
+
+  const [scanBusy, setScanBusy] = useState(false);
+  const [scanRows, setScanRows] = useState<ScanRow[] | null>(null);
+  const includedCount = scanRows?.filter((r) => r.include).length ?? 0;
+
+  const scanSubscriptions = async () => {
+    if (busy || scanBusy) return;
+    setErr("");
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        setErr("Photo permission is needed to scan a screenshot. You can type instead.");
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"] as ImagePicker.MediaType[],
+        base64: true,
+        quality: 0.8,
+      });
+      if (result.canceled || !result.assets?.[0]?.base64) return;
+      const asset = result.assets[0]!;
+      setScanBusy(true);
+      const { subscriptions } = await parseSubscriptionScreenshot(
+        asset.base64!,
+        asset.mimeType || "image/jpeg",
+      );
+      if (subscriptions.length === 0) {
+        setErr("No active subscriptions found in that screenshot. Try a clearer image.");
+        setScanBusy(false);
+        return;
+      }
+      setScanRows(
+        subscriptions.map((s) => ({
+          provider: s.provider,
+          amount: s.amount != null ? String(s.amount) : "",
+          dueDay: s.dueDay,
+          frequency: s.frequency,
+          nextDue: s.nextDue,
+          include: true,
+        })),
+      );
+      setScanBusy(false);
+    } catch (e) {
+      setScanBusy(false);
+      setErr(`Couldn't read that screenshot: ${String((e as Error)?.message ?? e)}`);
+    }
+  };
+
+  const patchScanRow = (i: number, patch: Partial<ScanRow>) =>
+    setScanRows((rows) => rows?.map((r, j) => (j === i ? { ...r, ...patch } : r)) ?? rows);
+
+  const confirmScannedBills = () => {
+    if (!scanRows) return;
+    const stamp = Date.now();
+    scanRows
+      .filter((r) => r.include)
+      .forEach((r, i) => {
+        const amt = Number(r.amount.replace(/[^0-9.]/g, ""));
+        saveBill(
+          makeSubscriptionBill(
+            {
+              provider: r.provider.trim() || "Subscription",
+              amount: Number.isFinite(amt) && amt > 0 ? amt : null,
+              dueDay: r.dueDay,
+              frequency: r.frequency,
+              nextDue: r.nextDue,
+            },
+            `${stamp}-${i}`,
+          ),
+        );
+      });
+    setScanRows(null);
+  };
 
   const started = messages.length > 0 || busy;
   const p = getPersona(persona);
@@ -350,6 +433,24 @@ export default function AskModal() {
           paddingTop: 4,
         }}
       >
+        <Pressable
+          onPress={scanSubscriptions}
+          disabled={locked || busy || scanBusy}
+          hitSlop={6}
+          style={{
+            width: 50,
+            height: 50,
+            borderRadius: 14,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: t.surface2,
+            borderWidth: 1,
+            borderColor: t.hair,
+            opacity: locked || busy || scanBusy ? 0.5 : 1,
+          }}
+        >
+          <Icon name={scanBusy ? "spark" : "scan"} size={21} color={t.accent} />
+        </Pressable>
         <TextInput
           value={input}
           onChangeText={setInput}
@@ -389,6 +490,210 @@ export default function AskModal() {
           />
         </Pressable>
       </View>
+
+      <Modal
+        visible={scanRows !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setScanRows(null)}
+        statusBarTranslucent
+      >
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}>
+          <View
+            style={{
+              backgroundColor: t.canvas,
+              borderTopLeftRadius: 22,
+              borderTopRightRadius: 22,
+              paddingTop: 16,
+              paddingBottom: insets.bottom + 16,
+              maxHeight: "88%",
+            }}
+          >
+            <View style={{ paddingHorizontal: 22, marginBottom: 6 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <Txt size={20} weight="semibold">
+                  Review subscriptions
+                </Txt>
+                <Pressable
+                  onPress={() => setScanRows(null)}
+                  hitSlop={10}
+                  style={{
+                    width: 30,
+                    height: 30,
+                    borderRadius: 15,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: t.surface2,
+                    borderWidth: 1,
+                    borderColor: t.hair,
+                  }}
+                >
+                  <Icon name="x" size={14} color={t.txtMid} />
+                </Pressable>
+              </View>
+              <Low size={13} style={{ marginTop: 4 }}>
+                Tap to include or skip each one, then check the amount and how
+                often it bills before adding.
+              </Low>
+            </View>
+
+            <ScrollView
+              style={{ flexGrow: 0 }}
+              contentContainerStyle={{ paddingHorizontal: 22, paddingVertical: 12, gap: 10 }}
+            >
+              {scanRows?.map((r, i) => (
+                <View
+                  key={i}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: r.include ? mix(t.accent, t.surface2, 0.45) : t.hair,
+                    backgroundColor: r.include ? mix(t.accent, t.surface2, 0.08) : t.surface2,
+                    borderRadius: 14,
+                    padding: 13,
+                    gap: 11,
+                    opacity: r.include ? 1 : 0.6,
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 11 }}>
+                    <Pressable
+                      onPress={() => patchScanRow(i, { include: !r.include })}
+                      hitSlop={8}
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: 7,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: r.include ? t.accent : "transparent",
+                        borderWidth: 1.5,
+                        borderColor: r.include ? t.accent : t.hair,
+                      }}
+                    >
+                      {r.include && <Icon name="check" size={14} color={t.onAccent} />}
+                    </Pressable>
+                    <TextInput
+                      value={r.provider}
+                      onChangeText={(v) => patchScanRow(i, { provider: v })}
+                      placeholder="Subscription"
+                      placeholderTextColor={t.txtLow}
+                      style={{
+                        flex: 1,
+                        color: t.txtHi,
+                        fontSize: 15.5,
+                        fontFamily: t.fonts.semibold,
+                        paddingVertical: 2,
+                      }}
+                    />
+                  </View>
+
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 4,
+                        flex: 1,
+                        backgroundColor: t.surface1,
+                        borderWidth: 1,
+                        borderColor: t.hair,
+                        borderRadius: 10,
+                        paddingHorizontal: 11,
+                      }}
+                    >
+                      <Txt size={15} color={t.txtMid} mono>
+                        {"\u20B1"}
+                      </Txt>
+                      <TextInput
+                        value={r.amount}
+                        onChangeText={(v) => patchScanRow(i, { amount: v.replace(/[^0-9.]/g, "") })}
+                        keyboardType="numeric"
+                        placeholder="0"
+                        placeholderTextColor={t.txtLow}
+                        style={{
+                          flex: 1,
+                          color: t.txtHi,
+                          fontSize: 15,
+                          fontFamily: t.fonts.mono,
+                          paddingVertical: 9,
+                        }}
+                      />
+                    </View>
+
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        backgroundColor: t.surface1,
+                        borderWidth: 1,
+                        borderColor: t.hair,
+                        borderRadius: 10,
+                        padding: 3,
+                      }}
+                    >
+                      {(["monthly", "annual"] as const).map((f) => (
+                        <Pressable
+                          key={f}
+                          onPress={() => patchScanRow(i, { frequency: f, nextDue: null })}
+                          style={{
+                            paddingVertical: 6,
+                            paddingHorizontal: 11,
+                            borderRadius: 8,
+                            backgroundColor: r.frequency === f ? t.accent : "transparent",
+                          }}
+                        >
+                          <Txt
+                            size={12.5}
+                            weight="medium"
+                            color={r.frequency === f ? t.onAccent : t.txtMid}
+                          >
+                            {f === "monthly" ? "Monthly" : "Yearly"}
+                          </Txt>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+
+            <View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 22, paddingTop: 6 }}>
+              <Pressable
+                onPress={() => setScanRows(null)}
+                style={{
+                  flex: 1,
+                  alignItems: "center",
+                  paddingVertical: 14,
+                  borderRadius: 13,
+                  borderWidth: 1,
+                  borderColor: t.hair,
+                  backgroundColor: t.surface2,
+                }}
+              >
+                <Txt size={14.5} weight="medium">
+                  Cancel
+                </Txt>
+              </Pressable>
+              <Pressable
+                onPress={confirmScannedBills}
+                disabled={includedCount === 0}
+                style={{
+                  flex: 2,
+                  alignItems: "center",
+                  paddingVertical: 14,
+                  borderRadius: 13,
+                  backgroundColor: t.accent,
+                  opacity: includedCount === 0 ? 0.5 : 1,
+                }}
+              >
+                <Txt size={14.5} weight="semibold" color={t.onAccent}>
+                  {includedCount === 0
+                    ? "Select bills to add"
+                    : `Add ${includedCount} bill${includedCount !== 1 ? "s" : ""}`}
+                </Txt>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

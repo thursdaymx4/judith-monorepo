@@ -161,7 +161,7 @@ export function askOnboarding(
 export async function parseSubscriptionScreenshot(
   imageBase64: string,
   mimeType: string,
-): Promise<{ subscriptions: { provider: string; amount: number | null; dueDay: number | null; frequency: "monthly" | "annual" }[] }> {
+): Promise<{ subscriptions: { provider: string; amount: number | null; dueDay: number | null; frequency: "monthly" | "annual"; nextDue: string | null }[] }> {
   const res = await fetch(`${BASE}/parse-subscription-screenshot`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -172,7 +172,7 @@ export async function parseSubscriptionScreenshot(
     throw new Error(`Parse screenshot failed (${res.status}): ${detail}`);
   }
   return res.json() as Promise<{
-    subscriptions: { provider: string; amount: number | null; dueDay: number | null; frequency: "monthly" | "annual" }[];
+    subscriptions: { provider: string; amount: number | null; dueDay: number | null; frequency: "monthly" | "annual"; nextDue: string | null }[];
   }>;
 }
 

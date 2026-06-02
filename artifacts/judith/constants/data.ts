@@ -19,6 +19,8 @@ export interface Bill {
   house?: string;
   kind?: BillKind;
   subtype?: "Rent" | "Mortgage";
+  /** Billing cadence. Defaults to monthly when omitted. */
+  frequency?: "monthly" | "annual";
 }
 
 export interface Provider {
@@ -218,3 +220,93 @@ export const peso = (n: number): string => formatMoney(n);
 /** Urgency bucket from days-until-due. */
 export const dueClass = (d: number): "urgent" | "near" | "ok" =>
   d <= 3 ? "urgent" : d <= 7 ? "near" : "ok";
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function startOfDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+function daysInMonth(year: number, month: number): number {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+/** A subscription detected from a screenshot, before it becomes a Bill. */
+export interface ScannedSubscription {
+  provider: string;
+  amount: number | null;
+  dueDay: number | null;
+  frequency: "monthly" | "annual";
+  /** Exact next renewal date (YYYY-MM-DD) when the screenshot showed one. */
+  nextDue?: string | null;
+}
+
+/**
+ * Resolve the next renewal date for a scanned subscription.
+ * Prefers the exact `nextDue` date; otherwise rolls the day-of-month forward
+ * to the next monthly (or yearly, for annual) occurrence.
+ */
+function resolveNextDue(sub: ScannedSubscription, today: Date): Date {
+  const base = startOfDay(today);
+  if (sub.nextDue) {
+    const parsed = new Date(`${sub.nextDue}T00:00:00`);
+    if (!Number.isNaN(parsed.getTime())) {
+      // Never surface a date already in the past — roll it forward by cadence.
+      let d = startOfDay(parsed);
+      while (d < base) {
+        d = sub.frequency === "annual"
+          ? new Date(d.getFullYear() + 1, d.getMonth(), d.getDate())
+          : new Date(d.getFullYear(), d.getMonth() + 1, Math.min(d.getDate(), daysInMonth(d.getFullYear(), d.getMonth() + 1)));
+      }
+      return d;
+    }
+  }
+  const day = sub.dueDay && sub.dueDay >= 1 && sub.dueDay <= 31 ? sub.dueDay : 20;
+  const dayFor = (y: number, m: number) => Math.min(day, daysInMonth(y, m));
+  let candidate = new Date(base.getFullYear(), base.getMonth(), dayFor(base.getFullYear(), base.getMonth()));
+  if (candidate < base) {
+    // No exact date: advance by the subscription's own cadence. Annual rolls a
+    // full year (we only know the day-of-month, so keep the month); monthly
+    // rolls to next month.
+    if (sub.frequency === "annual") {
+      const y = base.getFullYear() + 1;
+      const m = base.getMonth();
+      candidate = new Date(y, m, dayFor(y, m));
+    } else {
+      const y = base.getFullYear();
+      const m = base.getMonth() + 1;
+      candidate = new Date(y, m, dayFor(y, m));
+    }
+  }
+  return candidate;
+}
+
+/** Build a store Bill from a verified scanned subscription. */
+export function makeSubscriptionBill(
+  sub: ScannedSubscription,
+  idSuffix: string,
+  today: Date = new Date(),
+): Bill {
+  const due = resolveNextDue(sub, today);
+  const dueDays = Math.max(
+    0,
+    Math.round((startOfDay(due).getTime() - startOfDay(today).getTime()) / 86_400_000),
+  );
+  const sameYear = due.getFullYear() === today.getFullYear();
+  const dueLabel =
+    sub.frequency === "annual" && !sameYear
+      ? `${MONTHS[due.getMonth()]} ${due.getDate()}, ${due.getFullYear()}`
+      : `${MONTHS[due.getMonth()]} ${due.getDate()}`;
+  return {
+    id: `sub-${idSuffix}`,
+    provider: sub.provider,
+    cat: "Subscription",
+    icon: "spark",
+    amount: sub.amount ?? 0,
+    dueDays,
+    dueDate: due.getDate(),
+    dueLabel,
+    status: "due",
+    kind: "Fixed",
+    frequency: sub.frequency,
+  };
+}

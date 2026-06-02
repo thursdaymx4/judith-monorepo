@@ -25,3 +25,15 @@ product requirement for Judith, so a silently-wrong date is a serious bug.
 in the same edit. Snooze handling lives only on the reminder side
 (`syncReminders`): a `snoozed` bill must not fire reminders before its
 `snoozed_until` date.
+
+## Scanned-subscription due dates (third path)
+
+`constants/data.ts` → `resolveNextDue()`/`makeSubscriptionBill()` is a separate
+snapshot computation used when adding bills from a screenshot scan (Ask + onboarding).
+
+- Honor `frequency` in **every** branch: when no exact `nextDue` is present, annual
+  must roll forward a full year, monthly to the next month. A fallback that always
+  rolls monthly silently turns annual subs into monthly-dated bills.
+- A precise `nextDue` ISO date takes precedence over `dueDay`. So if the user toggles
+  monthly/annual in the verify modal, you MUST clear `nextDue` (set null) — otherwise
+  the stale exact date overrides the corrected cadence.
