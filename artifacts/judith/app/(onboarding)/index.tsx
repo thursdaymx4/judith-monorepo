@@ -1932,7 +1932,14 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     };
     addBill(b);
     saveBill(onbBillToStoreBill(b));
-    setMode(manualReturn);
+    // "Type instead" replaces the voice step for that slot — advance exactly
+    // like voice confirmation does (next item / breather / cards).
+    // "Add bill" from breather or "more" is an add-extra flow — return there.
+    if (manualReturn === "prompt") {
+      advanceAfterItem();
+    } else {
+      setMode(manualReturn);
+    }
   };
 
   /* Screenshot upload — encouraged for Phone subscription category */
