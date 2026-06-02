@@ -1475,13 +1475,18 @@ function ScreenStakes({ ctx }: { ctx: Ctx }) {
         ]),
       ]);
     Animated.parallel([
-      /* commitBoxIn: scale 0.25 → 1.08 → 1, opacity 0 → 1 (0.8s) */
-      Animated.parallel([
-        Animated.timing(boxOpacity, { toValue: 1,    duration: 440, useNativeDriver: true }),
-        Animated.sequence([
-          Animated.timing(boxScale, { toValue: 1.08, duration: 624, easing: Easing.bezier(0.2, 0.9, 0.3, 1.15), useNativeDriver: true }),
-          Animated.timing(boxScale, { toValue: 1,    duration: 176, useNativeDriver: true }),
+      /* commitBoxIn: scale 0.25 → 1.08 → 1, opacity 0 → 1 (0.8s), then fade OUT at 1.1s */
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(boxOpacity, { toValue: 1,    duration: 440, useNativeDriver: true }),
+          Animated.sequence([
+            Animated.timing(boxScale, { toValue: 1.08, duration: 624, easing: Easing.bezier(0.2, 0.9, 0.3, 1.15), useNativeDriver: true }),
+            Animated.timing(boxScale, { toValue: 1,    duration: 176, useNativeDriver: true }),
+          ]),
         ]),
+        /* hold briefly then fade the card away so Phase 2 text has a clean canvas */
+        Animated.delay(250),
+        Animated.timing(boxOpacity, { toValue: 0, duration: 350, easing: Easing.out(Easing.quad), useNativeDriver: true }),
       ]),
       /* "You" — commitYouIn: stamp from scale 0, rotate −6°→0, delay 0.5s */
       Animated.sequence([

@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
-import React from "react";
-import { Pressable, View } from "react-native";
+import React, { useEffect, useRef } from "react";
+import { Animated, Easing, Pressable, View } from "react-native";
 
 import { JudithAvatar } from "@/components/JudithAvatar";
 import {
@@ -40,6 +40,16 @@ export default function HomeScreen() {
   const unpaidAmt = unpaid.reduce((s, b) => s + b.amount, 0);
   const grand = paidAmt + unpaidAmt;
   const pct = grand > 0 ? Math.round((paidAmt / grand) * 100) : 0;
+
+  const pctAnim = useRef(new Animated.Value(pct)).current;
+  useEffect(() => {
+    Animated.timing(pctAnim, {
+      toValue: pct,
+      duration: 700,
+      easing: Easing.bezier(0.22, 1, 0.36, 1),
+      useNativeDriver: false,
+    }).start();
+  }, [pct]);
 
   const openBill = (b: Bill) => router.push(`/bill/${b.id}`);
 
@@ -97,7 +107,14 @@ export default function HomeScreen() {
           </Mono>
         </View>
         <View style={{ height: 12, borderRadius: 7, backgroundColor: t.surface3, overflow: "hidden" }}>
-          <View style={{ height: "100%", width: `${pct}%`, borderRadius: 7, backgroundColor: t.semantic.ok }} />
+          <Animated.View
+            style={{
+              height: "100%",
+              borderRadius: 7,
+              backgroundColor: t.semantic.ok,
+              width: pctAnim.interpolate({ inputRange: [0, 100], outputRange: ["0%", "100%"] }),
+            }}
+          />
         </View>
         <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 9 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
