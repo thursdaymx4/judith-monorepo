@@ -9,7 +9,7 @@ import React, {
   useState,
 } from "react";
 
-import { APP_BILLS, formatMoney, type Bill } from "@/constants/data";
+import { formatMoney, type Bill } from "@/constants/data";
 import {
   countryByCode,
   DEFAULT_COUNTRY,
@@ -50,7 +50,7 @@ interface PersistShape {
 }
 
 const DEFAULTS: PersistShape = {
-  bills: APP_BILLS,
+  bills: [],
   asksLeft: FREE_ASKS,
   tier: "free",
   persona: "pro",

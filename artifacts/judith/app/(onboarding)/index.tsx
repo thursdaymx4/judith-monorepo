@@ -29,7 +29,7 @@ import {
   countryFood,
   type Country,
 } from "@/constants/countries";
-import { HOUSES, QUICK_ASKS } from "@/constants/data";
+import { HOUSES, QUICK_ASKS, type Bill } from "@/constants/data";
 import { LANGUAGES, langSample, langDesc, isFilipino, sttHint } from "@/constants/languages";
 import { PERSONAS, type PersonaId } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
@@ -1427,6 +1427,7 @@ function ordinal(n: number): string {
 
 function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const { t, persona, bills, addBill, next, language } = ctx;
+  const { saveBill } = useJudith();
   const cur = ctx.country.cur;
   const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
   // ── Voice Activity Detection refs ─────────────────────────────────
@@ -1509,7 +1510,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   };
 
   const confirm = () => {
-    addBill({
+    const b: OnbBill = {
       provider: parsedBill?.provider || sample.provider,
       cat: sample.cat,
       icon: sample.icon,
@@ -1520,7 +1521,9 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       frequency: parsedBill?.frequency ?? "monthly",
       subtype: sample.subtype,
       house: HOUSES[0],
-    });
+    };
+    addBill(b);
+    saveBill(onbBillToStoreBill(b));
     advanceAfterItem();
   };
   const skipOne = () => advanceAfterItem();
@@ -1545,7 +1548,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   };
   const saveForm = () => {
     if (!formCat) return;
-    addBill({
+    const b: OnbBill = {
       provider: form.provider || formCat.cat,
       cat: formCat.cat,
       icon: formCat.icon,
@@ -1555,7 +1558,9 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       kind: form.kind || kindFor(formCat.cat),
       subtype: form.subtype,
       house: form.house,
-    });
+    };
+    addBill(b);
+    saveBill(onbBillToStoreBill(b));
     setMode(manualReturn);
   };
 
@@ -1584,7 +1589,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
         asset.mimeType || "image/jpeg",
       );
       for (const sub of subscriptions) {
-        addBill({
+        const b: OnbBill = {
           provider: sub.provider,
           cat: "Phone subscription",
           icon: "spark",
@@ -1593,7 +1598,9 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
           dueDays: sub.dueDay ?? 20,
           kind: "Fixed",
           frequency: sub.frequency ?? "monthly",
-        });
+        };
+        addBill(b);
+        saveBill(onbBillToStoreBill(b));
       }
       setScreenshotBills(subscriptions);
       setScreenshotStatus("done");
@@ -2410,14 +2417,56 @@ function Seg({ options, value, onChange }: { options: string[]; value: string; o
 /* 10. Congrats                                                        */
 /* ================================================================== */
 
-function billData(bills: OnbBill[]): { amount: number; provider: string; cat: string; dueDays: number }[] {
-  return bills.length ? bills : SAMPLES;
+/** Convert an onboarding-local OnbBill into a store Bill so it persists immediately. */
+function onbBillToStoreBill(b: OnbBill): Bill {
+  const MONTHS_S = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const today = new Date();
+  const parsedDay = parseInt(b.due, 10); // "1st"→1, "15th"→15; NaN for "annual"/"—"
+  const dueDate = !isNaN(parsedDay) && parsedDay >= 1 && parsedDay <= 31 ? parsedDay : 1;
+  const todayDay = today.getDate();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const daysInCurrent = new Date(year, month + 1, 0).getDate();
+  const clamped = Math.min(dueDate, daysInCurrent);
+  let dueDays = clamped - todayDay;
+  let labelMonth = month;
+  if (dueDays <= 0) {
+    const nm = (month + 1) % 12;
+    const ny = month === 11 ? year + 1 : year;
+    const daysInNext = new Date(ny, nm + 1, 0).getDate();
+    dueDays = daysInCurrent - todayDay + Math.min(dueDate, daysInNext);
+    labelMonth = nm;
+  }
+  return {
+    id: `onb-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+    provider: b.provider,
+    cat: b.cat,
+    icon: b.icon,
+    amount: b.amount,
+    dueDays: Math.max(0, dueDays),
+    dueDate: clamped,
+    dueLabel: `${MONTHS_S[labelMonth]!} ${clamped}`,
+    status: "due",
+    house: b.house,
+    kind: b.kind,
+    subtype: b.subtype as "Rent" | "Mortgage" | undefined,
+    frequency: b.frequency,
+  };
+}
+
+function billData(
+  onbBills: OnbBill[],
+  storeBills: Bill[] = [],
+): { amount: number; provider: string; cat: string; dueDays: number }[] {
+  if (onbBills.length > 0) return onbBills;
+  return storeBills.map((b) => ({ amount: b.amount, provider: b.provider, cat: b.cat, dueDays: b.dueDays }));
 }
 
 function ScreenCongrats({ ctx }: { ctx: Ctx }) {
   const { t, persona, language, bills, next } = ctx;
+  const { bills: storeBills } = useJudith();
   const cur = ctx.country.cur;
-  const data = billData(bills);
+  const data = billData(bills, storeBills);
   const total = data.reduce((s, b) => s + b.amount, 0);
   // Dynamic voice — speaks the real bill count + total so the user hears their actual numbers.
   useEffect(() => {
@@ -2525,9 +2574,28 @@ function ScreenPersonalizing({ ctx }: { ctx: Ctx }) {
 
 function ScreenSummary({ ctx }: { ctx: Ctx }) {
   const { t, bills, next } = ctx;
+  const { bills: storeBills } = useJudith();
   useOnbVoice("Here\u2019s everything I know about your bills. Take a look \u2014 you can always adjust anything later.", ctx.persona, ctx.language);
   const cur = ctx.country.cur;
-  const data = billData(bills);
+  const data = billData(bills, storeBills);
+
+  if (data.length === 0) {
+    return (
+      <>
+        <Scroll center>
+          <View style={{ alignItems: "center", paddingTop: 40 }}>
+            <Icon name="chart" size={44} color={t.txtLow} />
+            <Txt size={22} weight="semibold" style={{ textAlign: "center", marginTop: 20, marginBottom: 8 }}>No bills added yet</Txt>
+            <Low size={14} style={{ textAlign: "center", maxWidth: 270 }}>You can add bills from the home screen after setup.</Low>
+          </View>
+        </Scroll>
+        <CtaBar>
+          <Btn label={T("continue")} onPress={next} />
+        </CtaBar>
+      </>
+    );
+  }
+
   const total = data.reduce((s, b) => s + b.amount, 0);
   const maxA = Math.max(...data.map((b) => b.amount));
   const biggest = data.reduce((a, b) => (b.amount > a.amount ? b : a), data[0]!);
