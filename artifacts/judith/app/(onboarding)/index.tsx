@@ -2222,9 +2222,21 @@ function billData(bills: OnbBill[]): { amount: number; provider: string; cat: st
 function ScreenCongrats({ ctx }: { ctx: Ctx }) {
   const { t, persona, language, bills, next } = ctx;
   const cur = ctx.country.cur;
-  useOnbVoice("You\u2019re done. All your bills are in \u2014 you\u2019re already ahead of most people. Let me show you what I\u2019ve got.", persona, language);
   const data = billData(bills);
   const total = data.reduce((s, b) => s + b.amount, 0);
+  // Dynamic voice — speaks the real bill count + total so the user hears their actual numbers.
+  useEffect(() => {
+    let cancelled = false;
+    const n = data.length;
+    const line = language === "fil"
+      ? `Mayroon kang ${n} na bayarin \u2014 ${cur}${fmtNum(total)} bawat buwan. Handa na. Ipapakita ko sa\u2019yo.`
+      : `You\u2019ve got ${n} bills \u2014 ${cur}${fmtNum(total)} a month. All set. Let me show you what I see.`;
+    synthOnboarding(line, persona)
+      .then(({ audioBase64 }) => { if (!cancelled) playBase64Mp3(audioBase64).catch(() => {}); })
+      .catch(() => {});
+    return () => { cancelled = true; stopCurrentAudio(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
     <>
       <Scroll center>
@@ -2256,16 +2268,45 @@ function ScreenCongrats({ ctx }: { ctx: Ctx }) {
 
 function ScreenPersonalizing({ ctx }: { ctx: Ctx }) {
   const { t, persona, language, next } = ctx;
-  useOnbVoice("Give me just a second \u2014 I\u2019m putting your dashboard together right now.", persona, language);
   const [step, setStep] = useState(0);
   const [pct, setPct] = useState(0);
+  // Coordinate voice + progress bar: only advance when BOTH are done.
+  const voiceDone = useRef(false);
+  const timerDone = useRef(false);
+  const advanced = useRef(false);
+  const tryAdvance = useRef(() => {
+    if (voiceDone.current && timerDone.current && !advanced.current) {
+      advanced.current = true;
+      next();
+    }
+  });
+  // Voice: synthesize once, mark voiceDone when playback finishes.
+  useEffect(() => {
+    let cancelled = false;
+    const enLine = "Give me just a second \u2014 I\u2019m putting your dashboard together right now.";
+    const utterance = (language === "fil" ? VOICE_LINES_FIL[enLine] : undefined) ?? enLine;
+    synthOnboarding(utterance, persona)
+      .then(({ audioBase64 }) => {
+        if (cancelled) return Promise.resolve();
+        return playBase64Mp3(audioBase64);
+      })
+      .then(() => { if (!cancelled) { voiceDone.current = true; tryAdvance.current(); } })
+      .catch(() => { if (!cancelled) { voiceDone.current = true; tryAdvance.current(); } });
+    return () => { cancelled = true; stopCurrentAudio(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // Progress bar timer: marks timerDone when animation completes.
   useEffect(() => {
     const dur = 3400;
     const per = dur / PERS_LINES.length;
     const li = setInterval(() => setStep((s) => Math.min(s + 1, PERS_LINES.length - 1)), per);
     const start = Date.now();
     const pi = setInterval(() => setPct(Math.min(100, ((Date.now() - start) / dur) * 100)), 40);
-    const doneT = setTimeout(() => { clearInterval(li); clearInterval(pi); next(); }, dur + 250);
+    const doneT = setTimeout(() => {
+      clearInterval(li); clearInterval(pi);
+      timerDone.current = true;
+      tryAdvance.current();
+    }, dur + 250);
     return () => { clearInterval(li); clearInterval(pi); clearTimeout(doneT); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
