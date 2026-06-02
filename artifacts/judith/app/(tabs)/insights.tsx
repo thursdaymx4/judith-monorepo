@@ -430,17 +430,15 @@ export default function InsightsScreen() {
           {/* total monthly bills */}
           <View style={[card, { marginBottom: 12 }]}>
             <Low size={12}>Total monthly bills</Low>
-            <View style={{ flexDirection: "row", alignItems: "baseline", gap: 11, flexWrap: "wrap" }}>
-              <Mono size={40} weight="semibold" style={{ letterSpacing: -0.8 }}>
-                {money(Math.round(totalA))}
-              </Mono>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                <Icon name="trend" size={14} color={deltaColor} />
-                <Txt size={13} color={deltaColor}>
-                  {delta >= 0 ? "+" : ""}
-                  {deltaPct}% vs prev
-                </Txt>
-              </View>
+            <Mono size={36} weight="semibold" style={{ letterSpacing: -0.8, marginTop: 2 }}>
+              {money(Math.round(totalA))}
+            </Mono>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 }}>
+              <Icon name="trend" size={14} color={deltaColor} />
+              <Txt size={13} color={deltaColor}>
+                {delta >= 0 ? "+" : ""}
+                {deltaPct}% vs prev
+              </Txt>
             </View>
             <TrendBars data={trendData} />
           </View>

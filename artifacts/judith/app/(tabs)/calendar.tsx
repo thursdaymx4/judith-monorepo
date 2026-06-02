@@ -1,7 +1,7 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { Pressable, View } from "react-native";
+import { Modal, Pressable, View } from "react-native";
 
 import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
@@ -11,7 +11,6 @@ import {
   Low,
   mix,
   Mono,
-  Pill,
   ProviderLogo,
   Screen,
   SectionLabel,
@@ -21,6 +20,7 @@ import {
 import { dueClass, dueShort, type Bill } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
+import { haptics } from "@/lib/haptics";
 
 const MONTHS = [
   "January",
@@ -51,34 +51,31 @@ type ByDay = Record<number, Bill[]>;
 function CalLegend() {
   const t = useTheme();
   const items: { kind: Urgency; label: string; sub: string }[] = [
-    { kind: "urgent", label: "Urgent", sub: "≤3 days" },
-    { kind: "near", label: "This week", sub: "≤7 days" },
+    { kind: "urgent", label: "Urgent", sub: "≤3d" },
+    { kind: "near", label: "This week", sub: "≤7d" },
     { kind: "ok", label: "Upcoming", sub: "later" },
   ];
   return (
-    <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        flexWrap: "wrap",
+        rowGap: 6,
+        marginBottom: 12,
+        paddingHorizontal: 2,
+      }}
+    >
       {items.map((it) => (
         <View
           key={it.kind}
-          style={{
-            flex: 1,
-            alignItems: "flex-start",
-            gap: 1,
-            paddingVertical: 8,
-            paddingHorizontal: 10,
-            borderRadius: 12,
-            backgroundColor: t.surface2,
-            borderWidth: 1,
-            borderColor: t.hair2,
-          }}
+          style={{ flexDirection: "row", alignItems: "center", gap: 5, marginRight: 16 }}
         >
-          <View style={{ marginBottom: 3 }}>
-            <Dot kind={it.kind} size={8} />
-          </View>
+          <Dot kind={it.kind} size={7} />
           <Txt size={11.5} weight="semibold">
             {it.label}
           </Txt>
-          <Low size={9.5}>{it.sub}</Low>
+          <Low size={10.5}>{it.sub}</Low>
         </View>
       ))}
     </View>
@@ -148,7 +145,11 @@ function CalHeat({
               return (
                 <Pressable
                   key={d}
-                  onPress={() => setSel(isSel ? null : items.length ? d : null)}
+                  onPress={() => {
+                    if (!items.length) return;
+                    haptics.light();
+                    setSel(isSel ? null : d);
+                  }}
                   style={{
                     flex: 1,
                     aspectRatio: 1,
@@ -248,11 +249,8 @@ export default function CalendarScreen() {
   });
 
   const monthTotal = dueBills.reduce((s, b) => s + b.amount, 0);
-  const agenda =
-    sel != null
-      ? byDay[sel] || []
-      : dueBills.slice().sort((a, b) => a.dueDate - b.dueDate);
-  const agendaPaid = sel == null ? bills.filter((b) => b.status === "paid") : [];
+  const agenda = dueBills.slice().sort((a, b) => a.dueDate - b.dueDate);
+  const agendaPaid = bills.filter((b) => b.status === "paid");
 
   /* weekly cash-flow ranges */
   const dim = new Date(YEAR, MONTH_INDEX + 1, 0).getDate();
@@ -355,7 +353,7 @@ export default function CalendarScreen() {
 
       {/* weekly cash flow */}
       <View style={{ marginTop: 14 }}>
-        <SectionLabel style={{ marginTop: 0 }}>Weekly cash flow</SectionLabel>
+        <SectionLabel style={{ marginTop: 0 }}>Weekly total bills due</SectionLabel>
         <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
           {weeks.map((w, i) => (
             <View key={i} style={{ flex: 1, alignItems: "center", gap: 6 }}>
@@ -411,28 +409,18 @@ export default function CalendarScreen() {
         }}
       >
         <SectionLabel style={{ marginTop: 0, marginBottom: 0 }}>
-          {sel != null ? `${MONTHS[MONTH_INDEX]} ${sel}` : "Upcoming"}
+          Upcoming
         </SectionLabel>
-        {sel != null && (
-          <Pill
-            onPress={() => setSel(null)}
-            style={{ paddingVertical: 4, paddingHorizontal: 11 }}
-          >
-            <Txt size={12} color={t.txtMid}>
-              Show all
-            </Txt>
-          </Pill>
-        )}
       </View>
 
       {agenda.length === 0 ? (
         <Card style={{ alignItems: "center", paddingVertical: 26, paddingHorizontal: 16 }}>
           <JudithAvatar persona={persona} size={56} state="idle" />
           <Txt size={14} weight="semibold" style={{ marginTop: 12 }}>
-            Nothing due that day
+            You’re all caught up
           </Txt>
           <Low size={13} style={{ marginTop: 3 }}>
-            Enjoy the quiet — I’ll flag the next one.
+            Nothing left due — I’ll flag the next one.
           </Low>
         </Card>
       ) : (
@@ -481,7 +469,134 @@ export default function CalendarScreen() {
           </View>
         </View>
       )}
+
+      <DayBillsModal
+        day={sel}
+        bills={sel != null ? byDay[sel] || [] : []}
+        money={money}
+        onClose={() => setSel(null)}
+        onOpenBill={(b) => {
+          setSel(null);
+          openBill(b);
+        }}
+      />
     </Screen>
+  );
+}
+
+/* ---- day overlay: bills due on a tapped date ---- */
+function DayBillsModal({
+  day,
+  bills,
+  money,
+  onClose,
+  onOpenBill,
+}: {
+  day: number | null;
+  bills: Bill[];
+  money: (n: number) => string;
+  onClose: () => void;
+  onOpenBill: (b: Bill) => void;
+}) {
+  const t = useTheme();
+  const items = bills.slice().sort((a, b) => a.dueDays - b.dueDays);
+  const dueTotal = items
+    .filter((b) => b.status !== "paid")
+    .reduce((s, b) => s + b.amount, 0);
+  return (
+    <Modal
+      visible={day != null}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <Pressable
+        onPress={onClose}
+        style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}
+      >
+        <Pressable
+          onPress={() => {}}
+          style={{
+            backgroundColor: t.surface1,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            borderWidth: 1,
+            borderColor: t.hair,
+            paddingHorizontal: 18,
+            paddingTop: 12,
+            paddingBottom: 34,
+          }}
+        >
+          <View
+            style={{
+              alignSelf: "center",
+              width: 40,
+              height: 4,
+              borderRadius: 2,
+              backgroundColor: t.hair2,
+              marginBottom: 14,
+            }}
+          />
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 3,
+            }}
+          >
+            <Txt size={18} weight="semibold">
+              {MONTHS[MONTH_INDEX]} {day}
+            </Txt>
+            <Pressable
+              onPress={onClose}
+              hitSlop={8}
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 15,
+                backgroundColor: t.surface3,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Icon name="x" size={15} color={t.txtMid} />
+            </Pressable>
+          </View>
+          <Low size={12} style={{ marginBottom: 14 }}>
+            {items.length} {items.length === 1 ? "bill" : "bills"}
+            {dueTotal > 0 ? ` · ${money(dueTotal)} due` : ""}
+          </Low>
+          <View style={{ gap: 9 }}>
+            {items.map((b) => {
+              const isPaid = b.status === "paid";
+              const cls = dueClass(b.dueDays) as Urgency;
+              return (
+                <CalBillRow
+                  key={b.id}
+                  bill={b}
+                  onPress={() => onOpenBill(b)}
+                  amtColor={isPaid ? t.txtLow : t.semantic[cls]}
+                  money={money}
+                  paid={isPaid}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
+                    {isPaid ? (
+                      <Icon name="check" size={12} color={t.txtLow} />
+                    ) : (
+                      <Dot kind={cls} />
+                    )}
+                    <Low size={12}>
+                      {isPaid ? `Paid · ${b.cat}` : `${b.cat} · ${dueShort(b.dueDays)}`}
+                    </Low>
+                  </View>
+                </CalBillRow>
+              );
+            })}
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 

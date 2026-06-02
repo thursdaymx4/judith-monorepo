@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import { Pressable, TextInput, View } from "react-native";
 
+import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Btn, Card, Low, Mono, ProviderLogo, Screen, SheetHeader, Txt } from "@/components/ui";
 import { dueClass, isPartialBill, partialPct, totalOwed } from "@/constants/data";
@@ -13,7 +14,7 @@ export default function BillDetailModal() {
   const t = useTheme();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { bills, money, persona, togglePaid, payPartial, rolloverBill } = useJudith();
+  const { bills, money, persona, togglePaid, payPartial } = useJudith();
   const [showInput, setShowInput] = useState(false);
   const [input, setInput] = useState("");
 
@@ -164,24 +165,16 @@ export default function BillDetailModal() {
             backgroundColor: t.surface1,
           }}
         >
-          <Txt size={13} weight="semibold" color={t.semantic.near}>
-            {money(remaining)} will roll to next month
-          </Txt>
-          <Low size={12} style={{ marginTop: 3 }}>
-            The unpaid balance carries forward and adds to your next{" "}
-            {money(bill.amount)} charge.
-          </Low>
-          <Pressable
-            onPress={() => {
-              rolloverBill(bill.id);
-              router.back();
-            }}
-            style={{ marginTop: 10 }}
-          >
-            <Txt size={13} color={t.accent}>
-              Apply rollover now →
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Icon name="trend" size={14} color={t.semantic.near} />
+            <Txt size={13} weight="semibold" color={t.semantic.near}>
+              {money(remaining)} rolls over automatically
             </Txt>
-          </Pressable>
+          </View>
+          <Low size={12} style={{ marginTop: 3 }}>
+            The unpaid balance carries forward on its own and adds to your next{" "}
+            {money(bill.amount)} charge — nothing for you to do.
+          </Low>
         </View>
       )}
 
