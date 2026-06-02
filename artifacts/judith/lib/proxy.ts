@@ -51,8 +51,9 @@ export interface AskResult {
 export function transcribe(
   audioBase64: string,
   mimeType: string,
+  language?: string,
 ): Promise<{ text: string }> {
-  return postJson("/stt", { audioBase64, mimeType });
+  return postJson("/stt", { audioBase64, mimeType, language });
 }
 
 export function askJudith(
@@ -215,11 +216,12 @@ export async function parseBillOnboarding(
 export async function transcribeOnboarding(
   audioBase64: string,
   mimeType: string,
+  language?: string,
 ): Promise<{ text: string }> {
   const res = await fetch(`${BASE}/stt-onboarding`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ audioBase64, mimeType }),
+    body: JSON.stringify({ audioBase64, mimeType, language }),
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => "");

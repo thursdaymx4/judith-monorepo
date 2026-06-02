@@ -206,13 +206,17 @@ router.post("/stt", async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
-    const { audioBase64, mimeType } = req.body ?? {};
+    const { audioBase64, mimeType, language } = req.body ?? {};
     if (typeof audioBase64 !== "string" || !audioBase64) {
       res.status(400).json({ error: "audioBase64 is required" });
       return;
     }
     const buffer = Buffer.from(audioBase64, "base64");
-    const text = await transcribe(buffer, typeof mimeType === "string" ? mimeType : "audio/m4a");
+    const text = await transcribe(
+      buffer,
+      typeof mimeType === "string" ? mimeType : "audio/m4a",
+      typeof language === "string" ? language : undefined,
+    );
     res.json({ text });
   } catch (err) {
     logger.error({ err }, "stt failed");
@@ -458,7 +462,7 @@ User said: "I don't know the exact amount" → {"provider":null,"amount":null,"d
 // No auth required — called during onboarding where the user may be a guest.
 router.post("/stt-onboarding", async (req, res) => {
   try {
-    const { audioBase64, mimeType } = req.body ?? {};
+    const { audioBase64, mimeType, language } = req.body ?? {};
     if (typeof audioBase64 !== "string" || !audioBase64) {
       res.status(400).json({ error: "audioBase64 is required" });
       return;
@@ -467,6 +471,7 @@ router.post("/stt-onboarding", async (req, res) => {
     const text = await transcribe(
       buffer,
       typeof mimeType === "string" ? mimeType : "audio/m4a",
+      typeof language === "string" ? language : undefined,
     );
     res.json({ text });
   } catch (err) {

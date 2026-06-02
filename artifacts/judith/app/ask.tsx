@@ -18,6 +18,7 @@ import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { fileToBase64, playBase64Mp3 } from "@/lib/audio";
 import { type AskBill, askJudith, transcribe } from "@/lib/proxy";
+import { sttHint } from "@/constants/languages";
 
 const BILL_WORDS =
   /bill|due|owe|owed|pay|paid|payment|total|month|week|today|tomorrow|balance|card|loan|rent|mortgage|electric|water|internet|mobile|subscription|netflix|spotify|meralco|when|how much|magkano|cost|charge|fee|money|budget|afford|salary|spend/i;
@@ -31,7 +32,7 @@ export default function AskModal() {
   const t = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { bills, asksLeft, tier, persona, consumeAsk } = useJudith();
+  const { bills, asksLeft, tier, persona, language, consumeAsk } = useJudith();
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
   const unlimited = tier === "unlimited";
@@ -130,7 +131,7 @@ export default function AskModal() {
       const uri = recorder.uri;
       if (!uri) throw new Error("No audio captured");
       const base64 = await fileToBase64(uri);
-      const { text } = await transcribe(base64, "audio/m4a");
+      const { text } = await transcribe(base64, "audio/m4a", sttHint(language));
       setBusy(false);
       if (text?.trim()) await ask(text);
     } catch (e) {

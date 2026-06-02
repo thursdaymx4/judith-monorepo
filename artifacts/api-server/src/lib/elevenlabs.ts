@@ -42,25 +42,41 @@ export async function listVoices(): Promise<VoiceOption[]> {
     }));
 }
 
-/** Speech-to-text using ElevenLabs Scribe. */
+/**
+ * Speech-to-text using ElevenLabs Scribe.
+ *
+ * `languageCode` is an optional ISO-639 hint that improves accuracy for the
+ * user's chosen language/dialect. If the hint is unsupported, we transparently
+ * retry with auto-detection so transcription never fails because of it.
+ */
 export async function transcribe(
   audio: Buffer,
   mime: string,
+  languageCode?: string,
 ): Promise<string> {
   const model = process.env["ELEVENLABS_STT_MODEL"] ?? "scribe_v1";
-  const form = new FormData();
-  form.append("model_id", model);
-  form.append(
-    "file",
-    new Blob([new Uint8Array(audio)], { type: mime || "audio/m4a" }),
-    "audio.m4a",
-  );
 
-  const res = await fetch(`${BASE}/speech-to-text`, {
-    method: "POST",
-    headers: { "xi-api-key": apiKey() },
-    body: form,
-  });
+  const attempt = async (lang?: string) => {
+    const form = new FormData();
+    form.append("model_id", model);
+    if (lang) form.append("language_code", lang);
+    form.append(
+      "file",
+      new Blob([new Uint8Array(audio)], { type: mime || "audio/m4a" }),
+      "audio.m4a",
+    );
+    return fetch(`${BASE}/speech-to-text`, {
+      method: "POST",
+      headers: { "xi-api-key": apiKey() },
+      body: form,
+    });
+  };
+
+  let res = await attempt(languageCode);
+  // Unsupported language hint → retry with auto-detect rather than failing.
+  if (!res.ok && languageCode) {
+    res = await attempt(undefined);
+  }
 
   if (!res.ok) {
     throw new Error(`ElevenLabs STT failed (${res.status}): ${await res.text()}`);

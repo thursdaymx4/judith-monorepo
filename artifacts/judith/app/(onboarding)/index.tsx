@@ -30,6 +30,7 @@ import {
   type Country,
 } from "@/constants/countries";
 import { HOUSES, QUICK_ASKS } from "@/constants/data";
+import { LANGUAGES, langSample, langDesc, isFilipino, sttHint } from "@/constants/languages";
 import { PERSONAS, type PersonaId } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
@@ -75,28 +76,6 @@ const PERS_LINES = [
 ];
 const T = (k: string): string => STR[k] ?? k;
 
-const LANGS = [
-  { code: "fil", label: "Filipino", native: "Filipino / Taglish", flag: "🇵🇭" },
-  { code: "en", label: "English", native: "English", flag: "🇬🇧" },
-  { code: "es", label: "Spanish", native: "Español", flag: "🇪🇸" },
-  { code: "id", label: "Indonesian", native: "Bahasa Indonesia", flag: "🇮🇩" },
-  { code: "vi", label: "Vietnamese", native: "Tiếng Việt", flag: "🇻🇳" },
-];
-
-const VOICE_SAMPLE: Record<string, string> = {
-  en: "Hi, I’m Judith. I’ll remind you before every bill is due.",
-  fil: "Uy, si Judith ’to. Paalalahanan kita bago pa ma-due ang bayarin mo.",
-  es: "Hola, soy Judith. Te aviso antes de que venza cada factura.",
-  id: "Hai, aku Judith. Aku ingatkan sebelum tagihanmu jatuh tempo.",
-  vi: "Chào, mình là Judith. Mình nhắc bạn trước khi hoá đơn đến hạn.",
-};
-const VOICE_DESC: Record<string, string> = {
-  en: "Clear & warm",
-  fil: "Parang kaibigan",
-  es: "Cálida y clara",
-  id: "Hangat & jelas",
-  vi: "Ấm áp & rõ ràng",
-};
 
 /* ------------------------------------------------------------------ */
 /* voice flow data                                                     */
@@ -220,7 +199,7 @@ const FEATURE_VOICES = [
 
 /**
  * Tagalog/Taglish equivalents for every canned onboarding voice line.
- * Keyed by the English source string. Used by useOnbVoice when language === "fil".
+ * Keyed by the English source string. Used by useOnbVoice when isFilipino(language).
  */
 const VOICE_LINES_FIL: Record<string, string> = {
   "Hi \u2014 I\u2019m Judith. I keep your bills organised and make sure you\u2019re never caught off guard by a due date. Let\u2019s get you set up.":
@@ -262,7 +241,7 @@ function useOnbVoice(line: string, persona: PersonaId, language = "en") {
     if (played.current) return;
     played.current = true;
     let cancelled = false;
-    const utterance = (language === "fil" ? VOICE_LINES_FIL[line] : undefined) ?? line;
+    const utterance = (isFilipino(language) ? VOICE_LINES_FIL[line] : undefined) ?? line;
     synthOnboarding(utterance, persona)
       .then(({ audioBase64 }) => {
         if (!cancelled) playBase64Mp3(audioBase64).catch(() => {});
@@ -735,6 +714,8 @@ function ScreenLanguage({ ctx }: { ctx: Ctx }) {
   const { t, persona, next, language, setLanguage } = ctx;
   const [voiceLang, setVoiceLang] = useState(language || "en");
   const [speaking, setSpeaking] = useState(false);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [q, setQ] = useState("");
   const langReqId = useRef(0);
 
   const playSample = async (code: string) => {
@@ -743,8 +724,7 @@ function ScreenLanguage({ ctx }: { ctx: Ctx }) {
     setLanguage(code);
     setSpeaking(true);
     try {
-      const text = VOICE_SAMPLE[code] ?? VOICE_SAMPLE["en"]!;
-      const { audioBase64 } = await synthOnboarding(text, persona);
+      const { audioBase64 } = await synthOnboarding(langSample(code), persona);
       if (id !== langReqId.current) return;
       await playBase64Mp3(audioBase64);
     } catch {
@@ -753,6 +733,38 @@ function ScreenLanguage({ ctx }: { ctx: Ctx }) {
       if (id === langReqId.current) setSpeaking(false);
     }
   };
+
+  const query = q.trim().toLowerCase();
+  const list = LANGUAGES.filter((l) => {
+    if (!query) return true;
+    if (
+      l.label.toLowerCase().includes(query) ||
+      l.native.toLowerCase().includes(query)
+    )
+      return true;
+    return (l.dialects ?? []).some(
+      (d) =>
+        d.label.toLowerCase().includes(query) ||
+        d.native.toLowerCase().includes(query),
+    );
+  });
+
+  const playDot = (active: boolean) => (
+    <View
+      style={{
+        width: 34,
+        height: 34,
+        borderRadius: 17,
+        borderWidth: 1,
+        borderColor: withAlpha(t.accent, 0.45),
+        backgroundColor: mix(t.accent, t.surface1, 0.14),
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Icon name={active && speaking ? "spark" : "play"} size={15} color={t.accent} />
+    </View>
+  );
 
   return (
     <>
@@ -769,35 +781,82 @@ function ScreenLanguage({ ctx }: { ctx: Ctx }) {
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 }}>
           <JudithAvatar persona={persona} size={56} state={speaking ? "speaking" : "idle"} />
           <JudithLine hint={!speaking} style={{ flex: 1 }}>
-            {speaking ? VOICE_SAMPLE[voiceLang] : "Tap ▸ to hear me in any language."}
+            {speaking ? langSample(voiceLang) : "Tap ▸ to hear me in any language or dialect."}
           </JudithLine>
         </View>
 
+        <TextInput
+          value={q}
+          onChangeText={setQ}
+          placeholder="Search 30+ languages"
+          placeholderTextColor={t.txtLow}
+          style={{
+            width: "100%",
+            borderWidth: 1,
+            borderColor: t.hair,
+            backgroundColor: t.surface1,
+            borderRadius: 14,
+            paddingVertical: 12,
+            paddingHorizontal: 14,
+            color: t.txtHi,
+            fontFamily: t.fonts.regular,
+            fontSize: 15,
+            marginBottom: 14,
+          }}
+        />
+
         <View style={{ gap: 9 }}>
-          {LANGS.map((l) => {
-            const on = voiceLang === l.code;
+          {list.map((l) => {
+            const hasDialects = !!l.dialects && l.dialects.length > 0;
+            const dialectCode = (l.dialects ?? []).some((d) => d.code === voiceLang);
+            const on = voiceLang === l.code || dialectCode;
+            const isOpen = expanded === l.code || (hasDialects && dialectCode);
             return (
-              <RowCard key={l.code} selected={on} onPress={() => playSample(l.code)} showCheck>
-                <View
-                  style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: 17,
-                    borderWidth: 1,
-                    borderColor: withAlpha(t.accent, 0.45),
-                    backgroundColor: mix(t.accent, t.surface1, 0.14),
-                    alignItems: "center",
-                    justifyContent: "center",
+              <View key={l.code} style={{ gap: 9 }}>
+                <RowCard
+                  selected={on}
+                  showCheck={!hasDialects}
+                  onPress={() => {
+                    if (hasDialects) {
+                      setExpanded(isOpen ? null : l.code);
+                      void playSample(l.code);
+                    } else {
+                      void playSample(l.code);
+                    }
                   }}
                 >
-                  <Icon name={on && speaking ? "spark" : "play"} size={15} color={t.accent} />
-                </View>
-                <Flag>{l.flag}</Flag>
-                <View style={{ flex: 1 }}>
-                  <Txt size={14} weight="medium">{l.native}</Txt>
-                  <Low size={12} style={{ marginTop: 2 }}>{VOICE_DESC[l.code]}</Low>
-                </View>
-              </RowCard>
+                  {playDot(voiceLang === l.code)}
+                  <Flag>{l.flag}</Flag>
+                  <View style={{ flex: 1 }}>
+                    <Txt size={14} weight="medium">{l.native}</Txt>
+                    <Low size={12} style={{ marginTop: 2 }}>
+                      {hasDialects ? `${l.dialects!.length} dialects · ${langDesc(l.code)}` : langDesc(l.code)}
+                    </Low>
+                  </View>
+                  {hasDialects && (
+                    <View style={{ transform: [{ rotate: isOpen ? "90deg" : "0deg" }] }}>
+                      <Icon name="chev" size={16} color={t.txtLow} />
+                    </View>
+                  )}
+                </RowCard>
+
+                {hasDialects && isOpen && (
+                  <View style={{ gap: 9, marginLeft: 20 }}>
+                    {l.dialects!.map((d) => {
+                      const don = voiceLang === d.code;
+                      return (
+                        <RowCard key={d.code} selected={don} onPress={() => playDialect(d.code)} showCheck>
+                          {playDot(don)}
+                          <View style={{ flex: 1 }}>
+                            <Txt size={13.5} weight="medium">{d.label}</Txt>
+                            <Low size={12} style={{ marginTop: 2 }}>{d.native} · {d.desc}</Low>
+                          </View>
+                        </RowCard>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
             );
           })}
         </View>
@@ -807,6 +866,10 @@ function ScreenLanguage({ ctx }: { ctx: Ctx }) {
       </CtaBar>
     </>
   );
+
+  function playDialect(code: string) {
+    void playSample(code);
+  }
 }
 
 /* ================================================================== */
@@ -1497,7 +1560,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const handleUploadScreenshot = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      setErr(language === "fil"
+      setErr(isFilipino(language)
         ? "Kailangan ng pahintulot para ma-access ang iyong photos."
         : "Photo library permission is needed to upload a screenshot.");
       return;
@@ -1532,7 +1595,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       setScreenshotBills(subscriptions);
       setScreenshotStatus("done");
     } catch {
-      setErr(language === "fil"
+      setErr(isFilipino(language)
         ? "Hindi nabasa ang screenshot. Subukan muli o magsalita na lang."
         : "Couldn't read that screenshot. Try a clearer image or speak instead.");
       setScreenshotStatus("idle");
@@ -1586,7 +1649,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       const uri = recorder.uri;
       if (!uri) throw new Error("No audio captured");
       const base64 = await fileToBase64(uri);
-      const { text } = await transcribeOnboarding(base64, "audio/m4a");
+      const { text } = await transcribeOnboarding(base64, "audio/m4a", sttHint(language));
       setHeardText(text);
       /* Parse transcribed text into structured bill fields */
       try {
@@ -1611,7 +1674,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const stopListeningRef = useRef(stopListening);
   useEffect(() => { stopListeningRef.current = stopListening; });
 
-  const isFil = language === "fil";
+  const isFil = isFilipino(language);
   const promptText =
     phase === "cards"
       ? isFil
@@ -2260,7 +2323,7 @@ function ScreenCongrats({ ctx }: { ctx: Ctx }) {
   useEffect(() => {
     let cancelled = false;
     const n = data.length;
-    const line = language === "fil"
+    const line = isFilipino(language)
       ? `Mayroon kang ${n} na bayarin \u2014 ${cur}${fmtNum(total)} bawat buwan. Handa na. Ipapakita ko sa\u2019yo.`
       : `You\u2019ve got ${n} bills \u2014 ${cur}${fmtNum(total)} a month. All set. Let me show you what I see.`;
     synthOnboarding(line, persona)
@@ -2316,7 +2379,7 @@ function ScreenPersonalizing({ ctx }: { ctx: Ctx }) {
   useEffect(() => {
     let cancelled = false;
     const enLine = "Give me just a second \u2014 I\u2019m putting your dashboard together right now.";
-    const utterance = (language === "fil" ? VOICE_LINES_FIL[enLine] : undefined) ?? enLine;
+    const utterance = (isFilipino(language) ? VOICE_LINES_FIL[enLine] : undefined) ?? enLine;
     synthOnboarding(utterance, persona)
       .then(({ audioBase64 }) => {
         if (cancelled) return Promise.resolve();
@@ -2583,7 +2646,7 @@ function FeatureShell({
       const uri = recorder.uri;
       if (!uri) throw new Error("No audio captured");
       const base64 = await fileToBase64(uri);
-      const { text } = await transcribeOnboarding(base64, "audio/m4a");
+      const { text } = await transcribeOnboarding(base64, "audio/m4a", sttHint(language));
       if (text?.trim()) {
         await doAsk(text);
       } else {
