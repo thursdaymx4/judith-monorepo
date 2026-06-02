@@ -312,8 +312,8 @@ interface OnbBill {
 }
 
 const fmtNum = (n: number): string => n.toLocaleString("en-US");
-const dueClass = (d: number): "urgent" | "near" | "ok" =>
-  d <= 3 ? "urgent" : d <= 7 ? "near" : "ok";
+const dueClass = (d: number): "overdue" | "urgent" | "near" | "ok" =>
+  d < 0 ? "overdue" : d <= 3 ? "urgent" : d <= 7 ? "near" : "ok";
 
 /* ------------------------------------------------------------------ */
 /* color helper — accent / semantic over transparent                   */

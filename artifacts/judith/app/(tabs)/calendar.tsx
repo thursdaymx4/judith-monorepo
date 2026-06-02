@@ -18,7 +18,7 @@ import {
   Txt,
   type Urgency,
 } from "@/components/ui";
-import { dueClass, type Bill } from "@/constants/data";
+import { dueClass, dueShort, type Bill } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -450,7 +450,7 @@ export default function CalendarScreen() {
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
                   <Dot kind={cls} />
                   <Low size={12}>
-                    {b.cat} · in {b.dueDays}d
+                    {b.cat} · {dueShort(b.dueDays)}
                   </Low>
                 </View>
               </CalBillRow>

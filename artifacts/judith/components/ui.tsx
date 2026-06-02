@@ -306,7 +306,7 @@ export function Chip({
 
 /* ---------------- bits ---------------- */
 
-export type Urgency = "urgent" | "near" | "ok";
+export type Urgency = "overdue" | "urgent" | "near" | "ok";
 
 export function Dot({ kind, size = 8 }: { kind: Urgency; size?: number }) {
   const t = useTheme();

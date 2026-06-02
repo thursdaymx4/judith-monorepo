@@ -183,6 +183,7 @@ export const APP_BILLS: Bill[] = [
   { id: "bpi", provider: "BPI", cat: "Credit card", icon: "card", amount: 5200, dueDays: 18, dueDate: 18, dueLabel: "Jun 18", status: "due", house: "Main home" },
   { id: "spotify", provider: "Spotify", cat: "Subscription", icon: "spark", amount: 194, dueDays: 25, dueDate: 25, dueLabel: "Jun 25", status: "paid", house: "Main home" },
   { id: "netflix", provider: "Netflix", cat: "Subscription", icon: "spark", amount: 549, dueDays: 28, dueDate: 28, dueLabel: "Jun 28", status: "due", house: "Main home" },
+  { id: "skycable", provider: "Sky Cable", cat: "TV / Streaming", icon: "spark", amount: 699, dueDays: -2, dueDate: 30, dueLabel: "May 30", status: "due", house: "Main home" },
 ];
 
 export const HOUSES = ["Main home", "Condo (rental)", "Parents' house"];
@@ -244,8 +245,22 @@ export function formatMoney(n: number, symbol = "₱"): string {
 export const peso = (n: number): string => formatMoney(n);
 
 /** Urgency bucket from days-until-due. */
-export const dueClass = (d: number): "urgent" | "near" | "ok" =>
-  d <= 3 ? "urgent" : d <= 7 ? "near" : "ok";
+export const dueClass = (d: number): "overdue" | "urgent" | "near" | "ok" =>
+  d < 0 ? "overdue" : d <= 3 ? "urgent" : d <= 7 ? "near" : "ok";
+
+/** Humanized days-until-due, long form (notification / sentence copy). */
+export const dueText = (d: number): string =>
+  d < 0
+    ? `overdue by ${-d} ${-d === 1 ? "day" : "days"}`
+    : d === 0
+      ? "due today"
+      : d === 1
+        ? "due tomorrow"
+        : `due in ${d} days`;
+
+/** Compact days-until-due (chips, widgets, timeline rows). */
+export const dueShort = (d: number): string =>
+  d < 0 ? `${-d}d overdue` : d === 0 ? "today" : `in ${d}d`;
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 

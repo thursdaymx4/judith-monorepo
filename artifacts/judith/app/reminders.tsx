@@ -16,7 +16,7 @@ import {
   mix,
 } from "@/components/ui";
 import { MOM_ENDEARMENT } from "@/constants/countries";
-import { dueClass, type Bill } from "@/constants/data";
+import { dueClass, dueText, type Bill } from "@/constants/data";
 import type { PersonaId } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
@@ -29,12 +29,7 @@ function reminderCopy(
   code: string,
 ): { title: string; body: string } {
   const amt = money(bill.amount);
-  const inDays =
-    bill.dueDays <= 0
-      ? "due today"
-      : bill.dueDays === 1
-        ? "due tomorrow"
-        : "due in " + bill.dueDays + " days";
+  const inDays = dueText(bill.dueDays);
   const term = MOM_ENDEARMENT[code] || "Anak";
   switch (persona) {
     case "funny":

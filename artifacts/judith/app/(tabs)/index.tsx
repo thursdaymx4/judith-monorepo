@@ -2,6 +2,7 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useRef } from "react";
 import { Animated, Easing, Pressable, View } from "react-native";
 
+import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import {
   BellBtn,
@@ -16,7 +17,7 @@ import {
   SpeechBubble,
   Txt,
 } from "@/components/ui";
-import { dueClass, isPartialBill, partialPct, totalOwed, type Bill } from "@/constants/data";
+import { dueClass, dueShort, isPartialBill, partialPct, totalOwed, type Bill } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -30,9 +31,16 @@ export default function HomeScreen() {
     .slice()
     .sort((a, b) => a.dueDays - b.dueDays);
   const total = due.reduce((s, b) => s + b.amount, 0);
-  const week = due.filter((b) => b.dueDays <= 7);
+  const week = due.filter((b) => b.dueDays >= 0 && b.dueDays <= 7);
   const weekSum = week.reduce((s, b) => s + b.amount, 0);
   const soon = due.filter((b) => b.dueDays <= 3).length;
+
+  const overdue = due.filter((b) => b.dueDays < 0);
+  const overdueTotal = overdue.reduce((s, b) => s + totalOwed(b), 0);
+  const openOverdue = () =>
+    overdue.length === 1
+      ? router.push(`/bill/${overdue[0]!.id}`)
+      : router.push("/bills");
 
   const paid = bills.filter((b) => b.status === "paid");
   const unpaid = bills.filter((b) => b.status !== "paid");
@@ -74,6 +82,39 @@ export default function HomeScreen() {
         </SpeechBubble>
         <BellBtn count={soon} onPress={() => router.push("/reminders")} />
       </View>
+
+      {/* overdue strip — only when something is past due */}
+      {overdue.length > 0 && (
+        <Pressable
+          onPress={openOverdue}
+          style={({ pressed }) => [
+            {
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 9,
+              paddingVertical: 10,
+              paddingHorizontal: 13,
+              marginBottom: 14,
+              borderRadius: t.radius.md,
+              borderWidth: 1,
+              borderColor: t.semantic.overdue + "66",
+              backgroundColor: t.semantic.overdue + "12",
+            },
+            pressed && { opacity: 0.85 },
+          ]}
+        >
+          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.semantic.overdue }} />
+          <Txt size={13} weight="medium" style={{ flex: 1 }}>
+            {overdue.length === 1
+              ? `${overdue[0]!.provider} · ${dueShort(overdue[0]!.dueDays)}`
+              : `${overdue.length} bills overdue`}
+          </Txt>
+          <Mono size={13} weight="bold" color={t.semantic.overdue}>
+            {money(overdueTotal)}
+          </Mono>
+          <Icon name="chev" size={16} color={t.semantic.overdue} />
+        </Pressable>
+      )}
 
       {/* stat duo */}
       <Card style={{ flexDirection: "row", padding: 0, overflow: "hidden", marginBottom: 14 }}>
@@ -180,7 +221,7 @@ export default function HomeScreen() {
                   {b.dueDate}
                 </Mono>
                 <Low size={9} style={{ textTransform: "uppercase", letterSpacing: 0.5 }}>
-                  Jun
+                  {b.dueLabel.split(" ")[0]}
                 </Low>
               </View>
               {/* card */}
@@ -213,8 +254,8 @@ export default function HomeScreen() {
                         <Txt size={14} weight="medium">
                           {b.provider}
                         </Txt>
-                        <Low size={12} style={{ marginTop: 2 }}>
-                          {b.cat} · in {b.dueDays}d
+                        <Low size={12} style={{ marginTop: 2 }} color={cls === "overdue" ? t.semantic.overdue : undefined}>
+                          {b.cat} · {dueShort(b.dueDays)}
                         </Low>
                       </View>
                       <Mono size={14} color={t.semantic[cls]}>

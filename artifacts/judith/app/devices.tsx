@@ -5,7 +5,7 @@ import { Pressable, Text, View } from "react-native";
 import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Dot, Low, Mono, Screen, SheetHeader, Txt, mix } from "@/components/ui";
-import { dueClass, type Bill } from "@/constants/data";
+import { dueClass, dueShort, dueText, type Bill } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -37,7 +37,7 @@ function WidgetSmall({
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
         <JudithAvatar persona="pro" size={26} state="idle" />
         <Text style={{ fontFamily: t.fonts.bold, fontSize: 12, color: t.semantic[cls] }}>
-          {next.dueDays}d
+          {dueShort(next.dueDays)}
         </Text>
       </View>
       <View style={{ marginTop: "auto" }}>
@@ -350,7 +350,7 @@ export default function DevicesModal() {
           <JudithAvatar persona="pro" size={28} state="idle" />
           <View style={{ flex: 1 }}>
             <Text style={{ fontFamily: t.fonts.semibold, fontSize: 12.5, color: "#fff" }}>
-              {next.provider} due in {next.dueDays} days
+              {next.provider} {dueText(next.dueDays)}
             </Text>
             <Text style={{ fontFamily: t.fonts.regular, fontSize: 11, color: "#fff", opacity: 0.75 }}>
               {money(next.amount)} · tap to pay
@@ -411,7 +411,7 @@ export default function DevicesModal() {
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: "auto" }}>
               <Dot kind={dueClass(next.dueDays)} size={7} />
               <Text style={{ fontFamily: t.fonts.regular, fontSize: 10.5, color: "rgba(255,255,255,0.85)" }}>
-                {next.provider} · {next.dueDays}d
+                {next.provider} · {dueShort(next.dueDays)}
               </Text>
             </View>
           </View>

@@ -16,6 +16,7 @@ export const ACCENTS: Record<AccentId, string> = {
 
 /** Semantic urgency colors (theme-independent). */
 export const SEMANTIC = {
+  overdue: "#ea1d3b", // oklch(0.6 0.23 22) — past due
   urgent: "#ff645f", // oklch(0.7 0.19 25)  — due ≤3 days
   near: "#f7b83d", // oklch(0.82 0.15 80) — due ≤7 days
   ok: "#56d1a3", // oklch(0.78 0.13 165) — upcoming / paid
@@ -124,6 +125,7 @@ export function buildTheme(name: ThemeName, accentId: AccentId = "mint"): Theme 
 
 /** Urgency color for a given days-until-due. */
 export function urgencyColor(dueDays: number): string {
+  if (dueDays < 0) return SEMANTIC.overdue;
   if (dueDays <= 3) return SEMANTIC.urgent;
   if (dueDays <= 7) return SEMANTIC.near;
   return SEMANTIC.ok;

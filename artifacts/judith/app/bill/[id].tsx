@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import { Pressable, TextInput, View } from "react-native";
 
+import { JudithAvatar } from "@/components/JudithAvatar";
 import { Btn, Card, Low, Mono, ProviderLogo, Screen, SheetHeader, Txt } from "@/components/ui";
 import { dueClass, isPartialBill, partialPct, totalOwed } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
@@ -11,7 +12,7 @@ export default function BillDetailModal() {
   const t = useTheme();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { bills, money, togglePaid, payPartial, rolloverBill } = useJudith();
+  const { bills, money, persona, togglePaid, payPartial, rolloverBill } = useJudith();
   const [showInput, setShowInput] = useState(false);
   const [input, setInput] = useState("");
 
@@ -29,6 +30,8 @@ export default function BillDetailModal() {
 
   const cls = dueClass(bill.dueDays);
   const paid = bill.status === "paid";
+  const overdue = !paid && bill.dueDays < 0;
+  const daysLate = -bill.dueDays;
   const partial = isPartialBill(bill);
   const owed = totalOwed(bill);
   const pct = partialPct(bill);
@@ -55,8 +58,39 @@ export default function BillDetailModal() {
           {money(owed)}
         </Mono>
         <Low>
-          {bill.cat} · {bill.dueLabel} · in {bill.dueDays}d
+          {bill.cat} · {bill.dueLabel} ·{" "}
+          {overdue ? (
+            <Low color={t.semantic.overdue}>{daysLate} days late</Low>
+          ) : paid ? (
+            "paid"
+          ) : (
+            `in ${bill.dueDays}d`
+          )}
         </Low>
+
+        {/* overdue note — supportive, in-persona */}
+        {overdue && (
+          <View
+            style={{
+              flexDirection: "row",
+              gap: 10,
+              alignItems: "flex-start",
+              alignSelf: "stretch",
+              borderWidth: 1,
+              borderColor: t.semantic.overdue + "44",
+              backgroundColor: t.semantic.overdue + "10",
+              borderRadius: 12,
+              paddingVertical: 11,
+              paddingHorizontal: 12,
+            }}
+          >
+            <JudithAvatar persona={persona} size={30} state="idle" />
+            <Low size={12} style={{ flex: 1, lineHeight: 17 }}>
+              This one slipped past its due date. Pay it now and I’ll mark you
+              caught up — no judgment.
+            </Low>
+          </View>
+        )}
 
         {/* carry-over notice */}
         {hasCarryOver && (
@@ -198,7 +232,7 @@ export default function BillDetailModal() {
       {/* action buttons */}
       <View style={{ gap: 10, marginTop: 14 }}>
         <Btn
-          label={paid ? "Mark as unpaid" : "Mark as fully paid"}
+          label={paid ? "Mark as unpaid" : overdue ? "Mark paid — catch up" : "Mark as fully paid"}
           variant={paid ? "soft" : "primary"}
           onPress={() => {
             togglePaid(bill.id);
