@@ -6,7 +6,8 @@ const BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN}/api/judith`;
 async function authHeader(): Promise<Record<string, string>> {
   const session = (await supabase?.auth.getSession())?.data.session;
   if (!session?.access_token) {
-    throw new Error("Not signed in");
+    // Guest mode — proceed without a token; server allows unauthenticated requests.
+    return {};
   }
   return { Authorization: `Bearer ${session.access_token}` };
 }

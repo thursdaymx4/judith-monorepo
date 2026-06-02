@@ -192,13 +192,19 @@ async function loadUserData(userId: string) {
   return { persona, voiceId, bills };
 }
 
+/** Returns the authenticated Supabase user, or a guest sentinel for unauthenticated requests. */
 async function requireUser(req: Request, res: Response) {
-  const user = await getUserFromToken(bearerToken(req.headers.authorization));
-  if (!user) {
-    res.status(401).json({ error: "Unauthorized" });
-    return null;
+  const token = bearerToken(req.headers.authorization);
+  if (token) {
+    const user = await getUserFromToken(token);
+    if (!user) {
+      res.status(401).json({ error: "Unauthorized" });
+      return null;
+    }
+    return user;
   }
-  return user;
+  // No token → guest mode. Allow the request; return a typed sentinel so callers stay simple.
+  return { id: "guest", email: undefined, role: "guest" } as const;
 }
 
 // POST /api/judith/stt  { audioBase64, mimeType } -> { text }

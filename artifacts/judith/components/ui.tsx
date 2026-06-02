@@ -122,7 +122,10 @@ export function Screen({
   pad?: boolean;
 }) {
   const t = useTheme();
-  const padStyle: ViewStyle = pad ? { paddingHorizontal: 22, paddingTop: 8, paddingBottom: 96 } : {};
+  const insets = useSafeAreaInsets();
+  const padStyle: ViewStyle = pad
+    ? { paddingHorizontal: 22, paddingTop: insets.top + 12, paddingBottom: 96 }
+    : {};
   if (!scroll) {
     return <View style={[{ flex: 1, backgroundColor: t.canvas }, padStyle, contentStyle]}>{children}</View>;
   }
