@@ -314,7 +314,7 @@ const SAMPLE_LINES: Record<PersonaId, string> = {
   sarcastic:
     "Hi, si Judith 'to. Oo, ako na naman ang magpapaalala ng bills mo, kasi 'di ba, lagi mong nakakalimutan?",
   mom:
-    "Anak, si Mama 'to — si Judith. Bantayan ko ang mga bayarin mo, ha. Oo nga pala, kumain ka na ba?",
+    "Anak, si Mama 'to — si Judith. Huwag kang mag-alala sa mga bayarin mo, nandito ako para bantayan lahat. Walang makakalusot sa akin, ha.",
 };
 
 // GET /api/judith/voices -> { voices: [{ id, name, category }] }
@@ -373,7 +373,8 @@ router.post("/ask-onboarding", async (req, res) => {
     let audioBase64: string | null = null;
     let mime = "audio/mpeg";
     try {
-      const audio = await synthesize(reply, voiceId, { live: true });
+      /* Onboarding = first impression — use high-quality non-live model (eleven_v3) */
+      const audio = await synthesize(reply, voiceId, { live: false });
       audioBase64 = audio.base64;
       mime = audio.mime;
     } catch (ttsErr) {

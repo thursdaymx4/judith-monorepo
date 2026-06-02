@@ -90,6 +90,17 @@ export async function transcribe(
  * model for pre-generated lines, falling back to multilingual_v2 if the
  * preferred model is unavailable on the account/plan.
  */
+/**
+ * Voice settings tuned per use-case:
+ *  - live: lower stability → more expressive/natural cadence for quick replies
+ *  - non-live (onboarding/sample): higher similarity + style for polished first impression
+ */
+function voiceSettings(live: boolean) {
+  return live
+    ? { stability: 0.40, similarity_boost: 0.82, style: 0.20, use_speaker_boost: true }
+    : { stability: 0.35, similarity_boost: 0.88, style: 0.35, use_speaker_boost: true };
+}
+
 export async function synthesize(
   text: string,
   voiceId: string,
@@ -100,19 +111,21 @@ export async function synthesize(
     ? process.env["ELEVENLABS_TTS_LIVE_MODEL"] ?? "eleven_flash_v2_5"
     : process.env["ELEVENLABS_TTS_MODEL"] ?? "eleven_v3";
 
+  /* Higher bitrate for non-live (onboarding, samples) — audibly better quality */
+  const outputFormat = live ? "mp3_44100_128" : "mp3_44100_192";
   const models = [...new Set([preferred, "eleven_multilingual_v2"])];
   let lastErr = "";
 
   for (const model_id of models) {
     const res = await fetch(
-      `${BASE}/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
+      `${BASE}/text-to-speech/${voiceId}?output_format=${outputFormat}`,
       {
         method: "POST",
         headers: {
           "xi-api-key": apiKey(),
           "content-type": "application/json",
         },
-        body: JSON.stringify({ text, model_id }),
+        body: JSON.stringify({ text, model_id, voice_settings: voiceSettings(live) }),
       },
     );
     if (res.ok) {

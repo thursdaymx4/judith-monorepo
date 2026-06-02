@@ -229,23 +229,30 @@ export default function AskModal() {
       silenceRef.current = { timer: null, hasSpeech: false };
       const vadStart = Date.now();
       const VAD_MIN_MS = 800;        // settling period — sample ambient noise
-      const VAD_SILENCE_MS = 1500;   // 1.5 s of silence after speech → auto-stop
+      const VAD_SILENCE_MS = 1500;   // 1.5 s of silence → auto-stop
+      const VAD_MAX_MS = 30000;      // hard ceiling — never record more than 30 s
       let adaptiveThreshold = -50;   // updated after settling
       let settlingComplete = false;
       const ambientReadings: number[] = [];
       vadIntervalRef.current = setInterval(() => {
         const elapsed = Date.now() - vadStart;
         const db = recorder.getStatus().metering;
+        // Hard ceiling — safety net for edge cases
+        if (elapsed >= VAD_MIN_MS + VAD_MAX_MS) {
+          clearVad();
+          void stopRecordingRef.current();
+          return;
+        }
         // Settling phase — collect ambient samples to calibrate threshold
         if (elapsed < VAD_MIN_MS) {
           if (db != null) ambientReadings.push(db);
           return;
         }
-        // First tick past settling — lock adaptive threshold (ambient + 8 dBFS)
+        // First tick past settling — lock adaptive threshold (ambient + 5 dBFS)
         if (!settlingComplete) {
           settlingComplete = true;
           if (ambientReadings.length > 0) {
-            adaptiveThreshold = Math.max(...ambientReadings) + 8;
+            adaptiveThreshold = Math.max(...ambientReadings) + 5;
           }
         }
         // Metering unavailable on this device — fall back to elapsed-time gate
@@ -257,9 +264,12 @@ export default function AskModal() {
           return;
         }
         if (db > adaptiveThreshold) {
+          // Active speech — cancel any pending silence timer
           silenceRef.current.hasSpeech = true;
           if (silenceRef.current.timer !== null) { clearTimeout(silenceRef.current.timer); silenceRef.current.timer = null; }
-        } else if (silenceRef.current.hasSpeech && silenceRef.current.timer === null) {
+        } else if (silenceRef.current.timer === null) {
+          // Silence (pre- or post-speech) — start countdown unconditionally so
+          // VAD always fires even when the user's voice doesn't cross the threshold.
           silenceRef.current.timer = setTimeout(() => {
             clearVad();
             void stopRecordingRef.current();
