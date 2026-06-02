@@ -228,14 +228,35 @@ export default function AskModal() {
       clearVad();
       silenceRef.current = { timer: null, hasSpeech: false };
       const vadStart = Date.now();
-      const VAD_THRESHOLD_DB = -50;  // dBFS; below this = silence
-      const VAD_MIN_MS = 800;        // ignore first 800 ms while mic settles
+      const VAD_MIN_MS = 800;        // settling period — sample ambient noise
       const VAD_SILENCE_MS = 1500;   // 1.5 s of silence after speech → auto-stop
+      let adaptiveThreshold = -50;   // updated after settling
+      let settlingComplete = false;
+      const ambientReadings: number[] = [];
       vadIntervalRef.current = setInterval(() => {
-        if (Date.now() - vadStart < VAD_MIN_MS) return;
+        const elapsed = Date.now() - vadStart;
         const db = recorder.getStatus().metering;
-        if (db == null) return; // device doesn't support metering
-        if (db > VAD_THRESHOLD_DB) {
+        // Settling phase — collect ambient samples to calibrate threshold
+        if (elapsed < VAD_MIN_MS) {
+          if (db != null) ambientReadings.push(db);
+          return;
+        }
+        // First tick past settling — lock adaptive threshold (ambient + 8 dBFS)
+        if (!settlingComplete) {
+          settlingComplete = true;
+          if (ambientReadings.length > 0) {
+            adaptiveThreshold = Math.max(...ambientReadings) + 8;
+          }
+        }
+        // Metering unavailable on this device — fall back to elapsed-time gate
+        if (db == null) {
+          if (elapsed >= VAD_MIN_MS + VAD_SILENCE_MS) {
+            clearVad();
+            void stopRecordingRef.current();
+          }
+          return;
+        }
+        if (db > adaptiveThreshold) {
           silenceRef.current.hasSpeech = true;
           if (silenceRef.current.timer !== null) { clearTimeout(silenceRef.current.timer); silenceRef.current.timer = null; }
         } else if (silenceRef.current.hasSpeech && silenceRef.current.timer === null) {
