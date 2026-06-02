@@ -97,8 +97,10 @@ export async function transcribe(
  */
 function voiceSettings(live: boolean) {
   return live
-    ? { stability: 0.40, similarity_boost: 0.82, style: 0.20, use_speaker_boost: true }
-    : { stability: 0.35, similarity_boost: 0.88, style: 0.35, use_speaker_boost: true };
+    // Live replies: more variable cadence → sounds like someone actually talking
+    ? { stability: 0.32, similarity_boost: 0.80, style: 0.28, use_speaker_boost: true }
+    // Non-live (onboarding, samples): more expressive character, higher fidelity
+    : { stability: 0.28, similarity_boost: 0.88, style: 0.42, use_speaker_boost: true };
 }
 
 export async function synthesize(

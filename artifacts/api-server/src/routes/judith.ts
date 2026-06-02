@@ -252,7 +252,7 @@ router.post("/ask", async (req, res) => {
     const anthropic = getAnthropic();
     const message = await anthropic.messages.create({
       model: ANTHROPIC_MODEL,
-      max_tokens: 400,
+      max_tokens: 250,
       system: `${systemPrompt(persona)}\n\nBILL CONTEXT (the only source of truth):\n${context}`,
       messages: [{ role: "user", content: text.trim() }],
     });
@@ -308,13 +308,13 @@ router.post("/tts", async (req, res) => {
 // GET /api/judith/sample?persona=  -> { text, audioBase64, mime }
 const SAMPLE_LINES: Record<PersonaId, string> = {
   professional:
-    "Kumusta, ako si Judith. Ipapaalala ko sa'yo ang mga bayarin mo bago pa man sila mag-due.",
+    "Si Judith 'to. Bantayan ko ang lahat ng due dates mo — wala kang mapapala sa late fees, so ayusin natin 'yan.",
   funny:
-    "Uy, ako si Judith! Wag kang mag-alala sa mga bills, ako na ang bahala — wala nang surprise na due date, promise!",
+    "Uy! Si Judith — 'yung pinaka-responsible mong kaibigan pagdating sa bills. Hindi ka na late, promise. Mostly.",
   sarcastic:
-    "Hi, si Judith 'to. Oo, ako na naman ang magpapaalala ng bills mo, kasi 'di ba, lagi mong nakakalimutan?",
+    "Si Judith 'to. Oo, nagpapa-alaala ako ng bills mo. Kasi ikaw? Ikaw talaga. Sige, tara na.",
   mom:
-    "Anak, si Mama 'to — si Judith. Huwag kang mag-alala sa mga bayarin mo, nandito ako para bantayan lahat. Walang makakalusot sa akin, ha.",
+    "Anak, si Judith 'to. Nandito na ako, 'wag kang mag-alala. Bantayan ko ang mga bayarin mo — walang makakalusot sa akin, ha.",
 };
 
 // GET /api/judith/voices -> { voices: [{ id, name, category }] }
@@ -361,7 +361,7 @@ router.post("/ask-onboarding", async (req, res) => {
     const anthropic = getAnthropic();
     const message = await anthropic.messages.create({
       model: ANTHROPIC_MODEL,
-      max_tokens: 400,
+      max_tokens: 250,
       system: `${systemPrompt(persona)}\n\nBILL CONTEXT (the only source of truth):\n${context}`,
       messages: [{ role: "user", content: text.trim() }],
     });
