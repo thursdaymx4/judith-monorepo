@@ -688,50 +688,51 @@ function WordTransitionOverlay({
   const t    = useTheme();
   const word = WELCOME_WORDS[country.code] ?? "Welcome";
 
-  const flagScale   = useRef(new Animated.Value(2.2)).current;
+  const flagScale   = useRef(new Animated.Value(2.0)).current;
   const flagOpacity = useRef(new Animated.Value(0)).current;
-  const wordScale   = useRef(new Animated.Value(2.2)).current;
+  const wordScale   = useRef(new Animated.Value(2.0)).current;
   const wordOpacity = useRef(new Animated.Value(0)).current;
   const subOpacity  = useRef(new Animated.Value(0)).current;
-  const subY        = useRef(new Animated.Value(14)).current;
+  const subY        = useRef(new Animated.Value(18)).current;
   const wrapOpacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    /* flag stamp — 0.5s, cubic-bezier(0.3, 1.4, 0.5, 1) */
+    /* flag stamp — 750ms spring, cubic-bezier(0.2, 1.6, 0.4, 1) */
     Animated.parallel([
-      Animated.timing(flagOpacity, { toValue: 1, duration: 150, useNativeDriver: true }),
+      Animated.timing(flagOpacity, { toValue: 1, duration: 120, useNativeDriver: true }),
       Animated.timing(flagScale, {
-        toValue: 1, duration: 500,
-        easing: Easing.bezier(0.3, 1.4, 0.5, 1), useNativeDriver: true,
+        toValue: 1, duration: 750,
+        easing: Easing.bezier(0.2, 1.6, 0.4, 1), useNativeDriver: true,
       }),
     ]).start();
 
-    /* word stamp — 0.5s, delay 0.1s */
+    /* word stamp — 750ms spring, delay 300ms */
     Animated.sequence([
-      Animated.delay(100),
+      Animated.delay(300),
       Animated.parallel([
-        Animated.timing(wordOpacity, { toValue: 1, duration: 150, useNativeDriver: true }),
+        Animated.timing(wordOpacity, { toValue: 1, duration: 120, useNativeDriver: true }),
         Animated.timing(wordScale, {
-          toValue: 1, duration: 500,
-          easing: Easing.bezier(0.3, 1.4, 0.5, 1), useNativeDriver: true,
+          toValue: 1, duration: 750,
+          easing: Easing.bezier(0.2, 1.6, 0.4, 1), useNativeDriver: true,
         }),
       ]),
     ]).start();
 
-    /* subtitle word-up — 0.5s, delay 1.0s */
+    /* subtitle word-up — 600ms, delay 1800ms */
     Animated.sequence([
-      Animated.delay(1000),
+      Animated.delay(1800),
       Animated.parallel([
-        Animated.timing(subOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
-        Animated.timing(subY,       { toValue: 0, duration: 500, useNativeDriver: true }),
+        Animated.timing(subOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+        Animated.timing(subY,       { toValue: 0, duration: 600,
+          easing: Easing.bezier(0.2, 0.8, 0.2, 1), useNativeDriver: true }),
       ]),
     ]).start();
 
-    /* fade out overlay then call onDone */
+    /* hold for 3.4s total, then fade out */
     const timer = setTimeout(() => {
-      Animated.timing(wrapOpacity, { toValue: 0, duration: 300, useNativeDriver: true })
+      Animated.timing(wrapOpacity, { toValue: 0, duration: 500, useNativeDriver: true })
         .start(({ finished }) => { if (finished) onDone(); });
-    }, 1600);
+    }, 3400);
     return () => clearTimeout(timer);
   }, []);
 
@@ -752,7 +753,7 @@ function WordTransitionOverlay({
         </Animated.Text>
         <Animated.Text
           style={{
-            fontSize: 46, fontFamily: t.fonts.bold, letterSpacing: -0.92,
+            fontSize: 52, fontFamily: t.fonts.display, letterSpacing: 0,
             color: t.accent, opacity: wordOpacity, transform: [{ scale: wordScale }],
           }}
         >
@@ -760,8 +761,8 @@ function WordTransitionOverlay({
         </Animated.Text>
         <Animated.Text
           style={{
-            fontSize: 14, fontFamily: t.fonts.regular, color: t.txtMid,
-            opacity: subOpacity, transform: [{ translateY: subY }],
+            fontSize: 14, fontFamily: t.fonts.regular, letterSpacing: 0.3,
+            color: t.txtMid, opacity: subOpacity, transform: [{ translateY: subY }],
           }}
         >
           Welcome to Judith

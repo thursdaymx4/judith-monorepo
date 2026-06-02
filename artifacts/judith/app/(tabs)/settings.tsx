@@ -4,7 +4,6 @@ import { Modal, Pressable, Text, TextInput, View } from "react-native";
 
 import { Icon, type IconName } from "@/components/Icon";
 import { Dot, Low, Mono, Screen, Txt, mix } from "@/components/ui";
-import { VOICES } from "@/constants/data";
 import { PERSONAS } from "@/constants/personas";
 import { useJudith, type Toggles } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
@@ -85,25 +84,6 @@ function Toggle({ on, onPress }: { on: boolean; onPress: () => void }) {
   );
 }
 
-function VoiceLabel({ children }: { children: React.ReactNode }) {
-  const t = useTheme();
-  return (
-    <Text
-      style={{
-        fontFamily: t.fonts.medium,
-        fontSize: 13,
-        color: t.txtMid,
-        letterSpacing: 0.5,
-        textTransform: "uppercase",
-        marginTop: 18,
-        marginBottom: 10,
-      }}
-    >
-      Voice{" "}
-      <Text style={{ color: t.txtLow, textTransform: "none", letterSpacing: 0 }}>{children}</Text>
-    </Text>
-  );
-}
 
 function SettingsLabel({ children }: { children: React.ReactNode }) {
   const t = useTheme();
@@ -127,7 +107,7 @@ function SettingsLabel({ children }: { children: React.ReactNode }) {
 export default function SettingsScreen() {
   const t = useTheme();
   const router = useRouter();
-  const { persona, setPersona, voiceId, setVoice, toggles, setToggle, asksLeft, tier, theme, setTheme, restart, money, bills } =
+  const { persona, setPersona, toggles, setToggle, asksLeft, tier, theme, setTheme, restart, money, bills } =
     useJudith();
 
   const subscribed = tier !== "free";
@@ -314,52 +294,6 @@ export default function SettingsScreen() {
           );
         })}
       </View>
-
-      {/* voice */}
-      <VoiceLabel>· powered by ElevenLabs</VoiceLabel>
-      <View style={{ borderRadius: t.radius.md, overflow: "hidden" }}>
-        {VOICES.map((v, i) => {
-          const on = voiceId === v.id;
-          return (
-            <Pressable
-              key={v.id}
-              onPress={() => setVoice(v.id)}
-              style={{ ...rowBase, borderTopWidth: i === 0 ? 1 : 0, borderBottomWidth: 0 }}
-            >
-              <IcoBox name="play" iconSize={15} color={on ? t.accent : t.txtMid} />
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <Txt size={15} weight="medium">
-                    {v.name}
-                  </Txt>
-                  {v.tag && (
-                    <View
-                      style={{
-                        marginLeft: 4,
-                        borderWidth: 1,
-                        borderColor: t.accent,
-                        borderRadius: 22,
-                        paddingVertical: 2,
-                        paddingHorizontal: 7,
-                        backgroundColor: mix(t.accent, t.surface2, 0.16),
-                      }}
-                    >
-                      <Text style={{ fontFamily: t.fonts.regular, fontSize: 9, color: t.txtHi }}>{v.tag}</Text>
-                    </View>
-                  )}
-                </View>
-                <Low size={12} style={{ marginTop: 1 }}>
-                  {v.desc}
-                </Low>
-              </View>
-              {on ? <Icon name="check" size={18} color={t.accent} /> : <View style={{ width: 18 }} />}
-            </Pressable>
-          );
-        })}
-      </View>
-      <Low size={12} style={{ marginTop: 8, lineHeight: 17 }}>
-        Judith always speaks in English, in the voice you choose — even when your bills are local.
-      </Low>
 
       {/* reminders */}
       <SettingsLabel>Reminders & devices</SettingsLabel>
