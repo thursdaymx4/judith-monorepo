@@ -240,29 +240,30 @@ const FEATURE_VOICES = [
  */
 const VOICE_LINES_FIL: Record<string, string> = {
   "Hi \u2014 I\u2019m Judith. I keep your bills organised and make sure you\u2019re never caught off guard by a due date. Let\u2019s get you set up.":
-    "Hi — ako si Judith. Aabangan ko ang lahat ng iyong bills para hindi ka mahisurpresa sa due date. Tara, magsimula na tayo.",
+    "Aabangan ko ang lahat ng bills mo para hindi ka mabigla. Aabisuhan din kita to avoid late fees.",
+  /* empty string = suppress voice on country screen (user picks lang here, no narration needed) */
   "I\u2019ll use your location to show the right currency and format your dates the way you\u2019d expect. Just tap your country.":
-    "Para sa tamang currency at date format, i-tap lang ang iyong bansa.",
+    "",
   "These are real numbers. A missed payment hits your credit, your wallet, and your peace of mind. I\u2019m here to make sure it never gets to that.":
-    "Totoo ang mga numerong ito. Ang isang missed payment nakaka-apekto sa iyong credit, wallet, at peace of mind. Nandito ako para hindi na mangyari iyon.",
+    "Nakaka-inis ang late fees, di ba?",
   "Alright \u2014 I\u2019ll ask about your bills one by one. Just speak naturally. Tell me the name, the amount, and when it\u2019s due. That\u2019s it.":
-    "Sige — tatanungin kita tungkol sa bawat bill isa-isa. Natural lang magsalita. Sabihin ang pangalan, halaga, at kailan due. Iyon lang.",
+    "Isa-isahin lang natin.",
   "You\u2019re done. All your bills are in \u2014 you\u2019re already ahead of most people. Let me show you what I\u2019ve got.":
-    "Tapos na! Kumpleto na ang lahat ng bills mo — mas handa ka na kaysa sa karamihan. Ipapakita ko sa\u2019yo lahat.",
+    "Uy congrats! Biro mo, nalista mo lahat 'yun?",
   "Give me just a second \u2014 I\u2019m putting your dashboard together right now.":
-    "Sandali lang — ginagawa ko na ang iyong dashboard.",
+    "Wait lang ha, bawal mainipin.",
   "Here\u2019s everything I know about your bills. Take a look \u2014 you can always adjust anything later.":
-    "Ito na ang lahat ng bills mo. Tingnan mo — pwede mo itong i-adjust kahit kailan.",
+    "Looks good ba?",
   "Go ahead \u2014 tap the mic and just talk to me. Ask anything. I'm listening.":
-    "Sige — i-tap ang mic at kausapin mo ako. Kahit anong tanong. Nakikinig ako.",
+    "Try mo kong tanungin ng kahit ano tungkol sa bills mo.",
   "Try asking 'what\u2019s due this week?' I'll tell you everything, right now.":
-    "Subukan mo: 'Ano ang due ngayong linggo?' Sasabihin ko lahat sa\u2019yo, agad.",
+    "Isa pa — check natin kung masasagot ko tanong mo.",
   "Ask me if it\u2019s safe to spend before payday. I'll check what\u2019s coming and give you a straight answer.":
-    "Tanungin mo ako kung kaya pang gumastos bago mag-sweldo. Titingnan ko ang lahat at didiretso ang sagot ko.",
+    "Ano? Bilib ka na ba? Isa pa — baka chamba lang.",
   "You\u2019ve got eight free asks to start. Want to keep the conversation going? Pick a plan that fits and I\u2019m all yours.":
-    "Walo kang libreng tanong para magsimula. Gusto pang magpatuloy? Pumili ng plano na bagay sa\u2019yo at akin ka na.",
+    "Salamat sa pag-suporta sa amin ni Judith. Baka gusto mo pa kaming kausapin ng mas matagal — pwede naman!",
   "One more thing \u2014 what should I call you?":
-    "Isa pa \u2014 ano ang itatawagin kita?",
+    "Hi! Can I get your name po?",
 };
 
 /**
@@ -281,6 +282,7 @@ function useOnbVoice(line: string, persona: PersonaId, language = "en") {
     played.current = true;
     let cancelled = false;
     const utterance = (isFilipino(language) ? VOICE_LINES_FIL[line] : undefined) ?? line;
+    if (!utterance) return; // empty string = voice suppressed for this screen
     synthOnboarding(utterance, persona, language)
       .then(({ audioBase64 }) => {
         if (!cancelled) playBase64Mp3(audioBase64).catch(() => {});

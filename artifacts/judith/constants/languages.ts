@@ -98,6 +98,24 @@ export const LANGUAGES: Language[] = [
     desc: "Clear & warm",
     tier: "excellent",
     sttCode: "en",
+    dialects: [
+      {
+        code: "en",
+        label: "British English",
+        native: "English (UK)",
+        sample: SAMPLE_EN,
+        desc: "UK · clear & warm",
+        sttCode: "en",
+      },
+      {
+        code: "en-US",
+        label: "American English",
+        native: "English (US)",
+        sample: "Hi, I'm Judith. I'll remind you before every bill is due.",
+        desc: "US · friendly & direct",
+        sttCode: "en",
+      },
+    ],
   },
   {
     code: "es",
