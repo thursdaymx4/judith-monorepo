@@ -2056,10 +2056,11 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       clearVad();
       silenceRef.current = { timer: null, hasSpeech: false };
       const vadStart = Date.now();
-      const VAD_MIN_MS = 800;        // settling period — sample ambient noise
-      const VAD_SILENCE_MS = 1500;   // 1.5 s of silence → auto-stop
-      const VAD_MAX_MS = 30000;      // hard ceiling — never record more than 30 s
-      let adaptiveThreshold = -50;   // updated after settling
+      const VAD_MIN_MS = 800;         // settling period — sample ambient noise
+      const VAD_SILENCE_MS = 3000;    // trailing silence AFTER speech → auto-stop
+      const VAD_NO_SPEECH_MS = 12000; // grace window to start talking before giving up
+      const VAD_MAX_MS = 45000;       // hard ceiling — never record more than 45 s
+      let adaptiveThreshold = -50;    // updated after settling
       let settlingComplete = false;
       const ambientReadings: number[] = [];
       vadIntervalRef.current = setInterval(() => {
@@ -2076,32 +2077,39 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
           if (db != null) ambientReadings.push(db);
           return;
         }
-        // First tick past settling — lock adaptive threshold (ambient + 5 dBFS)
+        // First tick past settling — lock adaptive threshold (ambient + 6 dBFS)
         if (!settlingComplete) {
           settlingComplete = true;
           if (ambientReadings.length > 0) {
-            adaptiveThreshold = Math.max(...ambientReadings) + 5;
+            adaptiveThreshold = Math.max(...ambientReadings) + 6;
           }
         }
-        // Metering unavailable on this device — fall back to elapsed-time gate
+        // Metering unavailable on this device — fall back to a generous elapsed gate
         if (db == null) {
-          if (elapsed >= VAD_MIN_MS + VAD_SILENCE_MS) {
+          if (elapsed >= VAD_MIN_MS + VAD_NO_SPEECH_MS) {
             clearVad();
             void stopListeningRef.current();
           }
           return;
         }
         if (db > adaptiveThreshold) {
-          // Active speech — cancel any pending silence timer
+          // Active speech — mark it and cancel any pending silence timer
           silenceRef.current.hasSpeech = true;
           if (silenceRef.current.timer !== null) { clearTimeout(silenceRef.current.timer); silenceRef.current.timer = null; }
-        } else if (silenceRef.current.timer === null) {
-          // Silence (pre- or post-speech) — start countdown unconditionally so
-          // VAD always fires even when the user's voice doesn't cross the threshold.
-          silenceRef.current.timer = setTimeout(() => {
-            clearVad();
-            void stopListeningRef.current();
-          }, VAD_SILENCE_MS);
+        } else if (silenceRef.current.hasSpeech) {
+          // Trailing silence AFTER the user has spoken — wait VAD_SILENCE_MS so
+          // natural mid-sentence pauses (recalling amounts, due dates) don't cut off.
+          if (silenceRef.current.timer === null) {
+            silenceRef.current.timer = setTimeout(() => {
+              clearVad();
+              void stopListeningRef.current();
+            }, VAD_SILENCE_MS);
+          }
+        } else if (elapsed >= VAD_MIN_MS + VAD_NO_SPEECH_MS) {
+          // Pre-speech silence — give the user a long grace window to start
+          // talking. Only give up if no speech is detected at all.
+          clearVad();
+          void stopListeningRef.current();
         }
       }, 100);
     } catch (e) {
