@@ -238,12 +238,19 @@ export async function synthOnboarding(
   return result;
 }
 
+/** In-memory sample cache keyed by PersonaId. Populated by ScreenPersona prefetch. */
+const _sampleCache = new Map<PersonaId, { text: string; audioBase64: string; mime: string }>();
+
 /**
  * Fetch the persona's pre-baked greeting sample during onboarding — no auth required.
+ * Results are cached so repeated taps and prefetch warm-ups are instant.
  */
 export async function fetchSampleOnboarding(
   persona: PersonaId,
 ): Promise<{ text: string; audioBase64: string; mime: string }> {
+  const hit = _sampleCache.get(persona);
+  if (hit) return hit;
+
   const res = await fetch(
     `${BASE}/sample-onboarding?persona=${PERSONA_MAP[persona]}`,
   );
@@ -251,5 +258,7 @@ export async function fetchSampleOnboarding(
     const detail = await res.text().catch(() => "");
     throw new Error(`Sample onboarding failed (${res.status}): ${detail}`);
   }
-  return (await res.json()) as { text: string; audioBase64: string; mime: string };
+  const result = (await res.json()) as { text: string; audioBase64: string; mime: string };
+  _sampleCache.set(persona, result);
+  return result;
 }

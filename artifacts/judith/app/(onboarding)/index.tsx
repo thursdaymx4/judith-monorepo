@@ -702,7 +702,6 @@ function ScreenLanguage({ ctx }: { ctx: Ctx }) {
   const [voiceLang, setVoiceLang] = useState(language || "en");
   const [speaking, setSpeaking] = useState(false);
   const langReqId = useRef(0);
-  useOnbVoice("Choose the language I\u2019ll speak in. Tap any flag to hear how I sound \u2014 whatever feels most like home.", persona);
 
   const playSample = async (code: string) => {
     const id = ++langReqId.current;
@@ -782,10 +781,17 @@ function ScreenLanguage({ ctx }: { ctx: Ctx }) {
 
 function ScreenPersona({ ctx }: { ctx: Ctx }) {
   const { t, persona, setPersona, next } = ctx;
-  useOnbVoice("This is my personality \u2014 each one sounds and feels a little different. Tap any of them to hear me before you decide.", persona);
   const [speakId, setSpeakId] = useState<PersonaId | null>(null);
   const selected = PERSONAS.find((p) => p.id === persona);
   const personaReqId = useRef(0);
+
+  // Prefetch all 4 persona samples the moment this screen mounts so
+  // "Play voice" taps are instant (hits the in-memory cache, no network round-trip).
+  useEffect(() => {
+    PERSONAS.forEach((p) => {
+      fetchSampleOnboarding(p.id).catch(() => {});
+    });
+  }, []);
 
   const playLine = async (id: PersonaId) => {
     const reqId = ++personaReqId.current;
@@ -870,8 +876,6 @@ function ScreenPersona({ ctx }: { ctx: Ctx }) {
 function ScreenLateFee({ ctx }: { ctx: Ctx }) {
   const { t, persona, next } = ctx;
   const cur = ctx.country.cur;
-  useOnbVoice("Late fees are sneaky. Even one missed payment adds up fast \u2014 tell me if it\u2019s happened before so I can make sure it never does again.", persona);
-
   // lockDrop: notification slides down from above on mount (prototype lockDrop keyframe)
   const dropOpacity = useRef(new Animated.Value(0)).current;
   const dropY       = useRef(new Animated.Value(-12)).current;
@@ -948,7 +952,6 @@ function ScreenLateFee({ ctx }: { ctx: Ctx }) {
 function ScreenProblem({ ctx }: { ctx: Ctx }) {
   const { t, next } = ctx;
   const cur = ctx.country.cur;
-  useOnbVoice("Tell me honestly \u2014 which bills have surprised you or stressed you out the most? I\u2019ll use this to be more helpful.", ctx.persona);
   const [answered, setAnswered] = useState<boolean | null>(null);
   const rows = [
     { icon: "zap", cat: "Electricity" },
