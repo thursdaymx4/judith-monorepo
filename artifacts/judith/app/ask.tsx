@@ -330,7 +330,7 @@ export default function AskModal() {
   const micState = recording ? "listening" : busy ? "speaking" : "idle";
 
   return (
-    <View style={{ flex: 1, backgroundColor: t.canvas, paddingTop: insets.top + 6 }}>
+    <View style={{ flex: 1, backgroundColor: t.canvas, paddingTop: Math.max(insets.top, 44) + 6 }}>
       {/* header */}
       <View
         style={{
