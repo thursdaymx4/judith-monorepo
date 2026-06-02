@@ -31,7 +31,7 @@ import { HOUSES, QUICK_ASKS } from "@/constants/data";
 import { PERSONAS, type PersonaId } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
-import { fileToBase64, playBase64Mp3 } from "@/lib/audio";
+import { fileToBase64, playBase64Mp3, stopCurrentAudio } from "@/lib/audio";
 import { transcribeOnboarding, synthOnboarding, fetchSampleOnboarding, parseBillOnboarding, askOnboarding } from "@/lib/proxy";
 import type { Theme } from "@/constants/theme";
 
@@ -217,10 +217,15 @@ const FEATURE_VOICES = [
 
 /**
  * Plays a short supplementary voice line once when an onboarding screen mounts.
- * Fires only on first render — safe with React Compiler.
+ * Stops any in-progress audio when the screen unmounts so voices never overlap.
+ * Safe with React Compiler (no runtime require).
  */
 function useOnbVoice(line: string, persona: PersonaId) {
   const played = useRef(false);
+  // Stop whatever is playing when the screen leaves.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => () => { stopCurrentAudio(); }, []);
+  // Fire the TTS exactly once per mount.
   useEffect(() => {
     if (played.current) return;
     played.current = true;
@@ -230,9 +235,7 @@ function useOnbVoice(line: string, persona: PersonaId) {
         if (!cancelled) playBase64Mp3(audioBase64).catch(() => {});
       })
       .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   });
 }
 
@@ -1503,7 +1506,10 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
         if (!cancelled) return playBase64Mp3(audioBase64);
       })
       .catch(() => { /* silently skip if TTS unavailable */ });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      stopCurrentAudio();
+    };
   }, [mode, phase, idx, cardDone, loanDone, promptText, persona]);
 
   const progress = Math.min(idx + (mode === "done" ? 0 : 1), SAMPLES.length);
