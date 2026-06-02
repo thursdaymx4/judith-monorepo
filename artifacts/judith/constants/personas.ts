@@ -22,28 +22,28 @@ export const PERSONAS: Persona[] = [
     icon: "spark",
     name: "Professional peer",
     vibe: "Clear · calm",
-    line: "I'm Judith. I'll keep your due dates handled — clear, on time, zero stress.",
+    line: "Every due date, tracked. Clear, on time — nothing slips through.",
   },
   {
     id: "funny",
     icon: "star",
     name: "Funny friend",
     vibe: "Warm · playful",
-    line: "Hey, I'm Judith! Your personal reminder so no bill ever catches you off guard.",
+    line: "No more 'wait, that was due WHEN?' moments. I've got your back.",
   },
   {
     id: "sib",
     icon: "bell",
     name: "Sarcastic sibling",
     vibe: "Cheeky · blunt",
-    line: "I'm Judith. I'll remind you about your bills… because we both know you'd forget.",
+    line: "Your bills are handled. You're welcome — I know you'd have forgotten.",
   },
   {
     id: "mama",
     icon: "droplet",
     name: "Your Mom",
     vibe: "Caring · a little naggy",
-    line: "Sweetheart, it's Judith. I'll handle the bills. You — just make sure you eat well.",
+    line: "Don't worry about the bills — I've got it. Now go eat something, please.",
   },
 ];
 
