@@ -49,12 +49,12 @@ function BloomBg({ decoExit }: { decoExit: Animated.Value }) {
         BLOOM_WEB_STYLE,
       ]}
     >
-      {/* blob 1 — teal/accent: large centered bloom behind avatar */}
-      <GlowBlob cx={0.50} cy={0.38} rw={0.58} rh={0.48} color="rgba(41,213,165,0.60)" blur={90} />
-      {/* blob 2 — purple/violet: bottom-right */}
-      <GlowBlob cx={0.74} cy={0.64} rw={0.50} rh={0.36} color="rgba(160,120,255,0.55)" blur={85} />
-      {/* blob 3 — amber/orange: bottom-left */}
-      <GlowBlob cx={0.26} cy={0.76} rw={0.42} rh={0.32} color="rgba(247,150,50,0.50)" blur={80} />
+      {/* blob 1 — accent/mint: radial(40% 30% at 28% 32%, accent 30%, transparent 70%) */}
+      <GlowBlob cx={0.28} cy={0.32} rw={0.40} rh={0.30} color="rgba(41,213,165,0.30)" />
+      {/* blob 2 — pink: radial(45% 32% at 74% 60%, pink 28%, transparent 70%) */}
+      <GlowBlob cx={0.74} cy={0.60} rw={0.45} rh={0.32} color="rgba(244,166,205,0.28)" />
+      {/* blob 3 — amber: radial(40% 30% at 52% 78%, amber 26%, transparent 70%) */}
+      <GlowBlob cx={0.52} cy={0.78} rw={0.40} rh={0.30} color="rgba(247,206,130,0.26)" />
     </Animated.View>
   );
 }

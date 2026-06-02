@@ -1,12 +1,16 @@
 ---
 name: Judith bloom background
-description: How the splash/login glow blobs are rendered in RN — .web.tsx CSS radial-gradient (correct approach) vs solid-ellipse approximation (rejected).
+description: How the splash/login glow blobs are rendered in RN — web uses CSS radial-gradient; native MUST use react-native-svg RadialGradient (NOT solid Views).
 ---
 
 # Bloom background approach
 
 ## The rule (CURRENT — correct)
-Use `.web.tsx` platform-specific files so web gets **real CSS `radial-gradient`** via `React.createElement('div', { style: {...} })`. Native gets a solid low-opacity ellipse fallback.
+Platform-split `GlowBlob`:
+- **Web** (`GlowBlob.web.tsx`): real CSS `radial-gradient` via `React.createElement('div', {...})`.
+- **Native** (`GlowBlob.tsx`): `react-native-svg` `<RadialGradient>` filling an `<Ellipse>`, with `Stop` offsets `0 → color@alpha`, `feather(0.62–0.70) → transparent`, `1 → transparent`. Use `r="50%"` with the default objectBoundingBox units — it auto-stretches to the ellipse's box, giving the elliptical CSS look. Size the `Svg`/`View` to the ellipse bounding box (`2·rw·W × 2·rh·H`) and position by center.
+
+**Why:** a solid `View` (even blurred) keeps an opaque center → reads as a hard blob on splash and a giant "mint slab" filling the login (IntroScreenGlow). Only a true radial gradient feathers to transparent like the prototype. react-native-svg is already a dep (Icon.tsx).
 
 ```tsx
 // GlowBlob.web.tsx — pixel-perfect prototype match
@@ -37,11 +41,11 @@ const BLOOM_WEB_STYLE = Platform.OS === 'web' ? ({ filter: 'blur(6px)' } as obje
 
 ## Why solid-ellipse + blur DOES NOT WORK
 CSS `radial-gradient(…, transparent 70%)` creates a natural transparent edge — a solid `View` with `filter:blur()` does NOT replicate this. Even at 70px blur:
-- The solid centre remains fully opaque → shows as a visible hard-ish ellipse blob (seen in screenshot at 0.55 opacity)
+- The solid centre remains fully opaque → shows as a visible hard-ish ellipse blob (splash) or a giant slab (IntroScreenGlow on login)
 - RN Web's default `overflow:hidden` on Views clips blur extent at parent boundary
-- The fix: use `.web.tsx` with real CSS `radial-gradient` on a DOM `div`
+- The fix: web → CSS `radial-gradient` div; native → `react-native-svg` `<RadialGradient>` (see top of file)
 
-**How to apply:** Any soft ambient bloom/glow effect → `.web.tsx` + `React.createElement('div')` + CSS `background: radial-gradient(…)`. Never try to fake it with solid Views + large blur.
+**How to apply:** Any soft ambient bloom/glow effect → web `.web.tsx` CSS `radial-gradient`; native `react-native-svg` `<RadialGradient>` with a transparent feather stop. Never fake it with solid Views + blur.
 
 ## Prototype CSS reference
 ```css

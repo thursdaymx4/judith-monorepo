@@ -18,6 +18,8 @@ export interface GlowBlobProps {
   rh: number;
   /** Centre colour of the gradient, e.g. `rgba(41,213,165,0.30)` */
   color: string;
+  /** Fraction of the radius where the glow reaches transparent (CSS `transparent X%`) */
+  feather?: number;
   /** Ignored on web — blur is baked into the CSS radial-gradient */
   blur?: number;
 }
@@ -28,12 +30,12 @@ export interface GlowBlobProps {
  * This exactly mirrors the prototype CSS:
  *   radial-gradient(rw% rh% at cx% cy%, color, transparent 70%)
  */
-export function GlowBlob({ cx, cy, rw, rh, color }: GlowBlobProps) {
+export function GlowBlob({ cx, cy, rw, rh, color, feather = 0.7 }: GlowBlobProps) {
   return React.createElement("div", {
     style: {
       position: "absolute",
       inset: 0,
-      background: `radial-gradient(${rw * 100}% ${rh * 100}% at ${cx * 100}% ${cy * 100}%, ${color}, transparent 70%)`,
+      background: `radial-gradient(${rw * 100}% ${rh * 100}% at ${cx * 100}% ${cy * 100}%, ${color}, transparent ${feather * 100}%)`,
     },
   });
 }
