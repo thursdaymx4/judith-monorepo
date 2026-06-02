@@ -97,10 +97,57 @@ export async function transcribe(
  */
 function voiceSettings(live: boolean) {
   return live
-    // Live replies: more variable cadence → sounds like someone actually talking
     ? { stability: 0.32, similarity_boost: 0.80, style: 0.28, use_speaker_boost: true }
-    // Non-live (onboarding, samples): more expressive character, higher fidelity
     : { stability: 0.28, similarity_boost: 0.88, style: 0.42, use_speaker_boost: true };
+}
+
+/* ---------- number → natural speech helpers ---------- */
+
+const ONES = ["", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+              "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
+              "seventeen", "eighteen", "nineteen"];
+const TENS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
+
+function intToWords(n: number): string {
+  if (n === 0) return "zero";
+  if (n < 0) return "negative " + intToWords(-n);
+  if (n < 20) return ONES[n]!;
+  if (n < 100) return TENS[Math.floor(n / 10)]! + (n % 10 ? "-" + ONES[n % 10]! : "");
+  if (n < 1000) {
+    const rem = n % 100;
+    return ONES[Math.floor(n / 100)]! + " hundred" + (rem ? " " + intToWords(rem) : "");
+  }
+  if (n < 1_000_000) {
+    const t = Math.floor(n / 1000);
+    const rem = n % 1000;
+    return intToWords(t) + " thousand" + (rem ? " " + intToWords(rem) : "");
+  }
+  if (n < 1_000_000_000) {
+    const m = Math.floor(n / 1_000_000);
+    const rem = n % 1_000_000;
+    return intToWords(m) + " million" + (rem ? " " + intToWords(rem) : "");
+  }
+  const b = Math.floor(n / 1_000_000_000);
+  const rem = n % 1_000_000_000;
+  return intToWords(b) + " billion" + (rem ? " " + intToWords(rem) : "");
+}
+
+/**
+ * Converts numbers and peso amounts in text to their spoken equivalents so
+ * ElevenLabs reads them naturally instead of digit-by-digit.
+ *
+ * Examples:
+ *   "₱274,748"  →  "two hundred seventy-four thousand seven hundred forty-eight pesos"
+ *   "₱25,000"   →  "twenty-five thousand pesos"
+ *   "3 bills"   →  "3 bills"  (short counts left for ElevenLabs — it handles them fine)
+ */
+function prepareForTTS(text: string): string {
+  // Replace ₱ amounts (with optional comma-grouping) → "X pesos"
+  return text.replace(/₱\s?([\d,]+)/g, (_match, digits: string) => {
+    const n = parseInt(digits.replace(/,/g, ""), 10);
+    if (isNaN(n)) return _match;
+    return intToWords(n) + " pesos";
+  });
 }
 
 export async function synthesize(
@@ -113,9 +160,11 @@ export async function synthesize(
     ? process.env["ELEVENLABS_TTS_LIVE_MODEL"] ?? "eleven_flash_v2_5"
     : process.env["ELEVENLABS_TTS_MODEL"] ?? "eleven_v3";
 
-  /* Higher bitrate for non-live (onboarding, samples) — audibly better quality */
   const outputFormat = live ? "mp3_44100_128" : "mp3_44100_192";
   const models = [...new Set([preferred, "eleven_multilingual_v2"])];
+  // Slightly slower than default (1.0) — more conversational, easier to follow
+  const speed = 0.92;
+  const ttsText = prepareForTTS(text);
   let lastErr = "";
 
   for (const model_id of models) {
@@ -127,7 +176,7 @@ export async function synthesize(
           "xi-api-key": apiKey(),
           "content-type": "application/json",
         },
-        body: JSON.stringify({ text, model_id, voice_settings: voiceSettings(live) }),
+        body: JSON.stringify({ text: ttsText, model_id, voice_settings: voiceSettings(live), speed }),
       },
     );
     if (res.ok) {
