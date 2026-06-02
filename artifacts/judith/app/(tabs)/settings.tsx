@@ -5,8 +5,16 @@ import { Modal, Pressable, Text, TextInput, View } from "react-native";
 import { Icon, type IconName } from "@/components/Icon";
 import { Dot, Low, Mono, Screen, Txt, mix } from "@/components/ui";
 import { PERSONAS } from "@/constants/personas";
+import { useAuth } from "@/contexts/AuthContext";
 import { useJudith, type Toggles } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
+
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "—";
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
+}
 
 interface ToggleDef {
   key: keyof Toggles;
@@ -107,8 +115,10 @@ function SettingsLabel({ children }: { children: React.ReactNode }) {
 export default function SettingsScreen() {
   const t = useTheme();
   const router = useRouter();
-  const { persona, setPersona, toggles, setToggle, reduceMotion, setReduceMotion, asksLeft, tier, theme, setTheme, restart, money, bills } =
+  const { persona, setPersona, toggles, setToggle, reduceMotion, setReduceMotion, asksLeft, tier, theme, setTheme, restart, money, bills, name, guest } =
     useJudith();
+  const { user } = useAuth();
+  const email = user?.email ?? (guest ? "Guest account" : "—");
 
   const subscribed = tier !== "free";
   const isPro = tier === "unlimited";
@@ -152,6 +162,51 @@ export default function SettingsScreen() {
       >
         Settings
       </Text>
+
+      {/* account */}
+      <Pressable
+        onPress={() => router.push("/account")}
+        style={({ pressed }) => [
+          {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 14,
+            borderWidth: 1,
+            borderColor: t.hair,
+            borderRadius: t.radius.md,
+            backgroundColor: t.surface2,
+            padding: t.space.pad,
+            marginBottom: 12,
+          },
+          pressed && { transform: [{ scale: 0.99 }] },
+        ]}
+      >
+        <View
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 13,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: mix(t.accent, t.surface3, 0.18),
+            borderWidth: 1,
+            borderColor: mix(t.accent, t.surface2, 0.4),
+          }}
+        >
+          <Text style={{ fontFamily: t.fonts.bold, fontSize: 16, color: t.accent }}>
+            {initialsOf(name)}
+          </Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Txt size={15} weight="semibold">
+            {name || "Your account"}
+          </Txt>
+          <Low size={12} style={{ marginTop: 1 }}>
+            {email}
+          </Low>
+        </View>
+        <Icon name="chev" size={16} color={t.txtMid} />
+      </Pressable>
 
       {/* plan */}
       <View

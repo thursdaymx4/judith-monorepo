@@ -34,6 +34,8 @@ interface PersistShape {
   bills: Bill[];
   asksLeft: number;
   tier: AskTier;
+  /** What Judith calls the user (collected in onboarding). */
+  name: string;
   persona: PersonaId;
   voiceId: string;
   /** BCP-47-ish language code for Judith's spoken language (en, fil, es, id, vi). */
@@ -44,6 +46,8 @@ interface PersistShape {
   toggles: Toggles;
   /** Accessibility: disable non-essential animation (instant states). */
   reduceMotion: boolean;
+  /** Security: require biometric/PIN unlock for the app. */
+  faceIdLock: boolean;
   onboarded: boolean;
   /** Onboarding resume index (saved from step `intro` onward). */
   onbIdx: number;
@@ -55,6 +59,7 @@ const DEFAULTS: PersistShape = {
   bills: [],
   asksLeft: FREE_ASKS,
   tier: "free",
+  name: "",
   persona: "pro",
   voiceId: "rachel",
   language: "en",
@@ -63,6 +68,7 @@ const DEFAULTS: PersistShape = {
   countryCode: DEFAULT_COUNTRY.code,
   toggles: { dueReminders: true, widget: true, watch: false, nudges: true },
   reduceMotion: false,
+  faceIdLock: false,
   onboarded: false,
   onbIdx: 0,
   guest: false,
@@ -90,6 +96,8 @@ interface JudithStoreValue extends PersistShape {
   subscribe: (tier: AskTier) => void;
   addAsks: (n: number) => void;
   /* settings */
+  setName: (name: string) => void;
+  setFaceIdLock: (v: boolean) => void;
   setPersona: (p: PersonaId) => void;
   setVoice: (id: string) => void;
   setLanguage: (code: string) => void;
@@ -241,6 +249,8 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       subscribe: (tier) =>
         patch({ tier, asksLeft: tier === "plus" ? 50 : state.asksLeft }),
       addAsks: (n) => patch({ asksLeft: state.asksLeft + n }),
+      setName: (name) => patch({ name: name.trim() }),
+      setFaceIdLock: (v) => patch({ faceIdLock: v }),
       setPersona: (p) => patch({ persona: p }),
       setVoice: (id) => patch({ voiceId: id }),
       setLanguage: (code) => patch({ language: code }),

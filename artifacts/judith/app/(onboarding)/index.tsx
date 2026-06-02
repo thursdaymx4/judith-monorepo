@@ -573,6 +573,8 @@ interface Ctx {
   setCountry: (code: string) => void;
   language: string;
   setLanguage: (code: string) => void;
+  name: string;
+  setName: (name: string) => void;
   bills: OnbBill[];
   addBill: (b: OnbBill) => void;
   next: () => void;
@@ -676,6 +678,17 @@ const WELCOME_WORDS: Record<string, string> = {
   AU: "Welcome",        NZ: "Welcome",
 };
 
+/* Per-country setup subtitle — avoids repeating "welcome" under the greeting. */
+const WELCOME_SUBS: Record<string, string> = {
+  PH: "Let’s get you set up.",
+  ID: "Let’s get you set up.",
+  MY: "Let’s get you set up.",
+  IN: "Let’s get you set up.",
+  JP: "Let’s get you set up.",
+  KR: "Let’s get you set up.",
+};
+const DEFAULT_WELCOME_SUB = "Let’s get you set up.";
+
 /**
  * WordTransitionOverlay — country flag + welcome word stamps in.
  * Prototype: `.word-stamp` / `wordStamp` + `wordUp` keyframes.
@@ -690,6 +703,7 @@ function WordTransitionOverlay({
 }) {
   const t    = useTheme();
   const word = WELCOME_WORDS[country.code] ?? "Welcome";
+  const sub  = WELCOME_SUBS[country.code] ?? DEFAULT_WELCOME_SUB;
 
   const flagScale   = useRef(new Animated.Value(2.0)).current;
   const flagOpacity = useRef(new Animated.Value(0)).current;
@@ -771,7 +785,7 @@ function WordTransitionOverlay({
             color: t.accent, opacity: wordOpacity, transform: [{ scale: wordScale }],
           }}
         >
-          {word}
+          {word}!
         </Animated.Text>
         <Animated.Text
           style={{
@@ -779,7 +793,7 @@ function WordTransitionOverlay({
             color: t.txtMid, opacity: subOpacity, transform: [{ translateY: subY }],
           }}
         >
-          Welcome to Judith
+          {sub}
         </Animated.Text>
       </Animated.View>
     </Animated.View>
@@ -1249,6 +1263,71 @@ function ScreenPersona({ ctx }: { ctx: Ctx }) {
 }
 
 /* ================================================================== */
+/* 4b. Name                                                            */
+/* ================================================================== */
+
+function ScreenName({ ctx }: { ctx: Ctx }) {
+  const { t, persona, name, setName, next } = ctx;
+  useOnbVoice("One more thing — what should I call you?", persona, ctx.language);
+  const [val, setVal] = useState(name);
+  const trimmed = val.trim();
+  const submit = () => {
+    setName(trimmed);
+    next();
+  };
+  return (
+    <>
+      <Scroll center>
+        <View style={{ alignItems: "center" }}>
+          <JudithAvatar persona={persona} size={96} state="listening" />
+        </View>
+        <Kicker style={{ marginTop: 22, textAlign: "center" }}>Nice to meet you</Kicker>
+        <Title style={{ maxWidth: 300, textAlign: "center" }}>
+          What should I call you?
+        </Title>
+        <Lede style={{ maxWidth: 280, textAlign: "center" }}>
+          I’ll use your name to keep things personal — never shared with anyone.
+        </Lede>
+        <TextInput
+          value={val}
+          onChangeText={setVal}
+          placeholder="Your name"
+          placeholderTextColor={t.txtLow}
+          autoCapitalize="words"
+          autoCorrect={false}
+          autoFocus
+          maxLength={24}
+          returnKeyType="done"
+          onSubmitEditing={() => { if (trimmed) submit(); }}
+          style={{
+            width: "100%",
+            maxWidth: 320,
+            marginTop: 22,
+            borderWidth: 1,
+            borderColor: trimmed ? t.accent : t.hair,
+            backgroundColor: t.surface1,
+            borderRadius: 14,
+            paddingVertical: 14,
+            paddingHorizontal: 16,
+            color: t.txtHi,
+            fontFamily: t.fonts.medium,
+            fontSize: 17,
+            textAlign: "center",
+          }}
+        />
+      </Scroll>
+      <CtaBar>
+        <Btn
+          label={T("continue")}
+          onPress={() => { if (trimmed) submit(); }}
+          style={{ opacity: trimmed ? 1 : 0.4 }}
+        />
+      </CtaBar>
+    </>
+  );
+}
+
+/* ================================================================== */
 /* 5. Late fee (alert variant, persona=pro)                            */
 /* ================================================================== */
 
@@ -1548,7 +1627,7 @@ function ScreenStakes({ ctx }: { ctx: Ctx }) {
         <JudithAvatar persona={persona} size={64} state="idle" />
         <Kicker style={{ textAlign: "center", marginTop: 14 }}>The fork</Kicker>
         <Title style={{ maxWidth: 300, textAlign: "center" }}>
-          What if you keep going this way?
+          Let’s avoid late fees and start taking control
         </Title>
         <View style={{ flexDirection: "row", alignItems: "stretch", width: "100%", maxWidth: 320, marginVertical: 26 }}>
           <View
@@ -1605,7 +1684,7 @@ function ScreenStakes({ ctx }: { ctx: Ctx }) {
         </View>
       </Scroll>
       <CtaBar>
-        <Btn label="No — let’s fix this" onPress={commit} />
+        <Btn label="Shall we?" onPress={commit} />
       </CtaBar>
 
       {/* CommitTransition overlay — `.commit-wrap` / `.commit-card` from prototype */}
@@ -3877,6 +3956,7 @@ const FLOW: { id: string; C: (p: { ctx: Ctx }) => React.ReactElement }[] = [
   { id: "country", C: ScreenCountry },
   { id: "language", C: ScreenLanguage },
   { id: "persona", C: ScreenPersona },
+  { id: "name", C: ScreenName },
   { id: "latefee", C: ScreenLateFee },
   { id: "problem", C: ScreenProblem },
   { id: "stakes", C: ScreenStakes },
@@ -3889,7 +3969,7 @@ const FLOW: { id: string; C: (p: { ctx: Ctx }) => React.ReactElement }[] = [
   { id: "feature3", C: ScreenFeature3 },
   { id: "askpaywall", C: ScreenAskPaywall },
 ];
-const SETUP = ["country", "language", "persona", "problem", "stakes", "voice", "congrats", "summary"];
+const SETUP = ["country", "language", "persona", "name", "problem", "stakes", "voice", "congrats", "summary"];
 const NO_BACK = ["welcome", "personalizing"];
 const SKIPPABLE = ["country", "persona"];
 const SAVE_FROM = FLOW.findIndex((f) => f.id === "voice");
@@ -3904,6 +3984,8 @@ export default function OnboardingScreen() {
     setCountry,
     language,
     setLanguage,
+    name,
+    setName,
     onbIdx,
     setOnbIdx,
     setOnboarded,
@@ -3965,9 +4047,9 @@ export default function OnboardingScreen() {
   const addBill = (b: OnbBill) => setBills((arr) => [...arr, b]);
 
   const ctx = useMemo<Ctx>(
-    () => ({ t, persona, setPersona, country, setCountry, language, setLanguage, bills, addBill, next }),
+    () => ({ t, persona, setPersona, country, setCountry, language, setLanguage, name, setName, bills, addBill, next }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [t, persona, language, country, bills, idx],
+    [t, persona, language, country, name, bills, idx],
   );
 
   const showProgress = SETUP.includes(screen.id);

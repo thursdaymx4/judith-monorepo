@@ -1,0 +1,100 @@
+# COUNTRY_GREETING_SCREEN.md — replicate the country-specific welcome interstitial
+
+> A short, full-screen **interstitial** that fires right after the user picks their country (between the Country step and the Language step). A culture-familiar greeting word **stamps in** with Judith's voiceover, then auto-advances. This is the LOCKED **"stamp"** transition. Source: `source/japp-interstitial.jsx` (`WordTransition`, `CULTURE_WORD`, `VoiceWave`) + CSS in `source/Judith - Full Flow.html` (`.word-*`, `.vo-wave`, `@keyframes wordStamp`).
+
+---
+
+## When it shows
+- **Trigger:** user selects a country on the "Where do you live?" step.
+- **Placement:** plays as a ~2.5s interstitial, THEN navigates to the Language step. It is not a tappable screen — it auto-advances (allow tap-to-skip).
+- It is country-aware: the greeting word + flag + voiceover all key off the selected country code.
+
+## Per-country content (`CULTURE_WORD`) — use EXACTLY
+| Code | Big word (shown) | Spoken (`say`) | Subtitle |
+|---|---|---|---|
+| PH | `Mabuhay!` | "Mabuhay" | Welcome — let's get you set up. |
+| ID | `Selamat datang!` | "Selamat datang" | Welcome — let's begin. |
+| VN | `Xin chào!` | "Xin chào" | Hello — let's begin. |
+| MY | `Selamat!` | "Selamat" | Welcome — let's begin. |
+| TH | `Sawasdee!` | "Sawasdee" | Welcome — let's begin. |
+| MX | `¡Bienvenida!` | "Bienvenida" | Welcome — let's begin. |
+| NG | `Welcome!` | "Welcome" | Let's get you set up. |
+| IN | `Namaste!` | "Namaste" | Welcome — let's begin. |
+
+Default to PH if the code is missing. The country **flag emoji** comes from the country record.
+
+## Layout (centered, on the near-black canvas `#0a0b0e`)
+A vertical centered stack (`gap: 12px`, text-align center):
+1. **Flag emoji** — `font-size: 40px`.
+2. **Big word** — `font-size: 46px; font-weight: 700; letter-spacing: -0.02em`, filled with a **gradient from text-white to mint accent** (`linear-gradient(120deg, #f3f5f8, <accent>)`, clipped to text).
+3. **Voice waveform** — 7 thin mint bars (4px wide, 3px radius, mint with a soft glow), animating while Judith "speaks".
+4. **Subtitle** — `font-size: 14px; color: var(--txt-mid)`.
+
+## Animation — the "STAMP" (locked)
+The word + flag **stamp in** like a rubber stamp:
+```
+@keyframes wordStamp {
+  0%   { opacity: 0; transform: scale(2.2); filter: blur(6px); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: scale(1); filter: none; }
+}
+/* flag: wordStamp .5s cubic-bezier(.3,1.4,.5,1) both
+   word: wordStamp .5s cubic-bezier(.3,1.4,.5,1) .1s both   (the .3,1.4,.5,1 curve gives the spring overshoot)
+   sub : fade+rise (translateY 14→0) .5s ease 1s both */
+```
+- The overshoot easing (`cubic-bezier(.3,1.4,.5,1)`) makes it punch past 1.0 then settle — that's the "stamp" feel. Add a tiny screen shake on impact if you like (optional).
+- **Voiceover:** at ~360ms (as the stamp lands) set the waveform "speaking" and **play Judith saying the `say` word** in the user's country language via ElevenLabs (see `integrations/elevenlabs.md`). Stop the waveform ~1900ms. Bars animate height 7px↔24px (`voBar .7s ease-in-out infinite`) only while speaking.
+- **Haptic:** medium impact synced to the stamp landing.
+
+## Timing (total ≈ 2.5s, then auto-advance)
+```
+t=0      flag stamps; word stamps at +0.1s
+t≈360ms  waveform ON + start voiceover
+t≈900ms  subtitle fades up
+t≈1900ms waveform OFF (voiceover done)
+t≈2500ms onDone() → navigate to Language step
+```
+Tap anywhere skips to `onDone()`.
+
+## Reduced motion
+If reduce-motion is on: skip the stamp/blur, show the word at rest immediately, no waveform animation, advance at ~500ms. (Match `body.reduce-motion` overrides in the source.)
+
+## Acceptance
+- ☐ Fires after country pick, auto-advances to Language (~2.5s), tap-to-skip works
+- ☐ Correct word + flag + subtitle per country (table above); PH fallback
+- ☐ Word stamps in with the spring overshoot (scale 2.2→1, blur→none), mint-gradient text, 46px
+- ☐ Waveform animates only while the voiceover plays; Judith speaks the `say` word in-country (ElevenLabs)
+- ☐ Medium haptic on stamp; near-black canvas (no full-bleed color); reduced-motion path works
+
+---
+
+## Paste-into-Replit prompt
+
+```
+Build the country-specific welcome interstitial exactly per COUNTRY_GREETING_SCREEN.md
+(reference: source/japp-interstitial.jsx WordTransition + CULTURE_WORD, and the .word-* /
+@keyframes wordStamp CSS in source/Judith - Full Flow.html). In React Native use Reanimated +
+expo-haptics + expo-av.
+
+Behavior: right AFTER the user picks their country (between the Country step and the Language
+step), play a ~2.5s full-screen interstitial on the near-black canvas (#0a0b0e), then
+auto-advance to the Language step (tap anywhere to skip).
+
+Content is country-aware (use this map exactly; default PH):
+  PH "Mabuhay!"/say "Mabuhay"; ID "Selamat datang!"; VN "Xin chào!"; MY "Selamat!";
+  TH "Sawasdee!"; MX "¡Bienvenida!"; NG "Welcome!"; IN "Namaste!"
+  subtitles per the doc; flag emoji from the country record.
+
+Layout (centered stack): flag emoji 40px → big word 46px/700, letter-spacing -0.02em, filled
+with a gradient from #f3f5f8 to the mint accent (clipped to text) → 7-bar mint voice waveform
+→ subtitle 14px in --txt-mid.
+
+Animation = the locked STAMP: word+flag scale from 2.2→1 with blur 6px→0 using spring overshoot
+easing cubic-bezier(.3,1.4,.5,1) (flag at 0s, word at +0.1s, ~0.5s); subtitle fades up at ~1s.
+At ~360ms turn the waveform on and SPEAK the country word via ElevenLabs in that country's
+language (per integrations/elevenlabs.md); waveform bars animate height 7↔24px only while
+speaking; stop ~1900ms. Fire a medium haptic on the stamp landing. onDone at ~2500ms.
+
+Honor reduce-motion (instant word, no waveform, advance ~500ms). This is one of the three
+LOCKED transitions — do not substitute a fade/cross-dissolve.
+```

@@ -71,6 +71,7 @@ function RootLayoutNav() {
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.canvas } }}>
         <Stack.Protected guard={isOnboarded}>
           <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="account" options={modalOpts} />
           <Stack.Screen name="ask" options={modalOpts} />
           <Stack.Screen name="reminders" options={modalOpts} />
           <Stack.Screen name="devices" options={modalOpts} />

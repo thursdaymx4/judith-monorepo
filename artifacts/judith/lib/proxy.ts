@@ -75,6 +75,18 @@ export function transcribe(
   return postJson("/stt", { audioBase64, mimeType, language });
 }
 
+/**
+ * Permanently deletes the signed-in user's server data (bills, profile) and
+ * their auth account. Requires a valid session — throws otherwise.
+ */
+export async function deleteAccount(): Promise<{ ok: true }> {
+  const session = (await supabase?.auth.getSession())?.data.session;
+  if (!session?.access_token) {
+    throw new Error("Sign in required to delete an account");
+  }
+  return postJson("/delete-account", {});
+}
+
 export function askJudith(
   text: string,
   bills?: AskBill[],

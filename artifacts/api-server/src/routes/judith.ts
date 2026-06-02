@@ -236,6 +236,32 @@ async function requireUser(req: Request, res: Response) {
   return { id: "guest", email: undefined, role: "guest" } as const;
 }
 
+// POST /api/judith/delete-account -> { ok: true }
+// Permanently removes the authenticated user's bills, profile, and auth account.
+router.post("/delete-account", async (req, res) => {
+  try {
+    const user = await requireUser(req, res);
+    if (!user) return;
+    if (user.id === "guest") {
+      res.status(401).json({ error: "Sign in required to delete an account" });
+      return;
+    }
+    const admin = getSupabaseAdmin();
+    const { error: billsErr } = await admin
+      .from("bills")
+      .delete()
+      .eq("user_id", user.id);
+    if (billsErr) throw billsErr;
+    await admin.from("profiles").delete().eq("id", user.id);
+    const { error: authErr } = await admin.auth.admin.deleteUser(user.id);
+    if (authErr) throw authErr;
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "delete-account failed");
+    res.status(500).json({ error: "Account deletion failed" });
+  }
+});
+
 // POST /api/judith/stt  { audioBase64, mimeType } -> { text }
 router.post("/stt", async (req, res) => {
   try {
