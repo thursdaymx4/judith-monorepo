@@ -18,8 +18,8 @@ export interface GlowBlobProps {
   rh: number;
   /** Centre colour of the gradient, e.g. `rgba(41,213,165,0.30)` */
   color: string;
-  /** Ignored on web — blur is handled per use-site */
-  webBlurPx?: number;
+  /** Ignored on web — blur is baked into the CSS radial-gradient */
+  blur?: number;
 }
 
 /**

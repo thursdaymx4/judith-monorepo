@@ -49,12 +49,12 @@ function BloomBg({ decoExit }: { decoExit: Animated.Value }) {
         BLOOM_WEB_STYLE,
       ]}
     >
-      {/* blob 1 — teal/accent: 40% × 30% semi-axis at 28% 32% */}
-      <GlowBlob cx={0.28} cy={0.32} rw={0.40} rh={0.30} color="rgba(41,213,165,0.30)" />
-      {/* blob 2 — purple #df86d7: 45% × 32% semi-axis at 74% 60% */}
-      <GlowBlob cx={0.74} cy={0.60} rw={0.45} rh={0.32} color="rgba(223,134,215,0.28)" />
-      {/* blob 3 — amber #f7b83d: 40% × 30% semi-axis at 52% 78% */}
-      <GlowBlob cx={0.52} cy={0.78} rw={0.40} rh={0.30} color="rgba(247,184,61,0.26)" />
+      {/* blob 1 — teal/accent: large centered bloom behind avatar */}
+      <GlowBlob cx={0.50} cy={0.38} rw={0.58} rh={0.48} color="rgba(41,213,165,0.60)" blur={90} />
+      {/* blob 2 — purple/violet: bottom-right */}
+      <GlowBlob cx={0.74} cy={0.64} rw={0.50} rh={0.36} color="rgba(160,120,255,0.55)" blur={85} />
+      {/* blob 3 — amber/orange: bottom-left */}
+      <GlowBlob cx={0.26} cy={0.76} rw={0.42} rh={0.32} color="rgba(247,150,50,0.50)" blur={80} />
     </Animated.View>
   );
 }
@@ -365,8 +365,7 @@ export function Splash({ onDone }: { onDone: () => void }) {
               style={{
                 fontSize: 15,
                 color: t.accent,
-                fontWeight: "800",
-                fontFamily: t.fonts.bold,
+                fontFamily: t.fonts.display,
               }}
             >
               Handled.
