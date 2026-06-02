@@ -203,13 +203,24 @@ export async function transcribeOnboarding(
 }
 
 /**
+ * In-memory TTS cache for onboarding.
+ * Keys are `${text}__${persona}`. Lives for the app session — no persistence needed.
+ * Eliminates the ElevenLabs round-trip for any screen the user revisits.
+ */
+const _synthCache = new Map<string, { audioBase64: string; mime: string }>();
+
+/**
  * Synthesize arbitrary text during onboarding — no auth required.
- * Falls back silently on error; callers should catch().
+ * Results are cached so revisiting a screen plays instantly.
  */
 export async function synthOnboarding(
   text: string,
   persona?: PersonaId,
 ): Promise<{ audioBase64: string; mime: string }> {
+  const cacheKey = `${text}__${persona ?? "pro"}`;
+  const hit = _synthCache.get(cacheKey);
+  if (hit) return hit;
+
   const res = await fetch(`${BASE}/tts-onboarding`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -222,7 +233,9 @@ export async function synthOnboarding(
     const detail = await res.text().catch(() => "");
     throw new Error(`TTS onboarding failed (${res.status}): ${detail}`);
   }
-  return (await res.json()) as { audioBase64: string; mime: string };
+  const result = (await res.json()) as { audioBase64: string; mime: string };
+  _synthCache.set(cacheKey, result);
+  return result;
 }
 
 /**

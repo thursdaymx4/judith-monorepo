@@ -2,10 +2,10 @@ export type PersonaId = "professional" | "funny" | "sarcastic" | "mom";
 
 // Judith is female, so every persona uses a distinct, tone-matched female voice.
 export const DEFAULT_VOICE_IDS: Record<PersonaId, string> = {
-  professional: "XrExE9yKIg1WjnnlVkGX", // Matilda — clear, knowledgeable, professional
-  funny: "cgSgspJ2msm6clMCkdW9", // Jessica — playful, bright, warm
-  sarcastic: "FGY2WhTYpPnrIDTdsKH5", // Laura — quirky, cheeky attitude
-  mom: "P1hTNpVDMG973fukK9V2", // Ate Ada — warm, maternal, Filipino/Tagalog
+  professional: "aMSt68OGf4xUZAnLpTU8", // Juniper — grounded, professional
+  funny: "NHRgOEwqx5WZNClv5sat", // Chelsea — conversational, bright
+  sarcastic: "56AoDkrOh6qfVPDXZ7Pt", // Cassidy — crisp, direct, clear
+  mom: "P1hTNpVDMG973fukK9V2", // Ate Ada — warm, maternal, Filipino/Tagalog (unchanged)
 };
 
 const TONE: Record<PersonaId, string> = {

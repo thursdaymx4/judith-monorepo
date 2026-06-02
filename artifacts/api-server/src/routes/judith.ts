@@ -477,7 +477,7 @@ router.post("/tts-onboarding", async (req, res) => {
       return;
     }
     const chosen = coercePersona(persona);
-    const audio = await synthesize(text.trim(), DEFAULT_VOICE_IDS[chosen], { live: false });
+    const audio = await synthesize(text.trim(), DEFAULT_VOICE_IDS[chosen], { live: true });
     res.json({ audioBase64: audio.base64, mime: audio.mime });
   } catch (err) {
     logger.error({ err }, "tts-onboarding failed");
@@ -491,7 +491,7 @@ router.get("/sample-onboarding", async (req, res) => {
   try {
     const persona = coercePersona(req.query["persona"]);
     const text = SAMPLE_LINES[persona];
-    const audio = await synthesize(text, DEFAULT_VOICE_IDS[persona], { live: false });
+    const audio = await synthesize(text, DEFAULT_VOICE_IDS[persona], { live: true });
     res.json({ text, audioBase64: audio.base64, mime: audio.mime });
   } catch (err) {
     logger.error({ err }, "sample-onboarding failed");
