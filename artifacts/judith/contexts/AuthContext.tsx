@@ -8,6 +8,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { Platform } from "react-native";
 
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
@@ -54,6 +55,21 @@ function readTokensFromUrl(rawUrl: string): {
   };
 }
 
+async function sendSessionToWatch(session: Session): Promise<void> {
+  if (Platform.OS !== "ios") return;
+  try {
+    const WatchConnectivity = (await import("react-native-watch-connectivity")).default;
+    const installed = await WatchConnectivity.getIsWatchAppInstalled();
+    if (!installed) return;
+    await WatchConnectivity.transferUserInfo({
+      supabaseAccessToken: session.access_token,
+      supabaseRefreshToken: session.refresh_token,
+    });
+  } catch {
+    /* watch not paired or app not installed — silently ignore */
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,9 +83,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setLoading(false);
+      if (data.session) sendSessionToWatch(data.session);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
       setSession(next);
+      if (event === "SIGNED_IN" && next) sendSessionToWatch(next);
     });
     return () => sub.subscription.unsubscribe();
   }, []);
