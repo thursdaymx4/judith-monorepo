@@ -332,7 +332,7 @@ export default function InsightsScreen() {
   };
 
   return (
-    <Screen contentStyle={{ paddingTop: 8 }}>
+    <Screen>
       {/* header */}
       <View
         style={{

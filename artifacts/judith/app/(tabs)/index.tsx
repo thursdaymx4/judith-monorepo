@@ -148,7 +148,7 @@ export default function HomeScreen() {
   const openBill = (b: Bill) => router.push(`/bill/${b.id}`);
 
   return (
-    <Screen contentStyle={{ paddingTop: 4 }}>
+    <Screen>
       {/* header */}
       <View style={{ flexDirection: "row", gap: 12, alignItems: "flex-start", marginBottom: 16 }}>
         <JudithAvatar persona={persona} size={52} state="idle" />

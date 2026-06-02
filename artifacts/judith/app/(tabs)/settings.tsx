@@ -139,7 +139,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <Screen contentStyle={{ paddingTop: 8, paddingBottom: 24 }}>
+    <Screen contentStyle={{ paddingBottom: 24 }}>
       <Text
         style={{
           fontFamily: t.fonts.semibold,

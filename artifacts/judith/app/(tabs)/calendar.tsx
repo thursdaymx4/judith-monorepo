@@ -266,7 +266,7 @@ export default function CalendarScreen() {
   const maxW = Math.max(1, ...weeks);
 
   return (
-    <Screen contentStyle={{ paddingTop: 6 }}>
+    <Screen>
       {/* header */}
       <View
         style={{
