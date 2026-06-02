@@ -684,12 +684,23 @@ const WELCOME_WORDS: Record<string, string> = {
 
 /* Per-country setup subtitle — avoids repeating "welcome" under the greeting. */
 const WELCOME_SUBS: Record<string, string> = {
-  PH: "Let’s get you set up.",
-  ID: "Let’s get you set up.",
-  MY: "Let’s get you set up.",
-  IN: "Let’s get you set up.",
-  JP: "Let’s get you set up.",
-  KR: "Let’s get you set up.",
+  PH: "Handa na kaming tumulong sa’yo.",
+  ID: "Kami siap membantu kamu.",
+  MY: "Kami sedia membantu anda.",
+  VN: "Chúng tôi sẵn sàng giúp bạn.",
+  TH: "เราพร้อมช่วยคุณแล้ว",
+  SG: "Let’s sort your bills together.",
+  IN: "We’re here to help you.",
+  JP: "一緒に始めましょう。",
+  KR: "함께 시작해 봅시다.",
+  CN: "让我们一起开始吧。",
+  HK: "一齊開始吧。",
+  TW: "讓我們一起開始。",
+  US: "Let’s sort your bills together.",
+  CA: "Let’s sort your bills together.",
+  GB: "Let’s sort your bills together.",
+  AU: "Let’s sort your bills together.",
+  NZ: "Let’s sort your bills together.",
 };
 const DEFAULT_WELCOME_SUB = "Let’s get you set up.";
 
@@ -1485,9 +1496,9 @@ function ScreenProblem({ ctx }: { ctx: Ctx }) {
     <>
       <Scroll center>
         <JudithAvatar persona={persona} size={64} state="idle" />
-        <Kicker style={{ textAlign: "center", marginTop: 14 }}>Quick question</Kicker>
+        <Kicker style={{ textAlign: "center", marginTop: 14 }}>The plan</Kicker>
         <Title style={{ maxWidth: 300, textAlign: "center" }}>
-          Do you know your total bills due next month?
+          Let’s avoid late fees and start taking control
         </Title>
         <Animated.View style={{ transform: [{ translateX: shakeX }], width: "100%" }}>
           <Card style={{ width: "100%", maxWidth: 300, marginVertical: 22, alignItems: "center", paddingVertical: 22, paddingHorizontal: 18, alignSelf: "center" }}>
@@ -1512,10 +1523,7 @@ function ScreenProblem({ ctx }: { ctx: Ctx }) {
         </Animated.View>
       </Scroll>
       <CtaBar>
-        <View style={{ flexDirection: "row", gap: 10 }}>
-          <Btn label="Yes, roughly" variant="soft" onPress={() => choose(true)} style={{ flex: 1 }} />
-          <Btn label="Honestly, no" onPress={() => choose(false)} style={{ flex: 1 }} />
-        </View>
+        <Btn label="Shall we?" onPress={() => choose(true)} />
       </CtaBar>
       {/* faultFlash overlay */}
       <Animated.View

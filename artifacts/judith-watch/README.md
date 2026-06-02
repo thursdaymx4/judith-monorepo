@@ -15,7 +15,7 @@ what's due, and stay on top of late Fix - t without opening the phone.
 ### Prerequisites
 - Xcode 15+
 - Apple Developer account (required for App Groups capability)
-- Supabase project already running (same one the phone app uses)
+-Yea Supabase project already running (same one the phone app uses)
 
 ### 1. Generate the native iOS project
 
