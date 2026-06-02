@@ -13,7 +13,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon, type IconName } from "@/components/Icon";
-import { CAT_ICONS, dueClass, initials, lookupProvider } from "@/constants/data";
+import { CAT_ICONS, dueClass, initials, isPartialBill, lookupProvider, partialPct, totalOwed } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import type { Theme } from "@/constants/theme";
@@ -382,6 +382,8 @@ export interface BillLike {
   dueDays: number;
   dueLabel: string;
   status?: string;
+  amountPaid?: number;
+  carryOver?: number;
 }
 
 export function BillRow({
@@ -396,38 +398,58 @@ export function BillRow({
   const t = useTheme();
   const cls = dueClass(bill.dueDays) as Urgency;
   const paid = bill.status === "paid";
+  const partial = isPartialBill(bill as Parameters<typeof isPartialBill>[0]);
+  const pct = partialPct(bill as Parameters<typeof partialPct>[0]);
+  const owed = totalOwed(bill);
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [
         {
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 13,
           borderWidth: 1,
           borderColor: t.hair,
           borderRadius: t.radius.md,
           backgroundColor: t.surface2,
-          paddingVertical: 13,
-          paddingHorizontal: 14,
+          overflow: "hidden",
           opacity: paid ? 0.55 : 1,
         },
         pressed && { transform: [{ scale: 0.99 }] },
       ]}
     >
-      <ProviderLogo provider={bill.provider} cat={bill.cat} size={38} />
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={{ fontFamily: t.fonts.medium, fontSize: 15, color: t.txtHi }}>{bill.provider}</Text>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
-          <Dot kind={cls} />
-          <Text style={{ fontFamily: t.fonts.regular, fontSize: 12, color: t.txtLow }}>
-            {bill.cat} · {bill.dueLabel}
-          </Text>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 13,
+          paddingVertical: 13,
+          paddingHorizontal: 14,
+        }}
+      >
+        <ProviderLogo provider={bill.provider} cat={bill.cat} size={38} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={{ fontFamily: t.fonts.medium, fontSize: 15, color: t.txtHi }}>{bill.provider}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
+            <Dot kind={cls} />
+            <Text style={{ fontFamily: t.fonts.regular, fontSize: 12, color: t.txtLow }}>
+              {bill.cat} · {bill.dueLabel}
+            </Text>
+          </View>
         </View>
+        <Mono size={15} color={paid ? t.semantic.ok : t.semantic[cls]}>
+          {money(owed)}
+        </Mono>
       </View>
-      <Mono size={15} color={t.semantic[cls]}>
-        {money(bill.amount)}
-      </Mono>
+      {(partial || paid) && (
+        <View style={{ height: 4, backgroundColor: t.surface3, overflow: "hidden" }}>
+          <View
+            style={{
+              height: "100%",
+              width: `${pct}%`,
+              backgroundColor: paid ? t.semantic.ok : t.semantic.near,
+            }}
+          />
+        </View>
+      )}
     </Pressable>
   );
 }

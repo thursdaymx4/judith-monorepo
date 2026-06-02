@@ -78,6 +78,10 @@ interface JudithStoreValue extends PersistShape {
   snooze: (id: string, days: number) => void;
   saveBill: (bill: Bill) => void;
   deleteBill: (id: string) => void;
+  /** Record a partial (or full) cumulative payment amount for a bill. */
+  payPartial: (id: string, amountPaid: number) => void;
+  /** Roll any unpaid balance forward as carryOver and reset this cycle. */
+  rolloverBill: (id: string) => void;
   /* ask metering */
   consumeAsk: () => boolean;
   subscribe: (tier: AskTier) => void;
@@ -168,15 +172,21 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       toast,
       showToast,
       togglePaid: (id) =>
-        mapBills((b) =>
-          b.id === id
-            ? { ...b, status: b.status === "paid" ? "due" : "paid" }
-            : b,
-        ),
+        mapBills((b) => {
+          if (b.id !== id) return b;
+          const owed = b.amount + (b.carryOver ?? 0);
+          return b.status === "paid"
+            ? { ...b, status: "due" as const, amountPaid: 0 }
+            : { ...b, status: "paid" as const, amountPaid: owed };
+        }),
       markPaid: (id) =>
-        mapBills((b) => (b.id === id ? { ...b, status: "paid" } : b)),
+        mapBills((b) => {
+          if (b.id !== id) return b;
+          const owed = b.amount + (b.carryOver ?? 0);
+          return { ...b, status: "paid" as const, amountPaid: owed };
+        }),
       markUnpaid: (id) =>
-        mapBills((b) => (b.id === id ? { ...b, status: "due" } : b)),
+        mapBills((b) => (b.id === id ? { ...b, status: "due" as const, amountPaid: 0 } : b)),
       snooze: (id, days) =>
         mapBills((b) =>
           b.id === id ? { ...b, dueDays: b.dueDays + days } : b,
@@ -193,6 +203,31 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
         }),
       deleteBill: (id) =>
         setState((s) => ({ ...s, bills: s.bills.filter((b) => b.id !== id) })),
+      payPartial: (id, amountPaid) =>
+        setState((s) => ({
+          ...s,
+          bills: s.bills.map((b) => {
+            if (b.id !== id) return b;
+            const owed = b.amount + (b.carryOver ?? 0);
+            if (amountPaid >= owed) return { ...b, status: "paid" as const, amountPaid: owed };
+            return { ...b, status: "due" as const, amountPaid: Math.max(0, amountPaid) };
+          }),
+        })),
+      rolloverBill: (id) =>
+        setState((s) => ({
+          ...s,
+          bills: s.bills.map((b) => {
+            if (b.id !== id) return b;
+            const owed = b.amount + (b.carryOver ?? 0);
+            const unpaid = owed - (b.amountPaid ?? 0);
+            return {
+              ...b,
+              status: "due" as const,
+              amountPaid: 0,
+              carryOver: unpaid > 0 ? unpaid : 0,
+            };
+          }),
+        })),
       consumeAsk: () => {
         if (state.tier === "unlimited") return true;
         if (state.asksLeft <= 0) return false;

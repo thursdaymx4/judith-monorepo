@@ -16,7 +16,7 @@ import {
   SpeechBubble,
   Txt,
 } from "@/components/ui";
-import { dueClass, type Bill } from "@/constants/data";
+import { dueClass, isPartialBill, partialPct, totalOwed, type Bill } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -167,33 +167,57 @@ export default function HomeScreen() {
                 </Low>
               </View>
               {/* card */}
-              <View
-                style={{
-                  flex: 1,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 11,
-                  borderWidth: 1,
-                  borderColor: t.hair,
-                  borderRadius: t.radius.md,
-                  backgroundColor: t.surface2,
-                  paddingVertical: 11,
-                  paddingHorizontal: 12,
-                }}
-              >
-                <ProviderLogo provider={b.provider} cat={b.cat} size={34} />
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Txt size={14} weight="medium">
-                    {b.provider}
-                  </Txt>
-                  <Low size={12} style={{ marginTop: 2 }}>
-                    {b.cat} · in {b.dueDays}d
-                  </Low>
-                </View>
-                <Mono size={14} color={t.semantic[cls]}>
-                  {money(b.amount)}
-                </Mono>
-              </View>
+              {(() => {
+                const partial = isPartialBill(b);
+                const pct = partialPct(b);
+                const owed = totalOwed(b);
+                return (
+                  <View
+                    style={{
+                      flex: 1,
+                      borderWidth: 1,
+                      borderColor: t.hair,
+                      borderRadius: t.radius.md,
+                      backgroundColor: t.surface2,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 11,
+                        paddingVertical: 11,
+                        paddingHorizontal: 12,
+                      }}
+                    >
+                      <ProviderLogo provider={b.provider} cat={b.cat} size={34} />
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Txt size={14} weight="medium">
+                          {b.provider}
+                        </Txt>
+                        <Low size={12} style={{ marginTop: 2 }}>
+                          {b.cat} · in {b.dueDays}d
+                        </Low>
+                      </View>
+                      <Mono size={14} color={t.semantic[cls]}>
+                        {money(owed)}
+                      </Mono>
+                    </View>
+                    {partial && (
+                      <View style={{ height: 3, backgroundColor: t.surface3, overflow: "hidden" }}>
+                        <View
+                          style={{
+                            height: "100%",
+                            width: `${pct}%`,
+                            backgroundColor: t.semantic.near,
+                          }}
+                        />
+                      </View>
+                    )}
+                  </View>
+                );
+              })()}
             </Pressable>
           );
         })}

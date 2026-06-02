@@ -2575,9 +2575,36 @@ function ScreenPersonalizing({ ctx }: { ctx: Ctx }) {
 function ScreenSummary({ ctx }: { ctx: Ctx }) {
   const { t, bills, next } = ctx;
   const { bills: storeBills } = useJudith();
-  useOnbVoice("Here\u2019s everything I know about your bills. Take a look \u2014 you can always adjust anything later.", ctx.persona, ctx.language);
   const cur = ctx.country.cur;
   const data = billData(bills, storeBills);
+
+  // Dynamic voice: speaks real insights from the user's actual bill data.
+  useEffect(() => {
+    if (data.length === 0) return;
+    let cancelled = false;
+    stopCurrentAudio();
+    const n = data.length;
+    const total = data.reduce((s, b) => s + b.amount, 0);
+    const biggest = data.reduce((a, b) => (b.amount > a.amount ? b : a), data[0]!);
+    const nextDue = data.reduce((a, b) => (b.dueDays < a.dueDays ? b : a), data[0]!);
+    const savings =
+      total > 5000
+        ? `Tracking this could save you ${cur}450 or more in late fees a year.`
+        : "I'll keep you on top of every due date.";
+    const line = isFilipino(ctx.language)
+      ? `Heto ang buong larawan — ${cur}${fmtNum(total)} bawat buwan, ${n} bayarin. Ang pinakamalaki ay ${biggest.provider} sa ${cur}${fmtNum(biggest.amount)}. Susunod na mag-e-expire: ${nextDue.provider}, sa loob ng ${nextDue.dueDays} araw. Hawak ko na ito.`
+      : `Here's the full picture — ${cur}${fmtNum(total)} a month across ${n} bill${n === 1 ? "" : "s"}. Your biggest is ${biggest.provider} at ${cur}${fmtNum(biggest.amount)}. Next up: ${nextDue.provider} in ${nextDue.dueDays} day${nextDue.dueDays === 1 ? "" : "s"}. ${savings}`;
+    synthOnboarding(line, ctx.persona)
+      .then(({ audioBase64 }) => {
+        if (!cancelled) playBase64Mp3(audioBase64).catch(() => {});
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      stopCurrentAudio();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (data.length === 0) {
     return (

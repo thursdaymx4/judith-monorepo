@@ -21,6 +21,32 @@ export interface Bill {
   subtype?: "Rent" | "Mortgage";
   /** Billing cadence. Defaults to monthly when omitted. */
   frequency?: "monthly" | "annual";
+  /** Amount paid so far this cycle (0 or omitted = not yet paid). */
+  amountPaid?: number;
+  /** Unpaid balance rolled forward from the previous cycle. */
+  carryOver?: number;
+}
+
+/** Total owed this cycle = current charge + any rolled-over balance. */
+export function totalOwed(b: Pick<Bill, "amount" | "carryOver">): number {
+  return b.amount + (b.carryOver ?? 0);
+}
+
+/** Percentage of this cycle's total already paid (0–100). */
+export function partialPct(
+  b: Pick<Bill, "amount" | "carryOver" | "amountPaid" | "status">,
+): number {
+  if (b.status === "paid") return 100;
+  const owed = totalOwed(b);
+  if (owed <= 0 || !b.amountPaid) return 0;
+  return Math.min(100, Math.round((b.amountPaid / owed) * 100));
+}
+
+/** True when a payment has been recorded but the bill isn't fully settled. */
+export function isPartialBill(
+  b: Pick<Bill, "status" | "amountPaid">,
+): boolean {
+  return b.status !== "paid" && (b.amountPaid ?? 0) > 0;
 }
 
 export interface Provider {
