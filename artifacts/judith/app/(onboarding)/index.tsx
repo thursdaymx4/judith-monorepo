@@ -190,6 +190,40 @@ const PROMPTS_FIL: Record<string, string> = {
   "Personal loan": "Mga loans — sinong nagpahiram, magkano monthly, at kailan due?",
 };
 
+/**
+ * Voice-only canned lines for the bill-asking step (EN).
+ * Intentionally different from PROMPTS — shorter, more natural, never a
+ * word-for-word read of what the user can already see on screen.
+ */
+const VOICE_PROMPTS: Record<string, string> = {
+  "Rent / Mortgage": "How much is rent, and what day's it due?",
+  Electricity: "Who's your electricity provider, and what's the usual amount?",
+  Water: "Water bill — provider and amount?",
+  Internet: "Internet — which provider, how much a month?",
+  Mobile: "Which network, and how much is the plan?",
+  "Phone subscription": "Screenshot your Subscriptions in Settings — easiest way. Or just tell me each one.",
+  "TV / Streaming": "Any streaming services? Which ones?",
+  "Web app": "Web subscriptions — Canva, Notion, anything like that?",
+  "Credit card": "Which bank, and what's the amount due?",
+  "Personal loan": "Who's the lender, and what's the monthly payment?",
+};
+
+/**
+ * Voice-only canned lines for the bill-asking step (Tagalog/Taglish).
+ */
+const VOICE_PROMPTS_FIL: Record<string, string> = {
+  "Rent / Mortgage": "Magkano ang renta, at kelan due?",
+  Electricity: "Sino ang provider ng kuryente, magkano usually?",
+  Water: "Tubig — provider at halaga?",
+  Internet: "Anong provider ng internet, magkano monthly?",
+  Mobile: "Anong network, at magkano ang plan?",
+  "Phone subscription": "I-screenshot ang Subscriptions sa Settings — mas mabilis. O sabihin mo sa akin.",
+  "TV / Streaming": "May streaming ka ba? Alin-alin?",
+  "Web app": "Web subscriptions — Canva, Notion, ganyan?",
+  "Credit card": "Anong bangko, magkano ang due?",
+  "Personal loan": "Sino nagpahiram, magkano monthly?",
+};
+
 /** Supplementary voice lines for each Feature screen — not reading the UI, just personality. */
 const FEATURE_VOICES = [
   "Try it — ask me anything about your bills. Just tap the mic and talk.",
@@ -1728,6 +1762,28 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
           : `Loan ${loanDone + 1} of ${loanN} — lender, the monthly amount, and the due date?`
         : (isFil ? PROMPTS_FIL[sample.cat] : PROMPTS[sample.cat]) || (isFil ? "Sabihin mo ang tungkol sa bill na ito." : "Tell me about this bill.");
 
+  // Voice line — intentionally different from promptText so Judith isn't
+  // just reading the screen aloud. Canned, shorter, more natural.
+  const voiceText =
+    phase === "cards"
+      ? isFil
+        ? cardDone === 0
+          ? "Una — anong bangko, magkano ang due?"
+          : `Card ${cardDone + 1} — anong bangko?`
+        : cardDone === 0
+          ? "First card — which bank, and what's the amount due?"
+          : `Card ${cardDone + 1} — same thing, which bank?`
+      : phase === "loans"
+        ? isFil
+          ? loanDone === 0
+            ? "Una — sino nagpahiram, magkano monthly?"
+            : `Loan ${loanDone + 1} — sino at magkano?`
+          : loanDone === 0
+            ? "First loan — lender and monthly payment?"
+            : `Loan ${loanDone + 1} — same, who and how much?`
+        : (isFil ? VOICE_PROMPTS_FIL[sample.cat] : VOICE_PROMPTS[sample.cat]) ||
+          (isFil ? "Ano pa?" : "Go ahead.");
+
   /* Auto-play Judith's prompt aloud each time a new question appears. */
   const lastPlayedPromptKey = useRef("");
   useEffect(() => {
@@ -1736,7 +1792,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     if (key === lastPlayedPromptKey.current) return;
     lastPlayedPromptKey.current = key;
     let cancelled = false;
-    synthOnboarding(promptText, persona)
+    synthOnboarding(voiceText, persona)
       .then(({ audioBase64 }) => {
         if (!cancelled) return playBase64Mp3(audioBase64);
       })
@@ -1745,7 +1801,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       cancelled = true;
       stopCurrentAudio();
     };
-  }, [mode, phase, idx, cardDone, loanDone, promptText, persona]);
+  }, [mode, phase, idx, cardDone, loanDone, voiceText, persona]);
 
   const progress = Math.min(idx + (mode === "done" ? 0 : 1), SAMPLES.length);
   const showConvo = mode === "prompt" || mode === "listening" || mode === "transcribing" || mode === "parsed";
