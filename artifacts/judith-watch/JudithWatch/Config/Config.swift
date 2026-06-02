@@ -6,7 +6,7 @@ enum Config {
     static let supabaseAnonKey = "YOUR_ANON_KEY"
 
     // MARK: — App Group (must match the capability you added in Xcode)
-    static let appGroupID = "group.com.judith.app"
+    static let appGroupID = "group.com.app.judith"
 
     // MARK: — UserDefaults keys (shared via App Group)
     static let billsCacheKey        = "judith.bills_cache"

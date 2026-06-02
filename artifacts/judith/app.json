@@ -14,9 +14,12 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.app.judith"
     },
-    "android": {},
+    "android": {
+      "package": "com.judith.app"
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },

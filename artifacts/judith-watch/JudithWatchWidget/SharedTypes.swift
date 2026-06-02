@@ -10,7 +10,7 @@ import Foundation
 enum Config {
     static let supabaseURL     = "https://YOUR_PROJECT.supabase.co"
     static let supabaseAnonKey = "YOUR_ANON_KEY"
-    static let appGroupID      = "group.com.judith.app"
+    static let appGroupID      = "group.com.app.judith"
     static let billsCacheKey   = "judith.bills_cache"
     static let sessionTokenKey = "judith.session_token"
     static let pendingActionsKey = "judith.pending_actions"
