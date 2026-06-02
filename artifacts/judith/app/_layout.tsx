@@ -75,6 +75,7 @@ function RootLayoutNav() {
           <Stack.Screen name="reminders" options={modalOpts} />
           <Stack.Screen name="devices" options={modalOpts} />
           <Stack.Screen name="bills" options={modalOpts} />
+          <Stack.Screen name="add-bill" options={modalOpts} />
           <Stack.Screen name="plans" options={modalOpts} />
           <Stack.Screen name="bill/[id]" options={modalOpts} />
         </Stack.Protected>

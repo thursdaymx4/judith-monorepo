@@ -356,6 +356,50 @@ export function makeBillFromAction(
   };
 }
 
+/**
+ * Build a store Bill from manual entry. Computes the next occurrence of the
+ * given due day relative to today, honoring monthly vs annual cadence.
+ */
+export function makeManualBill(
+  a: { provider: string; cat: string; amount: number; dueDay: number; frequency?: "monthly" | "annual" },
+  today: Date = new Date(),
+): Bill {
+  const base = startOfDay(today);
+  const day = Math.max(1, Math.min(31, Math.round(a.dueDay)));
+  const dayFor = (y: number, m: number) => Math.min(day, daysInMonth(y, m));
+  let candidate = new Date(base.getFullYear(), base.getMonth(), dayFor(base.getFullYear(), base.getMonth()));
+  if (candidate <= base) {
+    if (a.frequency === "annual") {
+      const y = base.getFullYear() + 1;
+      const m = base.getMonth();
+      candidate = new Date(y, m, dayFor(y, m));
+    } else {
+      const y = base.getFullYear();
+      const m = base.getMonth() + 1;
+      candidate = new Date(y, m, dayFor(y, m));
+    }
+  }
+  const dueDays = Math.max(0, Math.round((startOfDay(candidate).getTime() - base.getTime()) / 86_400_000));
+  const sameYear = candidate.getFullYear() === base.getFullYear();
+  const dueLabel = sameYear
+    ? `${MONTHS[candidate.getMonth()]} ${candidate.getDate()}`
+    : `${MONTHS[candidate.getMonth()]} ${candidate.getDate()}, ${candidate.getFullYear()}`;
+  const icon = CAT_ICONS[a.cat] ?? "spark";
+  return {
+    id: `manual-${Date.now()}`,
+    provider: a.provider.trim() || "Bill",
+    cat: a.cat || "Custom",
+    icon,
+    amount: Math.max(0, a.amount),
+    dueDays,
+    dueDate: day,
+    dueLabel,
+    status: "due",
+    kind: "Fixed",
+    frequency: a.frequency ?? "monthly",
+  };
+}
+
 /** Build a store Bill from a verified scanned subscription. */
 export function makeSubscriptionBill(
   sub: ScannedSubscription,

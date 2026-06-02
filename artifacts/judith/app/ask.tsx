@@ -5,7 +5,7 @@ import {
   useAudioRecorder,
 } from "expo-audio";
 import * as ImagePicker from "expo-image-picker";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -326,6 +326,19 @@ export default function AskModal() {
   // Ref so the VAD interval always calls the latest stopRecording closure
   const stopRecordingRef = useRef(stopRecording);
   useEffect(() => { stopRecordingRef.current = stopRecording; });
+
+  // ── Entry intent from the home menu (scan / voice) — run once on open ──
+  const { intent } = useLocalSearchParams<{ intent?: string }>();
+  const intentHandled = useRef(false);
+  useEffect(() => {
+    if (intentHandled.current) return;
+    const which = Array.isArray(intent) ? intent[0] : intent;
+    if (which !== "scan" && which !== "voice") return; // wait for params to hydrate
+    intentHandled.current = true;
+    if (which === "scan") void scanSubscriptions();
+    else void startRecording();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [intent]);
 
   const micState = recording ? "listening" : busy ? "speaking" : "idle";
 
