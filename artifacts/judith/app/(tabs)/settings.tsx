@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import React from "react";
-import { Pressable, Text, View } from "react-native";
+import { Modal, Pressable, Text, TextInput, View } from "react-native";
 
 import { Icon, type IconName } from "@/components/Icon";
 import { Dot, Low, Mono, Screen, Txt, mix } from "@/components/ui";
@@ -127,11 +127,25 @@ function SettingsLabel({ children }: { children: React.ReactNode }) {
 export default function SettingsScreen() {
   const t = useTheme();
   const router = useRouter();
-  const { persona, setPersona, voiceId, setVoice, toggles, setToggle, asksLeft, tier, theme, setTheme, restart, money } =
+  const { persona, setPersona, voiceId, setVoice, toggles, setToggle, asksLeft, tier, theme, setTheme, restart, money, bills } =
     useJudith();
 
   const subscribed = tier !== "free";
   const isPro = tier === "unlimited";
+
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const [confirmText, setConfirmText] = React.useState("");
+  const canRestart = confirmText.trim().toLowerCase() === "restart";
+
+  const closeConfirm = () => {
+    setConfirmOpen(false);
+    setConfirmText("");
+  };
+  const doRestart = () => {
+    if (!canRestart) return;
+    closeConfirm();
+    restart();
+  };
 
   const rowBase = {
     flexDirection: "row" as const,
@@ -390,10 +404,141 @@ export default function SettingsScreen() {
 
       <View style={{ alignItems: "center", marginTop: 22 }}>
         <Low size={12}>Judith v1.0 · Made for the Philippines</Low>
-        <Pressable onPress={restart} style={{ marginTop: 6 }}>
+        <Pressable onPress={() => setConfirmOpen(true)} style={{ marginTop: 6 }}>
           <Low size={12}>Restart demo</Low>
         </Pressable>
       </View>
+
+      <Modal
+        visible={confirmOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={closeConfirm}
+        statusBarTranslucent
+      >
+        <Pressable
+          onPress={closeConfirm}
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.6)",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 26,
+          }}
+        >
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 380,
+              borderRadius: 18,
+              borderWidth: 1,
+              borderColor: t.hair,
+              backgroundColor: t.surface2,
+              padding: 22,
+            }}
+          >
+            <View
+              style={{
+                width: 46,
+                height: 46,
+                borderRadius: 13,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: mix("#ff645f", t.surface2, 0.16),
+                borderWidth: 1,
+                borderColor: mix("#ff645f", t.surface2, 0.4),
+                marginBottom: 14,
+              }}
+            >
+              <Icon name="bell" size={22} color="#ff645f" />
+            </View>
+
+            <Text
+              style={{
+                fontFamily: t.fonts.semibold,
+                fontSize: 19,
+                color: t.txtHi,
+                letterSpacing: -0.3,
+                marginBottom: 8,
+              }}
+            >
+              Restart from scratch?
+            </Text>
+
+            <Low size={13} style={{ lineHeight: 19 }}>
+              This permanently deletes{" "}
+              <Low size={13} weight="medium" color={t.txtHi}>
+                all {bills.length} of your bill records
+              </Low>{" "}
+              and resets every setting, so you can start a brand-new
+              onboarding. This can&rsquo;t be undone.
+            </Low>
+
+            <Low size={12} style={{ marginTop: 16, marginBottom: 7 }}>
+              Type{" "}
+              <Low size={12} weight="medium" color={t.txtHi}>
+                restart
+              </Low>{" "}
+              to confirm
+            </Low>
+            <TextInput
+              value={confirmText}
+              onChangeText={setConfirmText}
+              placeholder="restart"
+              placeholderTextColor={t.txtLow}
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={{
+                fontFamily: t.fonts.medium,
+                fontSize: 15,
+                color: t.txtHi,
+                borderWidth: 1,
+                borderColor: canRestart ? "#ff645f" : t.hair,
+                backgroundColor: t.surface3,
+                borderRadius: 11,
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+              }}
+            />
+
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 18 }}>
+              <Pressable
+                onPress={closeConfirm}
+                style={{
+                  flex: 1,
+                  alignItems: "center",
+                  paddingVertical: 13,
+                  borderRadius: 11,
+                  borderWidth: 1,
+                  borderColor: t.hair,
+                  backgroundColor: t.surface3,
+                }}
+              >
+                <Txt size={14} weight="medium">
+                  Cancel
+                </Txt>
+              </Pressable>
+              <Pressable
+                onPress={doRestart}
+                disabled={!canRestart}
+                style={{
+                  flex: 1,
+                  alignItems: "center",
+                  paddingVertical: 13,
+                  borderRadius: 11,
+                  backgroundColor: canRestart ? "#ff645f" : mix("#ff645f", t.surface2, 0.3),
+                  opacity: canRestart ? 1 : 0.5,
+                }}
+              >
+                <Txt size={14} weight="semibold" color="#ffffff">
+                  Delete & restart
+                </Txt>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Screen>
   );
 }
