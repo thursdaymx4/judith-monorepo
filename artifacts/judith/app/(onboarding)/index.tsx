@@ -216,21 +216,51 @@ const FEATURE_VOICES = [
 ];
 
 /**
+ * Tagalog/Taglish equivalents for every canned onboarding voice line.
+ * Keyed by the English source string. Used by useOnbVoice when language === "fil".
+ */
+const VOICE_LINES_FIL: Record<string, string> = {
+  "Hi \u2014 I\u2019m Judith. I keep your bills organised and make sure you\u2019re never caught off guard by a due date. Let\u2019s get you set up.":
+    "Hi — ako si Judith. Bantayan ko ang lahat ng iyong bills para hindi ka na mahuli sa due date. Tara, simulan na natin.",
+  "I\u2019ll use your location to show the right currency and format your dates the way you\u2019d expect. Just tap your country.":
+    "Gagamitin ko ang iyong lokasyon para sa tamang currency at format ng petsa. I-tap lang ang iyong bansa.",
+  "These are real numbers. A missed payment hits your credit, your wallet, and your peace of mind. I\u2019m here to make sure it never gets to that.":
+    "Tunay na numero ito. Ang isang napalampas na bayad ay nakakaapekto sa iyong credit, pitaka, at kapayapaan ng isip. Nandito ako para hindi na mangyari iyon.",
+  "Alright \u2014 I\u2019ll ask about your bills one by one. Just speak naturally. Tell me the name, the amount, and when it\u2019s due. That\u2019s it.":
+    "Sige — itatanong ko ang bawat bill isa-isa. Magsalita lang nang natural. Sabihin mo ang pangalan, halaga, at kailan due. Iyon lang.",
+  "You\u2019re done. All your bills are in \u2014 you\u2019re already ahead of most people. Let me show you what I\u2019ve got.":
+    "Tapos ka na. Nandito na ang lahat ng bills mo — mas maaga ka na kaysa sa karamihan. Ipapakita ko sa\u2019yo ang resulta.",
+  "Give me just a second \u2014 I\u2019m putting your dashboard together right now.":
+    "Sandali lang — ginagawa ko na ang iyong dashboard ngayon.",
+  "Here\u2019s everything I know about your bills. Take a look \u2014 you can always adjust anything later.":
+    "Ito ang lahat ng alam ko sa iyong mga bills. Tingnan mo — maaari mong baguhin kahit anong oras.",
+  "Try it \u2014 ask me anything about your bills. Just tap the mic and talk.":
+    "Subukan mo — tanungin mo ako tungkol sa iyong mga bills. I-tap lang ang mic at magsalita.",
+  "Ask me which bills are due this week. I know all your due dates.":
+    "Tanungin mo kung aling bills ang due ngayong linggo. Alam ko ang lahat ng due dates mo.",
+  "I can even tell you if it\u2019s safe to spend before a big due date. Ask me anything.":
+    "Masasabi ko rin kung ligtas bang gumastos bago ang malaking due date. Tanungin mo ako ng kahit ano.",
+  "You\u2019ve got eight free asks to start. Want to keep the conversation going? Pick a plan that fits and I\u2019m all yours.":
+    "Mayroon kang walong libreng tanong para magsimula. Gusto mong magpatuloy? Pumili ng plano na angkop sa\u2019yo at para mo na ako.",
+};
+
+/**
  * Plays a short supplementary voice line once when an onboarding screen mounts.
  * Stops any in-progress audio when the screen unmounts so voices never overlap.
  * Safe with React Compiler (no runtime require).
  */
-function useOnbVoice(line: string, persona: PersonaId) {
+function useOnbVoice(line: string, persona: PersonaId, language = "en") {
   const played = useRef(false);
   // Stop whatever is playing when the screen leaves.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => () => { stopCurrentAudio(); }, []);
-  // Fire the TTS exactly once per mount.
+  // Fire the TTS exactly once per mount, in the chosen language.
   useEffect(() => {
     if (played.current) return;
     played.current = true;
     let cancelled = false;
-    synthOnboarding(line, persona)
+    const utterance = (language === "fil" ? VOICE_LINES_FIL[line] : undefined) ?? line;
+    synthOnboarding(utterance, persona)
       .then(({ audioBase64 }) => {
         if (!cancelled) playBase64Mp3(audioBase64).catch(() => {});
       })
@@ -596,7 +626,7 @@ function VoiceBars({ accent, on = true }: { accent: string; on?: boolean }) {
 /* ================================================================== */
 
 function ScreenWelcome({ ctx }: { ctx: Ctx }) {
-  useOnbVoice("Hi — I\u2019m Judith. I keep your bills organised and make sure you\u2019re never caught off guard by a due date. Let\u2019s get you set up.", ctx.persona);
+  useOnbVoice("Hi — I\u2019m Judith. I keep your bills organised and make sure you\u2019re never caught off guard by a due date. Let\u2019s get you set up.", ctx.persona, ctx.language);
   const popScale   = useRef(new Animated.Value(0.8)).current;
   const popOpacity = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -636,7 +666,7 @@ function ScreenWelcome({ ctx }: { ctx: Ctx }) {
 
 function ScreenCountry({ ctx }: { ctx: Ctx }) {
   const { t, country, setCountry, next } = ctx;
-  useOnbVoice("I\u2019ll use your location to show the right currency and format your dates the way you\u2019d expect. Just tap your country.", ctx.persona);
+  useOnbVoice("I\u2019ll use your location to show the right currency and format your dates the way you\u2019d expect. Just tap your country.", ctx.persona, ctx.language);
   const [q, setQ] = useState("");
   const list = COUNTRIES.filter((c) =>
     c.name.toLowerCase().includes(q.toLowerCase()),
@@ -950,7 +980,7 @@ function ScreenLateFee({ ctx }: { ctx: Ctx }) {
 /* ================================================================== */
 
 function ScreenProblem({ ctx }: { ctx: Ctx }) {
-  const { t, next } = ctx;
+  const { t, persona, next } = ctx;
   const cur = ctx.country.cur;
   const [answered, setAnswered] = useState<boolean | null>(null);
   const rows = [
@@ -1021,7 +1051,8 @@ function ScreenProblem({ ctx }: { ctx: Ctx }) {
   return (
     <>
       <Scroll center>
-        <Kicker style={{ textAlign: "center" }}>Quick question</Kicker>
+        <JudithAvatar persona={persona} size={64} state="idle" />
+        <Kicker style={{ textAlign: "center", marginTop: 14 }}>Quick question</Kicker>
         <Title style={{ maxWidth: 300, textAlign: "center" }}>
           Do you know your total bills due next month?
         </Title>
@@ -1089,9 +1120,9 @@ function ScreenProblem({ ctx }: { ctx: Ctx }) {
 /* ================================================================== */
 
 function ScreenStakes({ ctx }: { ctx: Ctx }) {
-  const { t, next } = ctx;
+  const { t, persona, next } = ctx;
   const cur = ctx.country.cur;
-  useOnbVoice("These are real numbers. A missed payment hits your credit, your wallet, and your peace of mind. I\u2019m here to make sure it never gets to that.", ctx.persona);
+  useOnbVoice("These are real numbers. A missed payment hits your credit, your wallet, and your peace of mind. I\u2019m here to make sure it never gets to that.", persona, ctx.language);
   const [committed, setCommitted] = useState(false);
 
   /* commit animation values */
@@ -1140,7 +1171,8 @@ function ScreenStakes({ ctx }: { ctx: Ctx }) {
   return (
     <>
       <Scroll center>
-        <Kicker style={{ textAlign: "center" }}>The fork</Kicker>
+        <JudithAvatar persona={persona} size={64} state="idle" />
+        <Kicker style={{ textAlign: "center", marginTop: 14 }}>The fork</Kicker>
         <Title style={{ maxWidth: 300, textAlign: "center" }}>
           What if you keep going this way?
         </Title>
@@ -1238,8 +1270,8 @@ function ScreenStakes({ ctx }: { ctx: Ctx }) {
 /* ================================================================== */
 
 function ScreenIntro({ ctx }: { ctx: Ctx }) {
-  const { t, persona, next } = ctx;
-  useOnbVoice("Alright \u2014 I\u2019ll ask about your bills one by one. Just speak naturally. Tell me the name, the amount, and when it\u2019s due. That\u2019s it.", persona);
+  const { t, persona, language, next } = ctx;
+  useOnbVoice("Alright \u2014 I\u2019ll ask about your bills one by one. Just speak naturally. Tell me the name, the amount, and when it\u2019s due. That\u2019s it.", persona, language);
   return (
     <>
       <Scroll center>
@@ -2057,9 +2089,9 @@ function billData(bills: OnbBill[]): { amount: number; provider: string; cat: st
 }
 
 function ScreenCongrats({ ctx }: { ctx: Ctx }) {
-  const { t, persona, bills, next } = ctx;
+  const { t, persona, language, bills, next } = ctx;
   const cur = ctx.country.cur;
-  useOnbVoice("You\u2019re done. All your bills are in \u2014 you\u2019re already ahead of most people. Let me show you what I\u2019ve got.", persona);
+  useOnbVoice("You\u2019re done. All your bills are in \u2014 you\u2019re already ahead of most people. Let me show you what I\u2019ve got.", persona, language);
   const data = billData(bills);
   const total = data.reduce((s, b) => s + b.amount, 0);
   return (
@@ -2092,8 +2124,8 @@ function ScreenCongrats({ ctx }: { ctx: Ctx }) {
 /* ================================================================== */
 
 function ScreenPersonalizing({ ctx }: { ctx: Ctx }) {
-  const { t, persona, next } = ctx;
-  useOnbVoice("Give me just a second \u2014 I\u2019m putting your dashboard together right now.", persona);
+  const { t, persona, language, next } = ctx;
+  useOnbVoice("Give me just a second \u2014 I\u2019m putting your dashboard together right now.", persona, language);
   const [step, setStep] = useState(0);
   const [pct, setPct] = useState(0);
   useEffect(() => {
@@ -2126,7 +2158,7 @@ function ScreenPersonalizing({ ctx }: { ctx: Ctx }) {
 
 function ScreenSummary({ ctx }: { ctx: Ctx }) {
   const { t, bills, next } = ctx;
-  useOnbVoice("Here\u2019s everything I know about your bills. Take a look \u2014 you can always adjust anything later.", ctx.persona);
+  useOnbVoice("Here\u2019s everything I know about your bills. Take a look \u2014 you can always adjust anything later.", ctx.persona, ctx.language);
   const cur = ctx.country.cur;
   const data = billData(bills);
   const total = data.reduce((s, b) => s + b.amount, 0);
@@ -2233,8 +2265,8 @@ function FeatureShell({
   a: string;
   mood: "warm" | "proud" | "joy";
 }) {
-  const { t, persona, next, bills } = ctx;
-  useOnbVoice(FEATURE_VOICES[dotIdx] ?? FEATURE_VOICES[0]!, persona);
+  const { t, persona, language, next, bills } = ctx;
+  useOnbVoice(FEATURE_VOICES[dotIdx] ?? FEATURE_VOICES[0]!, persona, language);
 
   /* ── demo float animation (shown before first real ask) ── */
   const floatY  = useRef(new Animated.Value(0)).current;
@@ -2602,9 +2634,9 @@ function ScreenFeature3({ ctx }: { ctx: Ctx }) {
 /* ================================================================== */
 
 function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
-  const { t, persona, next } = ctx;
+  const { t, persona, language, next } = ctx;
   const cur = ctx.country.cur;
-  useOnbVoice("You\u2019ve got eight free asks to start. Want to keep the conversation going? Pick a plan that fits and I\u2019m all yours.", persona);
+  useOnbVoice("You\u2019ve got eight free asks to start. Want to keep the conversation going? Pick a plan that fits and I\u2019m all yours.", persona, language);
   const [pick, setPick] = useState("plus");
   const tiers = [
     { id: "plus", name: "Judith+", price: 99, asks: "50 voice asks / month", sub: "Plenty for most months", tag: undefined as string | undefined },
