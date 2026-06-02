@@ -580,6 +580,18 @@ interface Ctx {
 /* ------------------------------------------------------------------ */
 
 /**
+ * Returns true when the STT transcription is purely background-noise annotations
+ * and contains no real speech. Strips parenthetical/bracketed sound descriptions
+ * like "(beep)", "(footsteps thudding)", "[laughter]", etc., then checks whether
+ * any letter/digit characters remain. Discarding these prevents noise from being
+ * parsed as a bill entry or sent to Judith.
+ */
+function isNoiseTranscript(text: string): boolean {
+  const stripped = text.replace(/\([^)]*\)|\[[^\]]*\]/g, "").trim();
+  return (stripped.match(/[\p{L}\p{N}]/gu) ?? []).length < 2;
+}
+
+/**
  * Animated voice equaliser bars — prototype `.vo-wave.on i` / `voBar` keyframe.
  * Each bar loops height 7px → 24px → 7px (700ms), staggered by 100ms per bar.
  */
@@ -2058,7 +2070,14 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   };
 
   const stopListening = async () => {
-    clearVad(); // cancel any pending silence timer
+    const hadSpeech = silenceRef.current.hasSpeech;
+    clearVad();
+    // VAD detected no real speech above threshold — stop silently without transcribing.
+    if (!hadSpeech) {
+      await recorder.stop().catch(() => {});
+      setMode("prompt");
+      return;
+    }
     setMode("transcribing");
     try {
       await recorder.stop();
@@ -2066,6 +2085,11 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       if (!uri) throw new Error("No audio captured");
       const base64 = await fileToBase64(uri);
       const { text } = await transcribeOnboarding(base64, "audio/m4a", sttHint(language));
+      // Discard if transcription is only background-noise annotations
+      if (!text?.trim() || isNoiseTranscript(text)) {
+        setMode("prompt");
+        return;
+      }
       setHeardText(text);
       /* Parse transcribed text into structured bill fields */
       try {

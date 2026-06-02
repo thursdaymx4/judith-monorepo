@@ -21,6 +21,17 @@ import { fileToBase64, playBase64Mp3 } from "@/lib/audio";
 import { type AskBill, askJudith, parseSubscriptionScreenshot, transcribe } from "@/lib/proxy";
 import { sttHint } from "@/constants/languages";
 
+/**
+ * Returns true when the STT transcription is purely background-noise annotations
+ * and contains no real speech. Strips parenthetical/bracketed sound descriptions
+ * like "(beep)", "(footsteps thudding)", "[laughter]", etc., then checks whether
+ * any letter/digit characters remain. Discarding these prevents sending noise to Judith.
+ */
+function isNoiseTranscript(text: string): boolean {
+  const stripped = text.replace(/\([^)]*\)|\[[^\]]*\]/g, "").trim();
+  return (stripped.match(/[\p{L}\p{N}]/gu) ?? []).length < 2;
+}
+
 interface ScanRow {
   provider: string;
   amount: string;
@@ -282,8 +293,15 @@ export default function AskModal() {
   };
 
   const stopRecording = async () => {
-    clearVad(); // cancel any pending silence timer
+    const hadSpeech = silenceRef.current.hasSpeech;
+    clearVad();
     setRecording(false);
+    // VAD detected no real speech above threshold — stop recorder silently,
+    // do not transcribe or show an error.
+    if (!hadSpeech) {
+      await recorder.stop().catch(() => {});
+      return;
+    }
     setBusy(true);
     try {
       await recorder.stop();
@@ -292,7 +310,9 @@ export default function AskModal() {
       const base64 = await fileToBase64(uri);
       const { text } = await transcribe(base64, "audio/m4a", sttHint(language));
       setBusy(false);
-      if (text?.trim()) await ask(text);
+      // Discard transcriptions that are only background-noise annotations
+      // e.g. "(beep) (footsteps thudding)" → stripped → "" → noise
+      if (text?.trim() && !isNoiseTranscript(text)) await ask(text);
     } catch (e) {
       setBusy(false);
       setErr(`Couldn't transcribe that: ${String((e as Error)?.message ?? e)}`);
