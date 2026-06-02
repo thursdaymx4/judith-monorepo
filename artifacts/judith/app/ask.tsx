@@ -5,7 +5,7 @@ import {
   useAudioRecorder,
 } from "expo-audio";
 import { useRouter } from "expo-router";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -33,7 +33,7 @@ export default function AskModal() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { bills, asksLeft, tier, persona, language, consumeAsk } = useJudith();
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
 
   const unlimited = tier === "unlimited";
   const locked = !unlimited && asksLeft <= 0;
@@ -45,6 +45,14 @@ export default function AskModal() {
   const [recording, setRecording] = useState(false);
   const [err, setErr] = useState("");
   const scrollRef = useRef<ScrollView>(null);
+
+  const vadIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const silenceRef = useRef<{ timer: ReturnType<typeof setTimeout> | null; hasSpeech: boolean }>({ timer: null, hasSpeech: false });
+  const clearVad = () => {
+    if (vadIntervalRef.current !== null) { clearInterval(vadIntervalRef.current); vadIntervalRef.current = null; }
+    if (silenceRef.current.timer !== null) { clearTimeout(silenceRef.current.timer); silenceRef.current.timer = null; }
+  };
+  useEffect(() => clearVad, []);
 
   const started = messages.length > 0 || busy;
   const p = getPersona(persona);
@@ -118,12 +126,34 @@ export default function AskModal() {
       await recorder.prepareToRecordAsync();
       recorder.record();
       setRecording(true);
+      // ── Auto-stop after a natural pause (Voice Activity Detection) ────
+      clearVad();
+      silenceRef.current = { timer: null, hasSpeech: false };
+      const vadStart = Date.now();
+      const VAD_THRESHOLD_DB = -50;  // dBFS; below this = silence
+      const VAD_MIN_MS = 800;        // ignore first 800 ms while mic settles
+      const VAD_SILENCE_MS = 3000;   // 3 s of silence after speech → auto-stop
+      vadIntervalRef.current = setInterval(() => {
+        if (Date.now() - vadStart < VAD_MIN_MS) return;
+        const db = recorder.getStatus().metering;
+        if (db == null) return; // device doesn't support metering
+        if (db > VAD_THRESHOLD_DB) {
+          silenceRef.current.hasSpeech = true;
+          if (silenceRef.current.timer !== null) { clearTimeout(silenceRef.current.timer); silenceRef.current.timer = null; }
+        } else if (silenceRef.current.hasSpeech && silenceRef.current.timer === null) {
+          silenceRef.current.timer = setTimeout(() => {
+            clearVad();
+            void stopRecordingRef.current();
+          }, VAD_SILENCE_MS);
+        }
+      }, 100);
     } catch (e) {
       setErr(`Couldn't start recording: ${String((e as Error)?.message ?? e)}`);
     }
   };
 
   const stopRecording = async () => {
+    clearVad(); // cancel any pending silence timer
     setRecording(false);
     setBusy(true);
     try {
@@ -139,6 +169,9 @@ export default function AskModal() {
       setErr(`Couldn't transcribe that: ${String((e as Error)?.message ?? e)}`);
     }
   };
+  // Ref so the VAD interval always calls the latest stopRecording closure
+  const stopRecordingRef = useRef(stopRecording);
+  useEffect(() => { stopRecordingRef.current = stopRecording; });
 
   const micState = recording ? "listening" : busy ? "speaking" : "idle";
 
