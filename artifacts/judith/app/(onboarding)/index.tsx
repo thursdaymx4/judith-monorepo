@@ -240,29 +240,29 @@ const FEATURE_VOICES = [
  */
 const VOICE_LINES_FIL: Record<string, string> = {
   "Hi \u2014 I\u2019m Judith. I keep your bills organised and make sure you\u2019re never caught off guard by a due date. Let\u2019s get you set up.":
-    "Hi — ako si Judith. Bantayan ko ang lahat ng iyong bills para hindi ka na mahuli sa due date. Tara, simulan na natin.",
+    "Hi — ako si Judith. Aabangan ko ang lahat ng iyong bills para hindi ka mahisurpresa sa due date. Tara, magsimula na tayo.",
   "I\u2019ll use your location to show the right currency and format your dates the way you\u2019d expect. Just tap your country.":
-    "Gagamitin ko ang iyong lokasyon para sa tamang currency at format ng petsa. I-tap lang ang iyong bansa.",
+    "Para sa tamang currency at date format, i-tap lang ang iyong bansa.",
   "These are real numbers. A missed payment hits your credit, your wallet, and your peace of mind. I\u2019m here to make sure it never gets to that.":
-    "Tunay na numero ito. Ang isang napalampas na bayad ay nakakaapekto sa iyong credit, pitaka, at kapayapaan ng isip. Nandito ako para hindi na mangyari iyon.",
+    "Totoo ang mga numerong ito. Ang isang missed payment nakaka-apekto sa iyong credit, wallet, at peace of mind. Nandito ako para hindi na mangyari iyon.",
   "Alright \u2014 I\u2019ll ask about your bills one by one. Just speak naturally. Tell me the name, the amount, and when it\u2019s due. That\u2019s it.":
-    "Sige — itatanong ko ang bawat bill isa-isa. Magsalita lang nang natural. Sabihin mo ang pangalan, halaga, at kailan due. Iyon lang.",
+    "Sige — tatanungin kita tungkol sa bawat bill isa-isa. Natural lang magsalita. Sabihin ang pangalan, halaga, at kailan due. Iyon lang.",
   "You\u2019re done. All your bills are in \u2014 you\u2019re already ahead of most people. Let me show you what I\u2019ve got.":
-    "Tapos ka na. Nandito na ang lahat ng bills mo — mas maaga ka na kaysa sa karamihan. Ipapakita ko sa\u2019yo ang resulta.",
+    "Tapos na! Kumpleto na ang lahat ng bills mo — mas handa ka na kaysa sa karamihan. Ipapakita ko sa\u2019yo lahat.",
   "Give me just a second \u2014 I\u2019m putting your dashboard together right now.":
-    "Sandali lang — ginagawa ko na ang iyong dashboard ngayon.",
+    "Sandali lang — ginagawa ko na ang iyong dashboard.",
   "Here\u2019s everything I know about your bills. Take a look \u2014 you can always adjust anything later.":
-    "Ito ang lahat ng alam ko sa iyong mga bills. Tingnan mo — maaari mong baguhin kahit anong oras.",
+    "Ito na ang lahat ng bills mo. Tingnan mo — pwede mo itong i-adjust kahit kailan.",
   "Go ahead \u2014 tap the mic and just talk to me. Ask anything. I'm listening.":
-    "Sige — i-tap ang mic at kausapin mo ako. Tanungin mo ako ng kahit ano. Nakikinig ako.",
+    "Sige — i-tap ang mic at kausapin mo ako. Kahit anong tanong. Nakikinig ako.",
   "Try asking 'what\u2019s due this week?' I'll tell you everything, right now.":
-    "Subukan mong itanong: 'Ano ang due ngayong linggo?' Sasabihin ko sa'yo lahat, ngayon na.",
+    "Subukan mo: 'Ano ang due ngayong linggo?' Sasabihin ko lahat sa\u2019yo, agad.",
   "Ask me if it\u2019s safe to spend before payday. I'll check what\u2019s coming and give you a straight answer.":
-    "Tanungin mo ako kung ligtas bang gumastos bago sweldo. Titingnan ko ang mga darating at susugurin kita.",
+    "Tanungin mo ako kung kaya pang gumastos bago mag-sweldo. Titingnan ko ang lahat at didiretso ang sagot ko.",
   "You\u2019ve got eight free asks to start. Want to keep the conversation going? Pick a plan that fits and I\u2019m all yours.":
-    "Mayroon kang walong libreng tanong para magsimula. Gusto mong magpatuloy? Pumili ng plano na angkop sa\u2019yo at para mo na ako.",
+    "Walo kang libreng tanong para magsimula. Gusto pang magpatuloy? Pumili ng plano na bagay sa\u2019yo at akin ka na.",
   "One more thing \u2014 what should I call you?":
-    "Isa pa \u2014 ano ang dapat kong itawag sa iyo?",
+    "Isa pa \u2014 ano ang itatawagin kita?",
 };
 
 /**
