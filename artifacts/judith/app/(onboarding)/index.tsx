@@ -169,6 +169,7 @@ const VLOCAL = {
   lblD: "Due",
   lblC: "Category",
   monthly: "monthly",
+  annually: "annually",
 };
 
 const MANUAL_CATS: { cat: string; icon: string }[] = [
@@ -292,6 +293,7 @@ interface OnbBill {
   due: string;
   dueDays: number;
   kind: "Fixed" | "Variable";
+  frequency?: "monthly" | "annual";
   subtype?: string;
   house?: string;
 }
@@ -1374,6 +1376,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     amount: number | null;
     dueDay: number | null;
     kind: "Fixed" | "Variable";
+    frequency?: "monthly" | "annual";
     skip?: boolean;
   } | null>(null);
   const [formCat, setFormCat] = useState<{ cat: string; icon: string } | null>(null);
@@ -1441,6 +1444,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       due: parsedBill?.dueDay != null ? ordinal(parsedBill.dueDay) : sample.due,
       dueDays: parsedBill?.dueDay ?? sample.dueDays,
       kind: parsedBill?.kind ?? kindFor(sample.cat),
+      frequency: parsedBill?.frequency ?? "monthly",
       subtype: sample.subtype,
       house: HOUSES[0],
     });
@@ -1512,9 +1516,10 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
           cat: "Phone subscription",
           icon: "spark",
           amount: sub.amount ?? 0,
-          due: sub.dueDay ? ordinal(sub.dueDay) : "monthly",
+          due: sub.dueDay ? ordinal(sub.dueDay) : (sub.frequency === "annual" ? "annual" : "monthly"),
           dueDays: sub.dueDay ?? 20,
           kind: "Fixed",
+          frequency: sub.frequency ?? "monthly",
         });
       }
       setScreenshotBills(subscriptions);
@@ -1733,7 +1738,9 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                 </PCell>
                 <PCell label={VLOCAL.lblD} delay={160}>
                   <Txt size={17} weight="semibold">
-                    {parsedBill?.dueDay != null ? ordinal(parsedBill.dueDay) : sample.due} · {VLOCAL.monthly}
+                    {parsedBill?.frequency === "annual"
+                      ? (parsedBill.dueDay != null ? ordinal(parsedBill.dueDay) + " · " : "") + VLOCAL.annually
+                      : (parsedBill?.dueDay != null ? ordinal(parsedBill.dueDay) : sample.due) + " · " + VLOCAL.monthly}
                   </Txt>
                 </PCell>
                 <PCell label="Type" delay={240}>

@@ -398,23 +398,26 @@ router.post("/parse-bill", async (req, res) => {
       system: `You are a structured bill-detail extractor for a Filipino household budgeting app. The user just described a bill by voice during onboarding.
 
 Return ONLY a single valid JSON object — no markdown fences, no explanation, no extra text:
-{"provider":string|null,"amount":number|null,"dueDay":number|null,"kind":"Fixed"|"Variable","skip":boolean}
+{"provider":string|null,"amount":number|null,"dueDay":number|null,"kind":"Fixed"|"Variable","frequency":"monthly"|"annual","skip":boolean}
 
 Extraction rules:
 - provider: ONLY the exact company, bank, landlord, or service name the user EXPLICITLY SAID (e.g. "Meralco", "PLDT", "Globe", "Manila Water", "BPI", "Ayala"). If they did NOT name a specific provider — even if you know common providers for this category — return null. The category field is context only; it MUST NEVER influence or suggest the provider value. NEVER invent, infer, or guess a provider name.
 - amount: the Philippine Peso amount as a plain integer. Convert English number words precisely: "ten thousand" → 10000, "five hundred" → 500, "three thousand five hundred" → 3500. If no amount was mentioned, return null.
 - dueDay: the day of month (1–31) from ordinals or cardinals the user said: "fifteenth" → 15, "the 25th" → 25, "every 5th" → 5. If no due date was mentioned, return null.
-- kind: "Fixed" if the amount is constant every month; "Variable" if it fluctuates (e.g. electricity, water).
+- kind: "Fixed" if the amount is constant; "Variable" if it fluctuates (e.g. electricity, water).
+- frequency: "annual" if the user said "every year", "yearly", "annually", "per year", "isang beses sa isang taon", or similar annual cadence; "monthly" for all other cases.
 - skip: true ONLY if the user indicated they have NO payment for this category (e.g. "I own my house", "I own it outright", "no mortgage", "wala akong utang", "no rent", "hindi ko binabayaran"). False in all other cases.
 
 Examples:
-User said: "ten thousand pesos every twenty-fifth of the month" → {"provider":null,"amount":10000,"dueDay":25,"kind":"Fixed","skip":false}
-User said: "Meralco around three thousand five hundred due on the 20th" → {"provider":"Meralco","amount":3500,"dueDay":20,"kind":"Variable","skip":false}
-User said: "PLDT fiber one thousand six hundred ninety nine due 28th" → {"provider":"PLDT","amount":1699,"dueDay":28,"kind":"Fixed","skip":false}
-User said: "about five thousand for Globe" → {"provider":"Globe","amount":5000,"dueDay":null,"kind":"Fixed","skip":false}
-User said: "I own my house, no mortgage" → {"provider":null,"amount":null,"dueDay":null,"kind":"Fixed","skip":true}
-User said: "sarili ko yung bahay" → {"provider":null,"amount":null,"dueDay":null,"kind":"Fixed","skip":true}
-User said: "I don't know the exact amount" → {"provider":null,"amount":null,"dueDay":null,"kind":"Fixed","skip":false}`,
+User said: "ten thousand pesos every twenty-fifth of the month" → {"provider":null,"amount":10000,"dueDay":25,"kind":"Fixed","frequency":"monthly","skip":false}
+User said: "Meralco around three thousand five hundred due on the 20th" → {"provider":"Meralco","amount":3500,"dueDay":20,"kind":"Variable","frequency":"monthly","skip":false}
+User said: "PLDT fiber one thousand six hundred ninety nine due 28th" → {"provider":"PLDT","amount":1699,"dueDay":28,"kind":"Fixed","frequency":"monthly","skip":false}
+User said: "about five thousand for Globe" → {"provider":"Globe","amount":5000,"dueDay":null,"kind":"Fixed","frequency":"monthly","skip":false}
+User said: "Canva two thousand pesos every year" → {"provider":"Canva","amount":2000,"dueDay":null,"kind":"Fixed","frequency":"annual","skip":false}
+User said: "Netflix yearly plan five hundred ninety five" → {"provider":"Netflix","amount":595,"dueDay":null,"kind":"Fixed","frequency":"annual","skip":false}
+User said: "I own my house, no mortgage" → {"provider":null,"amount":null,"dueDay":null,"kind":"Fixed","frequency":"monthly","skip":true}
+User said: "sarili ko yung bahay" → {"provider":null,"amount":null,"dueDay":null,"kind":"Fixed","frequency":"monthly","skip":true}
+User said: "I don't know the exact amount" → {"provider":null,"amount":null,"dueDay":null,"kind":"Fixed","frequency":"monthly","skip":false}`,
       messages: [
         {
           role: "user",
@@ -442,6 +445,7 @@ User said: "I don't know the exact amount" → {"provider":null,"amount":null,"d
       amount,
       dueDay: parsed["dueDay"] != null ? Number(parsed["dueDay"]) : null,
       kind: parsed["kind"] === "Variable" ? "Variable" : "Fixed",
+      frequency: parsed["frequency"] === "annual" ? "annual" : "monthly",
       skip: parsed["skip"] === true,
     });
   } catch (err) {
@@ -524,6 +528,7 @@ Rules:
 - provider: the service/app name exactly as shown (e.g. "YouTube Premium", "Spotify", "iCloud+", "Netflix")
 - amount: the numeric price as a plain number (e.g. 249 for ₱249.00 or $2.99). Null if not shown.
 - dueDay: the calendar day (1-31) it renews, extracted from the renewal date shown (e.g. "Renews 30 June" → 30, "Renews 11 May 2027" → 11). Null if not determinable.
+- frequency: "annual" if the subscription renews yearly (e.g. "Renews 11 May 2027", "Annual", "Yearly"); "monthly" if it renews every month (e.g. "Renews 15 Jul", "Monthly"). Default to "monthly" if not determinable.
 - Include ONLY active/current subscriptions. Ignore expired, inactive, or cancelled ones entirely.
 - Return [] if no active subscriptions are visible.`,
             },
@@ -549,6 +554,7 @@ Rules:
         dueDay: s["dueDay"] != null && Number(s["dueDay"]) >= 1 && Number(s["dueDay"]) <= 31
           ? Number(s["dueDay"])
           : null,
+        frequency: s["frequency"] === "annual" ? ("annual" as const) : ("monthly" as const),
       }));
     res.json({ subscriptions });
   } catch (err) {
