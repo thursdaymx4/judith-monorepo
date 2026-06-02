@@ -108,13 +108,15 @@ export default function HomeScreen() {
     .filter((b) => b.status !== "paid")
     .slice()
     .sort((a, b) => a.dueDays - b.dueDays);
-  const total = due.reduce((s, b) => s + b.amount, 0);
+  // Remaining balance per bill (full amount minus any partial payment already made)
+  const remaining = (b: Bill) => totalOwed(b) - (b.amountPaid ?? 0);
+  const total = due.reduce((s, b) => s + remaining(b), 0);
   const week = due.filter((b) => b.dueDays >= 0 && b.dueDays <= 7);
-  const weekSum = week.reduce((s, b) => s + b.amount, 0);
+  const weekSum = week.reduce((s, b) => s + remaining(b), 0);
   const soon = due.filter((b) => b.dueDays <= 3).length;
 
   const overdue = due.filter((b) => b.dueDays < 0);
-  const overdueTotal = overdue.reduce((s, b) => s + totalOwed(b), 0);
+  const overdueTotal = overdue.reduce((s, b) => s + remaining(b), 0);
   const openOverdue = () =>
     overdue.length === 1
       ? router.push(`/bill/${overdue[0]!.id}`)
@@ -122,8 +124,12 @@ export default function HomeScreen() {
 
   const paid = bills.filter((b) => b.status === "paid");
   const unpaid = bills.filter((b) => b.status !== "paid");
-  const paidAmt = paid.reduce((s, b) => s + b.amount, 0);
-  const unpaidAmt = unpaid.reduce((s, b) => s + b.amount, 0);
+  // paidAmt includes fully paid bills + partial payments already made on unpaid bills
+  const paidAmt =
+    paid.reduce((s, b) => s + b.amount, 0) +
+    unpaid.reduce((s, b) => s + (b.amountPaid ?? 0), 0);
+  // unpaidAmt is only the remaining balance, not the full original amount
+  const unpaidAmt = unpaid.reduce((s, b) => s + remaining(b), 0);
   const grand = paidAmt + unpaidAmt;
   const pct = grand > 0 ? Math.round((paidAmt / grand) * 100) : 0;
 
