@@ -2335,16 +2335,16 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     : phase === "cards"
       ? isFil
         ? cardDone === 0
-          ? "Una — anong bangko, magkano ang due?"
-          : `Card ${cardDone + 1} — anong bangko?`
+          ? "Sa una mong card, what's your bank, due date and amount due?"
+          : `Card ${cardDone + 1} — same details: bank, amount, at kelan due?`
         : cardDone === 0
           ? "First card — which bank, and what's the amount due?"
           : `Card ${cardDone + 1} — same thing, which bank?`
       : phase === "loans"
         ? isFil
           ? loanDone === 0
-            ? "Una — sino nagpahiram, magkano monthly?"
-            : `Loan ${loanDone + 1} — sino at magkano?`
+            ? "Sinong nag pahiram sayo, magkano monthly at tuwing kelan mo kailangan bayaran?"
+            : `Loan ${loanDone + 1} — sino pa, magkano monthly, at kelan?`
           : loanDone === 0
             ? "First loan — lender and monthly payment?"
             : `Loan ${loanDone + 1} — same, who and how much?`

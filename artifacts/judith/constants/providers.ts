@@ -501,10 +501,7 @@ const SAMPLES_PH: OBSample[] = [
   { group: 0, provider: "PLDT Home",     cat: "Internet",                         icon: "wifi",       amount: 1699,  due: "5th",  dueDays: 25, utter: "My PLDT internet, 1,699, on the 5th.",                     toks: ["PLDT", "1,699", "5th"] },
   { group: 1, provider: "Globe Postpaid",cat: "Mobile",                           icon: "smartphone", amount: 1299,  due: "18th", dueDays: 8,  utter: "My Globe phone plan, 1,299, every 18th.",                  toks: ["Globe", "1,299", "18th"] },
   { group: 1, provider: "iCloud+",       cat: "Phone subscription",               icon: "spark",      amount: 149,   due: "1st",  dueDays: 14, utter: "iCloud storage, 149, on the 1st.",                        toks: ["iCloud", "149", "1st"] },
-  { group: 1, provider: "Spotify",       cat: "Phone subscription",               icon: "spark",      amount: 194,   due: "7th",  dueDays: 20, utter: "Spotify Premium, 194, every 7th.",                        toks: ["Spotify", "194", "7th"] },
-  { group: 1, provider: "Netflix",       cat: "TV / Streaming",                   icon: "spark",      amount: 549,   due: "28th", dueDays: 11, utter: "Netflix, 549, on the 28th.",                              toks: ["Netflix", "549", "28th"] },
-  { group: 1, provider: "Disney+",       cat: "TV / Streaming",                   icon: "spark",      amount: 369,   due: "12th", dueDays: 2,  utter: "Disney Plus, 369, the 12th.",                             toks: ["Disney", "369", "12th"] },
-  { group: 1, provider: "Canva Pro",     cat: "Web app",                          icon: "spark",      amount: 199,   due: "9th",  dueDays: 22, utter: "Canva Pro, 199, every 9th.",                              toks: ["Canva", "199", "9th"] },
+  { group: 1, provider: "Canva Pro",     cat: "Web app",                          icon: "spark",      amount: 199,   due: "9th",  dueDays: 22, utter: "Canva Pro, 199, every 9th?",                              toks: ["Canva", "199", "9th"] },
 ];
 
 const SAMPLES_US: OBSample[] = [
@@ -514,10 +511,7 @@ const SAMPLES_US: OBSample[] = [
   { group: 0, provider: "Xfinity",        cat: "Internet",                         icon: "wifi",       amount: 79,   due: "5th",  dueDays: 25, utter: "My Xfinity internet, seventy-nine, on the 5th.",         toks: ["Xfinity", "seventy-nine", "5th"] },
   { group: 1, provider: "AT&T",           cat: "Mobile",                           icon: "smartphone", amount: 65,   due: "18th", dueDays: 8,  utter: "My AT&T phone plan, sixty-five, every 18th.",            toks: ["AT&T", "sixty-five", "18th"] },
   { group: 1, provider: "iCloud+",        cat: "Phone subscription",               icon: "spark",      amount: 3,    due: "1st",  dueDays: 14, utter: "iCloud Plus, three dollars, on the 1st.",               toks: ["iCloud", "three dollars", "1st"] },
-  { group: 1, provider: "Spotify",        cat: "Phone subscription",               icon: "spark",      amount: 12,   due: "7th",  dueDays: 20, utter: "Spotify Premium, twelve dollars, every 7th.",           toks: ["Spotify", "twelve dollars", "7th"] },
-  { group: 1, provider: "Netflix",        cat: "TV / Streaming",                   icon: "spark",      amount: 16,   due: "28th", dueDays: 11, utter: "Netflix, sixteen dollars, the 28th.",                   toks: ["Netflix", "sixteen", "28th"] },
-  { group: 1, provider: "Disney+",        cat: "TV / Streaming",                   icon: "spark",      amount: 11,   due: "12th", dueDays: 2,  utter: "Disney Plus, eleven dollars, the 12th.",                toks: ["Disney", "eleven", "12th"] },
-  { group: 1, provider: "Microsoft 365",  cat: "Web app",                          icon: "spark",      amount: 10,   due: "9th",  dueDays: 22, utter: "Microsoft 365, ten dollars, every 9th.",                toks: ["Microsoft", "ten dollars", "9th"] },
+  { group: 1, provider: "Microsoft 365",  cat: "Web app",                          icon: "spark",      amount: 10,   due: "9th",  dueDays: 22, utter: "Microsoft 365, ten dollars, every 9th?",                toks: ["Microsoft", "ten dollars", "9th"] },
 ];
 
 const SAMPLES_SG: OBSample[] = [
@@ -527,10 +521,7 @@ const SAMPLES_SG: OBSample[] = [
   { group: 0, provider: "Singtel",      cat: "Internet",                          icon: "wifi",       amount: 50,   due: "5th",  dueDays: 25, utter: "My Singtel fibre, fifty dollars, on the 5th.",              toks: ["Singtel", "fifty", "5th"] },
   { group: 1, provider: "StarHub",      cat: "Mobile",                            icon: "smartphone", amount: 45,   due: "18th", dueDays: 8,  utter: "StarHub mobile, forty-five dollars, every 18th.",           toks: ["StarHub", "forty-five", "18th"] },
   { group: 1, provider: "iCloud+",      cat: "Phone subscription",                icon: "spark",      amount: 4,    due: "1st",  dueDays: 14, utter: "iCloud Plus, four dollars, on the 1st.",                   toks: ["iCloud", "four dollars", "1st"] },
-  { group: 1, provider: "Spotify",      cat: "Phone subscription",                icon: "spark",      amount: 10,   due: "7th",  dueDays: 20, utter: "Spotify, ten dollars, every 7th.",                         toks: ["Spotify", "ten dollars", "7th"] },
-  { group: 1, provider: "Netflix",      cat: "TV / Streaming",                    icon: "spark",      amount: 15,   due: "28th", dueDays: 11, utter: "Netflix, fifteen dollars, the 28th.",                       toks: ["Netflix", "fifteen", "28th"] },
-  { group: 1, provider: "Disney+",      cat: "TV / Streaming",                    icon: "spark",      amount: 12,   due: "12th", dueDays: 2,  utter: "Disney Plus, twelve dollars, the 12th.",                    toks: ["Disney", "twelve", "12th"] },
-  { group: 1, provider: "Google One",   cat: "Web app",                           icon: "spark",      amount: 3,    due: "9th",  dueDays: 22, utter: "Google One, three dollars, every 9th.",                    toks: ["Google One", "three dollars", "9th"] },
+  { group: 1, provider: "Google One",   cat: "Web app",                           icon: "spark",      amount: 3,    due: "9th",  dueDays: 22, utter: "Google One, three dollars, every 9th?",                    toks: ["Google One", "three dollars", "9th"] },
 ];
 
 const SAMPLES_AU: OBSample[] = [
@@ -540,10 +531,7 @@ const SAMPLES_AU: OBSample[] = [
   { group: 0, provider: "Telstra",         cat: "Internet",                         icon: "wifi",       amount: 89,   due: "5th",  dueDays: 25, utter: "Telstra internet, eighty-nine, on the 5th.",             toks: ["Telstra", "eighty-nine", "5th"] },
   { group: 1, provider: "Optus",           cat: "Mobile",                           icon: "smartphone", amount: 55,   due: "18th", dueDays: 8,  utter: "Optus mobile, fifty-five, every 18th.",                  toks: ["Optus", "fifty-five", "18th"] },
   { group: 1, provider: "iCloud+",         cat: "Phone subscription",               icon: "spark",      amount: 5,    due: "1st",  dueDays: 14, utter: "iCloud Plus, five dollars, on the 1st.",                toks: ["iCloud", "five dollars", "1st"] },
-  { group: 1, provider: "Spotify",         cat: "Phone subscription",               icon: "spark",      amount: 12,   due: "7th",  dueDays: 20, utter: "Spotify, twelve dollars, every 7th.",                   toks: ["Spotify", "twelve dollars", "7th"] },
-  { group: 1, provider: "Netflix",         cat: "TV / Streaming",                   icon: "spark",      amount: 16,   due: "28th", dueDays: 11, utter: "Netflix, sixteen dollars, the 28th.",                   toks: ["Netflix", "sixteen", "28th"] },
-  { group: 1, provider: "Disney+",         cat: "TV / Streaming",                   icon: "spark",      amount: 14,   due: "12th", dueDays: 2,  utter: "Disney Plus, fourteen dollars, the 12th.",              toks: ["Disney", "fourteen", "12th"] },
-  { group: 1, provider: "Microsoft 365",   cat: "Web app",                          icon: "spark",      amount: 11,   due: "9th",  dueDays: 22, utter: "Microsoft 365, eleven dollars, every 9th.",             toks: ["Microsoft", "eleven dollars", "9th"] },
+  { group: 1, provider: "Microsoft 365",   cat: "Web app",                          icon: "spark",      amount: 11,   due: "9th",  dueDays: 22, utter: "Microsoft 365, eleven dollars, every 9th?",             toks: ["Microsoft", "eleven dollars", "9th"] },
 ];
 
 const SAMPLES_GB: OBSample[] = [
@@ -553,10 +541,7 @@ const SAMPLES_GB: OBSample[] = [
   { group: 0, provider: "BT",             cat: "Internet",                         icon: "wifi",       amount: 40,   due: "5th",  dueDays: 25, utter: "BT broadband, forty pounds, on the 5th.",             toks: ["BT", "forty", "5th"] },
   { group: 1, provider: "EE",             cat: "Mobile",                           icon: "smartphone", amount: 30,   due: "18th", dueDays: 8,  utter: "EE mobile, thirty pounds, every 18th.",               toks: ["EE", "thirty", "18th"] },
   { group: 1, provider: "iCloud+",        cat: "Phone subscription",               icon: "spark",      amount: 3,    due: "1st",  dueDays: 14, utter: "iCloud Plus, three pounds, on the 1st.",             toks: ["iCloud", "three pounds", "1st"] },
-  { group: 1, provider: "Spotify",        cat: "Phone subscription",               icon: "spark",      amount: 11,   due: "7th",  dueDays: 20, utter: "Spotify, eleven pounds, every 7th.",                  toks: ["Spotify", "eleven pounds", "7th"] },
-  { group: 1, provider: "Netflix",        cat: "TV / Streaming",                   icon: "spark",      amount: 18,   due: "28th", dueDays: 11, utter: "Netflix, eighteen pounds, the 28th.",                  toks: ["Netflix", "eighteen", "28th"] },
-  { group: 1, provider: "Disney+",        cat: "TV / Streaming",                   icon: "spark",      amount: 9,    due: "12th", dueDays: 2,  utter: "Disney Plus, nine pounds, the 12th.",                  toks: ["Disney", "nine", "12th"] },
-  { group: 1, provider: "Microsoft 365",  cat: "Web app",                          icon: "spark",      amount: 8,    due: "9th",  dueDays: 22, utter: "Microsoft 365, eight pounds, every 9th.",              toks: ["Microsoft", "eight pounds", "9th"] },
+  { group: 1, provider: "Microsoft 365",  cat: "Web app",                          icon: "spark",      amount: 8,    due: "9th",  dueDays: 22, utter: "Microsoft 365, eight pounds, every 9th?",              toks: ["Microsoft", "eight pounds", "9th"] },
 ];
 
 const SAMPLES_CA: OBSample[] = [
@@ -566,10 +551,7 @@ const SAMPLES_CA: OBSample[] = [
   { group: 0, provider: "Bell",           cat: "Internet",                         icon: "wifi",       amount: 85,   due: "5th",  dueDays: 25, utter: "Bell internet, eighty-five, on the 5th.",             toks: ["Bell", "eighty-five", "5th"] },
   { group: 1, provider: "Rogers",         cat: "Mobile",                           icon: "smartphone", amount: 65,   due: "18th", dueDays: 8,  utter: "Rogers mobile, sixty-five, every 18th.",              toks: ["Rogers", "sixty-five", "18th"] },
   { group: 1, provider: "iCloud+",        cat: "Phone subscription",               icon: "spark",      amount: 4,    due: "1st",  dueDays: 14, utter: "iCloud Plus, four dollars, on the 1st.",             toks: ["iCloud", "four dollars", "1st"] },
-  { group: 1, provider: "Spotify",        cat: "Phone subscription",               icon: "spark",      amount: 12,   due: "7th",  dueDays: 20, utter: "Spotify, twelve dollars, every 7th.",                 toks: ["Spotify", "twelve dollars", "7th"] },
-  { group: 1, provider: "Netflix",        cat: "TV / Streaming",                   icon: "spark",      amount: 20,   due: "28th", dueDays: 11, utter: "Netflix, twenty dollars, the 28th.",                  toks: ["Netflix", "twenty", "28th"] },
-  { group: 1, provider: "Disney+",        cat: "TV / Streaming",                   icon: "spark",      amount: 12,   due: "12th", dueDays: 2,  utter: "Disney Plus, twelve dollars, the 12th.",              toks: ["Disney", "twelve", "12th"] },
-  { group: 1, provider: "Microsoft 365",  cat: "Web app",                          icon: "spark",      amount: 10,   due: "9th",  dueDays: 22, utter: "Microsoft 365, ten dollars, every 9th.",              toks: ["Microsoft", "ten dollars", "9th"] },
+  { group: 1, provider: "Microsoft 365",  cat: "Web app",                          icon: "spark",      amount: 10,   due: "9th",  dueDays: 22, utter: "Microsoft 365, ten dollars, every 9th?",              toks: ["Microsoft", "ten dollars", "9th"] },
 ];
 
 const SAMPLES_MAP: Record<string, OBSample[]> = {
