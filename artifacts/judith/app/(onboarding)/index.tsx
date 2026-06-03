@@ -3552,11 +3552,18 @@ function ScreenPersonalizing({ ctx }: { ctx: Ctx }) {
       next();
     }
   });
+  // Persona-specific hum/sing — light and easy, no words needed.
+  const PERS_HUMS: Record<PersonaId, string> = {
+    pro:     "Hm hm hm hm hm, hm hm hm hm hm.",
+    funny:   "La la la la la la la la la!",
+    sib:     "Mm. Hmm. Mm hmm hmm.",
+    mama:    "Hmm mmm hmm hmm hmm hmm hmm.",
+    marites: "La la la la la! Hmm hmm hmm hmm!",
+  };
   // Voice: synthesize once, mark voiceDone when playback finishes.
   useEffect(() => {
     let cancelled = false;
-    const enLine = "Give me just a second \u2014 I\u2019m putting your dashboard together right now.";
-    const utterance = (isFilipino(language) ? VOICE_LINES_FIL[enLine] : undefined) ?? enLine;
+    const utterance = PERS_HUMS[persona];
     synthOnboarding(utterance, persona, language)
       .then(({ audioBase64 }) => {
         if (cancelled) return Promise.resolve();
