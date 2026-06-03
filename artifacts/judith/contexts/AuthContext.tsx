@@ -8,7 +8,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { Platform } from "react-native";
+import { NativeModules, Platform } from "react-native";
 
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
@@ -57,6 +57,11 @@ function readTokensFromUrl(rawUrl: string): {
 
 async function sendSessionToWatch(session: Session): Promise<void> {
   if (Platform.OS !== "ios") return;
+  // NativeModules.WatchConnectivity is undefined in Expo Go and on simulators
+  // without a paired watch binary. Guard here so the dynamic import never
+  // triggers TurboModuleRegistry.getEnforcing, which throws at the native
+  // level before JS can catch it.
+  if (!NativeModules.WatchConnectivity) return;
   try {
     const WatchConnectivity = (await import("react-native-watch-connectivity")).default;
     const installed = await WatchConnectivity.getIsWatchAppInstalled();
