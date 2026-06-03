@@ -28,12 +28,10 @@ cat > app.json << 'APPJSON'
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.app.judith",
-      "buildNumber": "5"
+      "bundleIdentifier": "com.app.judith"
     },
     "android": {
-      "package": "com.judith.app",
-      "versionCode": 5
+      "package": "com.judith.app"
     },
     "web": {
       "favicon": "./assets/images/icon.png"
@@ -68,7 +66,7 @@ cat > eas.json << 'EASJSON'
 {
   "cli": {
     "version": ">= 16.0.0",
-    "appVersionSource": "local"
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
