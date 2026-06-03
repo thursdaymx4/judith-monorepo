@@ -692,13 +692,26 @@ const DEFAULT_WELCOME_SUB = "Let’s get you set up.";
 function WordTransitionOverlay({
   country,
   onDone,
+  name,
+  persona,
+  language,
 }: {
   country: Country;
   onDone: () => void;
+  name: string;
+  persona: PersonaId;
+  language: string;
 }) {
   const t    = useTheme();
   const word = WELCOME_WORDS[country.code] ?? "Welcome";
   const sub  = WELCOME_SUBS[country.code] ?? DEFAULT_WELCOME_SUB;
+
+  useEffect(() => {
+    const line = name ? `${word} ${name}` : word;
+    synthOnboarding(line, persona, language)
+      .then(({ audioBase64 }) => playBase64Mp3(audioBase64).catch(() => {}))
+      .catch(() => {});
+  }, []);
 
   const flagScale   = useRef(new Animated.Value(2.0)).current;
   const flagOpacity = useRef(new Animated.Value(0)).current;
@@ -4180,7 +4193,7 @@ export default function OnboardingScreen() {
 
       {/* WordTransition — stamp overlay after country selection */}
       {trans === "word" && (
-        <WordTransitionOverlay country={country} onDone={finishTrans} />
+        <WordTransitionOverlay country={country} onDone={finishTrans} name={name} persona={persona} language={language} />
       )}
 
       {/* QuestionTransition — ? marks bubbling up after late-fee hook */}
