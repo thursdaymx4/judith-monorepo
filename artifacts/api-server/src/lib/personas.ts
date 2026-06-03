@@ -16,13 +16,16 @@ export const FILIPINO_VOICE_IDS: Record<PersonaId, string> = {
   sarcastic: "RGymW84CSmfVugnA5tvA",
 };
 
+/** Philippine language codes that should use Filipino native-speaker voices. */
+const FILIPINO_FAMILY = new Set(["fil", "ceb", "ilo", "hil"]);
+
 /**
  * Returns the correct ElevenLabs voice ID for a persona + language combo.
- * Filipino/Taglish ("fil") gets its own set of native-speaker voices;
- * all other languages fall back to the global defaults.
+ * All Philippine languages (Tagalog, Cebuano, Ilocano, Hiligaynon) get
+ * Filipino native-speaker voices; everything else falls back to global defaults.
  */
 export function getVoiceId(persona: PersonaId, language?: string): string {
-  if (language === "fil") return FILIPINO_VOICE_IDS[persona];
+  if (language && FILIPINO_FAMILY.has(language)) return FILIPINO_VOICE_IDS[persona];
   return DEFAULT_VOICE_IDS[persona];
 }
 
