@@ -19,7 +19,7 @@ import { getPersona } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { fileToBase64, playBase64Mp3 } from "@/lib/audio";
-import { type AddBillAction, type AskBill, askJudith, parseSubscriptionScreenshot, transcribe } from "@/lib/proxy";
+import { type AddBillAction, type AskBill, askJudith, parseSubscriptionScreenshot, transcribe, RateLimitError } from "@/lib/proxy";
 import { sttHint } from "@/constants/languages";
 
 /**
@@ -70,6 +70,15 @@ export default function AskModal() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { bills, asksLeft, tier, persona, language, country, consumeAsk, saveBill, showToast } = useJudith();
+  const [rateLimitSecs, setRateLimitSecs] = React.useState(0);
+  const lastAskRef = useRef<number>(0);
+  // Countdown timer for rate-limit cooldown
+  useEffect(() => {
+    if (rateLimitSecs <= 0) return;
+    const id = setTimeout(() => setRateLimitSecs((s) => Math.max(0, s - 1)), 1000);
+    return () => clearTimeout(id);
+  }, [rateLimitSecs]);
+  const [voiceUpgradeVisible, setVoiceUpgradeVisible] = React.useState(false);
   const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
 
   const paid = tier === "chat" || tier === "voice";
@@ -196,6 +205,10 @@ export default function AskModal() {
       router.push("/plans");
       return;
     }
+    // 1-second minimum cooldown between successive asks (client-side guard)
+    const now = Date.now();
+    if (now - lastAskRef.current < 1000) return;
+    lastAskRef.current = now;
     setErr("");
     setInput("");
     setMessages((m) => [...m, { role: "user", text: q }]);
@@ -214,8 +227,13 @@ export default function AskModal() {
         saveBill(bill);
         showToast(`Added: ${bill.provider}`);
       }
-    } catch {
-      setMessages((m) => [...m, { role: "judith", text: localFallback(q) }]);
+    } catch (e) {
+      if (e instanceof RateLimitError) {
+        setRateLimitSecs(Math.min(e.retryAfter, 3600));
+        setMessages((m) => [...m, { role: "judith", text: `You're sending too fast — please wait ${e.retryAfter} second${e.retryAfter === 1 ? "" : "s"} before asking again.` }]);
+      } else {
+        setMessages((m) => [...m, { role: "judith", text: localFallback(q) }]);
+      }
     } finally {
       setBusy(false);
       requestAnimationFrame(() =>
@@ -228,6 +246,11 @@ export default function AskModal() {
     if (busy) return;
     if (locked) {
       router.push("/plans");
+      return;
+    }
+    // Chat Ask subscribers can only do text asks — voice requires Voice Ask tier
+    if (tier === "chat") {
+      setVoiceUpgradeVisible(true);
       return;
     }
     setErr("");
@@ -321,8 +344,13 @@ export default function AskModal() {
       if (text?.trim() && !isNoiseTranscript(text)) await ask(text);
     } catch (e) {
       setBusy(false);
-      const msg = String((e as Error)?.message ?? e);
-      setErr(msg.includes("401") ? "Session expired — close and reopen the app to sign back in." : `Couldn't transcribe that: ${msg}`);
+      if (e instanceof RateLimitError) {
+        setRateLimitSecs(Math.min(e.retryAfter, 3600));
+        setErr(`Sending too fast — wait ${e.retryAfter}s before trying again.`);
+      } else {
+        const msg = String((e as Error)?.message ?? e);
+        setErr(msg.includes("401") ? "Session expired — close and reopen the app to sign back in." : `Couldn't transcribe that: ${msg}`);
+      }
     }
   };
   // Ref so the VAD interval always calls the latest stopRecording closure
@@ -540,8 +568,8 @@ export default function AskModal() {
         <TextInput
           value={input}
           onChangeText={setInput}
-          editable={!locked && !busy}
-          placeholder={locked ? "Out of asks — upgrade to keep asking" : "Type a question\u2026"}
+          editable={!locked && !busy && rateLimitSecs <= 0}
+          placeholder={locked ? "Out of asks — upgrade to keep asking" : rateLimitSecs > 0 ? `Wait ${rateLimitSecs}s before asking again…` : "Type a question\u2026"}
           placeholderTextColor={t.txtLow}
           onSubmitEditing={() => ask(input)}
           returnKeyType="send"
@@ -560,6 +588,7 @@ export default function AskModal() {
         />
         <Pressable
           onPress={recording ? stopRecording : startRecording}
+          disabled={rateLimitSecs > 0}
           style={{
             width: 50,
             height: 50,
@@ -567,6 +596,7 @@ export default function AskModal() {
             alignItems: "center",
             justifyContent: "center",
             backgroundColor: recording ? t.semantic.urgent : t.accent,
+            opacity: rateLimitSecs > 0 ? 0.4 : 1,
           }}
         >
           <Icon
@@ -810,6 +840,56 @@ export default function AskModal() {
                 </Txt>
               </Pressable>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Voice upgrade nudge — shown when a Chat Ask subscriber taps the mic */}
+      <Modal
+        visible={voiceUpgradeVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setVoiceUpgradeVisible(false)}
+        statusBarTranslucent
+      >
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}>
+          <View
+            style={{
+              backgroundColor: t.canvas,
+              borderTopLeftRadius: 22,
+              borderTopRightRadius: 22,
+              paddingTop: 20,
+              paddingBottom: insets.bottom + 20,
+              paddingHorizontal: 22,
+            }}
+          >
+            <View style={{ alignItems: "center", marginBottom: 18 }}>
+              <JudithAvatar persona={persona} size={72} state="speaking" mood="proud" />
+            </View>
+            <Txt size={22} weight="bold" style={{ textAlign: "center", marginBottom: 8 }}>
+              Voice asks need Voice Ask
+            </Txt>
+            <Muted size={14.5} style={{ textAlign: "center", maxWidth: 300, alignSelf: "center", marginBottom: 24 }}>
+              Your Chat Ask plan covers unlimited text questions. Upgrade to Voice Ask (₱199/mo) to speak and listen hands-free.
+            </Muted>
+            <Pressable
+              onPress={() => { setVoiceUpgradeVisible(false); router.push("/plans"); }}
+              style={{
+                backgroundColor: t.accent,
+                borderRadius: 14,
+                paddingVertical: 15,
+                alignItems: "center",
+                marginBottom: 10,
+              }}
+            >
+              <Txt size={16} weight="semibold" color={t.onAccent}>Upgrade to Voice Ask</Txt>
+            </Pressable>
+            <Pressable
+              onPress={() => setVoiceUpgradeVisible(false)}
+              style={{ paddingVertical: 12, alignItems: "center" }}
+            >
+              <Txt size={15} color={t.txtMid}>Keep typing — it's fine</Txt>
+            </Pressable>
           </View>
         </View>
       </Modal>

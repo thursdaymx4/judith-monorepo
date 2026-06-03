@@ -3848,13 +3848,12 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
   const cur = ctx.country.cur;
   const paywallIsFil = isFilipino(language);
   useOnbVoice(JUDITH_VOICE.paywall[persona][paywallIsFil ? "fil" : "en"], persona, language);
-  const [pick, setPick] = useState("plus");
+  const [pick, setPick] = useState("chat");
   const tiers = [
-    { id: "plus", name: "Judith+", price: 99, asks: "50 voice asks / month", sub: "Plenty for most months", tag: undefined as string | undefined },
-    { id: "pro", name: "Judith Unlimited", price: 199, asks: "Unlimited voice asks", sub: "Ask away, no counting", tag: "Best value" },
+    { id: "chat", name: "Chat Ask", price: 99, asks: "Unlimited text asks", sub: "Type anything, anytime", tag: undefined as string | undefined },
+    { id: "voice", name: "Voice Ask", price: 199, asks: "Unlimited text + voice asks", sub: "Speak and listen — hands-free", tag: "Includes Chat" },
   ];
   const sel = tiers.find((x) => x.id === pick) || tiers[0]!;
-  const food = countryFood(ctx.country.code);
   return (
     <>
       <Scroll center>
@@ -3862,7 +3861,7 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
         <Kicker style={{ marginTop: 16, textAlign: "center" }}>Ask Judith</Kicker>
         <Title style={{ maxWidth: 300, textAlign: "center" }}>You’ve got 8 free asks to start</Title>
         <Lede style={{ maxWidth: 290, textAlign: "center" }}>
-          Try her out on the house. When you’re hooked, go Judith+ for more — she only ever talks about your bills. Ask her for a {food} recipe and she’ll politely send you back to your due dates. 🍲🚫
+          Try her free. Bills and reminders stay free forever. Upgrade when you’re ready for unlimited asks.
         </Lede>
 
         <View style={{ gap: 10, width: "100%", marginTop: 20 }}>
@@ -3899,11 +3898,11 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
             );
           })}
         </View>
-        <Low size={11} style={{ marginTop: 12, textAlign: "center" }}>Fair-use cap of 10 asks per hour · cancel anytime</Low>
+        <Low size={11} style={{ marginTop: 12, textAlign: "center" }}>Cancel anytime · managed by App Store / Google Play</Low>
       </Scroll>
       <CtaBar>
-        <Btn label={`Start ${sel.name} · ${cur}${sel.price}/mo`} onPress={next} />
-        <Btn label="Continue with 8 free asks" variant="ghost" onPress={next} />
+        <Btn label={`Subscribe · ${cur}${sel.price}/mo`} onPress={next} />
+        <Btn label="Start with 8 free asks" variant="ghost" onPress={next} />
       </CtaBar>
     </>
   );

@@ -19,6 +19,14 @@ import {
   englishWeekday,
 } from "../lib/normalize";
 import { logger } from "../lib/logger";
+import {
+  limitAsk,
+  limitSttTts,
+  limitSampleVoices,
+  limitParse,
+  limitAskOnboarding,
+  limitSttTtsOnboarding,
+} from "../middleware/rateLimit";
 
 const router: IRouter = Router();
 
@@ -264,7 +272,7 @@ router.post("/delete-account", async (req, res) => {
 });
 
 // POST /api/judith/stt  { audioBase64, mimeType } -> { text }
-router.post("/stt", async (req, res) => {
+router.post("/stt", limitSttTts, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
@@ -287,7 +295,7 @@ router.post("/stt", async (req, res) => {
 });
 
 // POST /api/judith/ask  { text } -> { reply, audioBase64, mime }
-router.post("/ask", async (req, res) => {
+router.post("/ask", limitAsk, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
@@ -363,7 +371,7 @@ router.post("/ask", async (req, res) => {
 
 
 // POST /api/judith/tts  { text, persona? } -> { audioBase64, mime }
-router.post("/tts", async (req, res) => {
+router.post("/tts", limitSttTts, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
@@ -404,7 +412,7 @@ const SAMPLE_LINES: Record<PersonaId, string> = {
 };
 
 // GET /api/judith/voices -> { voices: [{ id, name, category }] }
-router.get("/voices", async (req, res) => {
+router.get("/voices", limitSampleVoices, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
@@ -416,7 +424,7 @@ router.get("/voices", async (req, res) => {
   }
 });
 
-router.get("/sample", async (req, res) => {
+router.get("/sample", limitSampleVoices, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
@@ -433,7 +441,7 @@ router.get("/sample", async (req, res) => {
 
 // POST /api/judith/ask-onboarding  { text, bills?, persona? } -> { reply, audioBase64, mime }
 // No auth required — interactive AI ask during onboarding feature screens.
-router.post("/ask-onboarding", async (req, res) => {
+router.post("/ask-onboarding", limitAskOnboarding, async (req, res) => {
   try {
     const { text, bills: bodyBills, persona: bodyPersona, localDate, language } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
@@ -477,7 +485,7 @@ router.post("/ask-onboarding", async (req, res) => {
 
 // POST /api/judith/parse-bill  { text, category } -> { provider, amount, dueDay, kind }
 // No auth required — AI extraction of bill details from transcribed onboarding speech.
-router.post("/parse-bill", async (req, res) => {
+router.post("/parse-bill", limitParse, async (req, res) => {
   try {
     const { text, category } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
@@ -549,7 +557,7 @@ User said: "I don't know the exact amount" → {"provider":null,"amount":null,"d
 
 // POST /api/judith/stt-onboarding  { audioBase64, mimeType } -> { text }
 // No auth required — called during onboarding where the user may be a guest.
-router.post("/stt-onboarding", async (req, res) => {
+router.post("/stt-onboarding", limitSttTtsOnboarding, async (req, res) => {
   try {
     const { audioBase64, mimeType, language } = req.body ?? {};
     if (typeof audioBase64 !== "string" || !audioBase64) {
@@ -571,7 +579,7 @@ router.post("/stt-onboarding", async (req, res) => {
 
 // POST /api/judith/tts-onboarding  { text, persona? } -> { audioBase64, mime }
 // No auth required — called during onboarding where the user may be a guest.
-router.post("/tts-onboarding", async (req, res) => {
+router.post("/tts-onboarding", limitSttTtsOnboarding, async (req, res) => {
   try {
     const { text, persona, language } = req.body ?? {};
     if (typeof text !== "string" || !text.trim() || text.length > 350) {
@@ -589,7 +597,7 @@ router.post("/tts-onboarding", async (req, res) => {
 
 // POST /api/judith/parse-subscription-screenshot  { imageBase64, mimeType } -> { subscriptions }
 // No auth required — vision extraction of active subscriptions from a screenshot.
-router.post("/parse-subscription-screenshot", async (req, res) => {
+router.post("/parse-subscription-screenshot", limitParse, async (req, res) => {
   try {
     const { imageBase64, mimeType } = req.body ?? {};
     if (typeof imageBase64 !== "string" || !imageBase64) {

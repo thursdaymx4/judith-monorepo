@@ -10,3 +10,5 @@
 - [Judith safe-area top inset](judith-safe-area-web.md) — on web/canvas insets.top=0 so headers hide under the device-frame status bar & go untappable; floor with Math.max(insets.top, 44).
 - [Judith auth flow](judith-auth-flow.md) — social-login + Supabase OAuth/password/reset; recoveryActive flag must be set BEFORE establishing the recovery session or routing ejects the reset screen.
 - [Judith Supabase URL](judith-supabase-url.md) — EXPO_PUBLIC_SUPABASE_URL must be the API origin (<ref>.supabase.co), NOT the dashboard URL; dashboard URL returns HTML → "JSON Parse error: Unexpected character: <"; client self-heals.
+- [Judith rate limiting](judith-rate-limiting.md) — express-rate-limit v8; use ipKeyGenerator (not req.ip) in custom keyGenerators to avoid ERR_ERL_KEY_GEN_IPV6 crash on startup.
+- [Judith tier model](judith-tier-model.md) — AskTier is "free"|"chat"|"voice"; Chat Ask=₱99 text-only, Voice Ask=₱199 text+voice; onboarding paywall and voice nudge must match these names exactly.

@@ -38,6 +38,18 @@ export interface AskBill {
   status: string;
 }
 
+/**
+ * Thrown when the server returns HTTP 429 (rate limited).
+ * `retryAfter` is the number of seconds to wait before retrying,
+ * taken from the `Retry-After` response header (defaults to 60).
+ */
+export class RateLimitError extends Error {
+  constructor(public readonly retryAfter: number) {
+    super(`rate_limit:${retryAfter}`);
+    this.name = "RateLimitError";
+  }
+}
+
 async function postJson<T>(path: string, body: unknown): Promise<T> {
   const headers = await authHeader();
   const res = await fetch(`${BASE}${path}`, {
@@ -45,6 +57,10 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
     headers: { ...headers, "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+  if (res.status === 429) {
+    const retryAfter = parseInt(res.headers.get("Retry-After") ?? "60", 10);
+    throw new RateLimitError(isNaN(retryAfter) ? 60 : retryAfter);
+  }
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
     throw new Error(`Request failed (${res.status}): ${detail}`);

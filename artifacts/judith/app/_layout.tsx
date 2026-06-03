@@ -25,6 +25,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { JudithProvider, useJudith } from "@/contexts/JudithStore";
 import { useBiometricLock } from "@/hooks/useBiometricLock";
 import { useTheme } from "@/hooks/useTheme";
+import { getActiveTier } from "@/lib/purchases";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -99,12 +100,24 @@ function BiometricLockScreen({ onUnlock }: { onUnlock: () => void }) {
 
 function RootLayoutNav() {
   const { session, loading, configured, recoveryActive } = useAuth();
-  const { onboarded, hydrated, guest, faceIdLock } = useJudith();
+  const { onboarded, hydrated, guest, faceIdLock, tier, subscribe } = useJudith();
   const t = useTheme();
   const [splashDone, setSplashDone] = useState(false);
 
   const authed = !!session || guest;
   const isOnboarded = authed && onboarded && !recoveryActive;
+
+  // Sync RevenueCat entitlements into the store whenever the session changes.
+  // Runs once on mount (handles cold launch) and again on sign-in/out.
+  useEffect(() => {
+    if (!session) return;
+    getActiveTier()
+      .then((activeTier) => {
+        if (activeTier !== tier) subscribe(activeTier);
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id]);
 
   // Only engage biometric lock once the user is fully onboarded and authed.
   const { locked, unlock } = useBiometricLock(isOnboarded && faceIdLock);
