@@ -314,7 +314,7 @@ router.post("/ask", async (req, res) => {
     const anthropic = getAnthropic();
     const message = await anthropic.messages.create({
       model: ANTHROPIC_MODEL,
-      max_tokens: 350,
+      max_tokens: 120,
       system: `${systemPrompt(persona)}\n\nBILL CONTEXT (the only source of truth):\n${context}`,
       messages: [{ role: "user", content: text.trim() }],
     });
