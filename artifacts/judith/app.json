@@ -19,7 +19,8 @@
       "buildNumber": "3"
     },
     "android": {
-      "package": "com.judith.app"
+      "package": "com.judith.app",
+      "versionCode": 3
     },
     "web": {
       "favicon": "./assets/images/icon.png"
