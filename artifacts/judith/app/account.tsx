@@ -1,13 +1,15 @@
 import { useRouter } from "expo-router";
 import React from "react";
-import { Modal, Pressable, Share, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, Share, Text, TextInput, View } from "react-native";
 
 import { Icon, type IconName } from "@/components/Icon";
 import { Dot, Low, Mono, Screen, SheetHeader, Txt, mix } from "@/components/ui";
 import { useAuth } from "@/contexts/AuthContext";
 import { useJudith } from "@/contexts/JudithStore";
+import { verifyBiometricsNow } from "@/hooks/useBiometricLock";
 import { useTheme } from "@/hooks/useTheme";
 import { deleteAccount as deleteAccountRemote } from "@/lib/proxy";
+import { restorePurchases as restorePurchasesRemote } from "@/lib/purchases";
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -197,8 +199,30 @@ export default function AccountScreen() {
   const changePassword = () => {
     showToast("We’ll email you a reset link");
   };
-  const restorePurchases = () => {
-    showToast("Purchases restored ✓");
+  const [restoring, setRestoring] = React.useState(false);
+  const restorePurchases = async () => {
+    setRestoring(true);
+    try {
+      const active = await restorePurchasesRemote();
+      showToast(active ? "Purchases restored ✓" : "No previous purchases found");
+    } catch {
+      showToast("Couldn’t restore — try again");
+    } finally {
+      setRestoring(false);
+    }
+  };
+
+  const toggleFaceId = async () => {
+    if (faceIdLock) {
+      setFaceIdLock(false);
+      return;
+    }
+    const ok = await verifyBiometricsNow();
+    if (ok) {
+      setFaceIdLock(true);
+    } else {
+      showToast("Face ID not available on this device");
+    }
   };
 
   const exportData = async () => {
@@ -329,7 +353,7 @@ export default function AccountScreen() {
           iconColor={faceIdLock ? t.accent : t.txtMid}
           title="Unlock with Face ID"
           subtitle="Require Face ID or PIN to open Judith"
-          right={<Toggle on={faceIdLock} onPress={() => setFaceIdLock(!faceIdLock)} />}
+          right={<Toggle on={faceIdLock} onPress={toggleFaceId} />}
         />
         {hasPassword && (
           <Row icon="card" title="Change password" subtitle="Email yourself a reset link" onPress={changePassword} />
@@ -375,7 +399,7 @@ export default function AccountScreen() {
           subtitle={subLabel}
           onPress={() => router.push("/plans")}
         />
-        <Row icon="wallet" title="Restore purchases" subtitle="Recover a previous subscription" onPress={restorePurchases} />
+        <Row icon="wallet" title="Restore purchases" subtitle="Recover a previous subscription" onPress={restoring ? undefined : restorePurchases} right={restoring ? <ActivityIndicator size="small" color={t.txtMid} /> : undefined} />
       </View>
 
       {/* data */}
