@@ -8,7 +8,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { NativeModules, Platform } from "react-native";
+import { Platform } from "react-native";
 
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
@@ -57,21 +57,22 @@ function readTokensFromUrl(rawUrl: string): {
 
 async function sendSessionToWatch(session: Session): Promise<void> {
   if (Platform.OS !== "ios") return;
-  // NativeModules.WatchConnectivity is undefined in Expo Go and on simulators
-  // without a paired watch binary. Guard here so the dynamic import never
-  // triggers TurboModuleRegistry.getEnforcing, which throws at the native
-  // level before JS can catch it.
-  if (!NativeModules.WatchConnectivity) return;
+  // react-native-watch-connectivity calls TurboModuleRegistry.getEnforcing()
+  // at module-load time, before any JS can intercept it. In Expo Go the native
+  // binary isn't present so this throws an uncaught Invariant Violation.
+  // NativeModules.WatchConnectivity exists as a stub even in Expo Go, so that
+  // check isn't reliable — we must wrap the entire import in try/catch instead.
   try {
-    const WatchConnectivity = (await import("react-native-watch-connectivity")).default;
-    const installed = await WatchConnectivity.getIsWatchAppInstalled();
+    const mod = await import("react-native-watch-connectivity");
+    const WatchConnectivity = mod.default ?? mod;
+    const installed = await (WatchConnectivity as { getIsWatchAppInstalled(): Promise<boolean> }).getIsWatchAppInstalled();
     if (!installed) return;
-    await WatchConnectivity.transferUserInfo({
+    await (WatchConnectivity as { transferUserInfo(info: Record<string, string>): Promise<void> }).transferUserInfo({
       supabaseAccessToken: session.access_token,
       supabaseRefreshToken: session.refresh_token,
     });
   } catch {
-    /* watch not paired or app not installed — silently ignore */
+    /* Expo Go / no paired watch / native binary absent — silently ignore */
   }
 }
 

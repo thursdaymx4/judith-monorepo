@@ -4,9 +4,17 @@ import type { PersonaId } from "@/constants/personas";
 const BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN}/api/judith`;
 
 async function authHeader(): Promise<Record<string, string>> {
-  const session = (await supabase?.auth.getSession())?.data.session;
+  // getSession() returns the cached session. Right after Apple/Google Sign-In
+  // there is a brief window where the cache is empty even though the user just
+  // authenticated. Try refreshSession() once as a fallback so we don't send
+  // auth-required requests without a token and get a spurious 401.
+  let session = (await supabase?.auth.getSession())?.data.session;
+  if (!session?.access_token && supabase) {
+    const { data } = await supabase.auth.refreshSession().catch(() => ({ data: { session: null } }));
+    session = data.session;
+  }
   if (!session?.access_token) {
-    // Guest mode — proceed without a token; server allows unauthenticated requests.
+    // Guest mode or not signed in — proceed without a token.
     return {};
   }
   return { Authorization: `Bearer ${session.access_token}` };

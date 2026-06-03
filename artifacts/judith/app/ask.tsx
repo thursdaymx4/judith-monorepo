@@ -321,7 +321,8 @@ export default function AskModal() {
       if (text?.trim() && !isNoiseTranscript(text)) await ask(text);
     } catch (e) {
       setBusy(false);
-      setErr(`Couldn't transcribe that: ${String((e as Error)?.message ?? e)}`);
+      const msg = String((e as Error)?.message ?? e);
+      setErr(msg.includes("401") ? "Session expired — close and reopen the app to sign back in." : `Couldn't transcribe that: ${msg}`);
     }
   };
   // Ref so the VAD interval always calls the latest stopRecording closure
