@@ -215,16 +215,16 @@ const VOICE_PROMPTS: Record<string, string> = {
  * Voice-only canned lines for the bill-asking step (Tagalog/Taglish).
  */
 const VOICE_PROMPTS_FIL: Record<string, string> = {
-  "Rent / Mortgage": "Magkano ang renta, at kelan due?",
-  Electricity: "Sino ang provider ng kuryente, magkano usually?",
-  Water: "Tubig — provider at halaga?",
-  Internet: "Anong provider ng internet, magkano monthly?",
-  Mobile: "Anong network, at magkano ang plan?",
-  "Phone subscription": "I-screenshot ang Subscriptions sa Settings — mas mabilis. O sabihin mo sa akin.",
+  "Rent / Mortgage": "Magkano bayad mo sa bahay at tuwing kailan?",
+  Electricity: "Kuryente, magkano at tuwing kelan? Meralco ka din ba?",
+  Water: "Tubig mo magkano at kailan due?",
+  Internet: "Yung internet mo, how much at kay PLDT ka ba or Converge?",
+  Mobile: "May mobile plan ka ba kay Smart or Globe? How much at kailan ang due?",
+  "Phone subscription": "May mga mobile subscriptions ka ba? If meron, mas maganda i-screenshot mo na lang from your phone. Then upload mo dito. If may separate TV or Streaming subscriptions ka pa na nakalimutan, idagdag mo na.",
   "TV / Streaming": "May streaming ka ba? Alin-alin?",
-  "Web app": "Web subscriptions — Canva, Notion, ganyan?",
-  "Credit card": "Anong bangko, magkano ang due?",
-  "Personal loan": "Sino nagpahiram, magkano monthly?",
+  "Web app": "Other web apps subscription meron ka?",
+  "Credit card": "Ilista na natin mga credit cards mo. Ilan meron ka?",
+  "Personal loan": "May mga iba ka pa bang utang na dapat nating ilista?",
 };
 
 /** Supplementary voice lines for each Feature screen — not reading the UI, just personality. */
@@ -239,31 +239,37 @@ const FEATURE_VOICES = [
  * Keyed by the English source string. Used by useOnbVoice when isFilipino(language).
  */
 const VOICE_LINES_FIL: Record<string, string> = {
-  "Hi \u2014 I\u2019m Judith. I keep your bills organised and make sure you\u2019re never caught off guard by a due date. Let\u2019s get you set up.":
-    "Aabangan ko ang lahat ng bills mo para hindi ka mabigla. Aabisuhan din kita to avoid late fees.",
-  /* empty string = suppress voice on country screen (user picks lang here, no narration needed) */
-  "I\u2019ll use your location to show the right currency and format your dates the way you\u2019d expect. Just tap your country.":
-    "",
-  "These are real numbers. A missed payment hits your credit, your wallet, and your peace of mind. I\u2019m here to make sure it never gets to that.":
-    "Nakaka-inis ang late fees, di ba?",
-  "Alright \u2014 I\u2019ll ask about your bills one by one. Just speak naturally. Tell me the name, the amount, and when it\u2019s due. That\u2019s it.":
-    "Isa-isahin lang natin.",
-  "You\u2019re done. All your bills are in \u2014 you\u2019re already ahead of most people. Let me show you what I\u2019ve got.":
-    "Uy congrats! Biro mo, nalista mo lahat 'yun?",
+  /* Screen 1 — Welcome */
+  "Hi \u2014 I\u2019m Judith. Your due date assistant. Let\u2019s take control of your bills, shall we?":
+    "Hi \u2014 I\u2019m Judith. Your due date assistant. Aabangan ko lahat ng bills mo para hindi ka mabigla. Let\u2019s take control of your bills, shall we?",
+  /* Screen 2 — Name */
+  "One more thing \u2014 what should I call you?":
+    "Hi! Can I get your name po?",
+  /* Screen 3 — Language */
+  "Take control of your bills, take control of your life.":
+    "Kontrolin ang bills mo, kontrolin ang iyong buhay.",
+  /* Screen 7 — Problem */
+  "Honestly, most people don\u2019t. Let\u2019s change that.":
+    "Ako nga din, hindi ko alam. Tara ayusin nga natin!",
+  /* Screen 8 — Stakes */
+  "Everybody hates late fees, right?":
+    "Nakaka inis ang late fees \u2019di ba?",
+  /* Screen 9 — Bill intro */
+  "Let\u2019s take this one step at a time. Tell me the amount, when it\u2019s due and who you pay to?":
+    "Isa isahin natin mga bills mo.",
+  /* Screen 11 — Personalizing */
   "Give me just a second \u2014 I\u2019m putting your dashboard together right now.":
     "Wait lang ha, bawal mainipin.",
-  "Here\u2019s everything I know about your bills. Take a look \u2014 you can always adjust anything later.":
-    "Looks good ba?",
+  /* Feature screens */
   "Go ahead \u2014 tap the mic and just talk to me. Ask anything. I'm listening.":
     "Try mo kong tanungin ng kahit ano tungkol sa bills mo.",
   "Try asking 'what\u2019s due this week?' I'll tell you everything, right now.":
-    "Isa pa — check natin kung masasagot ko tanong mo.",
+    "Isa pa \u2014 check natin kung masasagot ko tanong mo.",
   "Ask me if it\u2019s safe to spend before payday. I'll check what\u2019s coming and give you a straight answer.":
-    "Ano? Bilib ka na ba? Isa pa — baka chamba lang.",
+    "Ano? Bilib ka na ba? Isa pa \u2014 baka chamba lang.",
+  /* Paywall */
   "You\u2019ve got eight free asks to start. Want to keep the conversation going? Pick a plan that fits and I\u2019m all yours.":
-    "Salamat sa pag-suporta sa amin ni Judith. Baka gusto mo pa kaming kausapin ng mas matagal — pwede naman!",
-  "One more thing \u2014 what should I call you?":
-    "Hi! Can I get your name po?",
+    "Salamat sa pag-suporta sa amin ni Judith. Baka gusto mo pa kaming kausapin ng mas matagal \u2014 pwede naman!",
 };
 
 /**
@@ -911,7 +917,7 @@ function QuestionTransitionOverlay({ onDone }: { onDone: () => void }) {
 /* ================================================================== */
 
 function ScreenWelcome({ ctx }: { ctx: Ctx }) {
-  useOnbVoice("Hi — I\u2019m Judith. I keep your bills organised and make sure you\u2019re never caught off guard by a due date. Let\u2019s get you set up.", ctx.persona, ctx.language);
+  useOnbVoice("Hi \u2014 I\u2019m Judith. Your due date assistant. Let\u2019s take control of your bills, shall we?", ctx.persona, ctx.language);
   const popScale   = useRef(new Animated.Value(0.8)).current;
   const popOpacity = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -950,8 +956,19 @@ function ScreenWelcome({ ctx }: { ctx: Ctx }) {
 /* ================================================================== */
 
 function ScreenCountry({ ctx }: { ctx: Ctx }) {
-  const { t, country, setCountry, next } = ctx;
-  useOnbVoice("I\u2019ll use your location to show the right currency and format your dates the way you\u2019d expect. Just tap your country.", ctx.persona, ctx.language);
+  const { t, country, setCountry, next, name, persona, language } = ctx;
+  useEffect(() => {
+    let cancelled = false;
+    const isFil = isFilipino(language);
+    const line = isFil
+      ? `Nasaang bansa ka ngayon${name ? ` ${name}` : ""}?`
+      : "Where are you from?";
+    synthOnboarding(line, persona, language)
+      .then(({ audioBase64 }) => { if (!cancelled) playBase64Mp3(audioBase64).catch(() => {}); })
+      .catch(() => {});
+    return () => { cancelled = true; stopCurrentAudio(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [q, setQ] = useState("");
   const list = COUNTRIES.filter((c) =>
     c.name.toLowerCase().includes(q.toLowerCase()),
@@ -1014,6 +1031,7 @@ function ScreenCountry({ ctx }: { ctx: Ctx }) {
 
 function ScreenLanguage({ ctx }: { ctx: Ctx }) {
   const { t, persona, next, language, setLanguage } = ctx;
+  useOnbVoice("Take control of your bills, take control of your life.", persona, language);
   const [voiceLang, setVoiceLang] = useState(language || "en");
   const [speaking, setSpeaking] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -1180,8 +1198,16 @@ function ScreenLanguage({ ctx }: { ctx: Ctx }) {
 /* 4. Persona                                                          */
 /* ================================================================== */
 
+/** Filipino persona sample lines (spoken on tap). Professional and mom use the user's name. */
+const PERSONA_FIL_SAMPLES: Record<PersonaId, (name: string) => string> = {
+  professional: (n) => `Hi ${n || ""}${n ? "," : ""} i'm happy to help you po sa mga bayarin mo.`.trim(),
+  funny: () => "Adulting na tayo talaga friendship! Bayad bayad din pag may time!",
+  sarcastic: () => "Luh??!!? Totoo ba yan?! Nag babayad ka na ng bills?",
+  mom: (n) => `${n ? `${n}, ` : ""}wag kalimutan ang mga bills. Be responsible! Wag din kalimutang mag pahinga.`,
+};
+
 function ScreenPersona({ ctx }: { ctx: Ctx }) {
-  const { t, persona, language, setPersona, next } = ctx;
+  const { t, persona, language, name, setPersona, next } = ctx;
   const [speakId, setSpeakId] = useState<PersonaId | null>(null);
   const selected = PERSONAS.find((p) => p.id === persona);
   const personaReqId = useRef(0);
@@ -1189,9 +1215,9 @@ function ScreenPersona({ ctx }: { ctx: Ctx }) {
   // Prefetch all 4 persona samples the moment this screen mounts so
   // "Play voice" taps are instant (hits the in-memory cache, no network round-trip).
   useEffect(() => {
-    PERSONAS.forEach((p) => {
-      fetchSampleOnboarding(p.id, language).catch(() => {});
-    });
+    if (!isFilipino(language)) {
+      PERSONAS.forEach((p) => { fetchSampleOnboarding(p.id, language).catch(() => {}); });
+    }
   }, []);
 
   const playLine = async (id: PersonaId) => {
@@ -1200,7 +1226,13 @@ function ScreenPersona({ ctx }: { ctx: Ctx }) {
     setPersona(id);
     setSpeakId(id);
     try {
-      const { audioBase64 } = await fetchSampleOnboarding(id, language);
+      let audioBase64: string;
+      if (isFilipino(language)) {
+        const text = PERSONA_FIL_SAMPLES[id](name);
+        ({ audioBase64 } = await synthOnboarding(text, id, language));
+      } else {
+        ({ audioBase64 } = await fetchSampleOnboarding(id, language));
+      }
       if (reqId !== personaReqId.current) return;
       await playBase64Mp3(audioBase64);
     } catch {
@@ -1423,7 +1455,8 @@ function ScreenLateFee({ ctx }: { ctx: Ctx }) {
 /* ================================================================== */
 
 function ScreenProblem({ ctx }: { ctx: Ctx }) {
-  const { t, persona, next } = ctx;
+  const { t, persona, language, next } = ctx;
+  useOnbVoice("Honestly, most people don\u2019t. Let\u2019s change that.", persona, language);
   const cur = ctx.country.cur;
   const [answered, setAnswered] = useState<boolean | null>(null);
   const rows = [
@@ -1564,9 +1597,9 @@ function ScreenProblem({ ctx }: { ctx: Ctx }) {
 /* ================================================================== */
 
 function ScreenStakes({ ctx }: { ctx: Ctx }) {
-  const { t, persona, next } = ctx;
+  const { t, persona, language, next } = ctx;
   const cur = ctx.country.cur;
-  useOnbVoice("These are real numbers. A missed payment hits your credit, your wallet, and your peace of mind. I\u2019m here to make sure it never gets to that.", persona, ctx.language);
+  useOnbVoice("Everybody hates late fees, right?", persona, language);
   const [committed, setCommitted] = useState(false);
 
   /* commit animation values — mirrors prototype `.commit-*` keyframes */
@@ -1827,7 +1860,7 @@ function ScreenStakes({ ctx }: { ctx: Ctx }) {
 
 function ScreenIntro({ ctx }: { ctx: Ctx }) {
   const { t, persona, language, next } = ctx;
-  useOnbVoice("Alright \u2014 I\u2019ll ask about your bills one by one. Just speak naturally. Tell me the name, the amount, and when it\u2019s due. That\u2019s it.", persona, language);
+  useOnbVoice("Let\u2019s take this one step at a time. Tell me the amount, when it\u2019s due and who you pay to?", persona, language);
   return (
     <>
       <Scroll center>
@@ -3205,7 +3238,7 @@ function ScreenCongrats({ ctx }: { ctx: Ctx }) {
     let cancelled = false;
     const n = data.length;
     const line = isFilipino(language)
-      ? `Mayroon kang ${n} na bayarin \u2014 ${cur}${fmtNum(total)} bawat buwan. Handa na. Ipapakita ko sa\u2019yo.`
+      ? "Yan na yung total mo. Check mo."
       : `You\u2019ve got ${n} bills \u2014 ${cur}${fmtNum(total)} a month. All set. Let me show you what I see.`;
     synthOnboarding(line, persona, language)
       .then(({ audioBase64 }) => { if (!cancelled) playBase64Mp3(audioBase64).catch(() => {}); })
@@ -3324,7 +3357,7 @@ function ScreenSummary({ ctx }: { ctx: Ctx }) {
         ? `Tracking this could save you ${cur}450 or more in late fees a year.`
         : "I'll keep you on top of every due date.";
     const line = isFilipino(ctx.language)
-      ? `${n} bayarin, ${cur}${fmtNum(total)} bawat buwan. Ang pinakamalaki ay ${biggest.provider} — ${cur}${fmtNum(biggest.amount)}. Susunod na due: ${nextDue.provider}, ${nextDue.dueDays} araw na lang. Hawak ko na ito.`
+      ? `May total kang ${cur}${fmtNum(total)} this month for your bills. Ang pinaka malaking mong bill, obviously ay, ${biggest.provider} — ${cur}${fmtNum(biggest.amount)}. Yung pinaka malapit na due mo ay ${nextDue.provider} — ${cur}${fmtNum(nextDue.amount)}, ${nextDue.dueDays} araw na lang. Ayos ba yung pagkaka lista natin ng bills mo?`
       : `Okay — ${n} bill${n === 1 ? "" : "s"}, ${cur}${fmtNum(total)} a month. ${biggest.provider}'s the big one at ${cur}${fmtNum(biggest.amount)}. First up is ${nextDue.provider} — due in ${nextDue.dueDays} day${nextDue.dueDays === 1 ? "" : "s"}. ${savings}`;
     synthOnboarding(line, ctx.persona, ctx.language)
       .then(({ audioBase64 }) => {
@@ -3968,10 +4001,10 @@ function SweepOverlay({ onDone }: { onDone: () => void }) {
 
 const FLOW: { id: string; C: (p: { ctx: Ctx }) => React.ReactElement }[] = [
   { id: "welcome", C: ScreenWelcome },
+  { id: "name", C: ScreenName },
   { id: "country", C: ScreenCountry },
   { id: "language", C: ScreenLanguage },
   { id: "persona", C: ScreenPersona },
-  { id: "name", C: ScreenName },
   { id: "latefee", C: ScreenLateFee },
   { id: "problem", C: ScreenProblem },
   { id: "stakes", C: ScreenStakes },
@@ -3984,7 +4017,7 @@ const FLOW: { id: string; C: (p: { ctx: Ctx }) => React.ReactElement }[] = [
   { id: "feature3", C: ScreenFeature3 },
   { id: "askpaywall", C: ScreenAskPaywall },
 ];
-const SETUP = ["country", "language", "persona", "name", "problem", "stakes", "voice", "congrats", "summary"];
+const SETUP = ["name", "country", "language", "persona", "problem", "stakes", "voice", "congrats", "summary"];
 const NO_BACK = ["welcome", "personalizing"];
 const SKIPPABLE = ["country", "persona"];
 const SAVE_FROM = FLOW.findIndex((f) => f.id === "voice");
