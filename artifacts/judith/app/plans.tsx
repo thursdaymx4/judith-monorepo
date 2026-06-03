@@ -1,9 +1,10 @@
-import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon } from "@/components/Icon";
-import { Low, Screen, SheetHeader, Txt, mix, Mono } from "@/components/ui";
+import { Low, SheetHeader, Txt, mix, Mono } from "@/components/ui";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import {
@@ -174,17 +175,31 @@ function PlanCard({
 export default function PlansModal() {
   const t = useTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { focus } = useLocalSearchParams<{ focus?: string }>();
   const { asksLeft, tier, money, subscribe, showToast } = useJudith();
 
   const [packages, setPackages] = useState<TierPackages>({ chat: null, voice: null });
   const [loadingPkgs, setLoadingPkgs] = useState(true);
   const [buyingTier, setBuyingTier] = useState<"chat" | "voice" | null>(null);
 
+  const scrollRef = useRef<ScrollView>(null);
+  const voiceCardY = useRef<number>(0);
+
   useEffect(() => {
     getTierPackages()
       .then(setPackages)
       .finally(() => setLoadingPkgs(false));
   }, []);
+
+  // Auto-scroll to the Voice Ask card when arriving with focus=voice
+  useEffect(() => {
+    if (focus !== "voice") return;
+    const id = setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: voiceCardY.current, animated: true });
+    }, 300);
+    return () => clearTimeout(id);
+  }, [focus, loadingPkgs]);
 
   const buy = async (targetTier: "chat" | "voice", pkg: PurchasesPackage | null) => {
     if (!pkg) {
@@ -215,9 +230,20 @@ export default function PlansModal() {
 
   const chatActive = tier === "chat" || tier === "voice";
   const voiceActive = tier === "voice";
+  const focusVoice = focus === "voice";
 
   return (
-    <Screen contentStyle={{ paddingTop: 14, gap: 16, paddingBottom: 32 }}>
+    <ScrollView
+      ref={scrollRef}
+      style={{ flex: 1, backgroundColor: t.canvas }}
+      contentContainerStyle={{
+        paddingHorizontal: 22,
+        paddingTop: Math.max(insets.top, 44) + 14,
+        paddingBottom: 96,
+        gap: 16,
+      }}
+      showsVerticalScrollIndicator={false}
+    >
       <SheetHeader title="Ask Judith plan" onClose={() => router.back()} />
 
       {/* free-tier status */}
@@ -246,6 +272,30 @@ export default function PlansModal() {
         </View>
       )}
 
+      {/* Upgrade nudge banner — shown when arriving from the voice upgrade sheet */}
+      {focusVoice && !voiceActive && (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 10,
+            borderWidth: 1,
+            borderColor: mix(t.accent, t.surface2, 0.35),
+            borderRadius: t.radius.md,
+            backgroundColor: mix(t.accent, t.surface2, 0.1),
+            paddingVertical: 11,
+            paddingHorizontal: 14,
+          }}
+        >
+          <Icon name="mic" size={16} color={t.accent} />
+          <Low size={13} style={{ flex: 1 }}>
+            Voice asks are included in{" "}
+            <Txt size={13} weight="semibold" color={t.txtHi}>Voice Ask (₱199/mo)</Txt>
+            {" "}— upgrade below.
+          </Low>
+        </View>
+      )}
+
       {loadingPkgs ? (
         <View style={{ alignItems: "center", paddingVertical: 32 }}>
           <ActivityIndicator color={t.accent} size="large" />
@@ -260,24 +310,28 @@ export default function PlansModal() {
             cta={chatActive ? "Current plan" : "Subscribe · " + money(99) + "/mo"}
             active={chatActive}
             loading={buyingTier === "chat"}
-            highlight={!chatActive}
+            highlight={!chatActive && !focusVoice}
             onPress={() => buy("chat", packages.chat)}
             money={money}
           />
 
-          <PlanCard
-            title="Voice Ask"
-            price={199}
-            priceLabel={money(199)}
-            badge="Includes Chat"
-            features={VOICE_FEATURES}
-            cta={voiceActive ? "Current plan" : "Subscribe · " + money(199) + "/mo"}
-            active={voiceActive}
-            loading={buyingTier === "voice"}
-            highlight={true}
-            onPress={() => buy("voice", packages.voice)}
-            money={money}
-          />
+          <View
+            onLayout={(e) => { voiceCardY.current = e.nativeEvent.layout.y; }}
+          >
+            <PlanCard
+              title="Voice Ask"
+              price={199}
+              priceLabel={money(199)}
+              badge={focusVoice && !voiceActive ? "Recommended for you" : "Includes Chat"}
+              features={VOICE_FEATURES}
+              cta={voiceActive ? "Current plan" : "Subscribe · " + money(199) + "/mo"}
+              active={voiceActive}
+              loading={buyingTier === "voice"}
+              highlight={true}
+              onPress={() => buy("voice", packages.voice)}
+              money={money}
+            />
+          </View>
         </>
       )}
 
@@ -285,6 +339,6 @@ export default function PlansModal() {
         Subscriptions are managed by the App Store / Google Play.{"\n"}
         Cancel anytime. Prices shown in your local currency.
       </Low>
-    </Screen>
+    </ScrollView>
   );
 }

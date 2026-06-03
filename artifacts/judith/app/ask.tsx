@@ -877,7 +877,7 @@ export default function AskModal() {
               Your Chat Ask plan covers unlimited text questions. Upgrade to Voice Ask (₱199/mo) to speak and listen hands-free.
             </Muted>
             <Pressable
-              onPress={() => { setVoiceUpgradeVisible(false); router.push("/plans"); }}
+              onPress={() => { setVoiceUpgradeVisible(false); router.push("/plans?focus=voice"); }}
               style={{
                 backgroundColor: t.accent,
                 borderRadius: 14,
