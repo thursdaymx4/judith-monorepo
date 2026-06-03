@@ -16,11 +16,11 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.app.judith",
-      "buildNumber": "3"
+      "buildNumber": "4"
     },
     "android": {
       "package": "com.judith.app",
-      "versionCode": 3
+      "versionCode": 4
     },
     "web": {
       "favicon": "./assets/images/icon.png"
@@ -40,7 +40,8 @@
           "microphonePermission": "Pinapayagan ang Judith na gamitin ang mikropono para marinig ang mga tanong mo."
         }
       ],
-      "expo-notifications"
+      "expo-notifications",
+      "./plugins/withAndroidExcludeWatchConnectivity"
     ],
     "experiments": {
       "typedRoutes": true,
