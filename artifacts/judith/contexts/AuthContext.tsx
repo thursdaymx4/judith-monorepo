@@ -55,25 +55,15 @@ function readTokensFromUrl(rawUrl: string): {
   };
 }
 
-async function sendSessionToWatch(session: Session): Promise<void> {
-  if (Platform.OS !== "ios") return;
-  // react-native-watch-connectivity calls TurboModuleRegistry.getEnforcing()
-  // at module-load time, before any JS can intercept it. In Expo Go the native
-  // binary isn't present so this throws an uncaught Invariant Violation.
-  // NativeModules.WatchConnectivity exists as a stub even in Expo Go, so that
-  // check isn't reliable — we must wrap the entire import in try/catch instead.
-  try {
-    const mod = await import("react-native-watch-connectivity");
-    const WatchConnectivity = mod.default ?? mod;
-    const installed = await (WatchConnectivity as { getIsWatchAppInstalled(): Promise<boolean> }).getIsWatchAppInstalled();
-    if (!installed) return;
-    await (WatchConnectivity as { transferUserInfo(info: Record<string, string>): Promise<void> }).transferUserInfo({
-      supabaseAccessToken: session.access_token,
-      supabaseRefreshToken: session.refresh_token,
-    });
-  } catch {
-    /* Expo Go / no paired watch / native binary absent — silently ignore */
-  }
+// Apple Watch sync is implemented in feature #5.
+// react-native-watch-connectivity calls TurboModuleRegistry.getEnforcing() at
+// module-load time — that throw cannot be caught by a try/catch around a
+// dynamic import(). The integration requires a development build with the
+// native WatchConnectivity module compiled in. This function is a no-op
+// placeholder until the Watch feature is built.
+async function sendSessionToWatch(_session: Session): Promise<void> {
+  // TODO (feature #5): send supabaseAccessToken + supabaseRefreshToken via
+  // WatchConnectivity.transferUserInfo() in a dev build.
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

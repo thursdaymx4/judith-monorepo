@@ -11,4 +11,5 @@
 - [Judith auth flow](judith-auth-flow.md) — social-login + Supabase OAuth/password/reset; recoveryActive flag must be set BEFORE establishing the recovery session or routing ejects the reset screen.
 - [Judith Supabase URL](judith-supabase-url.md) — EXPO_PUBLIC_SUPABASE_URL must be the API origin (<ref>.supabase.co), NOT the dashboard URL; dashboard URL returns HTML → "JSON Parse error: Unexpected character: <"; client self-heals.
 - [Judith rate limiting](judith-rate-limiting.md) — express-rate-limit v8; use ipKeyGenerator (not req.ip) in custom keyGenerators to avoid ERR_ERL_KEY_GEN_IPV6 crash on startup.
+- [Judith WatchConnectivity crash](judith-watch-connectivity.md) — TurboModuleRegistry.getEnforcing() fires at module-init time; try/catch around await import() cannot intercept it; Watch code requires a dev build.
 - [Judith tier model](judith-tier-model.md) — AskTier is "free"|"chat"|"voice"; Chat Ask=₱99 text-only, Voice Ask=₱199 text+voice; onboarding paywall and voice nudge must match these names exactly.

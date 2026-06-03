@@ -11,7 +11,8 @@ import {
   useFonts,
 } from "@expo-google-fonts/space-grotesk";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import * as Notifications from "expo-notifications";
+import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
@@ -24,6 +25,8 @@ import { Splash } from "@/components/Splash";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { JudithProvider, useJudith } from "@/contexts/JudithStore";
 import { useBiometricLock } from "@/hooks/useBiometricLock";
+import { useNotificationSync } from "@/hooks/useNotificationSync";
+import { useWatchSync } from "@/hooks/useWatchSync";
 import { useTheme } from "@/hooks/useTheme";
 import { getActiveTier } from "@/lib/purchases";
 
@@ -102,6 +105,7 @@ function RootLayoutNav() {
   const { session, loading, configured, recoveryActive } = useAuth();
   const { onboarded, hydrated, guest, faceIdLock, tier, subscribe } = useJudith();
   const t = useTheme();
+  const router = useRouter();
   const [splashDone, setSplashDone] = useState(false);
 
   const authed = !!session || guest;
@@ -118,6 +122,35 @@ function RootLayoutNav() {
       .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user?.id]);
+
+  // Keep local notifications in sync with bills and toggles.
+  useNotificationSync();
+
+  // Keep the paired Apple Watch in sync whenever bills change.
+  useWatchSync();
+
+  // Navigate to the relevant bill when the user taps a Judith notification.
+  // Handles both foreground taps and cold-start launches from a notification.
+  useEffect(() => {
+    if (!isOnboarded) return;
+
+    function handleResponse(response: Notifications.NotificationResponse) {
+      const billId = response.notification.request.content.data?.billId;
+      if (typeof billId === "string") {
+        router.push(`/bill/${billId}`);
+      }
+    }
+
+    // Cold start: app was launched by tapping a notification
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => { if (response) handleResponse(response); })
+      .catch(() => {});
+
+    // Foreground / background tap
+    const sub = Notifications.addNotificationResponseReceivedListener(handleResponse);
+    return () => sub.remove();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOnboarded]);
 
   // Only engage biometric lock once the user is fully onboarded and authed.
   const { locked, unlock } = useBiometricLock(isOnboarded && faceIdLock);

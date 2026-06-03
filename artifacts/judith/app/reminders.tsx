@@ -1,4 +1,5 @@
 import { LinearGradient } from "expo-linear-gradient";
+import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
 import React from "react";
 import { Pressable, Text, View } from "react-native";
@@ -20,6 +21,7 @@ import { dueClass, dueText, type Bill } from "@/constants/data";
 import type { PersonaId } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
+import { getPermissionStatus } from "@/lib/notifications";
 
 /* persona + country flavored notification copy for a given bill */
 function reminderCopy(
@@ -55,10 +57,14 @@ function reminderCopy(
   }
 }
 
+const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 function reminderDate(bill: Bill, leadDays: number): string {
-  /* due date is day-of-month in June 2026; reminder fires leadDays before */
-  const d = Math.max(1, bill.dueDate - (leadDays || 3));
-  return "Jun " + d;
+  const today = new Date();
+  const due = new Date(today);
+  due.setDate(today.getDate() + bill.dueDays);
+  const reminder = new Date(due);
+  reminder.setDate(due.getDate() - (leadDays || 3));
+  return `${MONTH_NAMES[reminder.getMonth()]} ${reminder.getDate()}`;
 }
 
 function LockNotification({ bill }: { bill: Bill | null }) {
@@ -245,6 +251,11 @@ export default function RemindersModal() {
   const t = useTheme();
   const router = useRouter();
   const { bills, money, toggles } = useJudith();
+  const [permStatus, setPermStatus] = React.useState<"granted" | "denied" | "undetermined">("undetermined");
+
+  React.useEffect(() => {
+    getPermissionStatus().then(setPermStatus).catch(() => {});
+  }, []);
 
   const list = bills
     .filter((b) => b.status !== "paid")
@@ -252,7 +263,8 @@ export default function RemindersModal() {
     .sort((a, b) => a.dueDays - b.dueDays);
   const hero = list[0] || null;
   const lead = 3; // days before — matches Settings default
-  const remindersOn = !toggles || toggles.dueReminders !== false;
+  const remindersOn = toggles.dueReminders !== false;
+  const notificationsBlocked = remindersOn && permStatus === "denied";
 
   /* group reminders by when Judith will nudge */
   const groups = [
@@ -272,6 +284,7 @@ export default function RemindersModal() {
 
       <LockNotification bill={hero} />
 
+      {/* Toggle is off → link to settings */}
       {!remindersOn && (
         <Pressable
           onPress={() => router.push("/settings")}
@@ -302,10 +315,46 @@ export default function RemindersModal() {
             <Icon name="bell" size={17} color={t.semantic.near} />
           </View>
           <View style={{ flex: 1 }}>
-            <Txt size={14} weight="semibold">
-              Reminders are off
-            </Txt>
+            <Txt size={14} weight="semibold">Reminders are off</Txt>
             <Low size={12}>Turn them on in Settings so these can send.</Low>
+          </View>
+          <Icon name="chev" size={16} color={t.txtMid} />
+        </Pressable>
+      )}
+
+      {/* Toggle is on but OS permission denied → open device settings */}
+      {notificationsBlocked && (
+        <Pressable
+          onPress={() => Linking.openSettings()}
+          style={{
+            marginTop: 16,
+            flexDirection: "row",
+            gap: 11,
+            alignItems: "center",
+            borderWidth: 1,
+            borderColor: mix(t.semantic.warning ?? t.semantic.near, t.surface2, 0.4),
+            borderRadius: t.radius.md,
+            backgroundColor: t.surface2,
+            padding: t.space.pad,
+          }}
+        >
+          <View
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 11,
+              borderWidth: 1,
+              borderColor: t.hair,
+              backgroundColor: t.surface3,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Icon name="bell" size={17} color={t.semantic.near} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Txt size={14} weight="semibold">Notifications are blocked</Txt>
+            <Low size={12}>Tap to enable them in your device Settings.</Low>
           </View>
           <Icon name="chev" size={16} color={t.txtMid} />
         </Pressable>

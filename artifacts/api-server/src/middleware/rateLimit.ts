@@ -1,4 +1,4 @@
-import { rateLimit, type Options } from "express-rate-limit";
+import { ipKeyGenerator, rateLimit, type Options } from "express-rate-limit";
 import { bearerToken, getUserFromToken } from "../lib/supabaseAdmin";
 import type { Request } from "express";
 
@@ -41,7 +41,7 @@ async function keyByVerifiedUser(req: Request): Promise<string> {
     const userId = await resolveUserId(token);
     if (userId) return `uid:${userId}`;
   }
-  return `ip:${req.ip ?? "unknown"}`;
+  return `ip:${await ipKeyGenerator(req)}`;
 }
 
 /**
@@ -49,8 +49,8 @@ async function keyByVerifiedUser(req: Request): Promise<string> {
  * Always uses `req.ip` derived from the trust-proxy configuration in app.ts —
  * clients cannot spoof it via x-forwarded-for.
  */
-function keyByIp(req: Request): string {
-  return `ip:${req.ip ?? "unknown"}`;
+async function keyByIp(req: Request): Promise<string> {
+  return `ip:${await ipKeyGenerator(req)}`;
 }
 
 const HANDLER: Options["handler"] = (_req, res) => {

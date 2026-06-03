@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useCallback } from "react";
 import { Modal, Pressable, Text, TextInput, View } from "react-native";
 
 import { Icon, type IconName } from "@/components/Icon";
@@ -8,6 +8,7 @@ import { PERSONAS } from "@/constants/personas";
 import { useAuth } from "@/contexts/AuthContext";
 import { useJudith, type Toggles } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
+import { requestPermission } from "@/lib/notifications";
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -358,6 +359,15 @@ export default function SettingsScreen() {
       <View style={{ borderRadius: t.radius.md, overflow: "hidden" }}>
         {TOGGLE_DEFS.map((d, i) => {
           const on = toggles[d.key];
+          const needsPermission = d.key === "dueReminders" || d.key === "nudges";
+          const handleToggle = async () => {
+            const next = !on;
+            if (next && needsPermission) {
+              const granted = await requestPermission();
+              if (!granted) return;
+            }
+            setToggle(d.key, next);
+          };
           return (
             <View key={d.key} style={{ ...rowBase, borderTopWidth: i === 0 ? 1 : 0, borderBottomWidth: 0 }}>
               <IcoBox name={d.icon} iconSize={17} color={on ? t.accent : t.txtMid} />
@@ -369,7 +379,7 @@ export default function SettingsScreen() {
                   {d.s}
                 </Low>
               </View>
-              <Toggle on={on} onPress={() => setToggle(d.key, !on)} />
+              <Toggle on={on} onPress={handleToggle} />
             </View>
           );
         })}

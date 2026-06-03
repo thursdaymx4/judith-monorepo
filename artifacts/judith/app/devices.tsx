@@ -14,9 +14,11 @@ type NextBill = { provider: string; amount: number; dueDays: number; cat: string
 function WidgetSmall({
   next,
   money,
+  persona,
 }: {
   next: NextBill;
   money: (n: number) => string;
+  persona: string;
 }) {
   const t = useTheme();
   const cls = dueClass(next.dueDays);
@@ -35,7 +37,7 @@ function WidgetSmall({
       }}
     >
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-        <JudithAvatar persona="pro" size={26} state="idle" />
+        <JudithAvatar persona={persona as never} size={26} state="idle" />
         <Text style={{ fontFamily: t.fonts.bold, fontSize: 12, color: t.semantic[cls] }}>
           {dueShort(next.dueDays)}
         </Text>
@@ -67,10 +69,12 @@ function WidgetMedium({
   due,
   total,
   money,
+  persona,
 }: {
   due: Bill[];
   total: number;
   money: (n: number) => string;
+  persona: string;
 }) {
   const t = useTheme();
   const soon = due.slice(0, 3);
@@ -122,7 +126,7 @@ function WidgetMedium({
       </View>
       <View style={{ width: 1, backgroundColor: "rgba(255,255,255,0.1)" }} />
       <View style={{ width: 76, flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
-        <JudithAvatar persona="pro" size={40} state="idle" />
+        <JudithAvatar persona={persona as never} size={40} state="idle" />
         <View style={{ alignItems: "center" }}>
           <Mono size={15} weight="bold" color={t.semantic.near}>
             {due.length}
@@ -172,10 +176,18 @@ function DevLabel({ icon, label, marginTop }: { icon: string; label: string; mar
   );
 }
 
+const WEEK_DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const MONTH_LABELS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+function todayLabel(): string {
+  const d = new Date();
+  return `${WEEK_DAYS[d.getDay()]}, ${MONTH_LABELS[d.getMonth()]} ${d.getDate()}`;
+}
+
 export default function DevicesModal() {
   const t = useTheme();
   const router = useRouter();
-  const { bills, money, country } = useJudith();
+  const { bills, money, country, persona } = useJudith();
 
   const cur = country?.cur || "₱";
   const due = bills
@@ -206,8 +218,8 @@ export default function DevicesModal() {
         }}
       >
         <View style={{ flexDirection: "row", gap: 14, alignItems: "stretch" }}>
-          <WidgetSmall next={next} money={money} />
-          <WidgetMedium due={due} total={total} money={money} />
+          <WidgetSmall next={next} money={money} persona={persona} />
+          <WidgetMedium due={due} total={total} money={money} persona={persona} />
         </View>
         <View
           style={{
@@ -263,7 +275,7 @@ export default function DevicesModal() {
               overflow: "hidden",
             }}
           >
-            <JudithAvatar persona="pro" size={30} state="idle" />
+            <JudithAvatar persona={persona as never} size={30} state="idle" />
           </View>
           <View
             style={{
@@ -332,7 +344,7 @@ export default function DevicesModal() {
             9:41
           </Text>
           <Text style={{ fontFamily: t.fonts.regular, fontSize: 13, color: "#fff", opacity: 0.8, marginTop: 4 }}>
-            Monday, June 1
+            {todayLabel()}
           </Text>
         </View>
 
@@ -347,7 +359,7 @@ export default function DevicesModal() {
             backgroundColor: "rgba(255,255,255,0.13)",
           }}
         >
-          <JudithAvatar persona="pro" size={28} state="idle" />
+          <JudithAvatar persona={persona as never} size={28} state="idle" />
           <View style={{ flex: 1 }}>
             <Text style={{ fontFamily: t.fonts.semibold, fontSize: 12.5, color: "#fff" }}>
               {next.provider} {dueText(next.dueDays)}
@@ -392,7 +404,7 @@ export default function DevicesModal() {
               <Mono size={13} weight="bold" color={t.semantic.near}>
                 9:41
               </Mono>
-              <JudithAvatar persona="pro" size={20} state="idle" />
+              <JudithAvatar persona={persona as never} size={20} state="idle" />
             </View>
             <Mono size={26} weight="bold" color="#f2f4f7" style={{ lineHeight: 27, letterSpacing: -0.5 }}>
               {money(total)}
@@ -444,7 +456,7 @@ export default function DevicesModal() {
               paddingHorizontal: 13,
             }}
           >
-            <JudithAvatar persona="pro" size={34} state="speaking" />
+            <JudithAvatar persona={persona as never} size={34} state="speaking" />
             <Text
               style={{
                 fontFamily: t.fonts.regular,
@@ -482,7 +494,7 @@ export default function DevicesModal() {
       </View>
 
       <Low size={12} style={{ textAlign: "center", marginTop: 20, lineHeight: 18 }}>
-        Widgets &amp; Watch are on the roadmap — turn them on in Settings to be first when they ship.
+        Reminders &amp; nudges are live. Home-screen widgets and Apple Watch require a development build — enable them in Settings to be first when they ship.
       </Low>
     </Screen>
   );
