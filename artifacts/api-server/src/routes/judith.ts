@@ -20,12 +20,13 @@ import {
 } from "../lib/normalize";
 import { logger } from "../lib/logger";
 import {
-  limitAsk,
-  limitSttTts,
-  limitSampleVoices,
-  limitParse,
-  limitAskOnboarding,
-  limitSttTtsOnboarding,
+  askLimiter,
+  sttTtsLimiter,
+  sampleVoicesLimiter,
+  parseLimiter,
+  sampleOnboardingLimiter,
+  askOnboardingLimiter,
+  sttTtsOnboardingLimiter,
 } from "../middleware/rateLimit";
 
 const router: IRouter = Router();
@@ -272,7 +273,7 @@ router.post("/delete-account", async (req, res) => {
 });
 
 // POST /api/judith/stt  { audioBase64, mimeType } -> { text }
-router.post("/stt", limitSttTts, async (req, res) => {
+router.post("/stt", sttTtsLimiter, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
@@ -295,7 +296,7 @@ router.post("/stt", limitSttTts, async (req, res) => {
 });
 
 // POST /api/judith/ask  { text } -> { reply, audioBase64, mime }
-router.post("/ask", limitAsk, async (req, res) => {
+router.post("/ask", askLimiter, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
@@ -371,7 +372,7 @@ router.post("/ask", limitAsk, async (req, res) => {
 
 
 // POST /api/judith/tts  { text, persona? } -> { audioBase64, mime }
-router.post("/tts", limitSttTts, async (req, res) => {
+router.post("/tts", sttTtsLimiter, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
@@ -412,7 +413,7 @@ const SAMPLE_LINES: Record<PersonaId, string> = {
 };
 
 // GET /api/judith/voices -> { voices: [{ id, name, category }] }
-router.get("/voices", limitSampleVoices, async (req, res) => {
+router.get("/voices", sampleVoicesLimiter, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
@@ -424,7 +425,7 @@ router.get("/voices", limitSampleVoices, async (req, res) => {
   }
 });
 
-router.get("/sample", limitSampleVoices, async (req, res) => {
+router.get("/sample", sampleVoicesLimiter, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
@@ -441,7 +442,7 @@ router.get("/sample", limitSampleVoices, async (req, res) => {
 
 // POST /api/judith/ask-onboarding  { text, bills?, persona? } -> { reply, audioBase64, mime }
 // No auth required — interactive AI ask during onboarding feature screens.
-router.post("/ask-onboarding", limitAskOnboarding, async (req, res) => {
+router.post("/ask-onboarding", askOnboardingLimiter, async (req, res) => {
   try {
     const { text, bills: bodyBills, persona: bodyPersona, localDate, language } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
@@ -485,7 +486,7 @@ router.post("/ask-onboarding", limitAskOnboarding, async (req, res) => {
 
 // POST /api/judith/parse-bill  { text, category } -> { provider, amount, dueDay, kind }
 // No auth required — AI extraction of bill details from transcribed onboarding speech.
-router.post("/parse-bill", limitParse, async (req, res) => {
+router.post("/parse-bill", parseLimiter, async (req, res) => {
   try {
     const { text, category } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
@@ -557,7 +558,7 @@ User said: "I don't know the exact amount" → {"provider":null,"amount":null,"d
 
 // POST /api/judith/stt-onboarding  { audioBase64, mimeType } -> { text }
 // No auth required — called during onboarding where the user may be a guest.
-router.post("/stt-onboarding", limitSttTtsOnboarding, async (req, res) => {
+router.post("/stt-onboarding", sttTtsOnboardingLimiter, async (req, res) => {
   try {
     const { audioBase64, mimeType, language } = req.body ?? {};
     if (typeof audioBase64 !== "string" || !audioBase64) {
@@ -579,7 +580,7 @@ router.post("/stt-onboarding", limitSttTtsOnboarding, async (req, res) => {
 
 // POST /api/judith/tts-onboarding  { text, persona? } -> { audioBase64, mime }
 // No auth required — called during onboarding where the user may be a guest.
-router.post("/tts-onboarding", limitSttTtsOnboarding, async (req, res) => {
+router.post("/tts-onboarding", sttTtsOnboardingLimiter, async (req, res) => {
   try {
     const { text, persona, language } = req.body ?? {};
     if (typeof text !== "string" || !text.trim() || text.length > 350) {
@@ -597,7 +598,7 @@ router.post("/tts-onboarding", limitSttTtsOnboarding, async (req, res) => {
 
 // POST /api/judith/parse-subscription-screenshot  { imageBase64, mimeType } -> { subscriptions }
 // No auth required — vision extraction of active subscriptions from a screenshot.
-router.post("/parse-subscription-screenshot", limitParse, async (req, res) => {
+router.post("/parse-subscription-screenshot", parseLimiter, async (req, res) => {
   try {
     const { imageBase64, mimeType } = req.body ?? {};
     if (typeof imageBase64 !== "string" || !imageBase64) {
@@ -671,7 +672,7 @@ Rules:
 
 // GET /api/judith/sample-onboarding?persona=  -> { text, audioBase64, mime }
 // No auth required — persona voice preview during onboarding.
-router.get("/sample-onboarding", async (req, res) => {
+router.get("/sample-onboarding", sampleOnboardingLimiter, async (req, res) => {
   try {
     const persona = coercePersona(req.query["persona"]);
     const language = typeof req.query["language"] === "string" ? req.query["language"] : undefined;

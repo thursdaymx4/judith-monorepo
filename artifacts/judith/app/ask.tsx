@@ -592,7 +592,7 @@ export default function AskModal() {
         />
         <Pressable
           onPress={recording ? stopRecording : startRecording}
-          disabled={rateLimitSecs > 0}
+          disabled={(busy && !recording) || rateLimitSecs > 0}
           style={{
             width: 50,
             height: 50,
@@ -600,7 +600,7 @@ export default function AskModal() {
             alignItems: "center",
             justifyContent: "center",
             backgroundColor: recording ? t.semantic.urgent : t.accent,
-            opacity: rateLimitSecs > 0 ? 0.4 : 1,
+            opacity: (busy && !recording) || rateLimitSecs > 0 ? 0.5 : 1,
           }}
         >
           <Icon

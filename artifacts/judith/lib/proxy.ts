@@ -3,41 +3,6 @@ import type { PersonaId } from "@/constants/personas";
 
 const BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN}/api/judith`;
 
-async function authHeader(): Promise<Record<string, string>> {
-  // getSession() returns the cached session. Right after Apple/Google Sign-In
-  // there is a brief window where the cache is empty even though the user just
-  // authenticated. Try refreshSession() once as a fallback so we don't send
-  // auth-required requests without a token and get a spurious 401.
-  let session = (await supabase?.auth.getSession())?.data.session;
-  if (!session?.access_token && supabase) {
-    const { data } = await supabase.auth.refreshSession().catch(() => ({ data: { session: null } }));
-    session = data.session;
-  }
-  if (!session?.access_token) {
-    // Guest mode or not signed in — proceed without a token.
-    return {};
-  }
-  return { Authorization: `Bearer ${session.access_token}` };
-}
-
-/** Maps client persona ids to the api-server's persona ids. */
-const PERSONA_MAP: Record<PersonaId, string> = {
-  pro: "professional",
-  funny: "funny",
-  sib: "sarcastic",
-  mama: "mom",
-  marites: "marites",
-};
-
-export interface AskBill {
-  provider: string;
-  cat: string;
-  amount: number;
-  dueDays: number;
-  dueLabel: string;
-  status: string;
-}
-
 /**
  * Thrown when the server returns HTTP 429 (rate limited).
  * `retryAfter` is the number of seconds to wait before retrying,
@@ -50,6 +15,22 @@ export class RateLimitError extends Error {
   }
 }
 
+/** Throws RateLimitError if response status is 429. */
+function throwIfRateLimited(res: Response) {
+  if (res.status === 429) {
+    const retryAfter = Number(res.headers.get("Retry-After") ?? 60);
+    throw new RateLimitError(Number.isFinite(retryAfter) ? retryAfter : 60);
+  }
+}
+
+/** Throws RateLimitError on HTTP 429; no-op otherwise. */
+function throwIfRateLimited(res: Response): void {
+  if (res.status === 429) {
+    const retryAfter = Number(res.headers.get("Retry-After") ?? 60);
+    throw new RateLimitError(Number.isFinite(retryAfter) ? retryAfter : 60);
+  }
+}
+
 async function postJson<T>(path: string, body: unknown): Promise<T> {
   const headers = await authHeader();
   const res = await fetch(`${BASE}${path}`, {
@@ -57,10 +38,7 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
     headers: { ...headers, "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (res.status === 429) {
-    const retryAfter = parseInt(res.headers.get("Retry-After") ?? "60", 10);
-    throw new RateLimitError(isNaN(retryAfter) ? 60 : retryAfter);
-  }
+  throwIfRateLimited(res);
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
     throw new Error(`Request failed (${res.status}): ${detail}`);
@@ -148,6 +126,7 @@ export interface VoiceOption {
 export async function fetchVoices(): Promise<VoiceOption[]> {
   const headers = await authHeader();
   const res = await fetch(`${BASE}/voices`, { headers });
+  throwIfRateLimited(res);
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
     throw new Error(`Voices failed (${res.status}): ${detail}`);
@@ -173,6 +152,7 @@ export async function fetchSample(
   const res = await fetch(`${BASE}/sample?persona=${PERSONA_MAP[persona]}${lang}`, {
     headers,
   });
+  throwIfRateLimited(res);
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
     throw new Error(`Sample failed (${res.status}): ${detail}`);
@@ -212,6 +192,7 @@ export function askOnboarding(
       language,
     }),
   }).then(async (res) => {
+    throwIfRateLimited(res);
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
       throw new Error(`Ask onboarding failed (${res.status}): ${detail}`);
@@ -233,6 +214,7 @@ export async function parseSubscriptionScreenshot(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ imageBase64, mimeType }),
   });
+  throwIfRateLimited(res);
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
     throw new Error(`Parse screenshot failed (${res.status}): ${detail}`);
@@ -262,6 +244,7 @@ export async function parseBillOnboarding(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, category }),
   });
+  throwIfRateLimited(res);
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
     throw new Error(`Parse bill failed (${res.status}): ${detail}`);
@@ -289,6 +272,7 @@ export async function transcribeOnboarding(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ audioBase64, mimeType, language }),
   });
+  throwIfRateLimited(res);
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
     throw new Error(`STT onboarding failed (${res.status}): ${detail}`);
@@ -325,6 +309,7 @@ export async function synthOnboarding(
       language,
     }),
   });
+  throwIfRateLimited(res);
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
     throw new Error(`TTS onboarding failed (${res.status}): ${detail}`);
@@ -354,6 +339,7 @@ export async function fetchSampleOnboarding(
   const res = await fetch(
     `${BASE}/sample-onboarding?persona=${PERSONA_MAP[persona]}${lang}`,
   );
+  throwIfRateLimited(res);
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
     throw new Error(`Sample onboarding failed (${res.status}): ${detail}`);
