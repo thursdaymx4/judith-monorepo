@@ -36,6 +36,7 @@ import {
 } from "@/constants/providers";
 import { LANGUAGES, langSample, langDesc, isFilipino, sttHint } from "@/constants/languages";
 import { PERSONAS, type PersonaId } from "@/constants/personas";
+import { JUDITH_VOICE } from "@/constants/voiceLines";
 import { LinearGradient } from "expo-linear-gradient";
 import { useJudith } from "@/contexts/JudithStore";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
@@ -147,373 +148,7 @@ const MANUAL_CATS: { cat: string; icon: string }[] = [
   { cat: "Other", icon: "plus" },
 ];
 
-const PROMPTS: Record<string, string> = {
-  "Rent / Mortgage": "Let’s start with the big one — rent or mortgage. How much, and when’s it due?",
-  Electricity: "Now your electricity. Who’s the provider, how much, and when’s it due?",
-  Water: "Next, your water. Provider, amount, and the due date?",
-  Internet: "And your internet. Provider, amount, due date?",
-  Mobile: "Now your phone plan — which carrier, how much, and when’s it due?",
-  "Phone subscription": "The fastest way is to screenshot your Subscriptions list in Settings, then upload it. Or tell me each one — iCloud, Spotify, Apple Music.",
-  "TV / Streaming": "Streaming — Netflix, Disney+, HBO? Which one, how much, when?",
-  "Web app": "Any web apps? Canva, Notion, ChatGPT… name it, the cost, the date.",
-  "Credit card": "Now the heavy ones. A credit card — which bank, the amount due, and the date?",
-  "Personal loan": "Any loans? Lender, the monthly amount, and the due date.",
-};
-
-/** Tagalog/Taglish bill prompts — used when the user selected Filipino voice. */
-const PROMPTS_FIL: Record<string, string> = {
-  "Rent / Mortgage": "Simula tayo sa pinakamalaki — renta o mortgage. Magkano at kailan due?",
-  Electricity: "Yung kuryente — sino ang provider, magkano, at kailan due?",
-  Water: "Tubig naman — provider, halaga, at petsa ng due?",
-  Internet: "Internet mo — provider, bayad, at due date?",
-  Mobile: "Phone plan — anong network, magkano, at kailan bayaran?",
-  "Phone subscription": "Pinaka-mabilis: mag-screenshot ng iyong Subscriptions sa Settings tapos i-upload. O sabihin mo sa akin isa-isa — iCloud, Spotify, at iba pa.",
-  "TV / Streaming": "Streaming — Netflix, Disney+? Alin, magkano, kelan?",
-  "Web app": "Mga web apps — Canva, Notion, ChatGPT? Pangalan, bayad, petsa.",
-  "Credit card": "Yung credit cards — anong bangko, magkano ang due, at kailan?",
-  "Personal loan": "Mga loans — sinong nagpahiram, magkano monthly, at kailan due?",
-};
-
-/**
- * Voice-only canned lines for the bill-asking step (EN).
- * Intentionally different from PROMPTS — shorter, more natural, never a
- * word-for-word read of what the user can already see on screen.
- */
-const VOICE_PROMPTS: Record<string, string> = {
-  "Rent / Mortgage": "How much is rent, and what day's it due?",
-  Electricity: "Who's your electricity provider, and what's the usual amount?",
-  Water: "Water bill — provider and amount?",
-  Internet: "Internet — which provider, how much a month?",
-  Mobile: "Which network, and how much is the plan?",
-  "Phone subscription": "Screenshot your Subscriptions in Settings — easiest way. Or just tell me each one.",
-  "TV / Streaming": "Any streaming services? Which ones?",
-  "Web app": "Web subscriptions — Canva, Notion, anything like that?",
-  "Credit card": "Which bank, and what's the amount due?",
-  "Personal loan": "Who's the lender, and what's the monthly payment?",
-};
-
-/**
- * Voice-only canned lines for the bill-asking step (Tagalog/Taglish).
- */
-const VOICE_PROMPTS_FIL: Record<string, string> = {
-  "Rent / Mortgage": "Magkano bayad mo sa bahay at tuwing kailan?",
-  Electricity: "Kuryente, magkano at tuwing kelan? Meralco ka din ba?",
-  Water: "Tubig mo magkano at kailan due?",
-  Internet: "Yung internet mo, how much at kay PLDT ka ba or Converge?",
-  Mobile: "May mobile plan ka ba kay Smart or Globe? How much at kailan ang due?",
-  "Phone subscription": "May mga mobile subscriptions ka ba? If meron, mas maganda i-screenshot mo na lang from your phone. Then upload mo dito. If may separate TV or Streaming subscriptions ka pa na nakalimutan, idagdag mo na.",
-  "TV / Streaming": "May streaming ka ba? Alin-alin?",
-  "Web app": "Other web apps subscription meron ka?",
-  "Credit card": "Ilista na natin mga credit cards mo. Ilan meron ka?",
-  "Personal loan": "May mga iba ka pa bang utang na dapat nating ilista?",
-};
-
-/**
- * Persona-specific voice prompts for each scripted bill category (EN).
- * Replaces the flat VOICE_PROMPTS table in ScreenVoiceAdd so each persona
- * asks in their own voice, not a generic neutral question.
- */
-const VOICE_PROMPTS_PERSONA: Record<PersonaId, Record<string, string>> = {
-  pro: {
-    "Rent / Mortgage": "How much is rent, and what day's it due?",
-    Electricity: "Your electricity provider, and the usual monthly amount?",
-    Water: "Water — provider and how much a month?",
-    Internet: "Internet provider and monthly cost?",
-    Mobile: "Your mobile plan — which network and how much?",
-    "Phone subscription": "Screenshot your Subscriptions in Settings — fastest way. Or list them one by one.",
-    "TV / Streaming": "Any streaming services? Which ones and how much?",
-    "Web app": "Any web subscriptions — Canva, Notion, anything like that?",
-    "Credit card": "Which bank, and what's the amount due?",
-    "Personal loan": "Who's the lender, and what's the monthly payment?",
-  },
-  funny: {
-    "Rent / Mortgage": "Rent — the unavoidable one. How much and what day?",
-    Electricity: "Electricity! Who's eating your wallet here, and how much usually?",
-    Water: "Water bill — provider and the damage?",
-    Internet: "Internet — can't live without it. Which one and how much?",
-    Mobile: "Phone plan — which network, and how much a month?",
-    "Phone subscription": "Screenshot your Subscriptions in Settings — easiest confession method. Or list them.",
-    "TV / Streaming": "Streaming — which ones are you guiltlessly paying for?",
-    "Web app": "Any web apps you're quietly funding? Canva, Notion, that sort of thing?",
-    "Credit card": "Which bank, and how much is this month's reality check?",
-    "Personal loan": "Who's the lender, and how much a month?",
-  },
-  sib: {
-    "Rent / Mortgage": "Rent. How much and when?",
-    Electricity: "Electricity — who and how much?",
-    Water: "Water. Provider and amount.",
-    Internet: "Internet — which one and how much?",
-    Mobile: "Phone plan. Network and cost.",
-    "Phone subscription": "Screenshot Subscriptions in Settings. Or just list them.",
-    "TV / Streaming": "Streaming. Which ones?",
-    "Web app": "Web subscriptions you've been ignoring?",
-    "Credit card": "Bank and amount due.",
-    "Personal loan": "Lender and monthly payment.",
-  },
-  mama: {
-    "Rent / Mortgage": "Anak, how much is rent and what day is it due?",
-    Electricity: "Your electricity anak — which provider and how much usually?",
-    Water: "Water bill anak — provider and how much a month?",
-    Internet: "Internet anak — which provider and how much?",
-    Mobile: "Your phone plan anak — which network and how much?",
-    "Phone subscription": "Screenshot Subscriptions anak, from your phone Settings. Or tell me each one.",
-    "TV / Streaming": "Any streaming anak? Which ones?",
-    "Web app": "Any web subscriptions anak? Canva, Notion?",
-    "Credit card": "Which bank anak, and how much is due?",
-    "Personal loan": "Who's the lender anak, and how much a month?",
-  },
-  marites: {
-    "Rent / Mortgage": "Renta! Magkano at kelan?! Tell me everything!",
-    Electricity: "Kuryente! Sino ang provider at magkano?!",
-    Water: "Tubig bill! Provider and amount — spill na!",
-    Internet: "Internet! Which provider and magkano?!",
-    Mobile: "Phone plan! Anong network, magkano?!",
-    "Phone subscription": "I-screenshot mo na lang ang Subscriptions mo sa Settings! O isa-isa mo sa akin besh!",
-    "TV / Streaming": "Streaming! Alin-alin?! Netflix?! Disney?! Spill!",
-    "Web app": "May web apps ka pa?! Canva, Notion?! Grabe ang dami mo!",
-    "Credit card": "Credit card! Anong bangko at magkano ang utang?!",
-    "Personal loan": "Utang! Sinong nagpahiram at magkano monthly?!",
-  },
-};
-
-/** Persona-specific voice prompts for each scripted bill category (FIL/Taglish). */
-const VOICE_PROMPTS_PERSONA_FIL: Record<PersonaId, Record<string, string>> = {
-  pro: {
-    "Rent / Mortgage": "Magkano ang renta mo at tuwing kelan due?",
-    Electricity: "Sino ang provider ng kuryente mo at magkano monthly?",
-    Water: "Tubig — provider at magkano bawat buwan?",
-    Internet: "Internet — sino ang provider at magkano?",
-    Mobile: "Mobile plan — anong network at magkano?",
-    "Phone subscription": "I-screenshot ang Subscriptions mo sa Settings — mas madali. O isa-isahin mo.",
-    "TV / Streaming": "May streaming ka ba? Alin-alin at magkano?",
-    "Web app": "May web subscriptions ka pa — Canva, Notion, ganyan?",
-    "Credit card": "Anong bangko at magkano ang due?",
-    "Personal loan": "Sino ang lender at magkano monthly?",
-  },
-  funny: {
-    "Rent / Mortgage": "Renta — ang hindi maiiwasan! Magkano at kelan?",
-    Electricity: "Kuryente — sino kumukuha ng pera mo at magkano?!",
-    Water: "Tubig — provider at damage?",
-    Internet: "Internet — 'di mabubuhay nang wala. Sino at magkano?",
-    Mobile: "Phone plan — anong network at magkano bawat buwan?",
-    "Phone subscription": "I-screenshot na lang ang Subscriptions — pinakamadaling paraan. O isa-isahin.",
-    "TV / Streaming": "Streaming — alin-alin ang binabayaran mo nang walang hiya?",
-    "Web app": "May mga web apps na tahimik na binabayaran? Canva, Notion, ganyan?",
-    "Credit card": "Anong bangko at magkano ang katotohanan ngayon?",
-    "Personal loan": "Sino ang inutangan at magkano monthly?",
-  },
-  sib: {
-    "Rent / Mortgage": "Renta. Magkano at kelan?",
-    Electricity: "Kuryente. Sino at magkano?",
-    Water: "Tubig. Provider at halaga.",
-    Internet: "Internet. Sino at magkano?",
-    Mobile: "Phone plan. Network at halaga.",
-    "Phone subscription": "I-screenshot ang Subscriptions. O ilista mo.",
-    "TV / Streaming": "Streaming. Alin-alin?",
-    "Web app": "May web subscriptions ka pa ba?",
-    "Credit card": "Bangko at halaga ng due.",
-    "Personal loan": "Sino ang lender at magkano monthly.",
-  },
-  mama: {
-    "Rent / Mortgage": "Anak, magkano ang renta at tuwing kelan due?",
-    Electricity: "Kuryente anak — sino ang provider at magkano?",
-    Water: "Tubig anak — provider at magkano bawat buwan?",
-    Internet: "Internet anak — sino at magkano?",
-    Mobile: "Phone plan mo anak — anong network at magkano?",
-    "Phone subscription": "I-screenshot ang Subscriptions mo anak. O isa-isa mo sa akin.",
-    "TV / Streaming": "May streaming ka ba anak? Alin-alin?",
-    "Web app": "May web subscriptions anak? Canva, Notion?",
-    "Credit card": "Anong bangko anak at magkano ang due?",
-    "Personal loan": "Sino ang lender anak at magkano monthly?",
-  },
-  marites: {
-    "Rent / Mortgage": "Renta! Magkano at kelan?! Tell me everything!",
-    Electricity: "Kuryente, magkano at tuwing kelan? Meralco ka din ba?!",
-    Water: "Tubig mo magkano at kailan due?! Spill!",
-    Internet: "Internet! PLDT o Converge? Magkano?!",
-    Mobile: "Phone plan! Smart o Globe? Magkano at kelan ang due?!",
-    "Phone subscription": "I-screenshot na ang Subscriptions mo sa Settings! O isa-isa mo sa akin besh!",
-    "TV / Streaming": "May streaming ka ba?! Alin-alin?! Grabe!",
-    "Web app": "Other web apps subscription pa?! Grabe ang dami mo besh!",
-    "Credit card": "Credit card! Anong bangko at magkano ang due?!",
-    "Personal loan": "May utang pa?! Sinong nagpahiram at magkano monthly?!",
-  },
-};
-
-/**
- * Persona-specific transition voice lines for the bill-entry flow.
- * Covers: breather (after essentials / after subs), count (cards/loans),
- * more, first card/loan, and subsequent card/loan prompts — in EN and FIL.
- */
-const BILL_VOICES: Record<PersonaId, {
-  breather0: string; breather0Fil: string;
-  breather1: string; breather1Fil: string;
-  countCards: string; countCardsFil: string;
-  countLoans: string; countLoansFil: string;
-  more: (n: number) => string; moreFil: (n: number) => string;
-  cardFirst: string; cardFirstFil: string;
-  cardNext: (n: number) => string; cardNextFil: (n: number) => string;
-  loanFirst: string; loanFirstFil: string;
-  loanNext: (n: number) => string; loanNextFil: (n: number) => string;
-}> = {
-  pro: {
-    breather0:     "Essentials locked in — power, water, internet. All saved.",
-    breather0Fil:  "Essentials, naka-save na. Kuryente, tubig, internet — done.",
-    breather1:     "Subscriptions logged. The quiet drainers are all accounted for.",
-    breather1Fil:  "Mga subscriptions, naka-log na. Wala nang makakalimutan.",
-    countCards:    "Now the credit cards. How many do you have?",
-    countCardsFil: "Ngayon ang mga credit card. Ilan ang mayroon ka?",
-    countLoans:    "And loans — personal, car, housing. How many?",
-    countLoansFil: "At mga loans — personal, car, bahay. Ilan?",
-    more:          (n) => `${n} bills so far. Any more to add?`,
-    moreFil:       (n) => `${n} na bill na naka-log. May iba pa?`,
-    cardFirst:     "First card — which bank, and what's the amount due?",
-    cardFirstFil:  "Sa una mong card, what's your bank, due date and amount due?",
-    cardNext:      (n) => `Card ${n} — same details, which bank?`,
-    cardNextFil:   (n) => `Card ${n} — same details: bank, amount, at kelan due?`,
-    loanFirst:     "First loan — who's the lender, and what's the monthly payment?",
-    loanFirstFil:  "Sinong nag pahiram sayo, magkano monthly at tuwing kelan mo kailangan bayaran?",
-    loanNext:      (n) => `Loan ${n} — lender and monthly amount?`,
-    loanNextFil:   (n) => `Loan ${n} — sino pa, magkano monthly, at kelan?`,
-  },
-  funny: {
-    breather0:     "Essentials done! The boring-but-critical stuff — nailed it. Look at you.",
-    breather0Fil:  "Essentials logged na! Ang boring-but-critical — nailed! Proud of you!",
-    breather1:     "Subscriptions saved! All your guilty pleasures — officially on the record.",
-    breather1Fil:  "Subscriptions, naka-save na rin! Lahat ng guilty pleasures — on record na!",
-    countCards:    "Okay, credit cards. How many are silently judging you right now?",
-    countCardsFil: "Sige, credit cards! Ilan ba ang tahimik na naghahari sa'yo?",
-    countLoans:    "Loans — the long-term commitment kind. How many?",
-    countLoansFil: "Loans — ang pangmatagalang pakikipagtulungan. Ilan?",
-    more:          (n) => `${n} bills down! Any more to confess?`,
-    moreFil:       (n) => `${n} bills na! May iba pa bang gustong i-admit?`,
-    cardFirst:     "First card — which bank, and how much is the damage?",
-    cardFirstFil:  "Una — anong bangko at magkano ang damage?",
-    cardNext:      (n) => `Card ${n} — which bank and how much?`,
-    cardNextFil:   (n) => `Card ${n} — anong bangko at magkano?`,
-    loanFirst:     "First loan — who do you owe, and how much a month?",
-    loanFirstFil:  "Sinong pinagkakautangan, at magkano monthly?",
-    loanNext:      (n) => `Loan ${n} — who and how much?`,
-    loanNextFil:   (n) => `Loan ${n} — sino at magkano?`,
-  },
-  sib: {
-    breather0:     "Essentials noted. Power, water, internet — very predictable. Good.",
-    breather0Fil:  "Essentials. Naka-save. Ayos.",
-    breather1:     "Subscriptions. All logged. You're welcome.",
-    breather1Fil:  "Mga subscriptions. Naka-save. Tapos na.",
-    countCards:    "Credit cards. Of course. How many?",
-    countCardsFil: "Credit cards. Syempre. Ilan?",
-    countLoans:    "And loans. How deep does this go?",
-    countLoansFil: "At mga loans. Hanggang saan ba to?",
-    more:          (n) => `${n} bills. Anything else you've been avoiding?`,
-    moreFil:       (n) => `${n} na bills. May iba pa bang iniiwasan?`,
-    cardFirst:     "Which bank, and how much are you ignoring right now?",
-    cardFirstFil:  "Anong bangko, at magkano ang iniiwan mo?",
-    cardNext:      (n) => `Card ${n} — bank and amount.`,
-    cardNextFil:   (n) => `Card ${n} — bangko at halaga.`,
-    loanFirst:     "Who's the lender, and how much a month?",
-    loanFirstFil:  "Sino ang nagpahiram at magkano monthly?",
-    loanNext:      (n) => `Loan ${n} — who and how much.`,
-    loanNextFil:   (n) => `Loan ${n} — sino at magkano.`,
-  },
-  mama: {
-    breather0:     "Good anak, essentials are all saved — power, water, internet. Done.",
-    breather0Fil:  "Maganda anak, essentials naka-save na. Kuryente, tubig, internet — done.",
-    breather1:     "Subscriptions saved na anak. Good job keeping track.",
-    breather1Fil:  "Subscriptions naka-save na rin anak. Magaling ka talaga.",
-    countCards:    "Now anak, the credit cards. How many do you have?",
-    countCardsFil: "Ngayon anak, ang mga credit card. Ilan ang mayroon ka?",
-    countLoans:    "And any loans anak — personal, car, anything. How many?",
-    countLoansFil: "At mga loans anak — personal, car, kahit ano. Ilan?",
-    more:          (n) => `${n} bills na anak. Any more we should add?`,
-    moreFil:       (n) => `${n} bills na anak. May iba pa ba tayong idadagdag?`,
-    cardFirst:     "First card anak — which bank, and how much is due?",
-    cardFirstFil:  "Sa una mong card anak, anong bangko, due date at magkano ang due?",
-    cardNext:      (n) => `Card ${n} anak — same, which bank and amount?`,
-    cardNextFil:   (n) => `Card ${n} anak — anong bangko at magkano?`,
-    loanFirst:     "First loan anak — who's the lender and how much monthly?",
-    loanFirstFil:  "Sinong nag pahiram sayo anak, magkano monthly at tuwing kelan mo kailangan bayaran?",
-    loanNext:      (n) => `Loan ${n} anak — lender and monthly amount?`,
-    loanNextFil:   (n) => `Loan ${n} anak — sino at magkano monthly?`,
-  },
-  marites: {
-    breather0:     "Grabe! Essentials naka-save na! Power, water, internet — logged na lahat besh!",
-    breather0Fil:  "Grabe! Essentials naka-save na! Kuryente, tubig, internet — done na. Hinga muna.",
-    breather1:     "Ay! Subscriptions, saved na rin! Ang dami mo palang bayarin besh!",
-    breather1Fil:  "Mga subscriptions, naka-save! Wala nang makakalimutan.",
-    countCards:    "Ay besh, credit cards na! Ilan ba?! Tell me everything!",
-    countCardsFil: "Ngayon ang mga credit card. Ilan ang mayroon ka? Isa-isahin natin.",
-    countLoans:    "At loans pa?! Grabe, may mga utang pa! Ilan?",
-    countLoansFil: "At loans — personal, car, bahay, kahit ano. Ilan?",
-    more:          (n) => `${n} bills na besh! May iba pa bang chismis — I mean, bills?`,
-    moreFil:       (n) => `${n} na bill na logged. May iba pa? Cards, loans, gym, insurance?`,
-    cardFirst:     "Sa una mong card, what's your bank, due date and amount due?",
-    cardFirstFil:  "Sa una mong card, what's your bank, due date and amount due?",
-    cardNext:      (n) => `Card ${n} — same details: bank, amount, due date?`,
-    cardNextFil:   (n) => `Card ${n} — same details: bank, amount, at kelan due?`,
-    loanFirst:     "Sinong nag pahiram sayo, magkano monthly at tuwing kelan mo kailangan bayaran?",
-    loanFirstFil:  "Sinong nag pahiram sayo, magkano monthly at tuwing kelan mo kailangan bayaran?",
-    loanNext:      (n) => `Loan ${n} — sino pa, magkano monthly, at kelan?`,
-    loanNextFil:   (n) => `Loan ${n} — sino pa, magkano monthly, at kelan?`,
-  },
-};
-
-/** Supplementary voice lines for each Feature screen — not reading the UI, just personality. */
-const FEATURE_VOICES_PERSONA: Record<PersonaId, [string, string, string]> = {
-  pro: [
-    "Go ahead — ask me anything. I'm listening.",
-    "Try asking what's due this week. I'll give you the full picture.",
-    "Ask me if it's safe to spend before payday. I'll check your bills and give you a straight answer.",
-  ],
-  funny: [
-    "I'm all ears! Tap that mic and let's see what you've got.",
-    "Try 'what's due this week?' — I'll spill everything, no holding back!",
-    "Ask if it's safe to spend before payday. I'll be brutally honest — lovingly, of course!",
-  ],
-  sib: [
-    "You can ask me things now. Go ahead.",
-    "Ask what's due this week. I'll tell you.",
-    "Ask if it's safe to spend. I'll check and give you the truth.",
-  ],
-  mama: [
-    "Go ahead anak, ask me anything. I'm here.",
-    "Try asking what's due this week anak. I'll tell you everything.",
-    "Ask me if it's safe to spend anak. I'll check everything for you.",
-  ],
-  marites: [
-    "Oh oh oh! Ask me na! I know everything about your bills besh!",
-    "Ay! Ask me what's due this week! I'll tell you everything besh! Lahat!",
-    "Ask me if it's safe to spend! I'll check your bills — all of them! Grabe besh!",
-  ],
-};
-
-const FEATURE_VOICES_PERSONA_FIL: Record<PersonaId, [string, string, string]> = {
-  pro: [
-    "Sige, magtanong ka na. Nakinukinig ako.",
-    "Try mo i-tanong kung ano ang due ngayong linggo. Sasabihin ko lahat.",
-    "Tanungin mo ko kung ligtas mag-gastos. I-check ko lahat ng bills mo.",
-  ],
-  funny: [
-    "Ready na ako! Magtanong ka na, curious rin ako kung ano ang sasabihin mo!",
-    "I-try mo: 'Ano ang due this week?' — Isasabi ko lahat, walang tinatago!",
-    "Tanungin mo: ligtas ba mag-gastos? Magsasabi ako ng totoo — mahal kita kaya!",
-  ],
-  sib: [
-    "Pwede ka nang magtanong. Sige.",
-    "Tanungin mo kung ano ang due ngayong linggo. Sasabihin ko.",
-    "Tanungin mo kung ligtas mag-gastos. Checkuhin ko at sasabihin ko.",
-  ],
-  mama: [
-    "Sige anak, magtanong ka na. Nandito ako.",
-    "Try mo anak, tanungin ang due this week. Isasabi ko lahat sa iyo.",
-    "Tanungin mo anak kung ligtas mag-gastos. I-check ko lahat para sa iyo.",
-  ],
-  marites: [
-    "Ay ay ay! Magtanong ka na besh! Alam ko lahat ng tungkol sa bills mo!",
-    "Ay! Tanungin mo ako kung ano ang due ngayong linggo! Isasabi ko lahat besh!",
-    "Tanungin mo ako kung ligtas mag-gastos! Checkuhin ko ang lahat besh! Grabe!",
-  ],
-};
+/* Voice lines live in constants/voiceLines.ts — edit them there. */
 
 /**
  * Tagalog/Taglish equivalents for every canned onboarding voice line.
@@ -1681,7 +1316,7 @@ function ScreenLateFee({ ctx }: { ctx: Ctx }) {
   const { t, persona, language, next } = ctx;
   const cur = ctx.country.cur;
   const latefeeIsFil = isFilipino(language);
-  useOnbVoice(latefeeIsFil ? LATEFEE_VOICES[persona].fil : LATEFEE_VOICES[persona].en, persona, language);
+  useOnbVoice(JUDITH_VOICE.lateFee[persona][latefeeIsFil ? "fil" : "en"], persona, language);
   // lockDrop: notification slides down from above on mount (prototype lockDrop keyframe)
   const dropOpacity = useRef(new Animated.Value(0)).current;
   const dropY       = useRef(new Animated.Value(-12)).current;
@@ -1758,7 +1393,7 @@ function ScreenLateFee({ ctx }: { ctx: Ctx }) {
 function ScreenProblem({ ctx }: { ctx: Ctx }) {
   const { t, persona, language, next } = ctx;
   const problemIsFil = isFilipino(language);
-  useOnbVoice(problemIsFil ? PROBLEM_VOICES[persona].fil : PROBLEM_VOICES[persona].en, persona, language);
+  useOnbVoice(JUDITH_VOICE.problem[persona][problemIsFil ? "fil" : "en"], persona, language);
   const cur = ctx.country.cur;
   const [answered, setAnswered] = useState<boolean | null>(null);
   const rows = [
@@ -1902,7 +1537,7 @@ function ScreenStakes({ ctx }: { ctx: Ctx }) {
   const { t, persona, language, next } = ctx;
   const cur = ctx.country.cur;
   const stakesIsFil = isFilipino(language);
-  useOnbVoice(stakesIsFil ? STAKES_VOICES[persona].fil : STAKES_VOICES[persona].en, persona, language);
+  useOnbVoice(JUDITH_VOICE.stakes[persona][stakesIsFil ? "fil" : "en"], persona, language);
   const [committed, setCommitted] = useState(false);
 
   /* commit animation values — mirrors prototype `.commit-*` keyframes */
@@ -2161,51 +1796,11 @@ function ScreenStakes({ ctx }: { ctx: Ctx }) {
 /* 8. Intro                                                            */
 /* ================================================================== */
 
-const LATEFEE_VOICES: Record<PersonaId, { en: string; fil: string }> = {
-  pro:     { en: "We've all been there — missed a payment, surprise fee. I'm here to make sure that never happens again.", fil: "Nangyayari ito sa lahat — napalampas na bayad, biglang multa. Nandito ako para hindi na mangyari ulit." },
-  funny:   { en: "Ugh, late fees — the worst! I'm here so you never have to deal with that again.", fil: "Ay ang sama ng late fees! Pero wag nang mag-alala — nandito na ako para hindi na maulit!" },
-  sib:     { en: "Missed payment. Surprise fee. Happens to everyone. That's why I'm here.", fil: "Napalampas na bayad. Biglang multa. Nangyayari sa lahat. Kaya nandito ako." },
-  mama:    { en: "Anak, don't worry — it happens to everyone. I'm here to make sure it doesn't happen to you again.", fil: "Huwag mag-alala anak. Nangyayari ito sa lahat. Nandito ako para hindi na maulit." },
-  marites: { en: "Ay grabe, late fees! The absolute worst! But besh, that's why I'm here — hindi na maulit iyon!", fil: "Ay grabe, late fees! Ang pangit! Pero besh, nandito na ako — hindi na maulit 'yan!" },
-};
-
-const PROBLEM_VOICES: Record<PersonaId, { en: string; fil: string }> = {
-  pro:     { en: "Honestly, most people don't track their bills. Let's change that.", fil: "Honestly, karamihan sa tao ay hindi nag-ta-track ng bills nila. Palitan na natin iyon." },
-  funny:   { en: "Surprise — most people don't track their bills. But you're not most people anymore!", fil: "Grabe, karamihan hindi nag-ta-track ng bills! Pero ikaw — ikaw ay magiging iba na!" },
-  sib:     { en: "Most people don't track this. You're about to be different.", fil: "Karamihan hindi nag-ta-track. Ikaw ay magiging iba." },
-  mama:    { en: "Anak, most people don't track their bills. But that's okay — we're changing that right now.", fil: "Anak, karamihan hindi nag-ta-track ng bills. Pero okay lang — palitan na natin iyon ngayon." },
-  marites: { en: "Ay besh, most people don't track their bills! Pero tayo — we're changing that na!", fil: "Ay besh, karamihan hindi nag-ta-track ng bills! Pero tayo — we're changing that na!" },
-};
-
-const STAKES_VOICES: Record<PersonaId, { en: string; fil: string }> = {
-  pro:     { en: "This doesn't have to be your situation. Let's change it — right now.", fil: "Hindi na kailangang ganito ang sitwasyon mo. Palitan na natin ito — ngayon na." },
-  funny:   { en: "Okay! Enough of that — let's flip the script! Right now, we change this!", fil: "Sige! Tapos na sa ganyan! Palitan na natin — ngayon na!" },
-  sib:     { en: "This doesn't have to stay this way. Let's change it. Now.", fil: "Hindi na kailangang ganito. Palitan na natin. Ngayon." },
-  mama:    { en: "Anak, we're going to change this together — starting right now.", fil: "Anak, magbabago na tayo — simula ngayon. Sama-sama tayo." },
-  marites: { en: "Besh! No more of this! We're changing it right now! Let's go!", fil: "Besh! Tapos na! Palitan na natin ito ngayon! Let's go!" },
-};
-
-const PAYWALL_VOICES: Record<PersonaId, { en: string; fil: string }> = {
-  pro:     { en: "You've got eight free asks to start. When you're ready for more, pick a plan and I'm all yours.", fil: "May walong libreng tanong ka sa simula. Kapag gusto mo ng higit pa, pumili ng plano — nandito ako." },
-  funny:   { en: "Eight free asks — on the house! Try me out, then come back when you're hooked. I'll wait.", fil: "Walong libreng tanong — regalo ko! Subukan mo ako, at kapag hooked ka na, bumalik ka!" },
-  sib:     { en: "Eight free asks. Use them. If you want more, pick a plan.", fil: "Walong libreng tanong. Gamitin mo. Kung gusto mo pa, pumili ng plano." },
-  mama:    { en: "Anak, you have eight free asks to start. Try them out — and when you want more, I'll be right here.", fil: "Anak, may walong libreng tanong ka. Subukan mo — at kapag gusto mo pa, nandito ako." },
-  marites: { en: "Besh! Eight free asks — try me! And when you want to keep chatting, pick a plan! I'll be waiting!", fil: "Besh! Walong libreng tanong! Subukan mo ako! At kapag gusto mo pang makipag-chat — pick a plan! Waiting ako!" },
-};
-
-const INTRO_VOICES: Record<PersonaId, { en: string; fil: string }> = {
-  pro:     { en: "This usually takes 5 to 7 minutes. Let's map out every bill — I'll walk you through it.", fil: "Aabutin ito ng 5 hanggang 7 minuto. I-map natin ang lahat ng bills mo." },
-  funny:   { en: "Okay! About 5 to 7 minutes and your whole bill life will make sense. Let's go!", fil: "5 hanggang 7 minuto lang at magiging maayos na ang lahat! Tara na!" },
-  sib:     { en: "About 5 to 7 minutes. Just answer my questions — it'll be worth it.", fil: "5 hanggang 7 minuto lang to. Sagutin mo lang ang mga tanong ko." },
-  mama:    { en: "Anak, this will only take 5 to 7 minutes. I'll walk you through everything, promise.", fil: "Anak, 5 hanggang 7 minuto lang ito. Sasamahan kita sa lahat, promise." },
-  marites: { en: "Grabe besh, 5 to 7 minutes lang! Let's map all your bills — I cannot wait!", fil: "Grabe besh, 5 hanggang 7 minuto lang! I-map na natin ang lahat ng bills mo!" },
-};
 
 function ScreenIntro({ ctx }: { ctx: Ctx }) {
   const { t, persona, language, next } = ctx;
   const isFil = isFilipino(language);
-  const introLine = isFil ? INTRO_VOICES[persona].fil : INTRO_VOICES[persona].en;
-  useOnbVoice(introLine, persona, language);
+  useOnbVoice(JUDITH_VOICE.intro[persona][isFil ? "fil" : "en"], persona, language);
   return (
     <>
       <Scroll center>
@@ -2658,34 +2253,25 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
         ? isFil
           ? `Loan ${loanDone + 1} ng ${loanN} — sinong nagpahiram, magkano monthly, at kailan due?`
           : `Loan ${loanDone + 1} of ${loanN} — lender, the monthly amount, and the due date?`
-        : (isFil ? PROMPTS_FIL[sample.cat] : PROMPTS[sample.cat]) || (isFil ? "Sabihin mo ang tungkol sa bill na ito." : "Tell me about this bill.");
+        : JUDITH_VOICE.billTextPrompts[sample.cat]?.[isFil ? "fil" : "en"] ?? (isFil ? "Sabihin mo ang tungkol sa bill na ito." : "Tell me about this bill.");
 
   // Voice line — intentionally different from promptText so Judith isn't
   // just reading the screen aloud. Canned, shorter, more natural.
   // Also covers breather / count / more transitions so Judith speaks on every new screen.
-  const bv = BILL_VOICES[persona];
+  const bv = JUDITH_VOICE.billFlow[persona];
+  const l = isFil ? "fil" : "en";
   const voiceText =
     mode === "breather"
-      ? isFil
-        ? (breatherGroup === 0 ? bv.breather0Fil : bv.breather1Fil)
-        : (breatherGroup === 0 ? bv.breather0    : bv.breather1)
+      ? (breatherGroup === 0 ? bv.breather0 : bv.breather1)[l]
     : mode === "count"
-      ? phase === "cards"
-        ? isFil ? bv.countCardsFil : bv.countCards
-        : isFil ? bv.countLoansFil : bv.countLoans
+      ? (phase === "cards" ? bv.countCards : bv.countLoans)[l]
     : mode === "more"
-      ? isFil ? bv.moreFil(bills.length) : bv.more(bills.length)
+      ? bv.more[l](bills.length)
     : phase === "cards"
-      ? isFil
-        ? cardDone === 0 ? bv.cardFirstFil : bv.cardNextFil(cardDone + 1)
-        : cardDone === 0 ? bv.cardFirst    : bv.cardNext(cardDone + 1)
-      : phase === "loans"
-        ? isFil
-          ? loanDone === 0 ? bv.loanFirstFil : bv.loanNextFil(loanDone + 1)
-          : loanDone === 0 ? bv.loanFirst    : bv.loanNext(loanDone + 1)
-        : (isFil ? VOICE_PROMPTS_PERSONA_FIL[persona]?.[sample.cat] : VOICE_PROMPTS_PERSONA[persona]?.[sample.cat]) ||
-          (isFil ? VOICE_PROMPTS_FIL[sample.cat] : VOICE_PROMPTS[sample.cat]) ||
-          (isFil ? "Ano pa?" : "Go ahead.");
+      ? cardDone === 0 ? bv.cardFirst[l] : bv.cardNext[l](cardDone + 1)
+    : phase === "loans"
+      ? loanDone === 0 ? bv.loanFirst[l] : bv.loanNext[l](loanDone + 1)
+    : JUDITH_VOICE.billVoice[persona][l][sample.cat] ?? (isFil ? "Ano pa?" : "Go ahead.");
 
   /* Auto-play Judith's line aloud each time a new screen/state appears. */
   const lastPlayedPromptKey = useRef("");
@@ -3647,19 +3233,10 @@ function ScreenPersonalizing({ ctx }: { ctx: Ctx }) {
       next();
     }
   });
-  // Eat Bulaga jingle melody — all personas hum the same tune, different voice gives each its character.
-  // Phrase 1 + 2 mirror the iconic 7-beat Eat Bulaga hook. The ending twists off the expected resolution.
-  const PERS_HUMS: Record<PersonaId, string> = {
-    pro:     "La la la la la la LA! La la la la la la LA! La la LA la la LA la da DA.",
-    funny:   "La la la la la la LA! La la la la la la LA! La la LA la la LA la da DA!",
-    sib:     "Hmm hmm hmm hmm hmm hmm HMM! Hmm hmm hmm hmm hmm hmm HMM! Hmm hmm HMM hmm hmm HMM hmm da hmm.",
-    mama:    "La la la la la la LA! La la la la la la LA! La la LA la la LA la da DA la.",
-    marites: "La la la la la la LA! La la la la la la LA! La la LA la la LA la da DA besh!",
-  };
   // Voice: synthesize once, mark voiceDone when playback finishes.
   useEffect(() => {
     let cancelled = false;
-    const utterance = PERS_HUMS[persona];
+    const utterance = JUDITH_VOICE.personalizing[persona];
     synthOnboarding(utterance, persona, language)
       .then(({ audioBase64 }) => {
         if (cancelled) return Promise.resolve();
@@ -3862,9 +3439,7 @@ function FeatureShell({
 }) {
   const { t, persona, language, next, bills } = ctx;
   const isFil = isFilipino(language);
-  const voiceLine = isFil
-    ? (FEATURE_VOICES_PERSONA_FIL[persona]?.[dotIdx] ?? FEATURE_VOICES_PERSONA[persona][dotIdx])
-    : FEATURE_VOICES_PERSONA[persona][dotIdx];
+  const voiceLine = JUDITH_VOICE.features[persona][isFil ? "fil" : "en"][dotIdx];
   useOnbVoice(voiceLine, persona, language);
 
   /* ── demo float animation (shown before first real ask) ── */
@@ -4298,7 +3873,7 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
   const { t, persona, language, next } = ctx;
   const cur = ctx.country.cur;
   const paywallIsFil = isFilipino(language);
-  useOnbVoice(paywallIsFil ? PAYWALL_VOICES[persona].fil : PAYWALL_VOICES[persona].en, persona, language);
+  useOnbVoice(JUDITH_VOICE.paywall[persona][paywallIsFil ? "fil" : "en"], persona, language);
   const [pick, setPick] = useState("plus");
   const tiers = [
     { id: "plus", name: "Judith+", price: 99, asks: "50 voice asks / month", sub: "Plenty for most months", tag: undefined as string | undefined },
