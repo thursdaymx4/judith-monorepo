@@ -86,15 +86,15 @@ export const JUDITH_VOICE = {
     marites: { en: "Besh! Eight free asks — try me! And when you want to keep chatting, pick a plan! I'll be waiting!", fil: "Besh! Walong libreng tanong! Subukan mo ako! At kapag gusto mo pang makipag-chat — pick a plan! Waiting ako!" },
   } satisfies PersonaLines,
 
-  /* ── ScreenPersonalizing (hum while loading) ──────────────────────────── */
-  /*  Eat Bulaga 7-beat hook × 2, ending twisted off the expected resolution. */
-  /*  Same melody — each persona's distinct voice is what differentiates it.  */
+  /* ── ScreenPersonalizing (spoken while loading) ───────────────────────── */
+  /*  Short, persona-voiced self-talk. Judith is working in the background —  */
+  /*  lines should feel like a quiet aside, not a speech.                     */
   personalizing: {
-    pro:     "La la la la la la LA! La la la la la la LA! La la LA la la LA la da DA.",
-    funny:   "La la la la la la LA! La la la la la la LA! La la LA la la LA la da DA!",
-    sib:     "Hmm hmm hmm hmm hmm hmm HMM! Hmm hmm hmm hmm hmm hmm HMM! Hmm hmm HMM hmm hmm HMM hmm da hmm.",
-    mama:    "La la la la la la LA! La la la la la la LA! La la LA la la LA la da DA la.",
-    marites: "La la la la la la LA! La la la la la la LA! La la LA la la LA la da DA besh!",
+    pro:     "Setting up your reminders now. Almost ready.",
+    funny:   "Don't go anywhere — I'm doing very important things back here!",
+    sib:     "Yeah yeah, I'm working on it. Give me a second.",
+    mama:    "Almost ready anak — I'm making sure everything is just right for you.",
+    marites: "Ay grabe, so many bills! But I got you besh — almost done!",
   } satisfies Record<PersonaId, string>,
 
   /* ─────────────────────────────────────────────────────────────────────── */
