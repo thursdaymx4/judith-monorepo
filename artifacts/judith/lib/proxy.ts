@@ -23,13 +23,6 @@ function throwIfRateLimited(res: Response) {
   }
 }
 
-/** Throws RateLimitError on HTTP 429; no-op otherwise. */
-function throwIfRateLimited(res: Response): void {
-  if (res.status === 429) {
-    const retryAfter = Number(res.headers.get("Retry-After") ?? 60);
-    throw new RateLimitError(Number.isFinite(retryAfter) ? retryAfter : 60);
-  }
-}
 
 async function postJson<T>(path: string, body: unknown): Promise<T> {
   const headers = await authHeader();
