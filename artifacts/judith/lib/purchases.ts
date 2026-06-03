@@ -81,6 +81,19 @@ export async function getActiveTier(): Promise<AskTier> {
   }
 }
 
+/** Check whether the user has an active entitlement for the given tier. */
+export async function hasActiveEntitlement(tier: "chat" | "voice"): Promise<boolean> {
+  if (!API_KEY) return false;
+  configurePurchases();
+  try {
+    const info = await Purchases.getCustomerInfo();
+    const id = tier === "voice" ? VOICE_ENTITLEMENT_ID : CHAT_ENTITLEMENT_ID;
+    return Boolean(info.entitlements.active[id]);
+  } catch {
+    return false;
+  }
+}
+
 export interface TierPackages {
   chat: PurchasesPackage | null;
   voice: PurchasesPackage | null;
@@ -109,6 +122,12 @@ export async function getTierPackages(): Promise<TierPackages> {
   }
 }
 
+/** Returns the offering package for the given tier, or null if unavailable. */
+export async function getPackageForTier(tier: "chat" | "voice"): Promise<PurchasesPackage | null> {
+  const packages = await getTierPackages();
+  return packages[tier];
+}
+
 /**
  * Purchase a subscription package. Returns the new tier on success,
  * or "free" if the purchase failed / was cancelled.
@@ -125,6 +144,25 @@ export async function purchaseForTier(
     return "free";
   } catch {
     return "free";
+  }
+}
+
+/**
+ * Purchase a package and return the tier that became active, or null on failure.
+ * The caller is responsible for updating the store with subscribe(tier).
+ */
+export async function purchasePackage(
+  pkg: PurchasesPackage,
+  tier: "chat" | "voice",
+): Promise<AskTier | null> {
+  configurePurchases();
+  try {
+    const { customerInfo } = await Purchases.purchasePackage(pkg);
+    const entitlementId = tier === "voice" ? VOICE_ENTITLEMENT_ID : CHAT_ENTITLEMENT_ID;
+    if (customerInfo.entitlements.active[entitlementId]) return tier;
+    return null;
+  } catch {
+    return null;
   }
 }
 

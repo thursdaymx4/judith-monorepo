@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
 import { Icon } from "@/components/Icon";
-import { Low, Mono, Screen, SheetHeader, Txt, mix } from "@/components/ui";
+import { Low, Screen, SheetHeader, Txt, mix, Mono } from "@/components/ui";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import {

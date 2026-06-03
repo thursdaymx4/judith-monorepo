@@ -94,7 +94,7 @@ interface JudithStoreValue extends PersistShape {
   rolloverBill: (id: string) => void;
   /* ask metering */
   consumeAsk: () => boolean;
-  /** true if the user can send a voice ask right now */
+  /** Returns true if the user can use voice asks (voice tier, or free with asks remaining). */
   canUseVoice: () => boolean;
   subscribe: (tier: AskTier) => void;
   addAsks: (n: number) => void;
@@ -141,7 +141,7 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
         if (raw) {
           try {
             const parsed = JSON.parse(raw) as Partial<PersistShape>;
-            // Migrate old tier values from the previous "plus/unlimited" model
+            // Migrate legacy tier values to new model
             if ((parsed.tier as string) === "plus") parsed.tier = "chat";
             if ((parsed.tier as string) === "unlimited") parsed.tier = "voice";
             setState({ ...DEFAULTS, ...parsed });
@@ -182,6 +182,7 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<JudithStoreValue>(() => {
     const country = countryByCode(state.countryCode);
+    const isPaid = state.tier === "chat" || state.tier === "voice";
     return {
       ...state,
       hydrated,
@@ -247,14 +248,12 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
           }),
         })),
       consumeAsk: () => {
-        // Paid tiers get unlimited asks
-        if (state.tier === "chat" || state.tier === "voice") return true;
+        if (isPaid) return true;
         if (state.asksLeft <= 0) return false;
         setState((s) => ({ ...s, asksLeft: Math.max(0, s.asksLeft - 1) }));
         return true;
       },
       canUseVoice: () => {
-        // Voice tier: always. Free: only if asks remain. Chat tier: never (text only).
         if (state.tier === "voice") return true;
         if (state.tier === "chat") return false;
         return state.asksLeft > 0;

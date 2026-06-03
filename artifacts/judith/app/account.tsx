@@ -185,7 +185,7 @@ export default function AccountScreen() {
       ? "Voice Ask · " + money(199) + "/mo · Active"
       : tier === "chat"
         ? "Chat Ask · " + money(99) + "/mo · Active"
-        : "Free trial · upgrade anytime";
+        : "Free · 8 asks to try both modes";
 
   const openEdit = () => {
     setEditVal(name);
@@ -380,19 +380,25 @@ export default function AccountScreen() {
           padding: 16,
         }}
       >
-        <IcoBox name="star" color={t.accent} borderColor={mix(t.accent, t.surface2, 0.4)} />
+        <IcoBox name={tier !== "free" ? "star" : "spark"} color={t.accent} borderColor={mix(t.accent, t.surface2, 0.4)} />
         <View style={{ flex: 1 }}>
           <Txt size={14} weight="semibold">
-            Judith Premium
+            {tier === "voice" ? "Voice Ask" : tier === "chat" ? "Chat Ask" : "Ask Judith"}
           </Txt>
           <Low size={12}>
-            <Mono size={12}>{money(199)}</Mono> · Lifetime · Active
+            {tier === "voice" ? (
+              <><Mono size={12}>{money(199)}</Mono> · Monthly</>
+            ) : tier === "chat" ? (
+              <><Mono size={12}>{money(99)}</Mono> · Monthly</>
+            ) : (
+              <>8 free asks included</>
+            )}
           </Low>
         </View>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-          <Dot kind="ok" />
-          <Txt size={12} color={t.semantic.ok}>
-            Active
+          {tier !== "free" && <Dot kind="ok" />}
+          <Txt size={12} color={tier !== "free" ? t.semantic.ok : t.txtMid}>
+            {tier !== "free" ? "Active" : "Free"}
           </Txt>
         </View>
       </View>

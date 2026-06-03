@@ -121,7 +121,6 @@ export default function SettingsScreen() {
   const email = user?.email ?? (guest ? "Guest account" : "—");
 
   const subscribed = tier !== "free";
-  const isPro = tier === "voice";
 
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [confirmText, setConfirmText] = React.useState("");
@@ -230,10 +229,12 @@ export default function SettingsScreen() {
         />
         <View style={{ flex: 1 }}>
           <Txt size={14} weight="semibold">
-            Judith Premium
+            {tier === "voice" ? "Voice Ask" : tier === "chat" ? "Chat Ask" : "Ask Judith"}
           </Txt>
           <Low size={12}>
-            <Mono size={12}>{money(199)}</Mono> · Lifetime · Active
+            {subscribed
+              ? <>{tier === "voice" ? <Mono size={12}>{money(199)}</Mono> : <Mono size={12}>{money(99)}</Mono>} · Monthly · Active</>
+              : <>8 free asks included</>}
           </Low>
         </View>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
@@ -255,23 +256,15 @@ export default function SettingsScreen() {
         <IcoBox name={subscribed ? "star" : "spark"} iconSize={18} color={t.accent} />
         <View style={{ flex: 1 }}>
           <Txt size={15} weight="medium">
-            {subscribed ? (isPro ? "Judith Unlimited" : "Judith+") : "Ask Judith"}
+            {tier === "voice" ? "Voice Ask" : tier === "chat" ? "Chat Ask" : "Ask Judith"}
           </Txt>
           <Low size={12} style={{ marginTop: 1 }}>
-            {subscribed ? (
-              isPro ? (
-                <>
-                  Unlimited asks · <Mono size={12}>{money(199)}</Mono>/mo
-                </>
-              ) : (
-                <>
-                  <Mono size={12}>{asksLeft}</Mono> of 50 asks left · <Mono size={12}>{money(99)}</Mono>/mo
-                </>
-              )
+            {tier === "voice" ? (
+              <>Unlimited text & voice asks · <Mono size={12}>{money(199)}</Mono>/mo</>
+            ) : tier === "chat" ? (
+              <>Unlimited text asks · <Mono size={12}>{money(99)}</Mono>/mo</>
             ) : (
-              <>
-                <Mono size={12}>{asksLeft}</Mono> free asks left
-              </>
+              <><Mono size={12}>{asksLeft}</Mono> free asks left</>
             )}
           </Low>
         </View>
@@ -288,7 +281,7 @@ export default function SettingsScreen() {
           }}
         >
           <Text style={{ fontFamily: t.fonts.bold, fontSize: 13, color: t.accent }}>
-            {subscribed ? (isPro ? "Manage" : "Upgrade") : "Go unlimited"}
+            {tier === "voice" ? "Manage" : tier === "chat" ? "Upgrade" : "Get a plan"}
           </Text>
         </View>
       </Pressable>

@@ -69,7 +69,7 @@ export default function AskModal() {
   const t = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { bills, asksLeft, tier, persona, language, country, consumeAsk, saveBill, showToast } = useJudith();
+  const { bills, asksLeft, tier, persona, language, country, consumeAsk, canUseVoice, saveBill, showToast } = useJudith();
   const [rateLimitSecs, setRateLimitSecs] = React.useState(0);
   const lastAskRef = useRef<number>(0);
   // Countdown timer for rate-limit cooldown
@@ -81,9 +81,11 @@ export default function AskModal() {
   const [voiceUpgradeVisible, setVoiceUpgradeVisible] = React.useState(false);
   const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
 
-  const paid = tier === "chat" || tier === "voice";
-  const locked = !paid && asksLeft <= 0;
-  const lowAsks = !paid && asksLeft > 0 && asksLeft <= 3;
+  const isPaid = tier === "chat" || tier === "voice";
+  const unlimited = isPaid;
+  const locked = tier === "free" && asksLeft <= 0;
+  const voiceLocked = !canUseVoice() && !locked;
+  const lowAsks = !isPaid && asksLeft > 0 && asksLeft <= 3;
 
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -212,7 +214,7 @@ export default function AskModal() {
     setErr("");
     setInput("");
     setMessages((m) => [...m, { role: "user", text: q }]);
-    if (!paid) consumeAsk();
+    if (!isPaid) consumeAsk();
     setBusy(true);
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
     try {
@@ -249,7 +251,7 @@ export default function AskModal() {
       return;
     }
     // Chat Ask subscribers can only do text asks — voice requires Voice Ask tier
-    if (tier === "chat") {
+    if (voiceLocked) {
       setVoiceUpgradeVisible(true);
       return;
     }
@@ -409,9 +411,9 @@ export default function AskModal() {
           onPress={() => router.push("/plans")}
           style={lowAsks ? { borderColor: t.semantic.near } : undefined}
         >
-          <Icon name={paid ? "star" : "spark"} size={13} color={t.accent} />
+          <Icon name={isPaid ? "star" : "spark"} size={13} color={t.accent} />
           <Txt size={13} weight="bold" color={t.txtHi}>
-            {paid ? "Unlimited" : `${asksLeft} asks`}
+            {isPaid ? "Unlimited" : `${asksLeft} asks`}
           </Txt>
         </Pill>
       </View>
@@ -449,8 +451,10 @@ export default function AskModal() {
               </Muted>
               {!recording && (
                 <Low size={12} style={{ marginTop: 10 }}>
-                  {paid
-                    ? "Ask as much as you like."
+                  {isPaid
+                    ? voiceLocked
+                      ? "Unlimited chat asks · upgrade for voice"
+                      : "Ask as much as you like."
                     : `Each answer uses one ask · ${asksLeft} left`}
                 </Low>
               )}
@@ -600,7 +604,7 @@ export default function AskModal() {
           }}
         >
           <Icon
-            name={locked ? "spark" : "mic"}
+            name={locked || voiceLocked ? "spark" : "mic"}
             size={23}
             color={recording ? "#fff" : t.onAccent}
           />
