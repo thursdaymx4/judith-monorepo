@@ -45,16 +45,20 @@ export async function listVoices(): Promise<VoiceOption[]> {
 /**
  * Speech-to-text using ElevenLabs Scribe.
  *
+ * Default model is scribe_v2 (override via ELEVENLABS_STT_MODEL env var).
  * `languageCode` is an optional ISO-639 hint that improves accuracy for the
  * user's chosen language/dialect. If the hint is unsupported, we transparently
  * retry with auto-detection so transcription never fails because of it.
+ *
+ * COST VISIBILITY: each call logs [STT] model / audio-kb / transcript-chars
+ * to the server console so you can track usage across test sessions.
  */
 export async function transcribe(
   audio: Buffer,
   mime: string,
   languageCode?: string,
 ): Promise<string> {
-  const model = process.env["ELEVENLABS_STT_MODEL"] ?? "scribe_v1";
+  const model = process.env["ELEVENLABS_STT_MODEL"] ?? "scribe_v2";
 
   const attempt = async (lang?: string) => {
     const form = new FormData();
@@ -72,6 +76,7 @@ export async function transcribe(
     });
   };
 
+  const t0 = Date.now();
   let res = await attempt(languageCode);
   // Unsupported language hint → retry with auto-detect rather than failing.
   if (!res.ok && languageCode) {
@@ -82,7 +87,11 @@ export async function transcribe(
     throw new Error(`ElevenLabs STT failed (${res.status}): ${await res.text()}`);
   }
   const data = (await res.json()) as { text?: string };
-  return (data.text ?? "").trim();
+  const text = (data.text ?? "").trim();
+  const ms = Date.now() - t0;
+  const kb = (audio.byteLength / 1024).toFixed(1);
+  console.log(`[STT] model=${model} lang=${languageCode ?? "auto"} audio=${kb}kb → ${text.length}chars in ${ms}ms`);
+  return text;
 }
 
 /**
@@ -169,6 +178,7 @@ export async function synthesize(
   let lastErr = "";
 
   for (const model_id of models) {
+    const t0 = Date.now();
     const res = await fetch(
       `${BASE}/text-to-speech/${voiceId}?output_format=${outputFormat}`,
       {
@@ -182,6 +192,9 @@ export async function synthesize(
     );
     if (res.ok) {
       const buf = Buffer.from(await res.arrayBuffer());
+      const ms = Date.now() - t0;
+      const kb = (buf.byteLength / 1024).toFixed(1);
+      console.log(`[TTS] model=${model_id} live=${live} chars=${ttsText.length} → ${kb}kb audio in ${ms}ms`);
       return { base64: buf.toString("base64"), mime: "audio/mpeg" };
     }
     lastErr = `${res.status}: ${await res.text()}`;
