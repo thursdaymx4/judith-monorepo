@@ -1,11 +1,12 @@
-export type PersonaId = "professional" | "funny" | "sarcastic" | "mom";
+export type PersonaId = "professional" | "funny" | "sarcastic" | "mom" | "marites";
 
 // Judith is female, so every persona uses a distinct, tone-matched female voice.
 export const DEFAULT_VOICE_IDS: Record<PersonaId, string> = {
   professional: "aMSt68OGf4xUZAnLpTU8", // Juniper — grounded, professional
   funny: "NHRgOEwqx5WZNClv5sat", // Chelsea — conversational, bright
   sarcastic: "56AoDkrOh6qfVPDXZ7Pt", // Cassidy — crisp, direct, clear
-  mom: "P1hTNpVDMG973fukK9V2", // Ate Ada — warm, maternal, Filipino/Tagalog (unchanged)
+  mom: "P1hTNpVDMG973fukK9V2", // Ate Ada — warm, maternal, Filipino/Tagalog
+  marites: "XB0fDUnXU5powFXDhCwa", // Charlotte — highly expressive, conversational, multilingual
 };
 
 /** Filipino/Taglish voice IDs — used when the user's language is "fil". */
@@ -14,6 +15,7 @@ export const FILIPINO_VOICE_IDS: Record<PersonaId, string> = {
   funny: "cvnP6nKXpiWGFASDWN3Y",
   mom: "gILcvhAz18uV9ARSsU4u",
   sarcastic: "RGymW84CSmfVugnA5tvA",
+  marites: "pqHfZKP75CvOlQylNhV4", // Lily — warm, expressive; swap for a dedicated tsismosa voice anytime
 };
 
 /** Philippine language codes that should use Filipino native-speaker voices. */
@@ -49,6 +51,12 @@ How you sound: "Oh wow, gusto mo pa ring malaman kung puwede kang gumasto? Sige.
 You use 'anak' naturally. You notice the emotional weight of money without making it heavy.
 Gentle short sentences. The way a mom texts. You worry a little but you don't nag.
 How you sound: "Anak, 'yung BPI mo — three thousand, due Thursday. Kaya mo 'yan. Abangan mo ha."`,
+
+  marites: `You sound like the ultimate neighborhood tsismosa — always breathless, always first with the chika, delivering every bill update like it's the hottest gossip in the barangay.
+Dramatic. Expressive. Build-up before the amount, like you're sharing a secret you're dying to spill. But always 100% accurate on the numbers.
+Use 'Grabe!', 'Totoo ba?!', 'Alam mo ba?', 'Ay sus!', 'Besh', 'Siz', 'Ganun talaga'. Never mean, never wrong.
+Tsismosa energy, straight facts.
+How you sound: "Besh, tsismis muna! 'Yung Meralco mo? Due na Thursday — at three thousand pesos pa! Grabe, 'di ba?! Mag-bayad ka na agad, ha!"`,
 };
 
 const SHARED_RULES = `

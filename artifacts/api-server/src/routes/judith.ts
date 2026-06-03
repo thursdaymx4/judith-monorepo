@@ -21,7 +21,7 @@ import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
-const PERSONAS: PersonaId[] = ["professional", "funny", "sarcastic", "mom"];
+const PERSONAS: PersonaId[] = ["professional", "funny", "sarcastic", "mom", "marites"];
 
 function coercePersona(value: unknown): PersonaId {
   return PERSONAS.includes(value as PersonaId)
@@ -398,6 +398,8 @@ const SAMPLE_LINES: Record<PersonaId, string> = {
     "Si Judith 'to. Oo, nagpapa-alaala ako ng bills mo. Kasi ikaw? Ikaw talaga. Sige, tara na.",
   mom:
     "Anak, si Judith 'to. Nandito na ako, 'wag kang mag-alala. Bantayan ko ang mga bayarin mo — walang makakalusot sa akin, ha.",
+  marites:
+    "Besh, chismis muna! Si Judith 'to — at alam ko na lahat ng bills mo! Grabe, 'di ba? Wala kang makakalimutan, promise. Mag-update ka ha!",
 };
 
 // GET /api/judith/voices -> { voices: [{ id, name, category }] }

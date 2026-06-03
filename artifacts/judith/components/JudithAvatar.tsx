@@ -22,6 +22,7 @@ const PERSONA_PARAMS: Record<PersonaId, string> = {
   funny: "mouth=laughing&eyes=smiling&shirt=crew&shirtColor=ff8a5b&glassesProbability=0",
   sib: "mouth=smirk&eyes=eyesShadow&eyebrows=up&shirt=open&shirtColor=2fb39b&glassesProbability=0",
   mama: "mouth=smile&glasses=round&glassesProbability=100&hairColor=b7b7b7&shirt=collared&shirtColor=c77dab",
+  marites: "mouth=laughing&eyes=smiling&eyebrows=up&shirt=crew&shirtColor=f472b6&glassesProbability=0",
 };
 
 const PERSONA_BG: Record<PersonaId, string> = {
@@ -29,6 +30,7 @@ const PERSONA_BG: Record<PersonaId, string> = {
   funny: "ffdfbf,ffd5dc",
   sib: "b8e6dd,b6e3f4",
   mama: "ffd5dc,f3d1e6",
+  marites: "fce7f3,f9a8d4",
 };
 
 const MOOD_EXPR: Record<AvatarMood, string> = {

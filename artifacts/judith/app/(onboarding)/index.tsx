@@ -1174,23 +1174,25 @@ function ScreenLanguage({ ctx }: { ctx: Ctx }) {
 
 /** Filipino persona sample lines (spoken on tap). Professional and mom use the user's name. */
 const PERSONA_FIL_SAMPLES: Record<PersonaId, (name: string) => string> = {
-  professional: (n) => `Hi ${n || ""}${n ? "," : ""} i'm happy to help you po sa mga bayarin mo.`.trim(),
+  pro: (n) => `Hi ${n || ""}${n ? "," : ""} i'm happy to help you po sa mga bayarin mo.`.trim(),
   funny: () => "Adulting na tayo talaga friendship! Bayad bayad din pag may time!",
-  sarcastic: () => "Luh??!!? Totoo ba yan?! Nag babayad ka na ng bills?",
-  mom: (n) => `${n ? `${n}, ` : ""}wag kalimutan ang mga bills. Be responsible! Wag din kalimutang mag pahinga.`,
+  sib: () => "Luh??!!? Totoo ba yan?! Nag babayad ka na ng bills?",
+  mama: (n) => `${n ? `${n}, ` : ""}wag kalimutan ang mga bills. Be responsible! Wag din kalimutang mag pahinga.`,
+  marites: (n) => `${n ? `Uy ${n},` : "Uy,"} may chismis ako sa'yo — lahat ng bills mo, alam ko na! Grabe, 'di ba? Judith na 'to!`,
 };
 
 function ScreenPersona({ ctx }: { ctx: Ctx }) {
   const { t, persona, language, name, setPersona, next } = ctx;
   const [speakId, setSpeakId] = useState<PersonaId | null>(null);
-  const selected = PERSONAS.find((p) => p.id === persona);
+  const visiblePersonas = PERSONAS.filter(p => !p.phOnly || ctx.country.code === "PH");
+  const selected = visiblePersonas.find((p) => p.id === persona);
   const personaReqId = useRef(0);
 
-  // Prefetch all 4 persona samples the moment this screen mounts so
+  // Prefetch visible persona samples the moment this screen mounts so
   // "Play voice" taps are instant (hits the in-memory cache, no network round-trip).
   useEffect(() => {
     if (!isFilipino(language)) {
-      PERSONAS.forEach((p) => { fetchSampleOnboarding(p.id, language).catch(() => {}); });
+      visiblePersonas.forEach((p) => { fetchSampleOnboarding(p.id, language).catch(() => {}); });
     }
   }, []);
 
@@ -1223,7 +1225,7 @@ function ScreenPersona({ ctx }: { ctx: Ctx }) {
         <Title>{T("personaT")}</Title>
         <Lede style={{ marginBottom: 16 }}>{T("personaL")}</Lede>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: t.space.gap }}>
-          {PERSONAS.map((p) => {
+          {visiblePersonas.map((p) => {
             const on = persona === p.id;
             return (
               <Pressable

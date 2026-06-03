@@ -115,7 +115,7 @@ function SettingsLabel({ children }: { children: React.ReactNode }) {
 export default function SettingsScreen() {
   const t = useTheme();
   const router = useRouter();
-  const { persona, setPersona, toggles, setToggle, reduceMotion, setReduceMotion, asksLeft, tier, theme, setTheme, restart, money, bills, name, guest } =
+  const { persona, setPersona, toggles, setToggle, reduceMotion, setReduceMotion, asksLeft, tier, theme, setTheme, restart, money, bills, name, guest, country } =
     useJudith();
   const { user } = useAuth();
   const email = user?.email ?? (guest ? "Guest account" : "—");
@@ -327,7 +327,7 @@ export default function SettingsScreen() {
       {/* persona */}
       <SettingsLabel>Judith's personality</SettingsLabel>
       <View style={{ borderRadius: t.radius.md, overflow: "hidden" }}>
-        {PERSONAS.map((p, i) => {
+        {PERSONAS.filter(p => !p.phOnly || country.code === "PH").map((p, i) => {
           const on = persona === p.id;
           return (
             <Pressable

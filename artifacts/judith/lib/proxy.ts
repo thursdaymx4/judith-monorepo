@@ -18,6 +18,7 @@ const PERSONA_MAP: Record<PersonaId, string> = {
   funny: "funny",
   sib: "sarcastic",
   mama: "mom",
+  marites: "marites",
 };
 
 export interface AskBill {

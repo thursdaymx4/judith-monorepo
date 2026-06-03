@@ -4,7 +4,7 @@
  * the English variants from the spec.
  */
 
-export type PersonaId = "pro" | "funny" | "sib" | "mama";
+export type PersonaId = "pro" | "funny" | "sib" | "mama" | "marites";
 
 export interface Persona {
   id: PersonaId;
@@ -14,6 +14,8 @@ export interface Persona {
   vibe: string;
   /** Greeting line (English UI). */
   line: string;
+  /** If true, only shown to users whose country is PH. */
+  phOnly?: boolean;
 }
 
 export const PERSONAS: Persona[] = [
@@ -44,6 +46,14 @@ export const PERSONAS: Persona[] = [
     name: "Your Mom",
     vibe: "Caring · a little naggy",
     line: "Don't worry about the bills — I've got it. Now go eat something, please.",
+  },
+  {
+    id: "marites",
+    icon: "star",
+    name: "Marites",
+    vibe: "Tsismosa · makulit",
+    line: "Besh! Alam ko na lahat ng bills mo — at 'di ko 'yan kakalimutan. Grabe, di ba?",
+    phOnly: true,
   },
 ];
 
