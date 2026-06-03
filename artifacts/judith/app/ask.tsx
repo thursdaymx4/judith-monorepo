@@ -13,7 +13,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Chip, Low, Muted, Pill, SpeechBubble, Txt, mix } from "@/components/ui";
-import { QUICK_ASKS, makeBillFromAction, makeSubscriptionBill } from "@/constants/data";
+import { makeBillFromAction, makeSubscriptionBill } from "@/constants/data";
+import { getQuickAsks } from "@/constants/providers";
 import { getPersona } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
@@ -68,7 +69,7 @@ export default function AskModal() {
   const t = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { bills, asksLeft, tier, persona, language, consumeAsk, saveBill, showToast } = useJudith();
+  const { bills, asksLeft, tier, persona, language, country, consumeAsk, saveBill, showToast } = useJudith();
   const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
 
   const unlimited = tier === "unlimited";
@@ -495,7 +496,7 @@ export default function AskModal() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ gap: 8, paddingHorizontal: 22, paddingVertical: 10 }}
         >
-          {QUICK_ASKS.map((qa, i) => (
+          {getQuickAsks(country.code).map((qa, i) => (
             <Chip
               key={i}
               label={qa}

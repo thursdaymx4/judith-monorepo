@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "@/components/Icon";
 import { Btn, Chip, Low, Txt } from "@/components/ui";
 import { CAT_ICONS, PROVIDERS, makeManualBill } from "@/constants/data";
+import { getProviders, getProviderPlaceholder } from "@/constants/providers";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -15,7 +16,7 @@ export default function AddBillScreen() {
   const t = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { saveBill, showToast } = useJudith();
+  const { saveBill, showToast, country } = useJudith();
 
   const [cat, setCat] = useState<string>("Electricity");
   const [provider, setProvider] = useState("");
@@ -24,7 +25,10 @@ export default function AddBillScreen() {
   const [frequency, setFrequency] = useState<"monthly" | "annual">("monthly");
   const [err, setErr] = useState("");
 
-  const suggestions = useMemo(() => PROVIDERS[cat] ?? [], [cat]);
+  const suggestions = useMemo(
+    () => getProviders(country.code, cat),
+    [country.code, cat],
+  );
 
   const amt = Number(amount.replace(/[^0-9.]/g, ""));
   const day = Number(dueDay.replace(/[^0-9]/g, ""));
@@ -136,7 +140,7 @@ export default function AddBillScreen() {
             setProvider(v);
             if (err) setErr("");
           }}
-          placeholder="e.g. Meralco"
+          placeholder={getProviderPlaceholder(country.code, cat)}
           placeholderTextColor={t.txtLow}
           style={inputStyle}
         />

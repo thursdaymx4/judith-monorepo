@@ -29,7 +29,11 @@ import {
   countryFood,
   type Country,
 } from "@/constants/countries";
-import { HOUSES, QUICK_ASKS, type Bill } from "@/constants/data";
+import { HOUSES, type Bill } from "@/constants/data";
+import {
+  getSamples, getCardTemplates, getLoanTemplates,
+  getDLocal, getProviderPlaceholder, getQuickAsks,
+} from "@/constants/providers";
 import { LANGUAGES, langSample, langDesc, isFilipino, sttHint } from "@/constants/languages";
 import { PERSONAS, type PersonaId } from "@/constants/personas";
 import { LinearGradient } from "expo-linear-gradient";
@@ -97,18 +101,6 @@ interface Sample {
   toks: string[];
 }
 
-const SAMPLES: Sample[] = [
-  { group: 0, provider: "Ayala Land", cat: "Rent / Mortgage", subtype: "Rent", icon: "home", amount: 18000, due: "1st", dueDays: 1, utter: "My rent, eighteen thousand, due every 1st.", toks: ["rent", "eighteen thousand", "1st"] },
-  { group: 0, provider: "Meralco", cat: "Electricity", icon: "zap", amount: 3450, due: "15th", dueDays: 6, utter: "My Meralco, around three thousand four fifty, due every 15th.", toks: ["Meralco", "three thousand four fifty", "15th"] },
-  { group: 0, provider: "Maynilad", cat: "Water", icon: "droplet", amount: 890, due: "22nd", dueDays: 13, utter: "Then Maynilad water, about eight ninety, every 22nd.", toks: ["Maynilad", "eight ninety", "22nd"] },
-  { group: 0, provider: "PLDT Home", cat: "Internet", icon: "wifi", amount: 1699, due: "5th", dueDays: 25, utter: "My PLDT internet, 1,699, on the 5th.", toks: ["PLDT", "1,699", "5th"] },
-  { group: 1, provider: "Globe Postpaid", cat: "Mobile", icon: "smartphone", amount: 1299, due: "18th", dueDays: 8, utter: "My Globe phone plan, 1,299, every 18th.", toks: ["Globe", "1,299", "18th"] },
-  { group: 1, provider: "iCloud+", cat: "Phone subscription", icon: "spark", amount: 149, due: "1st", dueDays: 14, utter: "iCloud storage, 149, on the 1st.", toks: ["iCloud", "149", "1st"] },
-  { group: 1, provider: "Spotify", cat: "Phone subscription", icon: "spark", amount: 194, due: "7th", dueDays: 20, utter: "Spotify Premium, 194, every 7th.", toks: ["Spotify", "194", "7th"] },
-  { group: 1, provider: "Netflix", cat: "TV / Streaming", icon: "spark", amount: 549, due: "28th", dueDays: 11, utter: "Netflix, 549, on the 28th.", toks: ["Netflix", "549", "28th"] },
-  { group: 1, provider: "Disney+", cat: "TV / Streaming", icon: "spark", amount: 369, due: "12th", dueDays: 2, utter: "Disney Plus, 369, the 12th.", toks: ["Disney", "369", "12th"] },
-  { group: 1, provider: "Canva Pro", cat: "Web app", icon: "spark", amount: 199, due: "9th", dueDays: 22, utter: "Canva Pro, 199, every 9th.", toks: ["Canva", "199", "9th"] },
-];
 
 interface CardLoanTpl {
   provider: string;
@@ -118,17 +110,6 @@ interface CardLoanTpl {
   utter: string;
   toks: string[];
 }
-const CARD_TEMPLATES: CardLoanTpl[] = [
-  { provider: "BPI Mastercard", amount: 5200, due: "20th", dueDays: 4, utter: "My BPI Mastercard, 5,200 due, on the 20th.", toks: ["BPI", "5,200", "20th"] },
-  { provider: "BDO Visa", amount: 3100, due: "25th", dueDays: 9, utter: "BDO Visa, around 3,100, the 25th.", toks: ["BDO", "3,100", "25th"] },
-  { provider: "Metrobank", amount: 2800, due: "10th", dueDays: 23, utter: "Metrobank card, about 2,800, the 10th.", toks: ["Metrobank", "2,800", "10th"] },
-  { provider: "UnionBank", amount: 1950, due: "15th", dueDays: 6, utter: "UnionBank, 1,950, every 15th.", toks: ["UnionBank", "1,950", "15th"] },
-];
-const LOAN_TEMPLATES: CardLoanTpl[] = [
-  { provider: "Home Credit", amount: 2400, due: "3rd", dueDays: 16, utter: "Home Credit loan, 2,400 a month, on the 3rd.", toks: ["Home Credit", "2,400", "3rd"] },
-  { provider: "Pag-IBIG", amount: 1800, due: "7th", dueDays: 20, utter: "Pag-IBIG housing loan, 1,800, the 7th.", toks: ["Pag-IBIG", "1,800", "7th"] },
-  { provider: "Car loan · BPI", amount: 12500, due: "12th", dueDays: 2, utter: "Car loan with BPI, 12,500, the 12th.", toks: ["BPI", "12,500", "12th"] },
-];
 
 interface VGroup {
   label: string;
@@ -298,14 +279,7 @@ function useOnbVoice(line: string, persona: PersonaId, language = "en") {
   });
 }
 
-const DLOCAL = {
-  askQ: "“Judith, what’s my total credit card bill next month?”",
-  askA: "“₱8,300 across BPI and BDO — both due before the 25th. Want a heads-up?”",
-  askQ2: "“Judith, which bills are due this week?”",
-  askA2: "“Three — Meralco, PLDT and your condo dues. ₱5,830 total. Want me to remind you the day before each?”",
-  askQ3: "“Judith, I’ve got ₱30,000 left this month — can I afford ₱5,000 for a trip this week?”",
-  askA3: "“You can, but keep it tight — ₱8,800 is due by Friday. After the trip you’d have ₱16,200 to cover the rest. Go, just don’t touch the bill money.”",
-};
+
 
 const VARIABLE_CATS = ["Electricity", "Water", "Mobile", "Credit card"];
 const kindFor = (cat: string): "Fixed" | "Variable" =>
@@ -1949,6 +1923,9 @@ function ordinal(n: number): string {
 }
 
 function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
+  const SAMPLES        = getSamples(ctx.country.code);
+  const CARD_TEMPLATES = getCardTemplates(ctx.country.code);
+  const LOAN_TEMPLATES = getLoanTemplates(ctx.country.code);
   const { t, persona, bills, addBill, next, language } = ctx;
   const { saveBill } = useJudith();
   const cur = ctx.country.cur;
@@ -2797,7 +2774,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                 <Input
                   value={form.provider}
                   onChangeText={(v) => setForm({ ...form, provider: v })}
-                  placeholder={"e.g. " + (formCat.cat === "Electricity" ? "Meralco" : formCat.cat === "Water" ? "Maynilad" : "your provider")}
+                  placeholder={getProviderPlaceholder(ctx.country.code, formCat.cat)}
                 />
               </View>
               <View style={{ flexDirection: "row", gap: 12, marginTop: 10 }}>
@@ -3732,7 +3709,7 @@ function FeatureShell({
           contentContainerStyle={{ gap: 8, paddingVertical: 6 }}
           style={{ marginTop: 6 }}
         >
-          {QUICK_ASKS.slice(0, 4).map((qa, i) => (
+          {getQuickAsks(ctx.country.code).slice(0, 4).map((qa, i) => (
             <Pressable
               key={i}
               onPress={() => doAsk(qa)}
@@ -3822,8 +3799,8 @@ function ScreenFeature1({ ctx }: { ctx: Ctx }) {
       kicker="Voice-first"
       title="Just ask Judith."
       lede="Ask anything — she totals it across every card and bill, out loud, hands free."
-      q={DLOCAL.askQ}
-      a={DLOCAL.askA}
+      q={getDLocal(ctx.country.cur, ctx.country.code).askQ}
+      a={getDLocal(ctx.country.cur, ctx.country.code).askA}
       mood="warm"
     />
   );
@@ -3836,8 +3813,8 @@ function ScreenFeature2({ ctx }: { ctx: Ctx }) {
       kicker="Voice-first"
       title="Ask about anything."
       lede="Due dates, what’s coming up, what you owe — just talk, she answers."
-      q={DLOCAL.askQ2}
-      a={DLOCAL.askA2}
+      q={getDLocal(ctx.country.cur, ctx.country.code).askQ2}
+      a={getDLocal(ctx.country.cur, ctx.country.code).askA2}
       mood="proud"
     />
   );
@@ -3850,8 +3827,8 @@ function ScreenFeature3({ ctx }: { ctx: Ctx }) {
       kicker="Voice-first"
       title="She does the math."
       lede="Judith weighs what’s due before you spend — so you decide with the full picture."
-      q={DLOCAL.askQ3}
-      a={DLOCAL.askA3}
+      q={getDLocal(ctx.country.cur, ctx.country.code).askQ3}
+      a={getDLocal(ctx.country.cur, ctx.country.code).askA3}
       mood="joy"
     />
   );
