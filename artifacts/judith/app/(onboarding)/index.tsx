@@ -2643,16 +2643,6 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                     ))}
                   </View>
                 )}
-                <View style={{ marginTop: 14, paddingVertical: 13, paddingHorizontal: 16, borderRadius: 14, borderWidth: 1, borderStyle: "dashed", borderColor: withAlpha(t.accent, 0.45), backgroundColor: mix(t.accent, t.canvas, 0.07), maxWidth: 300 }}>
-                  <Txt size={15} weight="semibold">{g.askTitle}</Txt>
-                  <Low size={12} style={{ marginTop: 2 }}>{g.askSub}</Low>
-                </View>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10, maxWidth: 300, paddingVertical: 9, paddingHorizontal: 13, borderRadius: 12, borderWidth: 1, borderColor: withAlpha(t.semantic.ok, 0.32), backgroundColor: mix(t.semantic.ok, t.canvas, 0.11) }}>
-                  <Icon name="check" size={14} color={t.semantic.ok} />
-                  <Txt size={12.5} color={t.semantic.ok} style={{ flex: 1, lineHeight: 17 }}>
-                    Saved — you can stop here and pick up later.
-                  </Txt>
-                </View>
               </View>
             );
           })()}
@@ -2920,7 +2910,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
           return (
             <>
               <Btn label={g.addLabel} icon="plus" variant="soft" onPress={() => { setManualReturn("breather"); setMode("manualCats"); }} />
-              <Btn label="Keep going →" onPress={() => { if (breatherGroup === 1) startCards(); else setMode("prompt"); }} />
+              <Btn label="Are there MORE?" onPress={() => { if (breatherGroup === 1) startCards(); else setMode("prompt"); }} />
             </>
           );
         })()}
