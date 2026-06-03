@@ -2658,6 +2658,12 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
             ].map(s => ({ ...s, items: bills.filter(s.filter) })).filter(s => s.items.length > 0);
             return (
               <View style={{ alignItems: "center" }}>
+                <Txt size={30} weight="bold" style={{ textAlign: "center", lineHeight: 36, marginBottom: 4 }}>
+                  {"Did we get\neverything?"}
+                </Txt>
+                <Low size={13} style={{ textAlign: "center", marginBottom: 16 }}>
+                  Last chance before we build your bill picture.
+                </Low>
                 <JudithAvatar persona={persona} size={68} state="speaking" />
                 <JudithLine style={{ marginTop: 12 }}>
                   That’s {bills.length} so far — {cur}{fmtNum(total)}/mo. Any more cards, loans, or anything else? Gym, insurance, tuition? Let’s not miss any.
