@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.app.judith",
-      "buildNumber": "1"
+      "buildNumber": "3"
     },
     "android": {
       "package": "com.judith.app"
