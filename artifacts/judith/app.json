@@ -15,12 +15,10 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.app.judith",
-      "buildNumber": "5"
+      "bundleIdentifier": "com.app.judith"
     },
     "android": {
-      "package": "com.judith.app",
-      "versionCode": 5
+      "package": "com.judith.app"
     },
     "web": {
       "favicon": "./assets/images/icon.png"
@@ -45,6 +43,11 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "a0a9f1ab-a9bb-4397-85ee-75138eec8109"
+      }
     }
   }
 }
