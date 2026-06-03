@@ -860,9 +860,7 @@ function ScreenWelcome({ ctx }: { ctx: Ctx }) {
         <Title style={{ maxWidth: 300, textAlign: "center" }}>
           Your bills, handled — before they’re ever late.
         </Title>
-        <Lede style={{ maxWidth: 290, textAlign: "center" }}>
-          Judith tracks every due date and reminds you in your own voice, your own language.
-        </Lede>
+
       </Scroll>
       <CtaBar>
         <Animated.View style={{ opacity: popOpacity, transform: [{ scale: popScale }] }}>
