@@ -15,6 +15,9 @@
       "distribution": "internal",
       "ios": {
         "buildConfiguration": "Release"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://prbistbxadydyuxdaaex.supabase.co"
       }
     },
     "production": {
