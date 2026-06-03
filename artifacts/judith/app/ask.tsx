@@ -72,9 +72,9 @@ export default function AskModal() {
   const { bills, asksLeft, tier, persona, language, country, consumeAsk, saveBill, showToast } = useJudith();
   const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
 
-  const unlimited = tier === "unlimited";
-  const locked = !unlimited && asksLeft <= 0;
-  const lowAsks = !unlimited && asksLeft > 0 && asksLeft <= 3;
+  const paid = tier === "chat" || tier === "voice";
+  const locked = !paid && asksLeft <= 0;
+  const lowAsks = !paid && asksLeft > 0 && asksLeft <= 3;
 
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -199,7 +199,7 @@ export default function AskModal() {
     setErr("");
     setInput("");
     setMessages((m) => [...m, { role: "user", text: q }]);
-    if (!unlimited) consumeAsk();
+    if (!paid) consumeAsk();
     setBusy(true);
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
     try {
@@ -381,9 +381,9 @@ export default function AskModal() {
           onPress={() => router.push("/plans")}
           style={lowAsks ? { borderColor: t.semantic.near } : undefined}
         >
-          <Icon name={unlimited ? "star" : "spark"} size={13} color={t.accent} />
+          <Icon name={paid ? "star" : "spark"} size={13} color={t.accent} />
           <Txt size={13} weight="bold" color={t.txtHi}>
-            {unlimited ? "Unlimited" : `${asksLeft} asks`}
+            {paid ? "Unlimited" : `${asksLeft} asks`}
           </Txt>
         </Pill>
       </View>
@@ -421,7 +421,7 @@ export default function AskModal() {
               </Muted>
               {!recording && (
                 <Low size={12} style={{ marginTop: 10 }}>
-                  {unlimited
+                  {paid
                     ? "Ask as much as you like."
                     : `Each answer uses one ask · ${asksLeft} left`}
                 </Low>

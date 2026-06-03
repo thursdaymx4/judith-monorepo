@@ -21,7 +21,8 @@ import type { AccentId, ThemeName } from "@/constants/theme";
 const STORAGE_KEY = "judith_store_v1";
 const FREE_ASKS = 8;
 
-export type AskTier = "free" | "plus" | "unlimited";
+/** free = 8 trial asks; chat = unlimited text asks; voice = unlimited text + voice asks */
+export type AskTier = "free" | "chat" | "voice";
 
 export interface Toggles {
   dueReminders: boolean;
@@ -93,6 +94,8 @@ interface JudithStoreValue extends PersistShape {
   rolloverBill: (id: string) => void;
   /* ask metering */
   consumeAsk: () => boolean;
+  /** true if the user can send a voice ask right now */
+  canUseVoice: () => boolean;
   subscribe: (tier: AskTier) => void;
   addAsks: (n: number) => void;
   /* settings */
@@ -138,6 +141,9 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
         if (raw) {
           try {
             const parsed = JSON.parse(raw) as Partial<PersistShape>;
+            // Migrate old tier values from the previous "plus/unlimited" model
+            if ((parsed.tier as string) === "plus") parsed.tier = "chat";
+            if ((parsed.tier as string) === "unlimited") parsed.tier = "voice";
             setState({ ...DEFAULTS, ...parsed });
           } catch {
             /* ignore corrupt */
@@ -241,13 +247,19 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
           }),
         })),
       consumeAsk: () => {
-        if (state.tier === "unlimited") return true;
+        // Paid tiers get unlimited asks
+        if (state.tier === "chat" || state.tier === "voice") return true;
         if (state.asksLeft <= 0) return false;
         setState((s) => ({ ...s, asksLeft: Math.max(0, s.asksLeft - 1) }));
         return true;
       },
-      subscribe: (tier) =>
-        patch({ tier, asksLeft: tier === "plus" ? 50 : state.asksLeft }),
+      canUseVoice: () => {
+        // Voice tier: always. Free: only if asks remain. Chat tier: never (text only).
+        if (state.tier === "voice") return true;
+        if (state.tier === "chat") return false;
+        return state.asksLeft > 0;
+      },
+      subscribe: (tier) => patch({ tier }),
       addAsks: (n) => patch({ asksLeft: state.asksLeft + n }),
       setName: (name) => patch({ name: name.trim() }),
       setFaceIdLock: (v) => patch({ faceIdLock: v }),

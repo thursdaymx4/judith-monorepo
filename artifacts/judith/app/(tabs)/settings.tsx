@@ -121,7 +121,7 @@ export default function SettingsScreen() {
   const email = user?.email ?? (guest ? "Guest account" : "—");
 
   const subscribed = tier !== "free";
-  const isPro = tier === "unlimited";
+  const isPro = tier === "voice";
 
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [confirmText, setConfirmText] = React.useState("");

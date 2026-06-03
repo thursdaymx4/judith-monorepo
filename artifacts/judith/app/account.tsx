@@ -166,6 +166,7 @@ export default function AccountScreen() {
     guest,
     setGuest,
     restart,
+    subscribe,
     showToast,
   } = useJudith();
 
@@ -180,10 +181,10 @@ export default function AccountScreen() {
   const canDelete = deleteText.trim().toLowerCase() === "delete";
 
   const subLabel =
-    tier === "unlimited"
-      ? "Judith Unlimited · " + money(199) + "/mo · Active"
-      : tier === "plus"
-        ? "Judith+ · " + money(99) + "/mo · Active"
+    tier === "voice"
+      ? "Voice Ask · " + money(199) + "/mo · Active"
+      : tier === "chat"
+        ? "Chat Ask · " + money(99) + "/mo · Active"
         : "Free trial · upgrade anytime";
 
   const openEdit = () => {
@@ -203,8 +204,13 @@ export default function AccountScreen() {
   const restorePurchases = async () => {
     setRestoring(true);
     try {
-      const active = await restorePurchasesRemote();
-      showToast(active ? "Purchases restored ✓" : "No previous purchases found");
+      const restoredTier = await restorePurchasesRemote();
+      if (restoredTier !== "free") {
+        subscribe(restoredTier);
+        showToast("Purchases restored ✓");
+      } else {
+        showToast("No previous purchases found");
+      }
     } catch {
       showToast("Couldn’t restore — try again");
     } finally {
