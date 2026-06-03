@@ -1079,7 +1079,7 @@ function ScreenLanguage({ ctx }: { ctx: Ctx }) {
         </View>
       </Scroll>
       <CtaBar>
-        <Btn label={T("continue")} onPress={next} />
+        <Btn label={T("continue")} onPress={() => { setLanguage(voiceLang); next(); }} />
       </CtaBar>
     </>
   );
