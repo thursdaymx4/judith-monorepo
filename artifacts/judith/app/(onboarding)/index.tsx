@@ -3647,13 +3647,14 @@ function ScreenPersonalizing({ ctx }: { ctx: Ctx }) {
       next();
     }
   });
-  // Persona-specific hum/sing — light and easy, no words needed.
+  // Eat Bulaga jingle melody — all personas hum the same tune, different voice gives each its character.
+  // Phrase 1 + 2 mirror the iconic 7-beat Eat Bulaga hook. The ending twists off the expected resolution.
   const PERS_HUMS: Record<PersonaId, string> = {
-    pro:     "Hm hm hm hm hm, hm hm hm hm hm.",
-    funny:   "La la la la la la la la la!",
-    sib:     "Mm. Hmm. Mm hmm hmm.",
-    mama:    "Hmm mmm hmm hmm hmm hmm hmm.",
-    marites: "La la la la la! Hmm hmm hmm hmm!",
+    pro:     "La la la la la la LA! La la la la la la LA! La la LA la la LA la da DA.",
+    funny:   "La la la la la la LA! La la la la la la LA! La la LA la la LA la da DA!",
+    sib:     "Hmm hmm hmm hmm hmm hmm HMM! Hmm hmm hmm hmm hmm hmm HMM! Hmm hmm HMM hmm hmm HMM hmm da hmm.",
+    mama:    "La la la la la la LA! La la la la la la LA! La la LA la la LA la da DA la.",
+    marites: "La la la la la la LA! La la la la la la LA! La la LA la la LA la da DA besh!",
   };
   // Voice: synthesize once, mark voiceDone when playback finishes.
   useEffect(() => {
