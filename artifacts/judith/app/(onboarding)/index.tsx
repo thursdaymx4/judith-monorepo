@@ -247,7 +247,7 @@ const VOICE_LINES_FIL: Record<string, string> = {
     "Hi! Can I get your name po?",
   /* Screen 3 — Language */
   "Take control of your bills, take control of your life.":
-    "Kontrolin ang bills mo, kontrolin ang iyong buhay.",
+    "kapag kontrolado mo ang bills mo, kontrolado mo ang buhay mo. Agree?",
   /* Screen 7 — Problem */
   "Honestly, most people don\u2019t. Let\u2019s change that.":
     "Ako nga din, hindi ko alam. Tara ayusin nga natin!",
