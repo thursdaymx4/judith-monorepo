@@ -1,0 +1,53 @@
+Checking the license for package CMake 3.22.1 in /home/expo/Android/Sdk/licenses
+License for package CMake 3.22.1 accepted.
+Preparing "Install CMake 3.22.1 v.3.22.1".
+"Install CMake 3.22.1 v.3.22.1" ready.
+Installing CMake 3.22.1 in /home/expo/Android/Sdk/cmake/3.22.1
+"Install CMake 3.22.1 v.3.22.1" complete.
+"Install CMake 3.22.1 v.3.22.1" finished.
+> Task :react-native-watch-connectivity:compileReleaseKotlin FAILED
+e: file:///home/expo/workingdir/build/node_modules/.pnpm/react-native-watch-connectivity@2.0.0_react-native@0.81.5_@babel+core@7.29.0_@types+rea_3318d306337bc511e10157add7ca05bd/node_modules/react-native-watch-connectivity/android/src/main/java/com/watchconnectivity/WatchConnectivityModule.kt:5:1 Class 'WatchConnectivityModule' is not abstract and does not implement abstract base class members:
+fun getReachability(promise: Promise!): Unit
+fun getIsPaired(promise: Promise!): Unit
+fun getIsWatchAppInstalled(promise: Promise!): Unit
+fun sendMessage(message: ReadableMap!, promise: Promise!): Unit
+fun replyToMessageWithId(messageId: String!, message: ReadableMap!): Unit
+fun sendMessageData(str: String!, encoding: Double, promise: Promise!): Unit
+fun transferFile(url: String!, metaData: ReadableMap?, promise: Promise!): Unit
+fun getFileTransfers(promise: Promise!): Unit
+fun getQueuedFiles(promise: Promise!): Unit
+fun clearFilesQueue(promise: Promise!): Unit
+fun dequeueFile(ids: ReadableArray!): Unit
+fun transferUserInfo(userInfo: ReadableMap!): Unit
+fun transferCurrentComplicationUserInfo(userInfo: ReadableMap!): Unit
+fun getQueuedUserInfo(promise: Promise!): Unit
+fun clearUserInfoQueue(promise: Promise!): Unit
+fun dequeueUserInfo(ids: ReadableArray!): Unit
+fun updateApplicationContext(context: ReadableMap!): Unit
+fun getApplicationContext(promise: Promise!): Unit
+fun addListener(eventName: String!): Unit
+fun removeListeners(count: Double): Unit
+e: file:///home/expo/workingdir/build/node_modules/.pnpm/react-native-watch-connectivity@2.0.0_react-native@0.81.5_@babel+core@7.29.0_@types+rea_3318d306337bc511e10157add7ca05bd/node_modules/react-native-watch-connectivity/android/src/main/java/com/watchconnectivity/WatchConnectivityModule.kt:8:3 'multiply' overrides nothing.
+> Task :react-native-screens:configureCMakeRelWithDebInfo[arm64-v8a]
+> Task :react-native-worklets:configureCMakeRelWithDebInfo[arm64-v8a]
+[Incubating] Problems report is available at: file:///home/expo/workingdir/build/artifacts/judith/android/build/reports/problems/problems-report.html
+FAILURE: Build failed with an exception.
+* What went wrong:
+Execution failed for task ':react-native-watch-connectivity:compileReleaseKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+81 actionable tasks: 81 executed
+BUILD FAILED in 2m 32s
+See the profiling report at: file:///home/expo/workingdir/build/artifacts/judith/android/build/reports/profile/profile-2026-06-03-16-41-56.html
+A fine-grained performance profile is available: use the
+--scan
+option.
+Error: Gradle build failed with unknown error. See logs for the "Run gradlew" phase for more information.
