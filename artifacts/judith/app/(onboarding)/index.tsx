@@ -1680,7 +1680,8 @@ function ScreenName({ ctx }: { ctx: Ctx }) {
 function ScreenLateFee({ ctx }: { ctx: Ctx }) {
   const { t, persona, language, next } = ctx;
   const cur = ctx.country.cur;
-  useOnbVoice("We\u2019ve all been there. Missed a payment, surprise fee. I\u2019m here so that never happens again.", persona, language);
+  const latefeeIsFil = isFilipino(language);
+  useOnbVoice(latefeeIsFil ? LATEFEE_VOICES[persona].fil : LATEFEE_VOICES[persona].en, persona, language);
   // lockDrop: notification slides down from above on mount (prototype lockDrop keyframe)
   const dropOpacity = useRef(new Animated.Value(0)).current;
   const dropY       = useRef(new Animated.Value(-12)).current;
@@ -1756,7 +1757,8 @@ function ScreenLateFee({ ctx }: { ctx: Ctx }) {
 
 function ScreenProblem({ ctx }: { ctx: Ctx }) {
   const { t, persona, language, next } = ctx;
-  useOnbVoice("Honestly, most people don\u2019t. Let\u2019s change that.", persona, language);
+  const problemIsFil = isFilipino(language);
+  useOnbVoice(problemIsFil ? PROBLEM_VOICES[persona].fil : PROBLEM_VOICES[persona].en, persona, language);
   const cur = ctx.country.cur;
   const [answered, setAnswered] = useState<boolean | null>(null);
   const rows = [
@@ -1899,7 +1901,8 @@ function ScreenProblem({ ctx }: { ctx: Ctx }) {
 function ScreenStakes({ ctx }: { ctx: Ctx }) {
   const { t, persona, language, next } = ctx;
   const cur = ctx.country.cur;
-  useOnbVoice("Let\u2019s change this \u2014 right now.", persona, language);
+  const stakesIsFil = isFilipino(language);
+  useOnbVoice(stakesIsFil ? STAKES_VOICES[persona].fil : STAKES_VOICES[persona].en, persona, language);
   const [committed, setCommitted] = useState(false);
 
   /* commit animation values — mirrors prototype `.commit-*` keyframes */
@@ -2158,9 +2161,51 @@ function ScreenStakes({ ctx }: { ctx: Ctx }) {
 /* 8. Intro                                                            */
 /* ================================================================== */
 
+const LATEFEE_VOICES: Record<PersonaId, { en: string; fil: string }> = {
+  pro:     { en: "We've all been there — missed a payment, surprise fee. I'm here to make sure that never happens again.", fil: "Nangyayari ito sa lahat — napalampas na bayad, biglang multa. Nandito ako para hindi na mangyari ulit." },
+  funny:   { en: "Ugh, late fees — the worst! I'm here so you never have to deal with that again.", fil: "Ay ang sama ng late fees! Pero wag nang mag-alala — nandito na ako para hindi na maulit!" },
+  sib:     { en: "Missed payment. Surprise fee. Happens to everyone. That's why I'm here.", fil: "Napalampas na bayad. Biglang multa. Nangyayari sa lahat. Kaya nandito ako." },
+  mama:    { en: "Anak, don't worry — it happens to everyone. I'm here to make sure it doesn't happen to you again.", fil: "Huwag mag-alala anak. Nangyayari ito sa lahat. Nandito ako para hindi na maulit." },
+  marites: { en: "Ay grabe, late fees! The absolute worst! But besh, that's why I'm here — hindi na maulit iyon!", fil: "Ay grabe, late fees! Ang pangit! Pero besh, nandito na ako — hindi na maulit 'yan!" },
+};
+
+const PROBLEM_VOICES: Record<PersonaId, { en: string; fil: string }> = {
+  pro:     { en: "Honestly, most people don't track their bills. Let's change that.", fil: "Honestly, karamihan sa tao ay hindi nag-ta-track ng bills nila. Palitan na natin iyon." },
+  funny:   { en: "Surprise — most people don't track their bills. But you're not most people anymore!", fil: "Grabe, karamihan hindi nag-ta-track ng bills! Pero ikaw — ikaw ay magiging iba na!" },
+  sib:     { en: "Most people don't track this. You're about to be different.", fil: "Karamihan hindi nag-ta-track. Ikaw ay magiging iba." },
+  mama:    { en: "Anak, most people don't track their bills. But that's okay — we're changing that right now.", fil: "Anak, karamihan hindi nag-ta-track ng bills. Pero okay lang — palitan na natin iyon ngayon." },
+  marites: { en: "Ay besh, most people don't track their bills! Pero tayo — we're changing that na!", fil: "Ay besh, karamihan hindi nag-ta-track ng bills! Pero tayo — we're changing that na!" },
+};
+
+const STAKES_VOICES: Record<PersonaId, { en: string; fil: string }> = {
+  pro:     { en: "This doesn't have to be your situation. Let's change it — right now.", fil: "Hindi na kailangang ganito ang sitwasyon mo. Palitan na natin ito — ngayon na." },
+  funny:   { en: "Okay! Enough of that — let's flip the script! Right now, we change this!", fil: "Sige! Tapos na sa ganyan! Palitan na natin — ngayon na!" },
+  sib:     { en: "This doesn't have to stay this way. Let's change it. Now.", fil: "Hindi na kailangang ganito. Palitan na natin. Ngayon." },
+  mama:    { en: "Anak, we're going to change this together — starting right now.", fil: "Anak, magbabago na tayo — simula ngayon. Sama-sama tayo." },
+  marites: { en: "Besh! No more of this! We're changing it right now! Let's go!", fil: "Besh! Tapos na! Palitan na natin ito ngayon! Let's go!" },
+};
+
+const PAYWALL_VOICES: Record<PersonaId, { en: string; fil: string }> = {
+  pro:     { en: "You've got eight free asks to start. When you're ready for more, pick a plan and I'm all yours.", fil: "May walong libreng tanong ka sa simula. Kapag gusto mo ng higit pa, pumili ng plano — nandito ako." },
+  funny:   { en: "Eight free asks — on the house! Try me out, then come back when you're hooked. I'll wait.", fil: "Walong libreng tanong — regalo ko! Subukan mo ako, at kapag hooked ka na, bumalik ka!" },
+  sib:     { en: "Eight free asks. Use them. If you want more, pick a plan.", fil: "Walong libreng tanong. Gamitin mo. Kung gusto mo pa, pumili ng plano." },
+  mama:    { en: "Anak, you have eight free asks to start. Try them out — and when you want more, I'll be right here.", fil: "Anak, may walong libreng tanong ka. Subukan mo — at kapag gusto mo pa, nandito ako." },
+  marites: { en: "Besh! Eight free asks — try me! And when you want to keep chatting, pick a plan! I'll be waiting!", fil: "Besh! Walong libreng tanong! Subukan mo ako! At kapag gusto mo pang makipag-chat — pick a plan! Waiting ako!" },
+};
+
+const INTRO_VOICES: Record<PersonaId, { en: string; fil: string }> = {
+  pro:     { en: "This usually takes 5 to 7 minutes. Let's map out every bill — I'll walk you through it.", fil: "Aabutin ito ng 5 hanggang 7 minuto. I-map natin ang lahat ng bills mo." },
+  funny:   { en: "Okay! About 5 to 7 minutes and your whole bill life will make sense. Let's go!", fil: "5 hanggang 7 minuto lang at magiging maayos na ang lahat! Tara na!" },
+  sib:     { en: "About 5 to 7 minutes. Just answer my questions — it'll be worth it.", fil: "5 hanggang 7 minuto lang to. Sagutin mo lang ang mga tanong ko." },
+  mama:    { en: "Anak, this will only take 5 to 7 minutes. I'll walk you through everything, promise.", fil: "Anak, 5 hanggang 7 minuto lang ito. Sasamahan kita sa lahat, promise." },
+  marites: { en: "Grabe besh, 5 to 7 minutes lang! Let's map all your bills — I cannot wait!", fil: "Grabe besh, 5 hanggang 7 minuto lang! I-map na natin ang lahat ng bills mo!" },
+};
+
 function ScreenIntro({ ctx }: { ctx: Ctx }) {
   const { t, persona, language, next } = ctx;
-  useOnbVoice("Let\u2019s take this one step at a time. Tell me the amount, when it\u2019s due and who you pay to?", persona, language);
+  const isFil = isFilipino(language);
+  const introLine = isFil ? INTRO_VOICES[persona].fil : INTRO_VOICES[persona].en;
+  useOnbVoice(introLine, persona, language);
   return (
     <>
       <Scroll center>
@@ -4251,7 +4296,8 @@ function ScreenFeature3({ ctx }: { ctx: Ctx }) {
 function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
   const { t, persona, language, next } = ctx;
   const cur = ctx.country.cur;
-  useOnbVoice("You\u2019ve got eight free asks to start. Want to keep the conversation going? Pick a plan that fits and I\u2019m all yours.", persona, language);
+  const paywallIsFil = isFilipino(language);
+  useOnbVoice(paywallIsFil ? PAYWALL_VOICES[persona].fil : PAYWALL_VOICES[persona].en, persona, language);
   const [pick, setPick] = useState("plus");
   const tiers = [
     { id: "plus", name: "Judith+", price: 99, asks: "50 voice asks / month", sub: "Plenty for most months", tag: undefined as string | undefined },
