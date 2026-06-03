@@ -652,8 +652,6 @@ function WordTransitionOverlay({
   const flagOpacity = useRef(new Animated.Value(0)).current;
   const wordScale   = useRef(new Animated.Value(2.0)).current;
   const wordOpacity = useRef(new Animated.Value(0)).current;
-  const subOpacity  = useRef(new Animated.Value(0)).current;
-  const subY        = useRef(new Animated.Value(18)).current;
   const wrapOpacity = useRef(new Animated.Value(1)).current;
   const shakeX      = useRef(new Animated.Value(0)).current;
 
@@ -689,21 +687,11 @@ function WordTransitionOverlay({
       ]),
     ]).start();
 
-    /* subtitle word-up — 600ms, delay 1800ms */
-    Animated.sequence([
-      Animated.delay(1800),
-      Animated.parallel([
-        Animated.timing(subOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
-        Animated.timing(subY,       { toValue: 0, duration: 600,
-          easing: Easing.bezier(0.2, 0.8, 0.2, 1), useNativeDriver: true }),
-      ]),
-    ]).start();
-
-    /* hold for 3.4s total, then fade out */
+    /* hold for 2.8s total, then fade out */
     const timer = setTimeout(() => {
       Animated.timing(wrapOpacity, { toValue: 0, duration: 500, useNativeDriver: true })
         .start(({ finished }) => { if (finished) onDone(); });
-    }, 3400);
+    }, 2800);
     return () => { clearTimeout(timer); clearTimeout(h1); clearTimeout(h2); };
   }, []);
 
@@ -716,27 +704,19 @@ function WordTransitionOverlay({
         alignItems: "center", justifyContent: "center",
       }}
     >
-      <Animated.View style={{ alignItems: "center", gap: 12, transform: [{ translateX: shakeX.interpolate({ inputRange: [-1, 1], outputRange: [-7, 7] }) }] }}>
+      <Animated.View style={{ alignItems: "center", gap: 6, transform: [{ translateX: shakeX.interpolate({ inputRange: [-1, 1], outputRange: [-7, 7] }) }] }}>
         <Animated.Text
-          style={{ fontSize: 40, opacity: flagOpacity, transform: [{ scale: flagScale }] }}
+          style={{ fontSize: 44, opacity: flagOpacity, transform: [{ scale: flagScale }] }}
         >
           {country.flag}
         </Animated.Text>
         <Animated.Text
           style={{
-            fontSize: 52, fontFamily: t.fonts.display, letterSpacing: 0,
+            fontSize: 58, fontFamily: t.fonts.display, letterSpacing: -0.5,
             color: t.accent, opacity: wordOpacity, transform: [{ scale: wordScale }],
           }}
         >
           {word}!
-        </Animated.Text>
-        <Animated.Text
-          style={{
-            fontSize: 14, fontFamily: t.fonts.regular, letterSpacing: 0.3,
-            color: t.txtMid, opacity: subOpacity, transform: [{ translateY: subY }],
-          }}
-        >
-          {sub}
         </Animated.Text>
       </Animated.View>
     </Animated.View>
