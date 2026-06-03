@@ -236,8 +236,8 @@ const VOICE_LINES_FIL: Record<string, string> = {
   "Honestly, most people don\u2019t. Let\u2019s change that.":
     "Ako nga din, hindi ko alam. Tara ayusin nga natin!",
   /* Screen 8 — Stakes */
-  "Everybody hates late fees, right?":
-    "Nakaka inis ang late fees \u2019di ba?",
+  "Let\u2019s change this \u2014 right now.":
+    "Baguhin na natin! Now na!",
   /* Screen 11 — Personalizing */
   "Give me just a second \u2014 I\u2019m putting your dashboard together right now.":
     "Wait lang ha, bawal mainipin.",
@@ -1591,7 +1591,7 @@ function ScreenProblem({ ctx }: { ctx: Ctx }) {
 function ScreenStakes({ ctx }: { ctx: Ctx }) {
   const { t, persona, language, next } = ctx;
   const cur = ctx.country.cur;
-  useOnbVoice("Everybody hates late fees, right?", persona, language);
+  useOnbVoice("Let\u2019s change this \u2014 right now.", persona, language);
   const [committed, setCommitted] = useState(false);
 
   /* commit animation values — mirrors prototype `.commit-*` keyframes */
