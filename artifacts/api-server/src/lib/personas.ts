@@ -6,7 +6,7 @@ export const DEFAULT_VOICE_IDS: Record<PersonaId, string> = {
   funny: "NHRgOEwqx5WZNClv5sat", // Chelsea — conversational, bright
   sarcastic: "56AoDkrOh6qfVPDXZ7Pt", // Cassidy — crisp, direct, clear
   mom: "P1hTNpVDMG973fukK9V2", // Ate Ada — warm, maternal, Filipino/Tagalog
-  marites: "9BWtsMINqrJLrRacOk9x", // Aria — dynamic, expressive, fast-paced energy
+  marites: "XrExE9yKIg1WjnnlVkGX", // Matilda — warm, bubbly, enthusiastic female; tsismosa energy
 };
 
 /** Filipino/Taglish voice IDs — used when the user's language is "fil". */
@@ -15,7 +15,7 @@ export const FILIPINO_VOICE_IDS: Record<PersonaId, string> = {
   funny: "cvnP6nKXpiWGFASDWN3Y",
   mom: "gILcvhAz18uV9ARSsU4u",
   sarcastic: "RGymW84CSmfVugnA5tvA",
-  marites: "pqHfZKP75CvOlQylNhV4", // Lily — warm, expressive; swap for a dedicated tsismosa voice anytime
+  marites: "XB0fDUnXU5powFXDhCwa", // Charlotte — warm, expressive female; tsismosa Filipino energy
 };
 
 /** Philippine language codes that should use Filipino native-speaker voices. */
