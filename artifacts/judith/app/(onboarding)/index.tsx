@@ -931,18 +931,6 @@ function ScreenWelcome({ ctx }: { ctx: Ctx }) {
 
 function ScreenCountry({ ctx }: { ctx: Ctx }) {
   const { t, country, setCountry, next, name, persona, language } = ctx;
-  useEffect(() => {
-    let cancelled = false;
-    const isFil = isFilipino(language);
-    const line = isFil
-      ? `Nasaang bansa ka ngayon${name ? ` ${name}` : ""}?`
-      : "Where are you from?";
-    synthOnboarding(line, persona, language)
-      .then(({ audioBase64 }) => { if (!cancelled) playBase64Mp3(audioBase64).catch(() => {}); })
-      .catch(() => {});
-    return () => { cancelled = true; stopCurrentAudio(); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
   const [q, setQ] = useState("");
   const list = COUNTRIES.filter((c) =>
     c.name.toLowerCase().includes(q.toLowerCase()),
