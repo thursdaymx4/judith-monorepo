@@ -245,29 +245,29 @@ const VOICE_LINES_FIL: Record<string, string> = {
   /* Screen 2 — Name */
   "One more thing \u2014 what should I call you?":
     "Hi! Can I get your name po?",
-  /* Screen 3 — Language */
+  /* Screen 4 — Language */
   "Take control of your bills, take control of your life.":
     "kapag kontrolado mo ang bills mo, kontrolado mo ang buhay mo. Agree?",
+  /* Screen 6 — LateFee */
+  "We\u2019ve all been there. Missed a payment, surprise fee. I\u2019m here so that never happens again.":
+    "Naranasan mo na ba yung late fee? Nakakainis. Ako na bahala para \u2019di na maulit.",
   /* Screen 7 — Problem */
   "Honestly, most people don\u2019t. Let\u2019s change that.":
     "Ako nga din, hindi ko alam. Tara ayusin nga natin!",
   /* Screen 8 — Stakes */
   "Everybody hates late fees, right?":
     "Nakaka inis ang late fees \u2019di ba?",
-  /* Screen 9 — Bill intro */
-  "Let\u2019s take this one step at a time. Tell me the amount, when it\u2019s due and who you pay to?":
-    "Isa isahin natin mga bills mo.",
   /* Screen 11 — Personalizing */
   "Give me just a second \u2014 I\u2019m putting your dashboard together right now.":
     "Wait lang ha, bawal mainipin.",
-  /* Feature screens */
+  /* Feature screens (13–15) */
   "Go ahead \u2014 tap the mic and just talk to me. Ask anything. I'm listening.":
     "Try mo kong tanungin ng kahit ano tungkol sa bills mo.",
   "Try asking 'what\u2019s due this week?' I'll tell you everything, right now.":
     "Isa pa \u2014 check natin kung masasagot ko tanong mo.",
   "Ask me if it\u2019s safe to spend before payday. I'll check what\u2019s coming and give you a straight answer.":
     "Ano? Bilib ka na ba? Isa pa \u2014 baka chamba lang.",
-  /* Paywall */
+  /* Screen 16 — Paywall */
   "You\u2019ve got eight free asks to start. Want to keep the conversation going? Pick a plan that fits and I\u2019m all yours.":
     "Salamat sa pag-suporta sa amin ni Judith. Baka gusto mo pa kaming kausapin ng mas matagal \u2014 pwede naman!",
 };
@@ -1379,8 +1379,9 @@ function ScreenName({ ctx }: { ctx: Ctx }) {
 /* ================================================================== */
 
 function ScreenLateFee({ ctx }: { ctx: Ctx }) {
-  const { t, persona, next } = ctx;
+  const { t, persona, language, next } = ctx;
   const cur = ctx.country.cur;
+  useOnbVoice("We\u2019ve all been there. Missed a payment, surprise fee. I\u2019m here so that never happens again.", persona, language);
   // lockDrop: notification slides down from above on mount (prototype lockDrop keyframe)
   const dropOpacity = useRef(new Animated.Value(0)).current;
   const dropY       = useRef(new Animated.Value(-12)).current;
