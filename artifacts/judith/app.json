@@ -40,8 +40,7 @@
           "microphonePermission": "Pinapayagan ang Judith na gamitin ang mikropono para marinig ang mga tanong mo."
         }
       ],
-      "expo-notifications",
-      "./plugins/withAndroidExcludeWatchConnectivity"
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true,
