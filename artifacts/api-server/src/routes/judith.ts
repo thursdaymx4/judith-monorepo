@@ -327,20 +327,39 @@ router.post("/ask", async (req, res) => {
 
     let audioBase64: string | null = null;
     let mime = "audio/mpeg";
+    let ttsOk = false;
     try {
       const audio = await synthesize(reply, voiceId, { live: true });
       audioBase64 = audio.base64;
       mime = audio.mime;
+      ttsOk = true;
     } catch (ttsErr) {
       logger.error({ err: ttsErr }, "tts failed during ask");
     }
 
     res.json({ reply, audioBase64, mime, action });
+
+    getSupabaseAdmin()
+      .from("ask_logs")
+      .insert({
+        user_id: user.id,
+        persona,
+        language: typeof language === "string" ? language : "en",
+        input_chars: text.trim().length,
+        reply_chars: reply.length,
+        tts_ok: ttsOk,
+        input_tokens: message.usage.input_tokens,
+        output_tokens: message.usage.output_tokens,
+      })
+      .then(({ error }) => {
+        if (error) logger.warn({ err: error }, "ask_logs insert failed");
+      });
   } catch (err) {
     logger.error({ err }, "ask failed");
     res.status(500).json({ error: "Judith could not respond right now" });
   }
 });
+
 
 // POST /api/judith/tts  { text, persona? } -> { audioBase64, mime }
 router.post("/tts", async (req, res) => {
