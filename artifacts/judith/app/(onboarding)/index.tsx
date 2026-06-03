@@ -4038,6 +4038,7 @@ const FLOW: { id: string; C: (p: { ctx: Ctx }) => React.ReactElement }[] = [
   { id: "latefee", C: ScreenLateFee },
   { id: "problem", C: ScreenProblem },
   { id: "stakes", C: ScreenStakes },
+  { id: "intro", C: ScreenIntro },
   { id: "voice", C: ScreenVoiceAdd },
   { id: "congrats", C: ScreenCongrats },
   { id: "personalizing", C: ScreenPersonalizing },
@@ -4047,7 +4048,7 @@ const FLOW: { id: string; C: (p: { ctx: Ctx }) => React.ReactElement }[] = [
   { id: "feature3", C: ScreenFeature3 },
   { id: "askpaywall", C: ScreenAskPaywall },
 ];
-const SETUP = ["name", "country", "language", "persona", "problem", "stakes", "voice", "congrats", "summary"];
+const SETUP = ["name", "country", "language", "persona", "problem", "stakes", "intro", "voice", "congrats", "summary"];
 const NO_BACK = ["welcome", "personalizing"];
 const SKIPPABLE = ["country", "persona"];
 const SAVE_FROM = FLOW.findIndex((f) => f.id === "voice");
