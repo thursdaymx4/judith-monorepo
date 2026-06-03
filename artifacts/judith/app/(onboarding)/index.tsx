@@ -992,13 +992,20 @@ function ScreenCountry({ ctx }: { ctx: Ctx }) {
 /* ================================================================== */
 
 function ScreenLanguage({ ctx }: { ctx: Ctx }) {
-  const { t, persona, next, language, setLanguage } = ctx;
+  const { t, persona, next, language, setLanguage, name } = ctx;
   useOnbVoice("Take control of your bills, take control of your life.", persona, language);
   const [voiceLang, setVoiceLang] = useState(language || "en");
   const [speaking, setSpeaking] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const langReqId = useRef(0);
+
+  const filSample = (code: string) => {
+    if (isFilipino(code)) {
+      return `Tara! Ayusin natin ang mga bills mo${name ? ` ${name}` : ""}.`;
+    }
+    return langSample(code);
+  };
 
   const playSample = async (code: string) => {
     haptics.light();
@@ -1007,7 +1014,7 @@ function ScreenLanguage({ ctx }: { ctx: Ctx }) {
     setLanguage(code);
     setSpeaking(true);
     try {
-      const { audioBase64 } = await synthOnboarding(langSample(code), persona, code);
+      const { audioBase64 } = await synthOnboarding(filSample(code), persona, code);
       if (id !== langReqId.current) return;
       await playBase64Mp3(audioBase64);
     } catch {
@@ -1065,7 +1072,7 @@ function ScreenLanguage({ ctx }: { ctx: Ctx }) {
         <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 14 }}>
           <JudithAvatar persona={persona} size={56} state={speaking ? "speaking" : "idle"} />
           <JudithLine hint={!speaking} style={{ flex: 1 }}>
-            {speaking ? langSample(voiceLang) : "Tap ▸ to hear me in any language or dialect."}
+            {speaking ? filSample(voiceLang) : "Tap ▸ to hear me in any language or dialect."}
           </JudithLine>
         </View>
 
