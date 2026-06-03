@@ -2292,8 +2292,23 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
 
   // Voice line — intentionally different from promptText so Judith isn't
   // just reading the screen aloud. Canned, shorter, more natural.
+  // Also covers breather / count / more transitions so Judith speaks on every new screen.
   const voiceText =
-    phase === "cards"
+    mode === "breather"
+      ? (() => { const g = VGROUPS[breatherGroup] || VGROUPS[0]!; return g.note || g.done; })()
+    : mode === "count"
+      ? phase === "cards"
+        ? isFil
+          ? "Ngayon ang mga credit card. Ilan ang mayroon ka? Isa-isahin natin."
+          : "Now the heavy hitters. How many credit cards do you have? I'll take them one at a time."
+        : isFil
+          ? "At loans — personal, car, bahay, kahit ano. Ilan?"
+          : "And loans — personal, car, housing, anything. How many?"
+    : mode === "more"
+      ? isFil
+        ? `${bills.length} na bill na logged. May iba pa? Cards, loans, gym, insurance?`
+        : `That's ${bills.length} so far. Any more cards, loans, or anything else?`
+    : phase === "cards"
       ? isFil
         ? cardDone === 0
           ? "Una — anong bangko, magkano ang due?"
@@ -2312,13 +2327,18 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
         : (isFil ? VOICE_PROMPTS_FIL[sample.cat] : VOICE_PROMPTS[sample.cat]) ||
           (isFil ? "Ano pa?" : "Go ahead.");
 
-  /* Auto-play Judith's prompt aloud each time a new question appears. */
+  /* Auto-play Judith's line aloud each time a new screen/state appears. */
   const lastPlayedPromptKey = useRef("");
   useEffect(() => {
-    if (mode !== "prompt") return;
-    const key = `${phase}-${idx}-${cardDone}-${loanDone}`;
+    if (mode !== "prompt" && mode !== "breather" && mode !== "count" && mode !== "more") return;
+    const key =
+      mode === "breather" ? `breather-${breatherGroup}` :
+      mode === "count"    ? `count-${phase}` :
+      mode === "more"     ? "more" :
+                            `prompt-${phase}-${idx}-${cardDone}-${loanDone}`;
     if (key === lastPlayedPromptKey.current) return;
     lastPlayedPromptKey.current = key;
+    if (!voiceText) return;
     let cancelled = false;
     synthOnboarding(voiceText, persona, language)
       .then(({ audioBase64 }) => {
@@ -2329,7 +2349,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       cancelled = true;
       stopCurrentAudio();
     };
-  }, [mode, phase, idx, cardDone, loanDone, voiceText, persona]);
+  }, [mode, phase, idx, cardDone, loanDone, breatherGroup, voiceText, persona]);
 
   const progress = Math.min(idx + (mode === "done" ? 0 : 1), SAMPLES.length);
   const showConvo = mode === "prompt" || mode === "listening" || mode === "transcribing" || mode === "parsed";
