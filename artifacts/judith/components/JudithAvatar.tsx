@@ -22,7 +22,7 @@ const PERSONA_PARAMS: Record<PersonaId, string> = {
   funny: "mouth=laughing&eyes=smiling&shirt=crew&shirtColor=ff8a5b&glassesProbability=0",
   sib: "mouth=smirk&eyes=eyesShadow&eyebrows=up&shirt=open&shirtColor=2fb39b&glassesProbability=0",
   mama: "mouth=smile&glasses=round&glassesProbability=100&hairColor=b7b7b7&shirt=collared&shirtColor=c77dab",
-  marites: "mouth=laughing&eyes=smiling&eyebrows=up&shirt=crew&shirtColor=f472b6&glassesProbability=0",
+  marites: "mouth=surprised&eyes=round&eyebrows=eyelashesUp&shirt=open&shirtColor=7c3aed&hairColor=db2777&glassesProbability=0",
 };
 
 const PERSONA_BG: Record<PersonaId, string> = {

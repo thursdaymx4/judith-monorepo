@@ -2312,7 +2312,14 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   // Also covers breather / count / more transitions so Judith speaks on every new screen.
   const voiceText =
     mode === "breather"
-      ? (() => { const g = VGROUPS[breatherGroup] || VGROUPS[0]!; return g.note || g.done; })()
+      ? (() => {
+          const g = VGROUPS[breatherGroup] || VGROUPS[0]!;
+          if (isFil) {
+            if (breatherGroup === 0) return "Essentials, naka-save na! Kuryente, tubig, internet — done na. Hinga muna.";
+            if (breatherGroup === 1) return "Mga subscriptions, naka-save! Wala nang makakalimutan.";
+          }
+          return g.note || g.done;
+        })()
     : mode === "count"
       ? phase === "cards"
         ? isFil
@@ -2366,7 +2373,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       cancelled = true;
       stopCurrentAudio();
     };
-  }, [mode, phase, idx, cardDone, loanDone, breatherGroup, voiceText, persona]);
+  }, [mode, phase, idx, cardDone, loanDone, breatherGroup, voiceText, persona, language]);
 
   const progress = Math.min(idx + (mode === "done" ? 0 : 1), SAMPLES.length);
   const showConvo = mode === "prompt" || mode === "listening" || mode === "transcribing" || mode === "parsed";
