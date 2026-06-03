@@ -459,11 +459,61 @@ const BILL_VOICES: Record<PersonaId, {
 };
 
 /** Supplementary voice lines for each Feature screen — not reading the UI, just personality. */
-const FEATURE_VOICES = [
-  "Go ahead — tap the mic and just talk to me. Ask anything. I'm listening.",
-  "Try asking 'what's due this week?' I'll tell you everything, right now.",
-  "Ask me if it's safe to spend before payday. I'll check what's coming and give you a straight answer.",
-];
+const FEATURE_VOICES_PERSONA: Record<PersonaId, [string, string, string]> = {
+  pro: [
+    "Go ahead — ask me anything. I'm listening.",
+    "Try asking what's due this week. I'll give you the full picture.",
+    "Ask me if it's safe to spend before payday. I'll check your bills and give you a straight answer.",
+  ],
+  funny: [
+    "I'm all ears! Tap that mic and let's see what you've got.",
+    "Try 'what's due this week?' — I'll spill everything, no holding back!",
+    "Ask if it's safe to spend before payday. I'll be brutally honest — lovingly, of course!",
+  ],
+  sib: [
+    "You can ask me things now. Go ahead.",
+    "Ask what's due this week. I'll tell you.",
+    "Ask if it's safe to spend. I'll check and give you the truth.",
+  ],
+  mama: [
+    "Go ahead anak, ask me anything. I'm here.",
+    "Try asking what's due this week anak. I'll tell you everything.",
+    "Ask me if it's safe to spend anak. I'll check everything for you.",
+  ],
+  marites: [
+    "Oh oh oh! Ask me na! I know everything about your bills besh!",
+    "Ay! Ask me what's due this week! I'll tell you everything besh! Lahat!",
+    "Ask me if it's safe to spend! I'll check your bills — all of them! Grabe besh!",
+  ],
+};
+
+const FEATURE_VOICES_PERSONA_FIL: Record<PersonaId, [string, string, string]> = {
+  pro: [
+    "Sige, magtanong ka na. Nakinukinig ako.",
+    "Try mo i-tanong kung ano ang due ngayong linggo. Sasabihin ko lahat.",
+    "Tanungin mo ko kung ligtas mag-gastos. I-check ko lahat ng bills mo.",
+  ],
+  funny: [
+    "Ready na ako! Magtanong ka na, curious rin ako kung ano ang sasabihin mo!",
+    "I-try mo: 'Ano ang due this week?' — Isasabi ko lahat, walang tinatago!",
+    "Tanungin mo: ligtas ba mag-gastos? Magsasabi ako ng totoo — mahal kita kaya!",
+  ],
+  sib: [
+    "Pwede ka nang magtanong. Sige.",
+    "Tanungin mo kung ano ang due ngayong linggo. Sasabihin ko.",
+    "Tanungin mo kung ligtas mag-gastos. Checkuhin ko at sasabihin ko.",
+  ],
+  mama: [
+    "Sige anak, magtanong ka na. Nandito ako.",
+    "Try mo anak, tanungin ang due this week. Isasabi ko lahat sa iyo.",
+    "Tanungin mo anak kung ligtas mag-gastos. I-check ko lahat para sa iyo.",
+  ],
+  marites: [
+    "Ay ay ay! Magtanong ka na besh! Alam ko lahat ng tungkol sa bills mo!",
+    "Ay! Tanungin mo ako kung ano ang due ngayong linggo! Isasabi ko lahat besh!",
+    "Tanungin mo ako kung ligtas mag-gastos! Checkuhin ko ang lahat besh! Grabe!",
+  ],
+};
 
 /**
  * Tagalog/Taglish equivalents for every canned onboarding voice line.
@@ -3752,6 +3802,7 @@ function FeatureShell({
   q,
   a,
   mood,
+  variant,
 }: {
   ctx: Ctx;
   dotIdx: number;
@@ -3761,9 +3812,14 @@ function FeatureShell({
   q: string;
   a: string;
   mood: "warm" | "proud" | "joy";
+  variant: 1 | 2 | 3;
 }) {
   const { t, persona, language, next, bills } = ctx;
-  useOnbVoice(FEATURE_VOICES[dotIdx] ?? FEATURE_VOICES[0]!, persona, language);
+  const isFil = isFilipino(language);
+  const voiceLine = isFil
+    ? (FEATURE_VOICES_PERSONA_FIL[persona]?.[dotIdx] ?? FEATURE_VOICES_PERSONA[persona][dotIdx])
+    : FEATURE_VOICES_PERSONA[persona][dotIdx];
+  useOnbVoice(voiceLine, persona, language);
 
   /* ── demo float animation (shown before first real ask) ── */
   const floatY  = useRef(new Animated.Value(0)).current;
@@ -3910,38 +3966,97 @@ function FeatureShell({
           ))}
         </View>
 
-        {/* ── demo Q&A (before first ask) or real conversation ── */}
+        {/* ── hero section — each variant has a distinct layout ── */}
         {!started ? (
-          <Animated.View
-            style={{
-              alignSelf: "stretch",
-              minHeight: 220,
-              alignItems: "center",
-              justifyContent: "center",
-              transform: [{ translateY: floatY }],
-            }}
-          >
-            <View style={{ gap: 11, width: "100%", alignItems: "center" }}>
-              <JudithAvatar persona={persona} size={72} state="speaking" mood={mood} />
-              <Animated.View
-                style={{
-                  alignSelf: "flex-end",
-                  opacity: tOpacity,
-                  transform: [{ translateY: tY }, { scale: tScale }],
-                }}
-              >
+          variant === 1 ? (
+            /* Variant 1: Large avatar with glow rings + floating demo Q&A */
+            <Animated.View
+              style={{
+                alignSelf: "stretch",
+                minHeight: 220,
+                alignItems: "center",
+                justifyContent: "center",
+                transform: [{ translateY: floatY }],
+              }}
+            >
+              <View style={{ gap: 11, width: "100%", alignItems: "center" }}>
+                <View style={{ alignItems: "center", justifyContent: "center" }}>
+                  <View style={{ position: "absolute", width: 138, height: 138, borderRadius: 69, backgroundColor: t.accent, opacity: 0.10 }} />
+                  <View style={{ position: "absolute", width: 110, height: 110, borderRadius: 55, backgroundColor: t.accent, opacity: 0.10 }} />
+                  <JudithAvatar persona={persona} size={88} state="speaking" mood={mood} />
+                </View>
+                <Animated.View style={{ alignSelf: "flex-end", opacity: tOpacity, transform: [{ translateY: tY }, { scale: tScale }] }}>
+                  <Transcript>{q}</Transcript>
+                </Animated.View>
+                <Animated.View style={{ opacity: rOpacity, transform: [{ translateY: rY }, { scale: rScale }] }}>
+                  <JudithLine>{a}</JudithLine>
+                </Animated.View>
+              </View>
+            </Animated.View>
+          ) : variant === 2 ? (
+            /* Variant 2: Avatar inline with tappable quick-ask chips as the demo */
+            <View style={{ minHeight: 220, justifyContent: "center", gap: 12 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+                <JudithAvatar persona={persona} size={56} state="speaking" mood={mood} />
+                <View style={{ flex: 1, gap: 8 }}>
+                  {getQuickAsks(ctx.country.code).slice(0, 3).map((qa, i) => (
+                    <Pressable
+                      key={i}
+                      onPress={() => doAsk(qa)}
+                      disabled={busy || listening}
+                      style={{
+                        borderWidth: 1,
+                        borderColor: t.hair,
+                        borderRadius: 20,
+                        paddingVertical: 8,
+                        paddingHorizontal: 14,
+                        backgroundColor: t.surface2,
+                        opacity: busy || listening ? 0.4 : 1,
+                      }}
+                    >
+                      <Txt size={13}>{qa}</Txt>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+              <Animated.View style={{ alignSelf: "flex-end", opacity: tOpacity, transform: [{ translateY: tY }, { scale: tScale }] }}>
                 <Transcript>{q}</Transcript>
               </Animated.View>
-              <Animated.View
-                style={{
-                  opacity: rOpacity,
-                  transform: [{ translateY: rY }, { scale: rScale }],
-                }}
-              >
+              <Animated.View style={{ opacity: rOpacity, transform: [{ translateY: rY }, { scale: rScale }] }}>
                 <JudithLine>{a}</JudithLine>
               </Animated.View>
             </View>
-          </Animated.View>
+          ) : (
+            /* Variant 3: Real bill insight card — shows the user's actual total + next due */
+            (() => {
+              const total   = bills.reduce((s, b) => s + b.amount, 0);
+              const nextDue = bills.length > 0
+                ? bills.reduce((a2, b) => (b.dueDays < a2.dueDays ? b : a2), bills[0]!)
+                : null;
+              return (
+                <View style={{ minHeight: 220, justifyContent: "center", gap: 14 }}>
+                  <View style={{ alignItems: "center" }}>
+                    <JudithAvatar persona={persona} size={64} state={avatarState} mood={mood} />
+                  </View>
+                  <View style={{ backgroundColor: t.surface2, borderRadius: 18, padding: 20, gap: 4 }}>
+                    <Txt size={12} color={t.txtLow} style={{ textTransform: "uppercase", letterSpacing: 0.8 }}>
+                      {isFil ? "Monthly total mo" : "Your monthly total"}
+                    </Txt>
+                    <Txt size={30} style={{ fontWeight: "700" }}>
+                      {ctx.country.cur}{total > 0 ? total.toLocaleString() : "—"}
+                    </Txt>
+                    {nextDue && (
+                      <Txt size={14} color={t.txtMid} style={{ marginTop: 6 }}>
+                        {isFil
+                          ? `Susunod: ${nextDue.provider} sa ${nextDue.dueDays} araw`
+                          : `Next up: ${nextDue.provider} in ${nextDue.dueDays} day${nextDue.dueDays !== 1 ? "s" : ""}`}
+                      </Txt>
+                    )}
+                  </View>
+                </View>
+              );
+            })()
+          )
         ) : (
           <View style={{ minHeight: 220 }}>
             <View style={{ alignItems: "center", marginBottom: 10 }}>
@@ -4088,7 +4203,8 @@ function ScreenFeature1({ ctx }: { ctx: Ctx }) {
     <FeatureShell
       ctx={ctx}
       dotIdx={0}
-      kicker="Voice-first"
+      variant={1}
+      kicker="Ask anything"
       title="Just ask Judith."
       lede="Ask anything — she totals it across every card and bill, out loud, hands free."
       q={getDLocal(ctx.country.cur, ctx.country.code).askQ}
@@ -4102,7 +4218,8 @@ function ScreenFeature2({ ctx }: { ctx: Ctx }) {
     <FeatureShell
       ctx={ctx}
       dotIdx={1}
-      kicker="Voice-first"
+      variant={2}
+      kicker="Always ready"
       title="Ask about anything."
       lede="Due dates, what’s coming up, what you owe — just talk, she answers."
       q={getDLocal(ctx.country.cur, ctx.country.code).askQ2}
@@ -4116,7 +4233,8 @@ function ScreenFeature3({ ctx }: { ctx: Ctx }) {
     <FeatureShell
       ctx={ctx}
       dotIdx={2}
-      kicker="Voice-first"
+      variant={3}
+      kicker="Full picture"
       title="She does the math."
       lede="Judith weighs what’s due before you spend — so you decide with the full picture."
       q={getDLocal(ctx.country.cur, ctx.country.code).askQ3}
