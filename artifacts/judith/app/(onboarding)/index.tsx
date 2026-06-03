@@ -2309,7 +2309,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     if (key === lastPlayedPromptKey.current) return;
     lastPlayedPromptKey.current = key;
     let cancelled = false;
-    synthOnboarding(voiceText, persona)
+    synthOnboarding(voiceText, persona, language)
       .then(({ audioBase64 }) => {
         if (!cancelled) return playBase64Mp3(audioBase64);
       })
@@ -3207,7 +3207,7 @@ function ScreenCongrats({ ctx }: { ctx: Ctx }) {
     const line = isFilipino(language)
       ? `Mayroon kang ${n} na bayarin \u2014 ${cur}${fmtNum(total)} bawat buwan. Handa na. Ipapakita ko sa\u2019yo.`
       : `You\u2019ve got ${n} bills \u2014 ${cur}${fmtNum(total)} a month. All set. Let me show you what I see.`;
-    synthOnboarding(line, persona)
+    synthOnboarding(line, persona, language)
       .then(({ audioBase64 }) => { if (!cancelled) playBase64Mp3(audioBase64).catch(() => {}); })
       .catch(() => {});
     return () => { cancelled = true; stopCurrentAudio(); };
@@ -3261,7 +3261,7 @@ function ScreenPersonalizing({ ctx }: { ctx: Ctx }) {
     let cancelled = false;
     const enLine = "Give me just a second \u2014 I\u2019m putting your dashboard together right now.";
     const utterance = (isFilipino(language) ? VOICE_LINES_FIL[enLine] : undefined) ?? enLine;
-    synthOnboarding(utterance, persona)
+    synthOnboarding(utterance, persona, language)
       .then(({ audioBase64 }) => {
         if (cancelled) return Promise.resolve();
         return playBase64Mp3(audioBase64);
@@ -3326,7 +3326,7 @@ function ScreenSummary({ ctx }: { ctx: Ctx }) {
     const line = isFilipino(ctx.language)
       ? `${n} bayarin, ${cur}${fmtNum(total)} bawat buwan. Ang pinakamalaki ay ${biggest.provider} — ${cur}${fmtNum(biggest.amount)}. Susunod na due: ${nextDue.provider}, ${nextDue.dueDays} araw na lang. Hawak ko na ito.`
       : `Okay — ${n} bill${n === 1 ? "" : "s"}, ${cur}${fmtNum(total)} a month. ${biggest.provider}'s the big one at ${cur}${fmtNum(biggest.amount)}. First up is ${nextDue.provider} — due in ${nextDue.dueDays} day${nextDue.dueDays === 1 ? "" : "s"}. ${savings}`;
-    synthOnboarding(line, ctx.persona)
+    synthOnboarding(line, ctx.persona, ctx.language)
       .then(({ audioBase64 }) => {
         if (!cancelled) playBase64Mp3(audioBase64).catch(() => {});
       })
