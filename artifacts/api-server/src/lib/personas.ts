@@ -6,7 +6,7 @@ export const DEFAULT_VOICE_IDS: Record<PersonaId, string> = {
   funny: "NHRgOEwqx5WZNClv5sat", // Chelsea — conversational, bright
   sarcastic: "56AoDkrOh6qfVPDXZ7Pt", // Cassidy — crisp, direct, clear
   mom: "P1hTNpVDMG973fukK9V2", // Ate Ada — warm, maternal, Filipino/Tagalog
-  marites: "XB0fDUnXU5powFXDhCwa", // Charlotte — highly expressive, conversational, multilingual
+  marites: "9BWtsMINqrJLrRacOk9x", // Aria — dynamic, expressive, fast-paced energy
 };
 
 /** Filipino/Taglish voice IDs — used when the user's language is "fil". */
@@ -29,6 +29,19 @@ const FILIPINO_FAMILY = new Set(["fil", "ceb", "ilo", "hil"]);
 export function getVoiceId(persona: PersonaId, language?: string): string {
   if (language && FILIPINO_FAMILY.has(language)) return FILIPINO_VOICE_IDS[persona];
   return DEFAULT_VOICE_IDS[persona];
+}
+
+/** Per-persona speaking rate (ElevenLabs speed param; 1.0 = default). */
+const PERSONA_SPEED: Record<PersonaId, number> = {
+  professional: 0.92,
+  funny: 0.92,
+  sarcastic: 0.92,
+  mom: 0.92,
+  marites: 1.12, // perky, fast-talking tsismosa energy
+};
+
+export function getSpeakingSpeed(persona: PersonaId): number {
+  return PERSONA_SPEED[persona];
 }
 
 const TONE: Record<PersonaId, string> = {

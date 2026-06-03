@@ -153,7 +153,7 @@ function prepareForTTS(text: string): string {
 export async function synthesize(
   text: string,
   voiceId: string,
-  opts?: { live?: boolean },
+  opts?: { live?: boolean; speed?: number },
 ): Promise<{ base64: string; mime: string }> {
   const live = opts?.live ?? true;
   const preferred = live
@@ -162,8 +162,9 @@ export async function synthesize(
 
   const outputFormat = live ? "mp3_44100_128" : "mp3_44100_192";
   const models = [...new Set([preferred, "eleven_multilingual_v2"])];
-  // Slightly slower than default (1.0) — more conversational, easier to follow
-  const speed = 0.92;
+  // Slightly slower than default (1.0) — more conversational, easier to follow.
+  // Callers can override per-persona (e.g. Marites speaks faster).
+  const speed = opts?.speed ?? 0.92;
   const ttsText = prepareForTTS(text);
   let lastErr = "";
 

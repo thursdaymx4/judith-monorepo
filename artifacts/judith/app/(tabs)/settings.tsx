@@ -337,9 +337,19 @@ export default function SettingsScreen() {
             >
               <IcoBox name={p.icon as IconName} iconSize={17} color={on ? t.accent : t.txtMid} />
               <View style={{ flex: 1 }}>
-                <Txt size={15} weight="medium">
-                  {p.name}
-                </Txt>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Txt size={15} weight="medium">{p.name}</Txt>
+                  {p.phOnly && (
+                    <View style={{
+                      backgroundColor: "#f472b6",
+                      borderRadius: 20,
+                      paddingVertical: 2,
+                      paddingHorizontal: 7,
+                    }}>
+                      <Txt size={10} weight="semibold" color="#fff">🇵🇭 PH only</Txt>
+                    </View>
+                  )}
+                </View>
                 <Low size={12} style={{ marginTop: 1 }}>
                   {p.vibe}
                 </Low>

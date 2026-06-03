@@ -9,6 +9,7 @@ import { transcribe, synthesize, listVoices } from "../lib/elevenlabs";
 import {
   DEFAULT_VOICE_IDS,
   getVoiceId,
+  getSpeakingSpeed,
   systemPrompt,
   type PersonaId,
 } from "../lib/personas";
@@ -329,7 +330,7 @@ router.post("/ask", async (req, res) => {
     let mime = "audio/mpeg";
     let ttsOk = false;
     try {
-      const audio = await synthesize(reply, voiceId, { live: true });
+      const audio = await synthesize(reply, voiceId, { live: true, speed: getSpeakingSpeed(persona) });
       audioBase64 = audio.base64;
       mime = audio.mime;
       ttsOk = true;
@@ -380,7 +381,7 @@ router.post("/tts", async (req, res) => {
         : persona
           ? getVoiceId(chosen, lang)
           : voiceId;
-    const audio = await synthesize(text.trim(), voice, { live: false });
+    const audio = await synthesize(text.trim(), voice, { live: false, speed: getSpeakingSpeed(chosen) });
     res.json({ audioBase64: audio.base64, mime: audio.mime });
   } catch (err) {
     logger.error({ err }, "tts failed");
@@ -422,7 +423,7 @@ router.get("/sample", async (req, res) => {
     const persona = coercePersona(req.query["persona"]);
     const language = typeof req.query["language"] === "string" ? req.query["language"] : undefined;
     const text = SAMPLE_LINES[persona];
-    const audio = await synthesize(text, getVoiceId(persona, language), { live: false });
+    const audio = await synthesize(text, getVoiceId(persona, language), { live: false, speed: getSpeakingSpeed(persona) });
     res.json({ text, audioBase64: audio.base64, mime: audio.mime });
   } catch (err) {
     logger.error({ err }, "sample failed");
@@ -461,7 +462,7 @@ router.post("/ask-onboarding", async (req, res) => {
     let mime = "audio/mpeg";
     try {
       /* Onboarding = first impression — use high-quality non-live model (eleven_v3) */
-      const audio = await synthesize(reply, voiceId, { live: false });
+      const audio = await synthesize(reply, voiceId, { live: false, speed: getSpeakingSpeed(persona) });
       audioBase64 = audio.base64;
       mime = audio.mime;
     } catch (ttsErr) {
@@ -578,7 +579,7 @@ router.post("/tts-onboarding", async (req, res) => {
       return;
     }
     const chosen = coercePersona(persona);
-    const audio = await synthesize(text.trim(), getVoiceId(chosen, typeof language === "string" ? language : undefined), { live: true });
+    const audio = await synthesize(text.trim(), getVoiceId(chosen, typeof language === "string" ? language : undefined), { live: true, speed: getSpeakingSpeed(chosen) });
     res.json({ audioBase64: audio.base64, mime: audio.mime });
   } catch (err) {
     logger.error({ err }, "tts-onboarding failed");
@@ -667,7 +668,7 @@ router.get("/sample-onboarding", async (req, res) => {
     const persona = coercePersona(req.query["persona"]);
     const language = typeof req.query["language"] === "string" ? req.query["language"] : undefined;
     const text = SAMPLE_LINES[persona];
-    const audio = await synthesize(text, getVoiceId(persona, language), { live: true });
+    const audio = await synthesize(text, getVoiceId(persona, language), { live: true, speed: getSpeakingSpeed(persona) });
     res.json({ text, audioBase64: audio.base64, mime: audio.mime });
   } catch (err) {
     logger.error({ err }, "sample-onboarding failed");
