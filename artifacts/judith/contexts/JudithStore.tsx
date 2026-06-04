@@ -189,14 +189,18 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<JudithStoreValue>(() => {
     const country = countryByCode(state.countryCode);
     const isPaid = state.tier === "chat" || state.tier === "voice";
-    // Auto-advance: if a bill is marked paid but has no paymentHistory record for the
-    // current billing period, the month has rolled over — silently reset it to due.
+    // Auto-advance: if a bill is marked paid but has no paymentHistory record for its
+    // natural billing period (derived from the bill's own due date, not just today's
+    // calendar month), the cycle has rolled over — silently reset it to due.
     const _today = new Date();
-    const _cp = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, "0")}`;
     const bills = state.bills.map((b): Bill => {
       if (b.status !== "paid") return b;
+      // Compute this bill's natural period from its next/last due date
+      const _dd = new Date(_today);
+      _dd.setDate(_today.getDate() + (b.dueDays ?? 0));
+      const _bp = `${_dd.getFullYear()}-${String(_dd.getMonth() + 1).padStart(2, "0")}`;
       const hasCurrentRecord = (b.paymentHistory ?? []).some(
-        (r) => r.period === _cp && r.paid >= r.totalDue,
+        (r) => r.period === _bp && r.paid >= r.totalDue,
       );
       if (!hasCurrentRecord) return { ...b, status: "due", amountPaid: 0 };
       return b;
@@ -211,10 +215,13 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       showToast,
       togglePaid: (id, period) => {
         const today = new Date();
-        const cp = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
-        const p = period ?? cp;
         mapBills((b) => {
           if (b.id !== id) return b;
+          // Determine the bill's natural billing period from its due date
+          const _dd = new Date(today);
+          _dd.setDate(today.getDate() + (b.dueDays ?? 0));
+          const cp = `${_dd.getFullYear()}-${String(_dd.getMonth() + 1).padStart(2, "0")}`;
+          const p = period ?? cp;
           const owed = b.amount + (b.carryOver ?? 0);
           const existing = b.paymentHistory ?? [];
           const hasRecord = existing.some((r) => r.period === p && r.paid >= r.totalDue);
@@ -271,11 +278,14 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
         setState((s) => ({ ...s, bills: s.bills.filter((b) => b.id !== id) })),
       payPartial: (id, amountPaid) => {
         const today = new Date();
-        const cp = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
         setState((s) => ({
           ...s,
           bills: s.bills.map((b) => {
             if (b.id !== id) return b;
+            // Use the bill's natural period, not just today's calendar month
+            const _dd = new Date(today);
+            _dd.setDate(today.getDate() + (b.dueDays ?? 0));
+            const cp = `${_dd.getFullYear()}-${String(_dd.getMonth() + 1).padStart(2, "0")}`;
             const owed = b.amount + (b.carryOver ?? 0);
             if (amountPaid >= owed) {
               const record: BillCycleRecord = {

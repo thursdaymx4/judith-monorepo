@@ -206,10 +206,15 @@ export default function BillDetailModal() {
 
   // ── Period-awareness (calendar may open a future/past month's slot) ──
   const today = new Date();
-  const currentPeriod = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
-  const viewedPeriod = periodParam ?? currentPeriod;
-  const isCurrentPeriod = viewedPeriod === currentPeriod;
-  const isFuturePeriod = viewedPeriod > currentPeriod;
+  // Derive the bill's natural billing period from its own due date, not just
+  // today's calendar month.  A bill due June 1 while today is May 28 belongs
+  // to period "2026-06" so the user can mark it paid before month-end.
+  const billDueDate = new Date(today);
+  billDueDate.setDate(today.getDate() + (bill.dueDays ?? 0));
+  const billNaturalPeriod = `${billDueDate.getFullYear()}-${String(billDueDate.getMonth() + 1).padStart(2, "0")}`;
+  const viewedPeriod = periodParam ?? billNaturalPeriod;
+  const isCurrentPeriod = viewedPeriod === billNaturalPeriod;
+  const isFuturePeriod = viewedPeriod > billNaturalPeriod;
 
   const cls = dueClass(bill.dueDays);
   // Derive paid status from paymentHistory for the viewed period — not from the
