@@ -12,7 +12,7 @@ const config = getDefaultConfig(__dirname);
 const WATCH_STUB = path.resolve(__dirname, "lib/watch-stub.js");
 
 config.resolver.resolveRequest = (context, moduleName, platform) => {
-  if (moduleName === "react-native-watch-connectivity") {
+  if (moduleName === "react-native-watch-connectivity" && platform !== "ios") {
     return { filePath: WATCH_STUB, type: "sourceFile" };
   }
   return context.resolveRequest(context, moduleName, platform);
