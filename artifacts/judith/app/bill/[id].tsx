@@ -269,9 +269,6 @@ export default function BillDetailModal() {
   const { bills, money, persona, country, togglePaid, payPartial, updateBillAmount, showToast } = useJudith();
   const [showInput, setShowInput] = useState(false);
   const [input, setInput] = useState("");
-  const [showCCUpdate, setShowCCUpdate] = useState(false);
-  const [ccInput, setCCInput] = useState("");
-
   const bill = bills.find((b) => b.id === id);
 
   // Compute natural period before early return — useState must be unconditional.
@@ -312,26 +309,12 @@ export default function BillDetailModal() {
   const pct = partialPct(bill);
   const remaining = owed - (bill.amountPaid ?? 0);
   const hasCarryOver = isCurrentPeriod && (bill.carryOver ?? 0) > 0;
-  const isCC = bill.cat === "Credit card";
-  const todayDay = today.getDate();
-  const statementIsToday = isCC && isCurrentPeriod && bill.statementDay === todayDay;
-
   const viewedCls: "overdue" | "urgent" | "near" | "ok" =
     overdue ? "overdue" : daysUntilDue <= 3 ? "urgent" : daysUntilDue <= 7 ? "near" : "ok";
   const statusColor = isFuturePeriod && !paid ? t.txtLow : paid ? t.semantic.ok : t.semantic[viewedCls];
 
   const chartPoints = buildChart(bill);
   const historyRows = buildHistory(bill);
-
-  const handleCCUpdate = () => {
-    const amt = parseFloat(ccInput.replace(/,/g, ""));
-    if (isNaN(amt) || amt <= 0) return;
-    updateBillAmount(bill.id, amt);
-    setCCInput("");
-    setShowCCUpdate(false);
-    haptics.success();
-    showToast("Statement amount updated");
-  };
 
   const handlePayPartial = () => {
     const amt = parseFloat(input.replace(/,/g, ""));
@@ -505,29 +488,6 @@ export default function BillDetailModal() {
         </View>
       )}
 
-      {/* ── CC STATEMENT NUDGE ──────────────────────────────── */}
-      {statementIsToday && (
-        <View
-          style={{
-            marginTop: 11,
-            flexDirection: "row",
-            gap: 10,
-            alignItems: "flex-start",
-            borderWidth: 1,
-            borderColor: t.semantic.near + "55",
-            backgroundColor: t.semantic.near + "10",
-            borderRadius: 12,
-            paddingVertical: 10,
-            paddingHorizontal: 12,
-          }}
-        >
-          <Icon name="card" size={16} color={t.semantic.near} />
-          <Low size={12} style={{ flex: 1, lineHeight: 17 }}>
-            Did your statement come in today? Update the amount to keep your calendar accurate.
-          </Low>
-        </View>
-      )}
-
       {/* ── ROLLOVER WARNING ────────────────────────────────── */}
       {partial && !paid && (
         <View
@@ -596,18 +556,6 @@ export default function BillDetailModal() {
             }}
           />
         )}
-        {isCC && !showCCUpdate && isCurrentPeriod && (
-          <Btn
-            label={statementIsToday ? "Update statement · today" : "Update statement amount"}
-            variant="soft"
-            onPress={() => {
-              setCCInput(String(bill.amount));
-              setShowCCUpdate(true);
-              setShowInput(false);
-            }}
-          />
-        )}
-
         {/* Edit bill — always visible */}
         <Btn
           label="Edit bill"
@@ -615,44 +563,6 @@ export default function BillDetailModal() {
           onPress={() => router.push(`/add-bill?id=${bill.id}`)}
         />
       </View>
-
-      {/* ── CC UPDATE INPUT ─────────────────────────────────── */}
-      {showCCUpdate && (
-        <View
-          style={{
-            marginTop: 12,
-            padding: 14,
-            borderWidth: 1,
-            borderColor: t.semantic.near + "66",
-            borderRadius: 14,
-            backgroundColor: t.surface2,
-            gap: 10,
-          }}
-        >
-          <Txt size={13} weight="semibold">New statement amount</Txt>
-          <Low size={12}>
-            Enter the total from your latest bank statement. Judith will reset this month's cycle to that amount.
-          </Low>
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Mono size={24} weight="bold" color={t.txtHi} style={{ marginRight: 3 }}>{country.cur}</Mono>
-            <TextInput
-              value={ccInput}
-              onChangeText={setCCInput}
-              keyboardType="decimal-pad"
-              placeholder={bill.amount.toLocaleString()}
-              placeholderTextColor={t.txtLow}
-              autoFocus
-              style={{ fontFamily: t.fonts.mono, fontSize: 24, color: t.txtHi, paddingVertical: 4, flex: 1 }}
-            />
-          </View>
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <View style={{ flex: 1 }}><Btn label="Update amount" onPress={handleCCUpdate} /></View>
-            <View style={{ flex: 1 }}>
-              <Btn label="Cancel" variant="soft" onPress={() => { setShowCCUpdate(false); setCCInput(""); }} />
-            </View>
-          </View>
-        </View>
-      )}
 
       {/* ── PARTIAL PAYMENT INPUT ───────────────────────────── */}
       {showInput && (

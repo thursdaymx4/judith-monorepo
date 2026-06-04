@@ -45,11 +45,6 @@ export interface Bill {
   carryOver?: number;
   /** Days before due date to send a reminder (default 3). */
   reminderDays?: number;
-  /**
-   * Day of the month the credit card statement is released (1–28).
-   * Only relevant when cat === "Credit card".
-   * Judith nudges the user on this day to update the bill amount.
-   */
   statementDay?: number;
   /** Closed billing cycles, most-recent-first. Capped at 24. */
   paymentHistory?: BillCycleRecord[];
@@ -116,15 +111,6 @@ export const PROVIDERS: Record<string, Provider[]> = {
     { name: "PLDT", color: "#C8102E", short: "P" },
     { name: "Globe", color: "#0066B3", short: "G" },
   ],
-  "Credit card": [
-    { name: "BPI", color: "#A6192E", short: "BPI" },
-    { name: "BDO", color: "#00529C", short: "BDO" },
-    { name: "Metrobank", color: "#003DA5", short: "MB" },
-    { name: "UnionBank", color: "#FF6B00", short: "UB" },
-    { name: "RCBC", color: "#003C71", short: "R" },
-    { name: "Security Bank", color: "#006B3F", short: "SB" },
-    { name: "Citi", color: "#056DAE", short: "C" },
-  ],
   Subscription: [
     { name: "Netflix", color: "#E50914", short: "N" },
     { name: "Spotify", color: "#1DB954", short: "S" },
@@ -164,7 +150,6 @@ export const CAT_ICONS: Record<string, string> = {
   Internet: "wifi",
   Mobile: "smartphone",
   Landline: "phone",
-  "Credit card": "card",
   Subscription: "spark",
   Insurance: "lock",
   Custom: "plus",
@@ -225,7 +210,6 @@ export const APP_BILLS: Bill[] = [
   { id: "globe", provider: "Globe", cat: "Mobile", icon: "smartphone", amount: 1299, dueDays: 12, dueDate: 12, dueLabel: "Jun 12", status: "due", house: "Main home" },
   { id: "condo-meralco", provider: "Meralco", cat: "Electricity", icon: "zap", amount: 1240, dueDays: 9, dueDate: 9, dueLabel: "Jun 9", status: "due", house: "Condo (rental)" },
   { id: "condo-dues", provider: "Condo Assoc.", cat: "Rent / Mortgage", icon: "home", amount: 4500, dueDays: 14, dueDate: 14, dueLabel: "Jun 14", status: "due", house: "Condo (rental)" },
-  { id: "bpi", provider: "BPI", cat: "Credit card", icon: "card", amount: 5200, dueDays: 18, dueDate: 18, dueLabel: "Jun 18", status: "due", house: "Main home" },
   { id: "spotify", provider: "Spotify", cat: "Subscription", icon: "spark", amount: 194, dueDays: 25, dueDate: 25, dueLabel: "Jun 25", status: "paid", house: "Main home" },
   { id: "netflix", provider: "Netflix", cat: "Subscription", icon: "spark", amount: 549, dueDays: 28, dueDate: 28, dueLabel: "Jun 28", status: "due", house: "Main home" },
   { id: "skycable", provider: "Sky Cable", cat: "TV / Streaming", icon: "spark", amount: 699, dueDays: -2, dueDate: 30, dueLabel: "May 30", status: "due", house: "Main home" },

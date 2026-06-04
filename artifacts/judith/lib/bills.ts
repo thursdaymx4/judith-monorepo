@@ -6,7 +6,6 @@ export type BillCategory =
   | "internet"
   | "mobile"
   | "landline"
-  | "credit_card"
   | "custom";
 
 export type AmountType = "fixed" | "variable";
@@ -48,7 +47,6 @@ export const CATEGORY_META: Record<
   internet: { label: "Internet", icon: "wifi" },
   mobile: { label: "Mobile", icon: "smartphone" },
   landline: { label: "Landline", icon: "phone" },
-  credit_card: { label: "Credit Card", icon: "credit-card" },
   custom: { label: "Iba pa", icon: "file-text" },
 };
 

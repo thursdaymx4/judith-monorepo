@@ -236,9 +236,6 @@ export default function CalendarScreen() {
       return Math.max(0, totalOwed(b) - amtPaidInPeriod(b));
     }
     if (isFutureMonth) {
-      // CC: bank folds any unpaid balance into the new statement — we don't know the
-      // new amount yet, so we show the last known amount as an estimate
-      if (b.cat === "Credit card") return b.amount;
       if (isCurrentPeriodPaid(b)) return b.amount; // fresh cycle, no carry
       // Effective carry into next month:
       // - If a partial payment was made this cycle: the remaining balance carries forward
@@ -393,10 +390,8 @@ export default function CalendarScreen() {
             const dd = viewedDueDays(b);
             const cls = dueClass(dd) as Urgency;
             const amt = viewedAmt(b);
-            const isCCEst = isFutureMonth && b.cat === "Credit card";
-            // Effective carry uses the same logic as viewedAmt above
             const hasPartialForLabel = (b.amountPaid ?? 0) > 0;
-            const effectiveCarryForLabel = isFutureMonth && !isCCEst && b.status !== "paid"
+            const effectiveCarryForLabel = isFutureMonth && b.status !== "paid"
               ? (hasPartialForLabel
                   ? Math.max(0, totalOwed(b) - (b.amountPaid ?? 0))
                   : (b.carryOver ?? 0))
@@ -407,11 +402,10 @@ export default function CalendarScreen() {
                 key={b.id}
                 bill={b}
                 onPress={() => openBill(b)}
-                amtColor={isCCEst ? t.txtMid : t.semantic[cls]}
+                amtColor={t.semantic[cls]}
                 money={money}
                 monthShort={monthShort}
                 displayAmt={amt}
-                estLabel={isCCEst}
                 carryAmt={hasCarryOver ? effectiveCarryForLabel : undefined}
               >
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
@@ -420,7 +414,7 @@ export default function CalendarScreen() {
                     {b.cat}
                     {" · "}
                     {dueShort(dd)}
-                    {isCCEst ? " · est." : hasCarryOver ? " · carried balance" : ""}
+                    {hasCarryOver ? " · carried balance" : ""}
                   </Low>
                 </View>
               </CalBillRow>

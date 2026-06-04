@@ -40,15 +40,6 @@ const PH: Record<string, ProviderEntry[]> = {
     { name: "TM",    color: "#FFB81C", short: "TM"  },
     { name: "TNT",   color: "#E5202E", short: "TNT" },
   ],
-  "Credit card": [
-    { name: "BPI",           color: "#A6192E", short: "BPI" },
-    { name: "BDO",           color: "#00529C", short: "BDO" },
-    { name: "Metrobank",     color: "#003DA5", short: "MB"  },
-    { name: "UnionBank",     color: "#FF6B00", short: "UB"  },
-    { name: "RCBC",          color: "#003C71", short: "R"   },
-    { name: "Security Bank", color: "#006B3F", short: "SB"  },
-    { name: "Citi",          color: "#056DAE", short: "C"   },
-  ],
   "Personal loan": [
     { name: "Home Credit", color: "#D50032", short: "HC"    },
     { name: "Pag-IBIG",    color: "#003087", short: "HDMF"  },
@@ -87,15 +78,6 @@ const US: Record<string, ProviderEntry[]> = {
     { name: "Cricket",       color: "#82BC00", short: "CR"  },
     { name: "Boost Mobile",  color: "#FF6600", short: "BM"  },
   ],
-  "Credit card": [
-    { name: "Chase",            color: "#117ACA", short: "CH" },
-    { name: "American Express", color: "#007BC1", short: "AX" },
-    { name: "Capital One",      color: "#C70024", short: "C1" },
-    { name: "Citi",             color: "#056DAE", short: "C"  },
-    { name: "Bank of America",  color: "#E31837", short: "BA" },
-    { name: "Discover",         color: "#FF6600", short: "DS" },
-    { name: "Wells Fargo",      color: "#CC0000", short: "WF" },
-  ],
   "Personal loan": [
     { name: "SoFi",          color: "#1C4474", short: "SF" },
     { name: "LendingClub",   color: "#4CAF50", short: "LC" },
@@ -129,14 +111,6 @@ const SG: Record<string, ProviderEntry[]> = {
     { name: "Circles.Life",  color: "#FF007F", short: "CL" },
     { name: "GOMO",          color: "#00C800", short: "GM" },
     { name: "TPG",           color: "#FF6F00", short: "TP" },
-  ],
-  "Credit card": [
-    { name: "DBS/POSB",          color: "#E60012", short: "DBS" },
-    { name: "OCBC",              color: "#E31837", short: "OCBC"},
-    { name: "UOB",               color: "#003DA5", short: "UOB" },
-    { name: "Standard Chartered",color: "#0070AC", short: "SC"  },
-    { name: "Citibank SG",       color: "#056DAE", short: "C"   },
-    { name: "HSBC SG",           color: "#DB0011", short: "HSBC"},
   ],
   "Personal loan": [
     { name: "DBS",     color: "#E60012", short: "DBS" },
@@ -173,13 +147,6 @@ const AU: Record<string, ProviderEntry[]> = {
     { name: "Vodafone AU", color: "#E60000", short: "VF" },
     { name: "Boost Mobile AU", color: "#FF6600", short: "BM" },
     { name: "Belong",      color: "#005DCA", short: "BL" },
-  ],
-  "Credit card": [
-    { name: "Commonwealth Bank", color: "#FFC72C", short: "CBA" },
-    { name: "ANZ",               color: "#007DBA", short: "ANZ" },
-    { name: "Westpac",           color: "#DA1710", short: "WP"  },
-    { name: "NAB",               color: "#CC0000", short: "NAB" },
-    { name: "Macquarie",         color: "#002F6C", short: "MQ"  },
   ],
   "Personal loan": [
     { name: "Commonwealth Bank", color: "#FFC72C", short: "CBA" },
@@ -220,14 +187,6 @@ const GB: Record<string, ProviderEntry[]> = {
     { name: "giffgaff", color: "#3D7E3A", short: "GG" },
     { name: "Sky Mobile",color:"#0D3B73", short: "SM" },
   ],
-  "Credit card": [
-    { name: "Barclays",        color: "#00AEEF", short: "BC" },
-    { name: "HSBC",            color: "#DB0011", short: "HSBC"},
-    { name: "Lloyds",          color: "#024638", short: "LB" },
-    { name: "NatWest",         color: "#42145F", short: "NW" },
-    { name: "Santander UK",    color: "#EC0000", short: "SN" },
-    { name: "American Express",color: "#007BC1", short: "AX" },
-  ],
   "Personal loan": [
     { name: "Barclays",  color: "#00AEEF", short: "BC" },
     { name: "Lloyds",    color: "#024638", short: "LB" },
@@ -263,14 +222,6 @@ const CA: Record<string, ProviderEntry[]> = {
     { name: "Fido",           color: "#E30000", short: "FD" },
     { name: "Public Mobile",  color: "#6ABF4B", short: "PM" },
   ],
-  "Credit card": [
-    { name: "RBC",          color: "#005DA0", short: "RBC" },
-    { name: "TD",           color: "#34A853", short: "TD"  },
-    { name: "Scotiabank",   color: "#EC0000", short: "SB"  },
-    { name: "BMO",          color: "#0079C1", short: "BMO" },
-    { name: "CIBC",         color: "#C41F3A", short: "CIBC"},
-    { name: "American Express CA", color: "#007BC1", short: "AX" },
-  ],
   "Personal loan": [
     { name: "RBC",        color: "#005DA0", short: "RBC" },
     { name: "TD",         color: "#34A853", short: "TD"  },
@@ -303,13 +254,6 @@ const MY: Record<string, ProviderEntry[]> = {
     { name: "U Mobile", color: "#8B0000", short: "UM"  },
     { name: "Hotlink",  color: "#E60012", short: "HL"  },
   ],
-  "Credit card": [
-    { name: "Maybank",     color: "#FBBC0C", short: "MB"  },
-    { name: "CIMB MY",     color: "#C00000", short: "CIMB"},
-    { name: "Public Bank", color: "#CC0000", short: "PB"  },
-    { name: "RHB",         color: "#005DA0", short: "RHB" },
-    { name: "Hong Leong",  color: "#003087", short: "HL"  },
-  ],
   "Personal loan": [
     { name: "Maybank", color: "#FBBC0C", short: "MB"  },
     { name: "CIMB MY", color: "#C00000", short: "CIMB"},
@@ -338,13 +282,6 @@ const ID: Record<string, ProviderEntry[]> = {
     { name: "XL",       color: "#0041A8", short: "XL"  },
     { name: "Tri",      color: "#0082CA", short: "3"   },
     { name: "Smartfren",color: "#E5202E", short: "SF"  },
-  ],
-  "Credit card": [
-    { name: "BCA",         color: "#006CB7", short: "BCA" },
-    { name: "Bank Mandiri",color: "#0C3062", short: "MD"  },
-    { name: "BNI",         color: "#E60026", short: "BNI" },
-    { name: "BRI",         color: "#003DA5", short: "BRI" },
-    { name: "CIMB Niaga",  color: "#C00000", short: "CIMB"},
   ],
   "Personal loan": [
     { name: "BCA",         color: "#006CB7", short: "BCA" },
@@ -376,14 +313,6 @@ const IN: Record<string, ProviderEntry[]> = {
     { name: "Airtel",  color: "#FF0000", short: "AT" },
     { name: "Vi",      color: "#E60026", short: "Vi" },
     { name: "BSNL",    color: "#003DA5", short: "BSN"},
-  ],
-  "Credit card": [
-    { name: "HDFC",     color: "#004C8F", short: "HDFC"},
-    { name: "ICICI",    color: "#EA712A", short: "ICICI"},
-    { name: "SBI",      color: "#22409A", short: "SBI" },
-    { name: "Axis",     color: "#C84B31", short: "AX"  },
-    { name: "Kotak",    color: "#EF3D40", short: "KO"  },
-    { name: "IndusInd", color: "#005DA0", short: "IIB" },
   ],
   "Personal loan": [
     { name: "HDFC",    color: "#004C8F", short: "HDFC" },
@@ -458,13 +387,12 @@ export function getAllProviderEntries(): ProviderEntry[] {
 
 export function getQuickAsks(countryCode: string): string[] {
   const elec = getProviders(countryCode, "Electricity")[0]?.name ?? "electricity";
-  const cc   = getProviders(countryCode, "Credit card")[0]?.name ?? "credit card";
   return [
     "What's due this week?",
     "How much do I owe this month?",
     "What else do I still have to pay this month and how much in total?",
     `Did I pay ${elec}?`,
-    `What's my ${cc} balance?`,
+    "What's my total for next month?",
     "When's my next due date?",
   ];
 }
