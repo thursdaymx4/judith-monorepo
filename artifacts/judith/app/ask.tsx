@@ -63,6 +63,7 @@ const BILL_WORDS =
 interface Msg {
   role: "user" | "judith";
   text: string;
+  flagged?: boolean;
 }
 
 export default function AskModal() {
@@ -178,15 +179,23 @@ export default function AskModal() {
   const started = messages.length > 0 || busy;
   const p = getPersona(persona);
 
-  const askBills = (): AskBill[] =>
-    bills.map((b) => ({
-      provider: b.provider,
-      cat: b.cat,
-      amount: b.amount,
-      dueDays: b.dueDays,
-      dueLabel: b.dueLabel,
-      status: b.status,
-    }));
+  const askBills = (): AskBill[] => {
+    const today = new Date();
+    return bills.map((b) => {
+      const daysAhead = Math.max(b.dueDays ?? 0, 0);
+      const dueDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysAhead);
+      const dueMonth = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, "0")}`;
+      return {
+        provider: b.provider,
+        cat: b.cat,
+        amount: b.amount,
+        dueDays: b.dueDays,
+        dueLabel: b.dueLabel,
+        status: b.status,
+        dueMonth,
+      };
+    });
+  };
 
   const localFallback = (q: string): string => {
     if (!BILL_WORDS.test(q)) {
@@ -496,9 +505,48 @@ export default function AskModal() {
                 style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}
               >
                 <JudithAvatar persona={persona} size={30} state="idle" />
-                <SpeechBubble style={{ flex: 1 }}>
-                  <Txt size={14.5}>{m.text}</Txt>
-                </SpeechBubble>
+                <View style={{ flex: 1, gap: 5 }}>
+                  <SpeechBubble>
+                    <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 6 }}>
+                      <Txt size={14.5} style={{ flex: 1 }}>{m.text}</Txt>
+                      <Pressable
+                        onPress={() =>
+                          setMessages((prev) =>
+                            prev.map((msg, j) =>
+                              j === i ? { ...msg, flagged: !msg.flagged } : msg,
+                            ),
+                          )
+                        }
+                        hitSlop={10}
+                        style={{ paddingTop: 1 }}
+                      >
+                        <Txt size={13} color={m.flagged ? t.semantic.urgent : t.muted} style={{ opacity: m.flagged ? 1 : 0.35 }}>
+                          {"⚑"}
+                        </Txt>
+                      </Pressable>
+                    </View>
+                  </SpeechBubble>
+                  {m.flagged && (
+                    <View
+                      style={{
+                        backgroundColor: "#ff3b3014",
+                        borderLeftWidth: 3,
+                        borderLeftColor: t.semantic.urgent,
+                        borderRadius: 8,
+                        paddingVertical: 8,
+                        paddingHorizontal: 11,
+                        gap: 2,
+                      }}
+                    >
+                      <Txt size={12.5} color={t.semantic.urgent} style={{ fontWeight: "700" }}>
+                        {"⚠ This answer may be incorrect"}
+                      </Txt>
+                      <Muted size={12}>
+                        {"Check your Calendar tab for accurate monthly totals."}
+                      </Muted>
+                    </View>
+                  )}
+                </View>
               </View>
             ),
           )}

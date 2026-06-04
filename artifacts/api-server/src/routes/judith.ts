@@ -190,6 +190,8 @@ interface ClientBill {
   dueDays?: number | null;
   dueLabel?: string | null;
   status?: string | null;
+  /** "YYYY-MM" of the bill's next due date. */
+  dueMonth?: string | null;
 }
 
 function pesoStr(n: number): string {
@@ -202,16 +204,39 @@ function buildClientContext(bills: ClientBill[], today: Date): string {
   const dueThisWeek = due
     .filter((b) => (b.dueDays ?? 0) >= 0 && (b.dueDays ?? 0) <= 7)
     .reduce((s, b) => s + (b.amount ?? 0), 0);
+
+  // Per-month totals so the AI can answer "what's my total in July/August?" accurately
+  const monthMap = new Map<string, { total: number; count: number }>();
+  for (const b of bills) {
+    if (b.dueMonth && b.amount != null) {
+      const entry = monthMap.get(b.dueMonth) ?? { total: 0, count: 0 };
+      monthMap.set(b.dueMonth, { total: entry.total + b.amount, count: entry.count + 1 });
+    }
+  }
+  const monthLines = [...monthMap.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, { total, count }]) => {
+      const [yr, mo] = key.split("-").map(Number);
+      const label = new Date(yr!, (mo ?? 1) - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" });
+      const paidCount = bills.filter((b) => b.dueMonth === key && b.status === "paid").length;
+      const unpaidCount = count - paidCount;
+      return `- ${label}: ${pesoStr(total)} total (${count} bill${count === 1 ? "" : "s"}, ${paidCount} paid, ${unpaidCount} unpaid)`;
+    });
+
   const lines = bills.map((b) => {
     const days = b.dueDays ?? 0;
     const when =
       days === 0 ? "due TODAY" : days < 0 ? `OVERDUE by ${Math.abs(days)} day(s)` : `due in ${days} day(s)`;
     return `- ${b.provider ?? "Bill"} (${b.cat ?? "Other"}): ${pesoStr(b.amount ?? 0)}, ${b.dueLabel ?? "—"}, ${when}, ${b.status ?? "unpaid"}.`;
   });
+
   return [
     `Today is ${englishDate(today)} (${englishWeekday(today)}).`,
     `Total still due (unpaid): ${pesoStr(total)}.`,
     `Total of bills due within 7 days: ${pesoStr(dueThisWeek)}.`,
+    "",
+    "MONTHLY TOTALS (all bills including paid):",
+    monthLines.join("\n"),
     "",
     "BILLS:",
     lines.join("\n"),

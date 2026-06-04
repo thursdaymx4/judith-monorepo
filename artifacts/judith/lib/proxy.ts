@@ -20,6 +20,8 @@ export interface AskBill {
   dueDays: number;
   dueLabel: string;
   status: string;
+  /** "YYYY-MM" of the bill's next due date — lets the server build monthly summaries. */
+  dueMonth?: string;
 }
 
 /** Returns Authorization header with the current Supabase session token. */
