@@ -74,10 +74,8 @@ function CalHeat({
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
   while (cells.length % 7 !== 0) cells.push(null);
 
-  // In future months all bills are "upcoming" (none paid that cycle yet).
-  // Otherwise filter out bills already paid in the viewed period.
-  const dueBills = (items: Bill[]) =>
-    isFuture ? items : items.filter((b) => !isPaid(b));
+  // Filter out bills already paid in the viewed period (works for any month).
+  const dueBills = (items: Bill[]) => items.filter((b) => !isPaid(b));
 
   let maxDay = 1;
   Object.keys(byDay).forEach((k) => {
@@ -271,14 +269,12 @@ export default function CalendarScreen() {
     return true; // monthly → every month
   });
 
-  // Upcoming: unpaid bills in the viewed month — derived from paymentHistory so it
-  // stays correct even after togglePaid advances the natural period.
-  const agendaForMonth = isFutureMonth
-    ? billsForMonth
-    : billsForMonth.filter((b) => !isPaidInPeriod(b));
+  // Unpaid bills in the viewed month — derived from paymentHistory so it
+  // stays correct even after togglePaid, including future paid-ahead bills.
+  const agendaForMonth = billsForMonth.filter((b) => !isPaidInPeriod(b));
 
-  // "Paid this month" section — only meaningful for the current month
-  const agendaPaid = isCurrentMonth ? bills.filter((b) => isPaidInPeriod(b)) : [];
+  // Paid bills in the viewed month (current = paid this cycle; future = paid ahead)
+  const agendaPaid = billsForMonth.filter((b) => isPaidInPeriod(b));
 
   const monthTotal = agendaForMonth.reduce((s, b) => s + viewedAmt(b), 0);
   const agenda = agendaForMonth.slice().sort((a, b) => a.dueDate - b.dueDate);
@@ -435,7 +431,7 @@ export default function CalendarScreen() {
 
       {agendaPaid.length > 0 && (
         <View>
-          <SectionLabel>Paid this month</SectionLabel>
+          <SectionLabel>{isFutureMonth ? `Paid ahead in ${MONTHS[monthIndex]}` : "Paid this month"}</SectionLabel>
           <View style={{ gap: 9 }}>
             {agendaPaid.map((b) => (
               <CalBillRow key={b.id} bill={b} onPress={() => openBill(b)} amtColor={t.txtLow} money={money} paid monthShort={monthShort}>
@@ -482,8 +478,8 @@ function DayBillsModal({
 }) {
   const t = useTheme();
   const items = bills.slice().sort((a, b) => getDueDays(a) - getDueDays(b));
-  const dueItems = isFuture ? items : items.filter((b) => !isPaid(b));
-  const paidItems = isFuture ? [] : items.filter((b) => isPaid(b));
+  const dueItems = items.filter((b) => !isPaid(b));
+  const paidItems = items.filter((b) => isPaid(b));
   const dueTotal = dueItems.reduce((s, b) => s + getAmt(b), 0);
 
   return (
