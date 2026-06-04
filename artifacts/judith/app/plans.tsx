@@ -14,6 +14,7 @@ import { Icon } from "@/components/Icon";
 import type { IconName } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Low, Mono, Txt, mix } from "@/components/ui";
+import { getPaywallLocale, fmtFee } from "@/constants/paywallLocale";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { getTierPackages, purchaseForTier, type TierPackages } from "@/lib/purchases";
@@ -171,11 +172,15 @@ export default function PlansModal() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { focus } = useLocalSearchParams<{ focus?: string }>();
-  const { asksLeft, tier, persona, money, subscribe, showToast } = useJudith();
+  const { asksLeft, tier, persona, money, subscribe, showToast, country } = useJudith();
 
   const [packages, setPackages] = useState<TierPackages>({ chat: null, voice: null });
   const [loadingPkgs, setLoadingPkgs] = useState(true);
   const [buyingTier, setBuyingTier] = useState<"chat" | "voice" | null>(null);
+
+  const locale = getPaywallLocale(country.code);
+  const fmt = (n: number) => fmtFee(country.cur, n);
+  const totalRisk = locale.cc.amount + locale.telco.amount + locale.utility.amount;
 
   const scrollRef = useRef<ScrollView>(null);
   const voiceCardY = useRef<number>(0);
@@ -273,9 +278,7 @@ export default function PlansModal() {
             {money(99)}/month.{"\n"}Less than one late fee.
           </Txt>
           <Low size={13} style={{ textAlign: "center", lineHeight: 20 }}>
-            Globe suspends your line at Day 30. BDO charges{"\n"}
-            ₱750 automatically. Meralco disconnects without{"\n"}
-            mercy. Judith costs less than any of that.
+            {locale.heroBody}
           </Low>
         </View>
       </Animated.View>
@@ -299,29 +302,29 @@ export default function PlansModal() {
           </Low>
         </View>
         <MathRow
-          label="Credit card late fee"
-          sub="BPI, BDO, Security Bank — automatic, no grace"
-          value="₱750"
+          label={locale.cc.label}
+          sub={locale.cc.sub}
+          value={`−${fmt(locale.cc.amount)}`}
           color={t.semantic.urgent}
         />
         <Sep />
         <MathRow
-          label="Postpaid reconnection fee"
-          sub="Globe, Smart, PLDT — charged when line is cut"
-          value="₱200"
+          label={locale.telco.label}
+          sub={locale.telco.sub}
+          value={`−${fmt(locale.telco.amount)}`}
           color={t.semantic.urgent}
         />
         <Sep />
         <MathRow
-          label="Meralco reconnection"
-          sub="Service interruption after 30-day overdue"
-          value="₱150"
+          label={locale.utility.label}
+          sub={locale.utility.sub}
+          value={`−${fmt(locale.utility.amount)}`}
           color={t.semantic.urgent}
         />
         <Sep />
         <MathRow
           label="Total risk, one bad month"
-          value="₱1,100"
+          value={`−${fmt(totalRisk)}`}
           color={t.semantic.urgent}
           large
         />
@@ -351,12 +354,12 @@ export default function PlansModal() {
         <Relief
           icon="bell"
           headline="No service cutoffs"
-          body="Globe and PLDT suspend at Day 30. Meralco sends a disconnection notice at Day 28. Judith nudges you days before it ever reaches that point."
+          body={locale.cutoffBody}
         />
         <Relief
           icon="card"
           headline="No surprise late charges"
-          body="Credit card fees hit automatically — no call, no warning, just ₱750 gone. Judith shows every due date clearly, weeks in advance."
+          body={locale.lateBody ?? "Late fees are charged automatically — no call, no warning. Judith shows every due date clearly, weeks in advance."}
         />
         <Relief
           icon="sliders"

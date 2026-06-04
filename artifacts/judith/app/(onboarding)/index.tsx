@@ -35,6 +35,7 @@ import {
   getDLocal, getProviderPlaceholder, getQuickAsks,
 } from "@/constants/providers";
 import { LANGUAGES, langSample, langDesc, isFilipino, sttHint } from "@/constants/languages";
+import { getPaywallLocale, fmtFee } from "@/constants/paywallLocale";
 import { PERSONAS, type PersonaId } from "@/constants/personas";
 import { JUDITH_VOICE } from "@/constants/voiceLines";
 import { LinearGradient } from "expo-linear-gradient";
@@ -3846,6 +3847,9 @@ function ScreenFeature3({ ctx }: { ctx: Ctx }) {
 function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
   const { t, persona, language, next } = ctx;
   const cur = ctx.country.cur;
+  const locale = getPaywallLocale(ctx.country.code);
+  const fmt = (n: number) => fmtFee(cur, n);
+  const totalRisk = locale.cc.amount + locale.telco.amount + locale.utility.amount;
   const paywallIsFil = isFilipino(language);
   useOnbVoice(JUDITH_VOICE.paywall[persona][paywallIsFil ? 'fil' : 'en'], persona, language);
   const [pick, setPick] = useState<'chat' | 'voice'>('voice');
@@ -3905,9 +3909,9 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
             <Low size={10} style={{ letterSpacing: 0.8, textTransform: 'uppercase' }}>One bad month, without Judith</Low>
           </View>
           {[
-            { label: 'Credit card late fee', sub: 'BPI, BDO, Security Bank — no grace period', val: '−₱750', color: t.semantic.urgent },
-            { label: 'Postpaid reconnection fee', sub: 'Globe, Smart, PLDT — automatic charge', val: '−₱200', color: t.semantic.urgent },
-            { label: 'Meralco reconnection', sub: 'Service interruption after 30-day overdue', val: '−₱150', color: t.semantic.urgent },
+            { label: locale.cc.label, sub: locale.cc.sub, val: `−${fmt(locale.cc.amount)}` },
+            { label: locale.telco.label, sub: locale.telco.sub, val: `−${fmt(locale.telco.amount)}` },
+            { label: locale.utility.label, sub: locale.utility.sub, val: `−${fmt(locale.utility.amount)}` },
           ].map((row, i) => (
             <View key={row.label}>
               {i > 0 && <View style={{ height: 1, backgroundColor: t.hair }} />}
@@ -3916,7 +3920,7 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
                   <Txt size={13} color={t.txtMid}>{row.label}</Txt>
                   <Low size={11} style={{ marginTop: 1 }}>{row.sub}</Low>
                 </View>
-                <Mono size={15} weight='bold' color={row.color}>{row.val}</Mono>
+                <Mono size={15} weight='bold' color={t.semantic.urgent}>{row.val}</Mono>
               </View>
             </View>
           ))}
@@ -3925,7 +3929,7 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
             <View style={{ flex: 1 }}>
               <Txt size={14} weight='semibold' color={t.txtMid}>Total risk, one bad month</Txt>
             </View>
-            <Mono size={16} weight='bold' color={t.semantic.urgent}>₱1,100</Mono>
+            <Mono size={16} weight='bold' color={t.semantic.urgent}>−{fmt(totalRisk)}</Mono>
           </View>
           <View style={{ height: 1, backgroundColor: mix(t.accent, t.surface2, 0.3) }} />
           <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 16 }}>
@@ -3951,12 +3955,12 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
             {
               icon: 'bell' as IconName,
               headline: 'No service cutoffs',
-              body: 'Globe and PLDT suspend at Day 30. Meralco disconnects after a notice. Judith nudges you days before it gets there.',
+              body: locale.cutoffBody,
             },
             {
               icon: 'card' as IconName,
               headline: 'No surprise late charges',
-              body: 'CC fees hit automatically — ₱750, no warning, no mercy. Judith keeps every due date visible weeks in advance.',
+              body: locale.lateBody ?? 'Late fees are charged automatically — no call, no warning. Judith keeps every due date visible weeks in advance.',
             },
             {
               icon: 'sliders' as IconName,
