@@ -238,10 +238,10 @@ export default function HomeScreen() {
               <Icon name="card" size={18} color={t.semantic.near} />
               <View style={{ flex: 1 }}>
                 <Txt size={13} weight="semibold">
-                  {b.provider} statement just dropped
+                  Did your {b.provider} statement come in?
                 </Txt>
                 <Low size={12} style={{ marginTop: 1 }}>
-                  Tap to update this month's balance
+                  Tap to update the amount if it did
                 </Low>
               </View>
               <Icon name="chev" size={16} color={t.semantic.near} />

@@ -139,7 +139,7 @@ export default function BillDetailModal() {
           >
             <Icon name="card" size={18} color={t.semantic.near} />
             <Low size={12} style={{ flex: 1, lineHeight: 17 }}>
-              Your statement dropped today — update the amount so your calendar stays accurate.
+              Did your statement come in today? If so, update the amount so your calendar stays accurate.
             </Low>
           </View>
         )}
