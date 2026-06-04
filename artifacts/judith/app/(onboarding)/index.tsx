@@ -2892,18 +2892,52 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
               />
             )}
             {screenshotStatus !== "editing" && screenshotStatus !== "loading" && (
-              <>
-                <MicBtn onPress={startListening} />
-                <View style={{ flexDirection: "row", justifyContent: "center", gap: 18, marginTop: 2 }}>
-                  <Pressable onPress={() => { setManualReturn("prompt"); setMode("manualCats"); }} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    <Icon name="keyboard" size={15} color={t.txtMid} />
-                    <Txt size={14} color={t.txtMid}>{T("tapInstead")}</Txt>
+              isPhoneSub ? (
+                <>
+                  <MicBtn onPress={startListening} />
+                  <View style={{ flexDirection: "row", justifyContent: "center", gap: 18, marginTop: 2 }}>
+                    <Pressable onPress={() => { setManualReturn("prompt"); setMode("manualCats"); }} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <Icon name="keyboard" size={15} color={t.txtMid} />
+                      <Txt size={14} color={t.txtMid}>{T("tapInstead")}</Txt>
+                    </Pressable>
+                    <Pressable onPress={skipOne}>
+                      <Txt size={14} color={t.txtMid}>I don’t have this →</Txt>
+                    </Pressable>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Pressable
+                    onPress={() => { setManualReturn("prompt"); openForm({ cat: sample.cat, icon: sample.icon }); }}
+                    style={{ borderWidth: 1.5, borderColor: t.accent, borderRadius: 16, backgroundColor: mix(t.accent, t.surface2, 0.1), padding: 16 }}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                      <View style={{ width: 42, height: 42, borderRadius: 11, backgroundColor: mix(t.accent, t.canvas, 0.18), alignItems: "center", justifyContent: "center" }}>
+                        <Icon name={sample.icon as IconName} size={20} color={t.accent} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Txt size={15} weight="semibold">{sample.provider}</Txt>
+                        <Low size={12}>Enter amount and due date</Low>
+                      </View>
+                      <Icon name="chevron" size={16} color={t.accent} />
+                    </View>
                   </Pressable>
-                  <Pressable onPress={skipOne}>
-                    <Txt size={14} color={t.txtMid}>I don’t have this →</Txt>
-                  </Pressable>
-                </View>
-              </>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 2 }}>
+                    <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
+                    <Low size={12}>or speak</Low>
+                    <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
+                  </View>
+                  <View style={{ flexDirection: "row", justifyContent: "center", gap: 18 }}>
+                    <Pressable onPress={startListening} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <Icon name="mic" size={15} color={t.txtMid} />
+                      <Txt size={14} color={t.txtMid}>Speak instead</Txt>
+                    </Pressable>
+                    <Pressable onPress={skipOne}>
+                      <Txt size={14} color={t.txtMid}>I don’t have this →</Txt>
+                    </Pressable>
+                  </View>
+                </>
+              )
             )}
           </>
         )}
@@ -2952,7 +2986,11 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
         {mode === "manualForm" && (
           <>
             <Btn label="Log this bill" onPress={saveForm} />
-            <Btn label="← Categories" variant="ghost" onPress={() => setMode("manualCats")} />
+            <Btn
+              label={manualReturn === "prompt" ? "← Back" : "← Categories"}
+              variant="ghost"
+              onPress={() => setMode(manualReturn === "prompt" ? "prompt" : "manualCats")}
+            />
           </>
         )}
         {mode === "breather" && (() => {
