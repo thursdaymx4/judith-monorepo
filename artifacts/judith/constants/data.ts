@@ -83,6 +83,52 @@ export function ccOutstanding(
 }
 
 /**
+ * Sum of recurring charges linked to a credit card that will re-bill onto its
+ * statement in a given month. Monthly linked charges land every month; annual
+ * ones only in their next-occurrence month (`today + dueDays`). Used to project
+ * a card's FUTURE statement — those charges are re-billed each cycle even after
+ * the current statement is settled.
+ */
+export function ccLinkedRecurringForMonth(
+  card: Pick<Bill, "id">,
+  allBills: Bill[],
+  year: number,
+  monthIndex: number,
+  today: Date,
+): number {
+  const dim = new Date(year, monthIndex + 1, 0).getDate();
+  return allBills
+    .filter((b) => b.parentCardId === card.id && isPaidViaCard(b))
+    .filter((b) => {
+      if (b.dueDate > dim) return false; // e.g. day 30 in a 28-day month
+      if (b.frequency === "annual") {
+        const nextDue = new Date(today.getTime());
+        nextDue.setDate(nextDue.getDate() + b.dueDays);
+        return nextDue.getFullYear() === year && nextDue.getMonth() === monthIndex;
+      }
+      return true; // monthly → every month
+    })
+    .reduce((s, b) => s + b.amount, 0);
+}
+
+/**
+ * Projected outstanding for a credit card in a FUTURE month: the current
+ * statement's unpaid remainder carries over (ccOutstanding) PLUS any recurring
+ * charges linked to the card that re-bill that month. So a fully-paid card with
+ * a monthly ₱2,500 linked charge projects ₱2,500 next month, not ₱0. The user
+ * overrides this estimate when the real statement arrives (updateBillAmount).
+ */
+export function ccProjectedFuture(
+  card: Bill,
+  allBills: Bill[],
+  year: number,
+  monthIndex: number,
+  today: Date,
+): number {
+  return ccOutstanding(card) + ccLinkedRecurringForMonth(card, allBills, year, monthIndex, today);
+}
+
+/**
  * True when this bill is auto-charged to a linked credit card the user also
  * tracks. Its cost is already captured by that card's statement total, so it
  * must be EXCLUDED from every money sum (due totals, calendar totals, spend

@@ -6,7 +6,7 @@ import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Btn, Card, Low, Mono, ProviderLogo, Screen, SectionLabel, SheetHeader, Txt } from "@/components/ui";
 import {
-  ccOutstanding,
+  ccProjectedFuture,
   isPartialBill,
   partialPct,
   totalOwed,
@@ -311,10 +311,12 @@ export default function BillDetailModal() {
   const owed = totalOwed(bill);
   const isCC = bill.cat === "Credit card";
   // Future months: utilities re-bill at the base amount, but a credit card is a
-  // revolving balance — a settled statement shows 0 and a partial carries the
-  // remainder forward until the next statement is entered (updateBillAmount).
+  // revolving balance — the unpaid remainder carries forward PLUS any recurring
+  // charges linked to the card that re-bill that month (so a settled card with a
+  // monthly linked charge still projects that charge). Overridden when the next
+  // statement is entered (updateBillAmount).
   const viewedOwed = isFuturePeriod
-    ? (isCC ? ccOutstanding(bill) : bill.amount)
+    ? (isCC ? ccProjectedFuture(bill, bills, vpYr, vpMo - 1, today) : bill.amount)
     : owed;
   const ccFutureSettled = isCC && isFuturePeriod && viewedOwed === 0;
   const pct = partialPct(bill);

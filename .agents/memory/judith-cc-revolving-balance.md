@@ -26,6 +26,17 @@ nothing next month until the bank issues a new statement. Showing the full
 - The user resets the cycle via `updateBillAmount` (sets new `amount`, clears
   `amountPaid`/`carryOver`).
 
+**Future-month projection = carried remainder + recurring re-bills.** A card's
+future-month amount is `ccProjectedFuture = ccOutstanding(card) +
+ccLinkedRecurringForMonth(...)`. Recurring charges linked to the card (monthly
+every month; annual only in its `today + dueDays` occurrence month) re-bill onto
+the future statement, so a fully-paid card with a monthly ₱2,500 linked charge
+projects ₱2,500 next month, not 0. No double-count: the current statement
+already contains this month's linked charge; the future projection adds the NEXT
+occurrence. Used by calendar `viewedAmt` and bill-detail `viewedOwed` (both pass
+the full bills array + viewed year/month). Annual occurrence detection must
+mirror calendar's existing `billsForMonth` logic.
+
 **Two-way link with card-linked charges:** a non-card charge auto-billed to a
 tracked card (`isPaidViaCard`: chargedToCard + parentCardId) mirrors onto that
 card when toggled paid/unpaid — card `amountPaid` ±= the charge amount (clamped

@@ -17,7 +17,7 @@ import {
   Txt,
   type Urgency,
 } from "@/components/ui";
-import { ccOutstanding, dueClass, dueShort, isPaidViaCard, totalOwed, type Bill } from "@/constants/data";
+import { ccOutstanding, ccProjectedFuture, dueClass, dueShort, isPaidViaCard, totalOwed, type Bill } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { haptics } from "@/lib/haptics";
@@ -240,10 +240,11 @@ export default function CalendarScreen() {
     }
     if (isFutureMonth) {
       // Credit cards are a revolving balance, not a recurring charge: a settled
-      // statement shows 0, a partial shows the carried remainder, and an
-      // untouched one shows the last statement as an estimate — until the user
-      // enters the next statement (updateBillAmount).
-      if (b.cat === "Credit card") return ccOutstanding(b);
+      // statement carries 0, a partial carries the remainder, and an untouched
+      // one carries the last statement as an estimate — PLUS any recurring
+      // charges linked to the card that re-bill this month. Overridden when the
+      // user enters the next statement (updateBillAmount).
+      if (b.cat === "Credit card") return ccProjectedFuture(b, bills, year, monthIndex, todayReal);
       if (isCurrentPeriodPaid(b)) return b.amount; // fresh cycle, no carry
       // Effective carry into next month:
       // - If a partial payment was made this cycle: the remaining balance carries forward
@@ -406,11 +407,14 @@ export default function CalendarScreen() {
             const amt = viewedAmt(b);
             const ccFuture = isFutureMonth && b.cat === "Credit card";
             const ccPaidAmt = b.amountPaid ?? 0;
-            // CC future states: settled (paid in full) → 0; partial → carried
-            // remainder; untouched (no payment yet) → last statement as estimate.
-            const ccSettled = ccFuture && ccPaidAmt >= totalOwed(b);
-            const ccPartialCarry = ccFuture && ccPaidAmt > 0 && ccPaidAmt < totalOwed(b);
-            const isCCEst = ccFuture && ccPaidAmt === 0;
+            const ccCarried = ccFuture ? ccOutstanding(b) : 0;
+            // CC future states (amt = carried remainder + recurring linked charges):
+            //   settled → projects 0 (paid in full, no recurring this month)
+            //   partial → an unpaid remainder carries over
+            //   est.    → untouched statement, or recurring-only after full pay
+            const ccSettled = ccFuture && amt === 0;
+            const ccPartialCarry = ccFuture && ccPaidAmt > 0 && ccPaidAmt < totalOwed(b) && ccCarried > 0;
+            const isCCEst = ccFuture && !ccSettled && !ccPartialCarry;
             // Effective carry uses the same logic as viewedAmt above (non-CC bills)
             const hasPartialForLabel = ccPaidAmt > 0;
             const effectiveCarryForLabel = isFutureMonth && !ccFuture && b.status !== "paid"
