@@ -66,3 +66,20 @@ also silencing notifications — that asymmetry is intentional.
 
 **How to apply:** bulk mark-paid uses `togglePaid` (a TOGGLE), so guard each child
 with an "already paid for this period?" check before toggling to stay idempotent.
+
+## AI assistant ("Ask") context also excludes via-card from sums
+
+The Ask flow's server context builder (api-server `buildClientContext` in
+routes/judith.ts — note the sibling `buildBillsContext` is DEAD/unused) must
+apply the same sum-exclusion rule, or Judith double-counts when answering
+"what's due / what's my total". A charge counts as via-card on the server when
+`chargedToCard && cardName` (the client resolves `cardName` only when the parent
+card exists, so a dangling link keeps counting — matches `isPaidViaCard`). All
+money sums (total due, due-this-week, monthly totals, business totals) use the
+`payable` (non-via-card) subset; via-card bills stay in the BILLS list tagged
+`[AUTO-CHARGED to X]` plus an explicit IMPORTANT note telling the model not to
+add their amounts on top of the totals.
+
+**Why:** the client already SENT card fields and the server tagged them, but the
+totals still summed everything → Judith over-reported. Context = Judith's
+per-request memory; the math must net cards out AND the prose must explain it.

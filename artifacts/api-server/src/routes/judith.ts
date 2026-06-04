@@ -207,15 +207,26 @@ function curStr(cur: string, n: number): string {
 }
 
 function buildClientContext(bills: ClientBill[], today: Date, cur = "₱"): string {
-  const due = bills.filter((b) => b.status !== "paid");
+  // Card-linked charges are auto-paid via a credit card the user ALSO tracks as
+  // its own bill, so the card's statement already covers that money. Summing both
+  // double-counts. Exclude these from every money SUM (the card statement is the
+  // single payable) but keep them in the list so Judith can still talk about them.
+  // A charge only counts as "via card" when its parent card is known (cardName
+  // resolved); a dangling link keeps counting so real money never vanishes.
+  const isViaCard = (b: ClientBill) => !!b.chargedToCard && !!b.cardName;
+  const payable = bills.filter((b) => !isViaCard(b));
+  const viaCard = bills.filter(isViaCard);
+
+  const due = payable.filter((b) => b.status !== "paid");
   const total = due.reduce((s, b) => s + (b.amount ?? 0), 0);
   const dueThisWeek = due
     .filter((b) => (b.dueDays ?? 0) >= 0 && (b.dueDays ?? 0) <= 7)
     .reduce((s, b) => s + (b.amount ?? 0), 0);
 
-  // Per-month totals so the AI can answer "what's my total in July/August?" accurately
+  // Per-month totals so the AI can answer "what's my total in July/August?"
+  // accurately — payable bills only, so auto-charged card bills aren't double-counted.
   const monthMap = new Map<string, { total: number; count: number }>();
-  for (const b of bills) {
+  for (const b of payable) {
     if (b.dueMonth && b.amount != null) {
       const entry = monthMap.get(b.dueMonth) ?? { total: 0, count: 0 };
       monthMap.set(b.dueMonth, { total: entry.total + b.amount, count: entry.count + 1 });
@@ -226,12 +237,12 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱"): stri
     .map(([key, { total, count }]) => {
       const [yr, mo] = key.split("-").map(Number);
       const label = new Date(yr!, (mo ?? 1) - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" });
-      const paidCount = bills.filter((b) => b.dueMonth === key && b.status === "paid").length;
+      const paidCount = payable.filter((b) => b.dueMonth === key && b.status === "paid").length;
       const unpaidCount = count - paidCount;
       return `- ${label}: ${curStr(cur, total)} total (${count} bill${count === 1 ? "" : "s"}, ${paidCount} paid, ${unpaidCount} unpaid)`;
     });
 
-  const bizUnpaid = bills.filter((b) => b.isBusiness && b.status !== "paid");
+  const bizUnpaid = payable.filter((b) => b.isBusiness && b.status !== "paid");
   const bizTotal = bizUnpaid.reduce((s, b) => s + (b.amount ?? 0), 0);
 
   const lines = bills.map((b) => {
@@ -239,26 +250,38 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱"): stri
     const when =
       days === 0 ? "due TODAY" : days < 0 ? `OVERDUE by ${Math.abs(days)} day(s)` : `due in ${days} day(s)`;
     const bizTag = b.isBusiness ? " [BUSINESS]" : " [PERSONAL]";
-    const cardTag = b.chargedToCard
-      ? ` [AUTO-CHARGED${b.cardName ? ` to ${b.cardName}` : " to a card"}]`
-      : "";
+    // Only tag charges that are actually excluded from the totals (resolved card
+    // link). A dangling link is still counted, so tagging it would mislead.
+    const cardTag = isViaCard(b) ? ` [AUTO-CHARGED to ${b.cardName}]` : "";
     return `- ${b.provider ?? "Bill"} (${b.cat ?? "Other"})${bizTag}${cardTag}: ${curStr(cur, b.amount ?? 0)}, ${b.dueLabel ?? "—"}, ${when}, ${b.status ?? "unpaid"}.`;
   });
 
-  return [
+  const parts: string[] = [
     `Today is ${englishDate(today)} (${englishWeekday(today)}).`,
     `Total still due (unpaid): ${curStr(cur, total)}.`,
     `Total of bills due within 7 days: ${curStr(cur, dueThisWeek)}.`,
     bizUnpaid.length > 0
       ? `Business bills still unpaid: ${bizUnpaid.length} bill${bizUnpaid.length === 1 ? "" : "s"} totalling ${curStr(cur, bizTotal)}.`
       : "Business bills still unpaid: none.",
+  ];
+
+  if (viaCard.length > 0) {
+    parts.push(
+      "",
+      `IMPORTANT — auto-charged bills: ${viaCard.length} bill${viaCard.length === 1 ? " is" : "s are"} automatically charged to a credit card the user ALSO tracks (tagged [AUTO-CHARGED to <card>] below). These are EXCLUDED from every total above on purpose — the card's own statement already includes that money, so adding them again would double-count. When asked about totals or what's due, use the totals as given. You may mention an auto-charged bill (e.g. "your Netflix hits your BPI card"), but never add its amount on top of the totals.`,
+    );
+  }
+
+  parts.push(
     "",
-    "MONTHLY TOTALS (all bills including paid):",
+    "MONTHLY TOTALS (payable bills only — excludes auto-charged card bills):",
     monthLines.join("\n"),
     "",
-    "BILLS (each tagged [BUSINESS] or [PERSONAL]):",
+    "BILLS ([BUSINESS]/[PERSONAL]; [AUTO-CHARGED to X] = auto-paid via that card, already counted inside its statement, NOT added to the totals):",
     lines.join("\n"),
-  ].join("\n");
+  );
+
+  return parts.join("\n");
 }
 
 async function loadUserData(userId: string) {
