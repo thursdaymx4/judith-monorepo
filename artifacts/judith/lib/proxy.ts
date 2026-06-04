@@ -118,6 +118,7 @@ export function askJudith(
   bills?: AskBill[],
   persona?: PersonaId,
   language?: string,
+  wantVoice?: boolean,
 ): Promise<AskResult> {
   return postJson("/ask", {
     text,
@@ -125,6 +126,7 @@ export function askJudith(
     persona: persona ? PERSONA_MAP[persona] : undefined,
     localDate: localDateString(),
     language,
+    wantVoice: wantVoice ?? true,
   });
 }
 
