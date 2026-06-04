@@ -67,6 +67,22 @@ export function totalOwed(b: Pick<Bill, "amount" | "carryOver">): number {
 }
 
 /**
+ * Outstanding balance on a credit-card statement that hasn't been re-billed yet
+ * — used for the current statement AND any future month until the next statement
+ * arrives. Unlike a recurring utility, a credit card is a revolving balance, not
+ * a fresh charge each month:
+ *   • paid in full  → 0 (stays settled until the user enters the next statement)
+ *   • partial       → the unpaid remainder carries forward
+ *   • untouched     → the full statement, shown as an estimate
+ * Settling resets via updateBillAmount (amountPaid → 0, amount → new statement).
+ */
+export function ccOutstanding(
+  b: Pick<Bill, "amount" | "carryOver" | "amountPaid">,
+): number {
+  return Math.max(0, totalOwed(b) - (b.amountPaid ?? 0));
+}
+
+/**
  * True when this bill is auto-charged to a linked credit card the user also
  * tracks. Its cost is already captured by that card's statement total, so it
  * must be EXCLUDED from every money sum (due totals, calendar totals, spend

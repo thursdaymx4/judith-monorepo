@@ -17,7 +17,7 @@ import {
   Txt,
   type Urgency,
 } from "@/components/ui";
-import { dueClass, dueShort, isPaidViaCard, totalOwed, type Bill } from "@/constants/data";
+import { ccOutstanding, dueClass, dueShort, isPaidViaCard, totalOwed, type Bill } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { haptics } from "@/lib/haptics";
@@ -239,9 +239,11 @@ export default function CalendarScreen() {
       return Math.max(0, totalOwed(b) - amtPaidInPeriod(b));
     }
     if (isFutureMonth) {
-      // CC: bank folds any unpaid balance into the new statement — we don't know the
-      // new amount yet, so we show the last known amount as an estimate
-      if (b.cat === "Credit card") return b.amount;
+      // Credit cards are a revolving balance, not a recurring charge: a settled
+      // statement shows 0, a partial shows the carried remainder, and an
+      // untouched one shows the last statement as an estimate — until the user
+      // enters the next statement (updateBillAmount).
+      if (b.cat === "Credit card") return ccOutstanding(b);
       if (isCurrentPeriodPaid(b)) return b.amount; // fresh cycle, no carry
       // Effective carry into next month:
       // - If a partial payment was made this cycle: the remaining balance carries forward
@@ -402,21 +404,29 @@ export default function CalendarScreen() {
             const dd = viewedDueDays(b);
             const cls = dueClass(dd) as Urgency;
             const amt = viewedAmt(b);
-            const isCCEst = isFutureMonth && b.cat === "Credit card";
-            // Effective carry uses the same logic as viewedAmt above
-            const hasPartialForLabel = (b.amountPaid ?? 0) > 0;
-            const effectiveCarryForLabel = isFutureMonth && !isCCEst && b.status !== "paid"
+            const ccFuture = isFutureMonth && b.cat === "Credit card";
+            const ccPaidAmt = b.amountPaid ?? 0;
+            // CC future states: settled (paid in full) → 0; partial → carried
+            // remainder; untouched (no payment yet) → last statement as estimate.
+            const ccSettled = ccFuture && ccPaidAmt >= totalOwed(b);
+            const ccPartialCarry = ccFuture && ccPaidAmt > 0 && ccPaidAmt < totalOwed(b);
+            const isCCEst = ccFuture && ccPaidAmt === 0;
+            // Effective carry uses the same logic as viewedAmt above (non-CC bills)
+            const hasPartialForLabel = ccPaidAmt > 0;
+            const effectiveCarryForLabel = isFutureMonth && !ccFuture && b.status !== "paid"
               ? (hasPartialForLabel
-                  ? Math.max(0, totalOwed(b) - (b.amountPaid ?? 0))
+                  ? Math.max(0, totalOwed(b) - ccPaidAmt)
                   : (b.carryOver ?? 0))
               : 0;
             const hasCarryOver = effectiveCarryForLabel > 0;
+            const carriedBalance = ccPartialCarry || hasCarryOver;
+            const sub = isCCEst ? " · est." : ccSettled ? " · settled" : carriedBalance ? " · carried balance" : "";
             return (
               <CalBillRow
                 key={b.id}
                 bill={b}
                 onPress={() => openBill(b)}
-                amtColor={isCCEst ? t.txtMid : t.semantic[cls]}
+                amtColor={ccSettled ? t.txtLow : isCCEst ? t.txtMid : t.semantic[cls]}
                 money={money}
                 monthShort={monthShort}
                 displayAmt={amt}
@@ -429,7 +439,7 @@ export default function CalendarScreen() {
                     {b.cat}
                     {" · "}
                     {dueShort(dd)}
-                    {isCCEst ? " · est." : hasCarryOver ? " · carried balance" : ""}
+                    {sub}
                   </Low>
                 </View>
               </CalBillRow>

@@ -277,6 +277,20 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
           // bill.status mirrors whether the NATURAL period is paid (recomputed after toggle)
           const newNaturalPeriod = computeNaturalPeriod({ dueDate: b.dueDate, paymentHistory }, today);
           const isCurrentPaid = paymentHistory.some((r) => r.period === newNaturalPeriod && r.paid >= r.totalDue);
+          // Credit cards are a revolving balance, not a recurring charge: a
+          // settled statement must STAY at zero (amountPaid kept = owed) until the
+          // user enters the next statement (updateBillAmount), instead of the
+          // natural period advancing and re-billing the full amount next cycle.
+          // So mirror the toggled period's outcome directly for cards.
+          if (b.cat === "Credit card") {
+            const justPaid = !hasRecord; // added a paid record (vs. removed one when un-paying)
+            return {
+              ...b,
+              status: justPaid ? "paid" as const : "due" as const,
+              amountPaid: justPaid ? owed : 0,
+              paymentHistory,
+            };
+          }
           return {
             ...b,
             status: isCurrentPaid ? "paid" as const : "due" as const,

@@ -6,6 +6,7 @@ import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Btn, Card, Low, Mono, ProviderLogo, Screen, SectionLabel, SheetHeader, Txt } from "@/components/ui";
 import {
+  ccOutstanding,
   isPartialBill,
   partialPct,
   totalOwed,
@@ -308,11 +309,17 @@ export default function BillDetailModal() {
 
   const partial = (isCurrentPeriod || isFuturePeriod) && isPartialBill(bill);
   const owed = totalOwed(bill);
-  const viewedOwed = isFuturePeriod ? bill.amount : owed;
+  const isCC = bill.cat === "Credit card";
+  // Future months: utilities re-bill at the base amount, but a credit card is a
+  // revolving balance — a settled statement shows 0 and a partial carries the
+  // remainder forward until the next statement is entered (updateBillAmount).
+  const viewedOwed = isFuturePeriod
+    ? (isCC ? ccOutstanding(bill) : bill.amount)
+    : owed;
+  const ccFutureSettled = isCC && isFuturePeriod && viewedOwed === 0;
   const pct = partialPct(bill);
   const remaining = owed - (bill.amountPaid ?? 0);
   const hasCarryOver = isCurrentPeriod && (bill.carryOver ?? 0) > 0;
-  const isCC = bill.cat === "Credit card";
   const linkedCharges = isCC ? bills.filter((b) => b.parentCardId === bill.id) : [];
   const linkedTotal = linkedCharges.reduce((s, b) => s + b.amount, 0);
   // Linked charges not yet marked paid for the month being viewed — offered for
@@ -585,7 +592,21 @@ export default function BillDetailModal() {
           <Low size={12}>{paid ? "Paid" : overdue ? "Amount overdue" : isFuturePeriod ? "Amount due" : "Amount due"}</Low>
           <Mono size={26} weight="bold" color={paid ? t.semantic.ok : t.semantic[viewedCls]}>{money(viewedOwed)}</Mono>
         </View>
+        {/* A settled credit-card statement carries no balance into a future month,
+            so there's nothing to pay ahead until the next statement arrives. */}
+        {ccFutureSettled && (
+          <View style={{ borderWidth: 1, borderColor: t.semantic.ok + "55", borderRadius: 12, padding: 12, backgroundColor: t.surface1 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Icon name="check" size={13} color={t.semantic.ok} />
+              <Txt size={13} weight="semibold" color={t.semantic.ok}>Statement settled</Txt>
+            </View>
+            <Low size={12} style={{ marginTop: 3, lineHeight: 17 }}>
+              Nothing carries into {periodLabel(viewedPeriod)}. Update the statement amount when your next bill arrives.
+            </Low>
+          </View>
+        )}
         {/* Mark paid / unpaid — available for any month (past, current, or future pre-pay) */}
+        {!ccFutureSettled && (
         <Btn
           label={
             paid
@@ -628,9 +649,10 @@ export default function BillDetailModal() {
             router.back();
           }}
         />
+        )}
 
         {/* Partial payment — available for current and future periods */}
-        {!paid && (isCurrentPeriod || isFuturePeriod) && (
+        {!paid && !ccFutureSettled && (isCurrentPeriod || isFuturePeriod) && (
           <Btn
             label={showInput ? "Cancel" : partial ? "Update partial" : "Pay partial"}
             variant="soft"
