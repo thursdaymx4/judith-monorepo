@@ -1,15 +1,17 @@
 ---
 name: Judith WatchConnectivity crash
-description: react-native-watch-connectivity crashes in Expo Go because its native module init is uncatchable; requires a dev build.
+description: react-native-watch-connectivity crashes in Expo Go; fix is try/catch around require(), NOT await import().
 ---
 
 ## Rule
-Never dynamically import `react-native-watch-connectivity` in code that runs in Expo Go. The package's `NativeWatchConnectivity.js` calls `TurboModuleRegistry.getEnforcing("WatchConnectivity")` at the **top level of the module** (synchronously during evaluation), before any JS catch block can run. Wrapping `await import("react-native-watch-connectivity")` in try/catch does NOT prevent the crash.
+Use `try { WatchConnectivity = require("react-native-watch-connectivity") } catch {}` at module level. A `null` check in every call site makes all sync paths safe no-ops in Expo Go.
 
-**Why:** `TurboModuleRegistry.getEnforcing()` throws synchronously during Metro's module registry initialization. By the time the dynamic `import()` Promise would reject, the throw has already propagated out of the JS engine's module evaluator.
+**Why:** `TurboModuleRegistry.getEnforcing("RNWatch")` is called synchronously during module evaluation. In Expo Go the native module is absent so it throws immediately. A synchronous `try/catch` around `require()` DOES catch this. However, `try { await import(...) } catch {}` does NOT — the throw happens before the Promise resolves. The previous note had this backwards.
+
+The top-level `require()` crash propagated before `JudithProvider` could mount, causing a cascading "useJudith must be used within JudithProvider" render error on the onboarding screen.
 
 **How to apply:**
-- Apple Watch sync (feature #5) must be implemented in a **development build** (not Expo Go) that includes the WatchConnectivity native binary.
-- Until then, `sendSessionToWatch` in AuthContext.tsx is a no-op placeholder.
-- Do not add any `import` (static or dynamic) of `react-native-watch-connectivity` to any file that loads in Expo Go.
-- When implementing feature #5, use a conditional check on a custom native module availability guard (not `NativeModules.WatchConnectivity` — that's unreliable as a stub may exist).
+- `lib/watch.ts`: `let WatchConnectivity = null; try { WatchConnectivity = require(...) } catch {}`
+- Guard every call site: `if (!WatchConnectivity) return;`
+- The Metro config + watch-stub.js approach documented in comments was never implemented and is not needed; the try/catch is simpler and sufficient.
+- Watch sync still only fires on a real device with a compiled Watch target — the guard just prevents the crash in Expo Go.

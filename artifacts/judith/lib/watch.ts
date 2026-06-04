@@ -18,11 +18,16 @@ import { Platform } from "react-native";
 import type { Bill } from "@/constants/data";
 import type { PersonaId } from "@/constants/personas";
 
-// Import via the alias that Metro resolves:
-// — in Expo Go      → lib/watch-stub.js (no-op)
-// — in a dev build  → real react-native-watch-connectivity
+// Wrapped in try/catch: TurboModuleRegistry.getEnforcing("RNWatch") throws
+// synchronously in Expo Go (native module absent). A try/catch around require()
+// catches it safely; WatchConnectivity is null → all sync paths become no-ops.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const WatchConnectivity = require("react-native-watch-connectivity");
+let WatchConnectivity: Record<string, unknown> | null = null;
+try {
+  WatchConnectivity = require("react-native-watch-connectivity");
+} catch {
+  // Expo Go or simulator without the native Watch module — silent no-op
+}
 
 export interface WatchPayload {
   /** ISO-8601 timestamp of when this payload was generated */
@@ -67,15 +72,16 @@ function buildPayload(bills: Bill[], persona: PersonaId): WatchPayload {
  */
 export async function syncBillsToWatch(bills: Bill[], persona: PersonaId): Promise<void> {
   if (Platform.OS !== "ios") return;
+  if (!WatchConnectivity) return;
 
   try {
-    const installed = await WatchConnectivity.getIsWatchAppInstalled?.() ?? false;
+    const installed = await (WatchConnectivity.getIsWatchAppInstalled as (() => Promise<boolean>) | undefined)?.() ?? false;
     if (!installed) return;
 
     const payload = buildPayload(bills, persona);
     // transferUserInfo is queued and delivered reliably even when the Watch
     // app is in the background. It does NOT require a live BLE connection.
-    await WatchConnectivity.transferUserInfo(payload);
+    await (WatchConnectivity.transferUserInfo as (p: WatchPayload) => Promise<void>)(payload);
   } catch {
     // No paired watch, Expo Go stub, or native module absent — silent no-op
   }
