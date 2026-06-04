@@ -92,6 +92,12 @@ interface JudithStoreValue extends PersistShape {
   payPartial: (id: string, amountPaid: number) => void;
   /** Roll any unpaid balance forward as carryOver and reset this cycle. */
   rolloverBill: (id: string) => void;
+  /**
+   * Update a credit card bill to a new statement amount.
+   * Resets amountPaid and carryOver to 0 — the bank has already rolled
+   * any unpaid balance into the new statement figure.
+   */
+  updateBillAmount: (id: string, newAmount: number) => void;
   /* ask metering */
   consumeAsk: () => boolean;
   /** Returns true if the user can use voice asks (voice tier, or free with asks remaining). */
@@ -247,6 +253,18 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
             };
           }),
         })),
+      updateBillAmount: (id, newAmount) =>
+        mapBills((b) =>
+          b.id === id
+            ? {
+                ...b,
+                amount: Math.max(0, newAmount),
+                amountPaid: 0,
+                carryOver: 0,
+                status: "due" as const,
+              }
+            : b,
+        ),
       consumeAsk: () => {
         if (isPaid) return true;
         if (state.asksLeft <= 0) return false;

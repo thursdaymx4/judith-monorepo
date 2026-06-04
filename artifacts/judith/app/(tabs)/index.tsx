@@ -104,6 +104,11 @@ export default function HomeScreen() {
   const { bills, persona, money } = useJudith();
   const reduce = useReducedMotion();
 
+  const todayDay = new Date().getDate();
+  const ccStatementToday = bills.filter(
+    (b) => b.cat === "Credit card" && b.statementDay === todayDay,
+  );
+
   const due = bills
     .filter((b) => b.status !== "paid")
     .slice()
@@ -206,6 +211,43 @@ export default function HomeScreen() {
           </Mono>
           <Icon name="chev" size={16} color={t.semantic.overdue} />
         </Pressable>
+      )}
+
+      {/* CC statement nudge — shows on the day a statement is released */}
+      {ccStatementToday.length > 0 && (
+        <View style={{ marginBottom: 14, gap: 8 }}>
+          {ccStatementToday.map((b) => (
+            <Pressable
+              key={b.id}
+              onPress={() => router.push(`/bill/${b.id}`)}
+              style={({ pressed }) => [
+                {
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 10,
+                  paddingVertical: 12,
+                  paddingHorizontal: 14,
+                  borderRadius: t.radius.md,
+                  borderWidth: 1,
+                  borderColor: t.semantic.near + "66",
+                  backgroundColor: t.semantic.near + "12",
+                },
+                pressed && { opacity: 0.85 },
+              ]}
+            >
+              <Icon name="card" size={18} color={t.semantic.near} />
+              <View style={{ flex: 1 }}>
+                <Txt size={13} weight="semibold">
+                  {b.provider} statement just dropped
+                </Txt>
+                <Low size={12} style={{ marginTop: 1 }}>
+                  Tap to update this month's balance
+                </Low>
+              </View>
+              <Icon name="chev" size={16} color={t.semantic.near} />
+            </Pressable>
+          ))}
+        </View>
       )}
 
       {/* stat duo */}

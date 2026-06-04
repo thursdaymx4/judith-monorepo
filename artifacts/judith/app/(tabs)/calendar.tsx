@@ -216,8 +216,11 @@ export default function CalendarScreen() {
       return Math.max(0, totalOwed(b) - (b.amountPaid ?? 0));
     }
     if (isFutureMonth) {
-      if (b.status === "paid") return b.amount; // fresh cycle, no carryover
-      return b.amount + (b.carryOver ?? 0);     // unpaid: carryover rolls forward
+      // CC: bank folds any unpaid balance into the new statement — we don't know the
+      // new amount yet, so we show the last known amount as an estimate
+      if (b.cat === "Credit card") return b.amount;
+      if (b.status === "paid") return b.amount; // fixed bill: fresh cycle
+      return b.amount + (b.carryOver ?? 0);     // utility variable: carry forward
     }
     // Past month — best we can do without history
     return Math.max(0, totalOwed(b) - (b.amountPaid ?? 0));
@@ -362,16 +365,18 @@ export default function CalendarScreen() {
             const dd = viewedDueDays(b);
             const cls = dueClass(dd) as Urgency;
             const amt = viewedAmt(b);
-            const hasCarryOver = isFutureMonth && b.status !== "paid" && (b.carryOver ?? 0) > 0;
+            const isCCEst = isFutureMonth && b.cat === "Credit card";
+            const hasCarryOver = isFutureMonth && !isCCEst && b.status !== "paid" && (b.carryOver ?? 0) > 0;
             return (
               <CalBillRow
                 key={b.id}
                 bill={b}
                 onPress={() => openBill(b)}
-                amtColor={t.semantic[cls]}
+                amtColor={isCCEst ? t.txtMid : t.semantic[cls]}
                 money={money}
                 monthShort={monthShort}
                 displayAmt={amt}
+                estLabel={isCCEst}
               >
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
                   <Dot kind={cls} />
@@ -379,7 +384,7 @@ export default function CalendarScreen() {
                     {b.cat}
                     {" · "}
                     {dueShort(dd)}
-                    {hasCarryOver ? ` · +₱${(b.carryOver ?? 0).toLocaleString()} carried` : ""}
+                    {isCCEst ? " · est." : hasCarryOver ? ` · +₱${(b.carryOver ?? 0).toLocaleString()} carried` : ""}
                   </Low>
                 </View>
               </CalBillRow>
@@ -501,7 +506,7 @@ function DayBillsModal({
 
 /* ---- agenda bill row with date chip ---- */
 function CalBillRow({
-  bill, onPress, amtColor, money, paid, monthShort, displayAmt, children,
+  bill, onPress, amtColor, money, paid, monthShort, displayAmt, estLabel, children,
 }: {
   bill: Bill;
   onPress: () => void;
@@ -510,6 +515,7 @@ function CalBillRow({
   paid?: boolean;
   monthShort: string;
   displayAmt?: number;
+  estLabel?: boolean;
   children: React.ReactNode;
 }) {
   const t = useTheme();
@@ -531,7 +537,10 @@ function CalBillRow({
         <Txt size={14} weight="medium">{bill.provider}</Txt>
         {children}
       </View>
-      <Mono size={14} color={amtColor}>{money(amt)}</Mono>
+      <View style={{ alignItems: "flex-end" }}>
+        <Mono size={14} color={amtColor}>{money(amt)}</Mono>
+        {estLabel && <Low size={9} style={{ marginTop: 1 }}>est.</Low>}
+      </View>
     </Pressable>
   );
 }

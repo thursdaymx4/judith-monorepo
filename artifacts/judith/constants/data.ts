@@ -27,6 +27,12 @@ export interface Bill {
   carryOver?: number;
   /** Days before due date to send a reminder (default 3). */
   reminderDays?: number;
+  /**
+   * Day of the month the credit card statement is released (1–28).
+   * Only relevant when cat === "Credit card".
+   * Judith nudges the user on this day to update the bill amount.
+   */
+  statementDay?: number;
 }
 
 /** Total owed this cycle = current charge + any rolled-over balance. */
@@ -372,6 +378,7 @@ export function makeManualBill(
     kind?: "Fixed" | "Variable";
     house?: string;
     reminderDays?: number;
+    statementDay?: number;
   },
   today: Date = new Date(),
 ): Bill {
@@ -410,6 +417,7 @@ export function makeManualBill(
     frequency: a.frequency ?? "monthly",
     ...(a.house ? { house: a.house } : {}),
     ...(a.reminderDays != null ? { reminderDays: a.reminderDays } : {}),
+    ...(a.statementDay != null ? { statementDay: a.statementDay } : {}),
   };
 }
 
