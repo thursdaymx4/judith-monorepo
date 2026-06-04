@@ -1953,6 +1953,8 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const [draftSubs, setDraftSubs] = useState<DraftSub[]>([]);
   const [parsedEditing, setParsedEditing] = useState(false);
   const [parsedEdits, setParsedEdits] = useState<{ provider: string; amount: string; dueDay: string; kind: "Fixed" | "Variable"; frequency: "monthly" | "annual" }>({ provider: "", amount: "", dueDay: "", kind: "Fixed", frequency: "monthly" });
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+  const formEnterAnim = useRef(new Animated.Value(0)).current;
 
   const scriptedItem = SAMPLES[Math.min(idx, SAMPLES.length - 1)]!;
   const sample: Sample =
@@ -2270,6 +2272,18 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const stopListeningRef = useRef(stopListening);
   useEffect(() => { stopListeningRef.current = stopListening; });
 
+  // Auto-populate inline form from sample each time a new bill appears in the scripted flow
+  useEffect(() => {
+    if (phase === "scripted" && sample.cat === "Phone subscription") return;
+    const presets: Record<string, string> = { "Rent / Mortgage": "18000", Electricity: "3450", Water: "890", Internet: "1699", Mobile: "999", "TV / Streaming": "549", "Credit card": "5200" };
+    setFormCat({ cat: sample.cat, icon: sample.icon });
+    setForm({ provider: sample.provider, amount: presets[sample.cat] || String(sample.amount), due: sample.due, kind: kindFor(sample.cat), subtype: sample.cat === "Rent / Mortgage" ? "Rent" : undefined, house: HOUSES[0] });
+    setManualReturn("prompt");
+    setFocusedField(null);
+    formEnterAnim.setValue(0);
+    Animated.timing(formEnterAnim, { toValue: 1, duration: 380, easing: Easing.bezier(0.2, 0.8, 0.2, 1), useNativeDriver: true }).start();
+  }, [idx, cardDone, loanDone, phase]);
+
   const isFil = isFilipino(language);
   const promptText =
     phase === "cards"
@@ -2369,6 +2383,90 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
               <JudithLine style={{ flex: 1 }}>{promptText}</JudithLine>
             </View>
           )}
+          {/* Inline form — shown directly in prompt for non-phone-sub items */}
+          {mode === "prompt" && !done && !isPhoneSub && formCat && (
+            <Animated.View
+              style={{
+                opacity: formEnterAnim,
+                transform: [{ translateY: formEnterAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
+              }}
+            >
+              <View
+                style={{
+                  borderRadius: 20,
+                  borderWidth: 1,
+                  borderColor: focusedField ? withAlpha(t.accent, 0.55) : t.hair,
+                  backgroundColor: t.surface1,
+                  overflow: "hidden",
+                }}
+              >
+                {/* Provider row */}
+                <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, backgroundColor: focusedField === "provider" ? mix(t.accent, t.surface1, 0.07) : "transparent" }}>
+                  <Icon name={formCat.icon as IconName} size={14} color={focusedField === "provider" ? t.accent : t.txtLow} />
+                  <Txt size={13} color={t.txtLow} style={{ marginLeft: 10, width: 62 }}>Provider</Txt>
+                  <TextInput
+                    value={form.provider}
+                    onChangeText={(v) => setForm((f) => ({ ...f, provider: v }))}
+                    onFocus={() => { setFocusedField("provider"); haptics.selection(); }}
+                    onBlur={() => setFocusedField(null)}
+                    placeholder={getProviderPlaceholder(ctx.country.code, formCat.cat)}
+                    placeholderTextColor={t.txtLow}
+                    returnKeyType="next"
+                    style={{ flex: 1, color: t.txtHi, fontSize: 15, fontFamily: t.fonts.medium, paddingVertical: 15, textAlign: "right" }}
+                  />
+                </View>
+                <View style={{ height: 1, backgroundColor: t.hair }} />
+                {/* Amount row */}
+                <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, backgroundColor: focusedField === "amount" ? mix(t.accent, t.surface1, 0.07) : "transparent" }}>
+                  <Mono size={13} color={focusedField === "amount" ? t.accent : t.txtLow}>{cur}</Mono>
+                  <Txt size={13} color={t.txtLow} style={{ marginLeft: 10, width: 62 }}>Amount</Txt>
+                  <TextInput
+                    value={form.amount}
+                    onChangeText={(v) => setForm((f) => ({ ...f, amount: v.replace(/[^0-9.]/g, "") }))}
+                    onFocus={() => { setFocusedField("amount"); haptics.selection(); }}
+                    onBlur={() => setFocusedField(null)}
+                    placeholder="0"
+                    placeholderTextColor={t.txtLow}
+                    keyboardType="numeric"
+                    returnKeyType="next"
+                    style={{ flex: 1, color: t.txtHi, fontSize: 16, fontFamily: t.fonts.mono, paddingVertical: 15, textAlign: "right" }}
+                  />
+                </View>
+                <View style={{ height: 1, backgroundColor: t.hair }} />
+                {/* Due day row */}
+                <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, backgroundColor: focusedField === "due" ? mix(t.accent, t.surface1, 0.07) : "transparent" }}>
+                  <Icon name="bell" size={14} color={focusedField === "due" ? t.accent : t.txtLow} />
+                  <Txt size={13} color={t.txtLow} style={{ marginLeft: 10, width: 62 }}>Due day</Txt>
+                  <TextInput
+                    value={form.due}
+                    onChangeText={(v) => setForm((f) => ({ ...f, due: v }))}
+                    onFocus={() => { setFocusedField("due"); haptics.selection(); }}
+                    onBlur={() => setFocusedField(null)}
+                    placeholder="e.g. 15th"
+                    placeholderTextColor={t.txtLow}
+                    returnKeyType="done"
+                    onSubmitEditing={saveForm}
+                    style={{ flex: 1, color: t.txtHi, fontSize: 15, fontFamily: t.fonts.regular, paddingVertical: 15, textAlign: "right" }}
+                  />
+                </View>
+              </View>
+              {/* Fixed / Variable toggle — compact pills below the card */}
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginTop: 10, paddingHorizontal: 2 }}>
+                <Low size={12}>Bill type:</Low>
+                {(["Fixed", "Variable"] as const).map((k) => (
+                  <Pressable
+                    key={k}
+                    onPress={() => { haptics.selection(); setForm((f) => ({ ...f, kind: k })); }}
+                    style={{ flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 22, paddingVertical: 5, paddingHorizontal: 12, borderWidth: 1, borderColor: form.kind === k ? withAlpha(t.accent, 0.5) : t.hair, backgroundColor: form.kind === k ? mix(t.accent, t.surface2, 0.15) : t.surface2 }}
+                  >
+                    <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: form.kind === k ? (k === "Variable" ? t.semantic.near : t.semantic.ok) : t.txtLow }} />
+                    <Txt size={12} weight="medium" color={form.kind === k ? t.txtHi : t.txtMid}>{k}</Txt>
+                  </Pressable>
+                ))}
+              </View>
+            </Animated.View>
+          )}
+
           {mode === "prompt" && !done && isPhoneSub && screenshotStatus === "loading" && (
             <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
               <JudithAvatar persona={persona} size={44} state="speaking" />
@@ -2907,29 +3005,15 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                 </>
               ) : (
                 <>
-                  <Pressable
-                    onPress={() => { setManualReturn("prompt"); openForm({ cat: sample.cat, icon: sample.icon }); }}
-                    style={{ borderWidth: 1.5, borderColor: t.accent, borderRadius: 16, backgroundColor: mix(t.accent, t.surface2, 0.1), padding: 16 }}
-                  >
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                      <View style={{ width: 42, height: 42, borderRadius: 11, backgroundColor: mix(t.accent, t.canvas, 0.18), alignItems: "center", justifyContent: "center" }}>
-                        <Icon name={sample.icon as IconName} size={20} color={t.accent} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Txt size={15} weight="semibold">{sample.provider}</Txt>
-                        <Low size={12}>Enter amount and due date</Low>
-                      </View>
-                      <Icon name="chevron" size={16} color={t.accent} />
-                    </View>
-                  </Pressable>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 2 }}>
+                  <Btn label="Log this bill →" onPress={() => { haptics.success(); saveForm(); }} />
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 1 }}>
                     <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
                     <Low size={12}>or speak</Low>
                     <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
                   </View>
-                  <View style={{ flexDirection: "row", justifyContent: "center", gap: 18 }}>
+                  <View style={{ flexDirection: "row", justifyContent: "center", gap: 22 }}>
                     <Pressable onPress={startListening} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                      <Icon name="mic" size={15} color={t.txtMid} />
+                      <Icon name="mic" size={14} color={t.txtMid} />
                       <Txt size={14} color={t.txtMid}>Speak instead</Txt>
                     </Pressable>
                     <Pressable onPress={skipOne}>
