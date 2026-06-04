@@ -430,47 +430,69 @@ export default function AskModal() {
 
       {/* body */}
       {!started ? (
-        locked ? (
-          <View style={styles.center}>
-            <JudithAvatar persona={persona} size={108} state="idle" />
-            <View style={{ alignItems: "center" }}>
-              <Txt size={19} weight="bold">
-                You're out of free asks
-              </Txt>
-              <Muted
-                size={14}
-                style={{ marginTop: 6, maxWidth: 270, textAlign: "center" }}
-              >
-                Reminders and bill tracking stay free forever. To keep asking
-                Judith out loud, pick a plan.
-              </Muted>
+        <View style={{ flex: 1 }}>
+          {locked ? (
+            <View style={styles.intro}>
+              <JudithAvatar persona={persona} size={88} state="idle" />
+              <View style={{ alignItems: "center" }}>
+                <Txt size={18} weight="bold">
+                  You're out of free asks
+                </Txt>
+                <Muted
+                  size={14}
+                  style={{ marginTop: 6, maxWidth: 270, textAlign: "center" }}
+                >
+                  Reminders and bill tracking stay free forever. To keep asking
+                  Judith out loud, pick a plan.
+                </Muted>
+              </View>
             </View>
-          </View>
-        ) : (
-          <View style={styles.center}>
-            <JudithAvatar persona={persona} size={132} state={micState} />
-            <View style={{ alignItems: "center" }}>
-              <Txt size={18} weight="semibold">
-                {recording ? "Listening\u2026" : "Hi, I'm Judith"}
-              </Txt>
-              <Muted
-                size={14}
-                style={{ marginTop: 4, maxWidth: 270, textAlign: "center" }}
-              >
-                {recording ? "Go ahead\u2026" : p.line}
-              </Muted>
-              {!recording && (
-                <Low size={12} style={{ marginTop: 10 }}>
-                  {isPaid
-                    ? voiceLocked
-                      ? "Unlimited chat asks · upgrade for voice"
-                      : "Ask as much as you like."
-                    : `Each answer uses one ask · ${asksLeft} left`}
-                </Low>
-              )}
+          ) : (
+            <View style={styles.intro}>
+              <JudithAvatar persona={persona} size={96} state={micState} />
+              <View style={{ alignItems: "center" }}>
+                <Txt size={17} weight="semibold">
+                  {recording ? "Listening\u2026" : "Hi, I'm Judith"}
+                </Txt>
+                <Muted
+                  size={13.5}
+                  style={{ marginTop: 3, maxWidth: 270, textAlign: "center" }}
+                >
+                  {recording ? "Go ahead\u2026" : p.line}
+                </Muted>
+                {!recording && (
+                  <Low size={11.5} style={{ marginTop: 8 }}>
+                    {isPaid
+                      ? voiceLocked
+                        ? "Unlimited chat asks · upgrade for voice"
+                        : "Ask as much as you like."
+                      : `Each answer uses one ask · ${asksLeft} left`}
+                  </Low>
+                )}
+              </View>
             </View>
-          </View>
-        )
+          )}
+          {!locked && (
+            <View
+              style={{
+                flexDirection: "row",
+                flexWrap: "wrap",
+                gap: 8,
+                paddingHorizontal: 22,
+                paddingTop: 4,
+              }}
+            >
+              {getQuickAsks(country.code).map((qa, i) => (
+                <Chip
+                  key={i}
+                  label={qa}
+                  onPress={() => ask(qa)}
+                  style={{ opacity: busy ? 0.5 : 1 }}
+                />
+              ))}
+            </View>
+          )}
+        </View>
       ) : (
         <ScrollView
           ref={scrollRef}
@@ -569,24 +591,6 @@ export default function AskModal() {
         >
           {err}
         </Txt>
-      )}
-
-      {/* quick asks */}
-      {!locked && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 8, paddingHorizontal: 22, paddingVertical: 10 }}
-        >
-          {getQuickAsks(country.code).map((qa, i) => (
-            <Chip
-              key={i}
-              label={qa}
-              onPress={() => ask(qa)}
-              style={{ opacity: busy ? 0.5 : 1 }}
-            />
-          ))}
-        </ScrollView>
       )}
 
       {/* input + mic */}
@@ -951,11 +955,12 @@ export default function AskModal() {
 }
 
 const styles = {
-  center: {
-    flex: 1,
+  intro: {
     alignItems: "center" as const,
     justifyContent: "center" as const,
-    gap: 18,
+    gap: 14,
     paddingHorizontal: 22,
+    paddingTop: 28,
+    paddingBottom: 20,
   },
 };

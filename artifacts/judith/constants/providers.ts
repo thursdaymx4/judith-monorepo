@@ -462,6 +462,7 @@ export function getQuickAsks(countryCode: string): string[] {
   return [
     "What's due this week?",
     "How much do I owe this month?",
+    "What else do I still have to pay this month and how much in total?",
     `Did I pay ${elec}?`,
     `What's my ${cc} balance?`,
     "When's my next due date?",
