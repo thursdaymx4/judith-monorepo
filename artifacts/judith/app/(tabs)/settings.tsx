@@ -2,6 +2,7 @@ import { useRouter } from "expo-router";
 import React, { useCallback } from "react";
 import { Modal, Pressable, Text, TextInput, View } from "react-native";
 
+import * as Notifications from "expo-notifications";
 import { Icon, type IconName } from "@/components/Icon";
 import { Dot, Low, Mono, Screen, Txt, mix } from "@/components/ui";
 import { PERSONAS } from "@/constants/personas";
@@ -384,6 +385,44 @@ export default function SettingsScreen() {
           );
         })}
       </View>
+
+      {/* test notification */}
+      <Pressable
+        onPress={async () => {
+          const granted = await requestPermission();
+          if (!granted) return;
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: `Test · ${persona === "funny" ? "Heads up 👀" : persona === "sarcastic" ? "You knew this was coming." : persona === "mom" ? "Anak, test lang 👋" : persona === "marites" ? "Psst! Test notification 🤫" : "Test notification"}`,
+              body: "Notifications are working! ₱2,500 due in 3 days.",
+              sound: true,
+            },
+            trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 3, repeats: false },
+          });
+        }}
+        style={({ pressed }) => [
+          {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 13,
+            marginTop: 9,
+            paddingVertical: 14,
+            paddingHorizontal: 15,
+            borderWidth: 1,
+            borderColor: mix(t.accent, t.surface2, 0.4),
+            borderRadius: t.radius.md,
+            backgroundColor: mix(t.accent, t.surface2, 0.1),
+          },
+          pressed && { opacity: 0.7 },
+        ]}
+      >
+        <IcoBox name="bell" iconSize={17} color={t.accent} borderColor={mix(t.accent, t.surface2, 0.4)} />
+        <View style={{ flex: 1 }}>
+          <Txt size={15} weight="medium" color={t.accent}>Fire test notification</Txt>
+          <Low size={12} style={{ marginTop: 1 }}>Fires in 3 seconds — lock your screen</Low>
+        </View>
+        <Icon name="chev" size={16} color={t.accent} />
+      </Pressable>
 
       {/* accessibility */}
       <SettingsLabel>Accessibility</SettingsLabel>
