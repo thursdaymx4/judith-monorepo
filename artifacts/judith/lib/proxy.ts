@@ -3,6 +3,32 @@ import type { PersonaId } from "@/constants/personas";
 
 const BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN}/api/judith`;
 
+/** Maps client PersonaId → server persona string. */
+const PERSONA_MAP: Record<PersonaId, string> = {
+  pro: "professional",
+  funny: "funny",
+  sib: "sarcastic",
+  mama: "mom",
+  marites: "marites",
+};
+
+/** Bill shape sent to the /ask endpoint as context. */
+export interface AskBill {
+  provider: string;
+  cat: string;
+  amount: number;
+  dueDays: number;
+  dueLabel: string;
+  status: string;
+}
+
+/** Returns Authorization header with the current Supabase session token. */
+async function authHeader(): Promise<Record<string, string>> {
+  const session = (await supabase?.auth.getSession())?.data.session;
+  if (!session?.access_token) return {};
+  return { Authorization: `Bearer ${session.access_token}` };
+}
+
 /**
  * Thrown when the server returns HTTP 429 (rate limited).
  * `retryAfter` is the number of seconds to wait before retrying,
