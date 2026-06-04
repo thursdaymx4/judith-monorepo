@@ -7,7 +7,7 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
-import { Modal, Pressable, ScrollView, TextInput, View } from "react-native";
+import { Alert, Modal, Pressable, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon } from "@/components/Icon";
@@ -107,30 +107,15 @@ export default function AskModal() {
   const [scanRows, setScanRows] = useState<ScanRow[] | null>(null);
   const includedCount = scanRows?.filter((r) => r.include).length ?? 0;
 
-  const scanSubscriptions = async () => {
-    if (busy || scanBusy) return;
-    setErr("");
+  const processScanAsset = async (asset: ImagePicker.ImagePickerAsset) => {
+    setScanBusy(true);
     try {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) {
-        setErr("Photo permission is needed to scan a screenshot. You can type instead.");
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"] as ImagePicker.MediaType[],
-        base64: true,
-        quality: 0.8,
-      });
-      if (result.canceled || !result.assets?.[0]?.base64) return;
-      const asset = result.assets[0]!;
-      setScanBusy(true);
       const { subscriptions } = await parseSubscriptionScreenshot(
         asset.base64!,
         asset.mimeType || "image/jpeg",
       );
       if (subscriptions.length === 0) {
-        setErr("No active subscriptions found in that screenshot. Try a clearer image.");
-        setScanBusy(false);
+        setErr("No subscriptions found in that image. Try a clearer photo.");
         return;
       }
       setScanRows(
@@ -143,11 +128,51 @@ export default function AskModal() {
           include: true,
         })),
       );
-      setScanBusy(false);
     } catch (e) {
+      setErr(`Couldn't read that image: ${String((e as Error)?.message ?? e)}`);
+    } finally {
       setScanBusy(false);
-      setErr(`Couldn't read that screenshot: ${String((e as Error)?.message ?? e)}`);
     }
+  };
+
+  const scanFromLibrary = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      setErr("Photo library access is needed to scan a bill. You can type instead.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"] as ImagePicker.MediaType[],
+      base64: true,
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.[0]?.base64) return;
+    await processScanAsset(result.assets[0]!);
+  };
+
+  const scanFromCamera = async () => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      setErr("Camera access is needed to take a photo. You can upload one instead.");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ["images"] as ImagePicker.MediaType[],
+      base64: true,
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.[0]?.base64) return;
+    await processScanAsset(result.assets[0]!);
+  };
+
+  const scanSubscriptions = () => {
+    if (busy || scanBusy) return;
+    setErr("");
+    Alert.alert("Scan a Bill", "How do you want to add a photo?", [
+      { text: "Take Photo", onPress: () => void scanFromCamera() },
+      { text: "Upload from Library", onPress: () => void scanFromLibrary() },
+      { text: "Cancel", style: "cancel" },
+    ]);
   };
 
   const patchScanRow = (i: number, patch: Partial<ScanRow>) =>
