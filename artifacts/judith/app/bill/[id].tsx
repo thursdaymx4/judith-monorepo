@@ -124,14 +124,25 @@ function MiniBarChart({ points, money }: { points: ChartPoint[]; money: (n: numb
             <View key={i} style={{ flex: 1 }}>
               <View style={{ height: BAR_H, justifyContent: "flex-end" }}>
                 {h > 0 && (
-                  <View
-                    style={{
-                      height: h,
-                      borderRadius: 5,
-                      alignSelf: "stretch",
-                      backgroundColor: p.current ? t.accent : t.accent + "55",
-                    }}
-                  />
+                  <>
+                    <Mono
+                      size={8}
+                      weight="semibold"
+                      color={p.current ? t.accent : t.txtLow}
+                      style={{ position: "absolute", top: 0, left: 0, right: 0, textAlign: "center" }}
+                      numberOfLines={1}
+                    >
+                      {money(p.value)}
+                    </Mono>
+                    <View
+                      style={{
+                        height: h,
+                        borderRadius: 5,
+                        alignSelf: "stretch",
+                        backgroundColor: p.current ? t.accent : t.accent + "55",
+                      }}
+                    />
+                  </>
                 )}
               </View>
               <Low size={9} style={{ marginTop: 4, textAlign: "center" }}>{p.label}</Low>
