@@ -22,6 +22,8 @@ export interface AskBill {
   status: string;
   /** "YYYY-MM" of the bill's next due date — lets the server build monthly summaries. */
   dueMonth?: string;
+  /** True when this bill is a business/work expense. */
+  isBusiness?: boolean;
 }
 
 /** Returns Authorization header with the current Supabase session token. */

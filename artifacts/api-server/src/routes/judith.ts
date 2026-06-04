@@ -51,6 +51,7 @@ interface BillRow {
   status: string;
   reminder_offsets: number[] | null;
   snoozed_until: string | null;
+  is_business?: boolean | null;
 }
 
 /**
@@ -144,13 +145,15 @@ function buildBillsContext(bills: BillRow[], today: Date): string {
           : "variable amount, not yet known"
         : amountToWords(bill.amount);
 
+    const bizTag = bill.is_business ? " [BUSINESS]" : " [PERSONAL]";
+
     if (bill.status === "paid") {
-      lines.push(`- ${bill.name}${provider} [${bill.category}] — already PAID. Amount: ${amount}.`);
+      lines.push(`- ${bill.name}${provider} [${bill.category}]${bizTag} — already PAID. Amount: ${amount}.`);
       continue;
     }
 
     if (!due) {
-      lines.push(`- ${bill.name}${provider} [${bill.category}] — no due date set. Amount: ${amount}.`);
+      lines.push(`- ${bill.name}${provider} [${bill.category}]${bizTag} — no due date set. Amount: ${amount}.`);
       continue;
     }
 
@@ -158,7 +161,7 @@ function buildBillsContext(bills: BillRow[], today: Date): string {
     const when =
       days === 0 ? "due TODAY" : days < 0 ? `OVERDUE by ${Math.abs(days)} day(s)` : `due in ${days} day(s)`;
     lines.push(
-      `- ${bill.name}${provider} [${bill.category}] — ${amount}, due on ${englishDate(due)} (${englishWeekday(due)}), ${when}.`,
+      `- ${bill.name}${provider} [${bill.category}]${bizTag} — ${amount}, due on ${englishDate(due)} (${englishWeekday(due)}), ${when}.`,
     );
 
     if (days >= 0 && bill.amount != null && bill.amount_type === "fixed") {
@@ -192,6 +195,8 @@ interface ClientBill {
   status?: string | null;
   /** "YYYY-MM" of the bill's next due date. */
   dueMonth?: string | null;
+  /** True when this bill is tagged as a business/work expense. */
+  isBusiness?: boolean | null;
 }
 
 function pesoStr(n: number): string {
@@ -223,22 +228,29 @@ function buildClientContext(bills: ClientBill[], today: Date): string {
       return `- ${label}: ${pesoStr(total)} total (${count} bill${count === 1 ? "" : "s"}, ${paidCount} paid, ${unpaidCount} unpaid)`;
     });
 
+  const bizUnpaid = bills.filter((b) => b.isBusiness && b.status !== "paid");
+  const bizTotal = bizUnpaid.reduce((s, b) => s + (b.amount ?? 0), 0);
+
   const lines = bills.map((b) => {
     const days = b.dueDays ?? 0;
     const when =
       days === 0 ? "due TODAY" : days < 0 ? `OVERDUE by ${Math.abs(days)} day(s)` : `due in ${days} day(s)`;
-    return `- ${b.provider ?? "Bill"} (${b.cat ?? "Other"}): ${pesoStr(b.amount ?? 0)}, ${b.dueLabel ?? "—"}, ${when}, ${b.status ?? "unpaid"}.`;
+    const bizTag = b.isBusiness ? " [BUSINESS]" : " [PERSONAL]";
+    return `- ${b.provider ?? "Bill"} (${b.cat ?? "Other"})${bizTag}: ${pesoStr(b.amount ?? 0)}, ${b.dueLabel ?? "—"}, ${when}, ${b.status ?? "unpaid"}.`;
   });
 
   return [
     `Today is ${englishDate(today)} (${englishWeekday(today)}).`,
     `Total still due (unpaid): ${pesoStr(total)}.`,
     `Total of bills due within 7 days: ${pesoStr(dueThisWeek)}.`,
+    bizUnpaid.length > 0
+      ? `Business bills still unpaid: ${bizUnpaid.length} bill${bizUnpaid.length === 1 ? "" : "s"} totalling ${pesoStr(bizTotal)}.`
+      : "Business bills still unpaid: none.",
     "",
     "MONTHLY TOTALS (all bills including paid):",
     monthLines.join("\n"),
     "",
-    "BILLS:",
+    "BILLS (each tagged [BUSINESS] or [PERSONAL]):",
     lines.join("\n"),
   ].join("\n");
 }

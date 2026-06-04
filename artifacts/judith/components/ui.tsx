@@ -390,6 +390,7 @@ export interface BillLike {
   status?: string;
   amountPaid?: number;
   carryOver?: number;
+  isBusiness?: boolean;
 }
 
 export function BillRow({
@@ -433,7 +434,25 @@ export function BillRow({
       >
         <ProviderLogo provider={bill.provider} cat={bill.cat} size={38} />
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={{ fontFamily: t.fonts.medium, fontSize: 15, color: t.txtHi }}>{bill.provider}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Text style={{ fontFamily: t.fonts.medium, fontSize: 15, color: t.txtHi }}>{bill.provider}</Text>
+            {bill.isBusiness && (
+              <View
+                style={{
+                  backgroundColor: "#3b7aff22",
+                  borderWidth: 1,
+                  borderColor: "#3b7aff55",
+                  borderRadius: 5,
+                  paddingHorizontal: 5,
+                  paddingVertical: 1,
+                }}
+              >
+                <Text style={{ fontFamily: t.fonts.medium, fontSize: 9.5, color: "#6699ff", letterSpacing: 0.4 }}>
+                  {"BIZ"}
+                </Text>
+              </View>
+            )}
+          </View>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
             <Dot kind={cls} />
             <Text style={{ fontFamily: t.fonts.regular, fontSize: 12, color: t.txtLow }}>

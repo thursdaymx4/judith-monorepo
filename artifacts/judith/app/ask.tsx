@@ -218,6 +218,7 @@ export default function AskModal() {
         dueLabel: b.dueLabel,
         status: b.status,
         dueMonth,
+        isBusiness: b.isBusiness,
       };
     });
   };
