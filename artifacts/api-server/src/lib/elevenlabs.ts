@@ -106,8 +106,8 @@ export async function transcribe(
  */
 function voiceSettings(live: boolean) {
   return live
-    ? { stability: 0.32, similarity_boost: 0.80, style: 0.28, use_speaker_boost: true }
-    : { stability: 0.28, similarity_boost: 0.88, style: 0.42, use_speaker_boost: true };
+    ? { stability: 0.45, similarity_boost: 0.82, style: 0.22, use_speaker_boost: true }
+    : { stability: 0.35, similarity_boost: 0.88, style: 0.38, use_speaker_boost: true };
 }
 
 /* ---------- number → natural speech helpers ---------- */

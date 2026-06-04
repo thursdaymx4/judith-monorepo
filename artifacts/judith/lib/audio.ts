@@ -23,7 +23,7 @@ export function stopCurrentAudio() {
  * then plays the new clip at the requested rate.
  * Resolves when playback finishes (or the player is replaced).
  */
-export async function playBase64Mp3(base64: string, rate = 1.2): Promise<void> {
+export async function playBase64Mp3(base64: string, rate = 1.0): Promise<void> {
   // Immediately stop whatever was playing so voices never overlap.
   stopCurrentAudio();
 

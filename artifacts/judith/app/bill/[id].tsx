@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
-import { Pressable, TextInput, View } from "react-native";
+import { Alert, Pressable, TextInput, View } from "react-native";
 
 import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
@@ -14,7 +14,7 @@ export default function BillDetailModal() {
   const t = useTheme();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { bills, money, persona, togglePaid, payPartial } = useJudith();
+  const { bills, money, persona, togglePaid, payPartial, showToast } = useJudith();
   const [showInput, setShowInput] = useState(false);
   const [input, setInput] = useState("");
 
@@ -46,6 +46,17 @@ export default function BillDetailModal() {
     payPartial(bill.id, amt);
     setInput("");
     setShowInput(false);
+    haptics.success();
+    const rem = owed - amt;
+    if (rem > 0) {
+      Alert.alert(
+        "Payment recorded",
+        `${money(rem)} remaining will roll over to next month automatically — nothing else for you to do.`,
+        [{ text: "Got it", onPress: () => router.back() }],
+      );
+    } else {
+      router.back();
+    }
   };
 
   return (
@@ -192,22 +203,26 @@ export default function BillDetailModal() {
           }}
         >
           <Low size={12}>Amount paid so far (cumulative total)</Low>
-          <TextInput
-            value={input}
-            onChangeText={setInput}
-            keyboardType="decimal-pad"
-            placeholder={`e.g. ${Math.round(owed * 0.5).toLocaleString()}`}
-            placeholderTextColor={t.txtLow}
-            style={{
-              fontFamily: t.fonts.mono,
-              fontSize: 24,
-              color: t.txtHi,
-              paddingVertical: 4,
-            }}
-          />
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Mono size={24} weight="bold" color={t.txtHi} style={{ marginRight: 3 }}>₱</Mono>
+            <TextInput
+              value={input}
+              onChangeText={setInput}
+              keyboardType="decimal-pad"
+              placeholder={Math.round(owed * 0.5).toLocaleString()}
+              placeholderTextColor={t.txtLow}
+              style={{
+                fontFamily: t.fonts.mono,
+                fontSize: 24,
+                color: t.txtHi,
+                paddingVertical: 4,
+                flex: 1,
+              }}
+            />
+          </View>
           <View style={{ flexDirection: "row", gap: 10 }}>
             <View style={{ flex: 1 }}>
-              <Btn label="Save" onPress={handlePayPartial} />
+              <Btn label="Record Partial Payment" onPress={handlePayPartial} />
             </View>
             <View style={{ flex: 1 }}>
               <Btn

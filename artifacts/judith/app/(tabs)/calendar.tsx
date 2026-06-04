@@ -17,7 +17,7 @@ import {
   Txt,
   type Urgency,
 } from "@/components/ui";
-import { dueClass, dueShort, type Bill } from "@/constants/data";
+import { dueClass, dueShort, totalOwed, type Bill } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { haptics } from "@/lib/haptics";
@@ -70,11 +70,13 @@ function CalHeat({
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
   while (cells.length % 7 !== 0) cells.push(null);
 
+  const rem = (b: Bill) => totalOwed(b) - (b.amountPaid ?? 0);
+
   let maxDay = 1;
   Object.keys(byDay).forEach((k) => {
     const total = (byDay[Number(k)] || [])
       .filter((b) => b.status !== "paid")
-      .reduce((s, b) => s + b.amount, 0);
+      .reduce((s, b) => s + rem(b), 0);
     if (total > maxDay) maxDay = total;
   });
 
@@ -99,7 +101,7 @@ function CalHeat({
               const cls = top ? (dueClass(top.dueDays) as Urgency) : null;
               const isToday = d === todayDate;
               const isSel = d === sel;
-              const dayTotal = due.reduce((s, b) => s + b.amount, 0);
+              const dayTotal = due.reduce((s, b) => s + rem(b), 0);
               const sz = due.length ? Math.round(13 + (dayTotal / maxDay) * 20) : 0;
               const dotColor = cls ? t.semantic[cls] : t.txtLow;
               return (
@@ -192,7 +194,8 @@ export default function CalendarScreen() {
     (byDay[b.dueDate] = byDay[b.dueDate] || []).push(b);
   });
 
-  const monthTotal = dueBills.reduce((s, b) => s + b.amount, 0);
+  const calRem = (b: Bill) => totalOwed(b) - (b.amountPaid ?? 0);
+  const monthTotal = dueBills.reduce((s, b) => s + calRem(b), 0);
   const agenda = dueBills.slice().sort((a, b) => a.dueDate - b.dueDate);
   const agendaPaid = bills.filter((b) => b.status === "paid");
 
@@ -201,7 +204,7 @@ export default function CalendarScreen() {
   const weeks = ranges.map(() => 0);
   dueBills.forEach((b) => {
     const w = Math.min(ranges.length - 1, Math.floor((b.dueDate - 1) / 7));
-    weeks[w]! += b.amount;
+    weeks[w]! += calRem(b);
   });
   const maxW = Math.max(1, ...weeks);
 
@@ -289,7 +292,7 @@ export default function CalendarScreen() {
           {agenda.map((b) => {
             const cls = dueClass(b.dueDays) as Urgency;
             return (
-              <CalBillRow key={b.id} bill={b} onPress={() => openBill(b)} amtColor={t.semantic[cls]} money={money} monthShort={monthShort}>
+              <CalBillRow key={b.id} bill={b} onPress={() => openBill(b)} amtColor={t.semantic[cls]} money={money} monthShort={monthShort} displayAmt={calRem(b)}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
                   <Dot kind={cls} />
                   <Low size={12}>{b.cat} · {dueShort(b.dueDays)}</Low>
@@ -341,7 +344,8 @@ function DayBillsModal({
 }) {
   const t = useTheme();
   const items = bills.slice().sort((a, b) => a.dueDays - b.dueDays);
-  const dueTotal = items.filter((b) => b.status !== "paid").reduce((s, b) => s + b.amount, 0);
+  const modalRem = (b: Bill) => totalOwed(b) - (b.amountPaid ?? 0);
+  const dueTotal = items.filter((b) => b.status !== "paid").reduce((s, b) => s + modalRem(b), 0);
   return (
     <Modal visible={day != null} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}>
@@ -362,7 +366,7 @@ function DayBillsModal({
               const isPaid = b.status === "paid";
               const cls = dueClass(b.dueDays) as Urgency;
               return (
-                <CalBillRow key={b.id} bill={b} onPress={() => onOpenBill(b)} amtColor={isPaid ? t.txtLow : t.semantic[cls]} money={money} paid={isPaid} monthShort={monthName.slice(0, 3)}>
+                <CalBillRow key={b.id} bill={b} onPress={() => onOpenBill(b)} amtColor={isPaid ? t.txtLow : t.semantic[cls]} money={money} paid={isPaid} monthShort={monthName.slice(0, 3)} displayAmt={isPaid ? b.amount : modalRem(b)}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
                     {isPaid ? <Icon name="check" size={12} color={t.txtLow} /> : <Dot kind={cls} />}
                     <Low size={12}>{isPaid ? `Paid · ${b.cat}` : `${b.cat} · ${dueShort(b.dueDays)}`}</Low>
@@ -379,7 +383,7 @@ function DayBillsModal({
 
 /* ---- agenda bill row with date chip ---- */
 function CalBillRow({
-  bill, onPress, amtColor, money, paid, monthShort, children,
+  bill, onPress, amtColor, money, paid, monthShort, displayAmt, children,
 }: {
   bill: Bill;
   onPress: () => void;
@@ -387,9 +391,11 @@ function CalBillRow({
   money: (n: number) => string;
   paid?: boolean;
   monthShort: string;
+  displayAmt?: number;
   children: React.ReactNode;
 }) {
   const t = useTheme();
+  const amt = displayAmt ?? bill.amount;
   return (
     <Pressable
       onPress={onPress}
@@ -407,7 +413,7 @@ function CalBillRow({
         <Txt size={14} weight="medium">{bill.provider}</Txt>
         {children}
       </View>
-      <Mono size={14} color={amtColor}>{money(bill.amount)}</Mono>
+      <Mono size={14} color={amtColor}>{money(amt)}</Mono>
     </Pressable>
   );
 }
