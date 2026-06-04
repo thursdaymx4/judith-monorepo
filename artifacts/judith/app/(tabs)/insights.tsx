@@ -223,9 +223,16 @@ export default function InsightsScreen() {
     const provMap: Record<string, { amount: number; cat: string; id: string }> = {};
 
     if (!isHistorical) {
+      const _now = new Date();
+      const _curPeriod = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, "0")}`;
+      const _amtPaid = (b: Bill): number => {
+        const rec = (b.paymentHistory ?? []).find((r) => r.period === _curPeriod);
+        if (rec) return rec.paid;
+        return b.amountPaid ?? 0; // in-progress partial
+      };
       filteredBills.forEach(b => {
         billed += b.amount;
-        paid += b.status === "paid" ? b.amount : (b.amountPaid ?? 0);
+        paid += _amtPaid(b);
         catMap[b.cat] = (catMap[b.cat] ?? 0) + b.amount;
         provMap[b.provider] = { amount: (provMap[b.provider]?.amount ?? 0) + b.amount, cat: b.cat, id: b.id };
       });

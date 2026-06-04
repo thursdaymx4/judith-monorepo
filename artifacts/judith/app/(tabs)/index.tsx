@@ -105,16 +105,27 @@ export default function HomeScreen() {
   const reduce = useReducedMotion();
 
   const todayDay = new Date().getDate();
+  const _today = new Date();
+  const currentPeriodKey = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, "0")}`;
+  // Use paymentHistory as source of truth — b.status advances to next month after paying,
+  // so it cannot tell us whether THIS month's bill was paid.
+  const isPaidThisMonth = (b: Bill): boolean =>
+    (b.paymentHistory ?? []).some((r) => r.period === currentPeriodKey && r.paid >= r.totalDue);
+  const amtPaidThisMonth = (b: Bill): number => {
+    const rec = (b.paymentHistory ?? []).find((r) => r.period === currentPeriodKey);
+    if (rec) return rec.paid;
+    return b.amountPaid ?? 0; // in-progress partial (no history record yet)
+  };
   const ccStatementToday = bills.filter(
     (b) => b.cat === "Credit card" && b.statementDay === todayDay,
   );
 
   const due = bills
-    .filter((b) => b.status !== "paid")
+    .filter((b) => !isPaidThisMonth(b))
     .slice()
     .sort((a, b) => a.dueDays - b.dueDays);
-  // Remaining balance per bill (full amount minus any partial payment already made)
-  const remaining = (b: Bill) => totalOwed(b) - (b.amountPaid ?? 0);
+  // Remaining balance per bill (full amount minus any payment already made this period)
+  const remaining = (b: Bill) => Math.max(0, totalOwed(b) - amtPaidThisMonth(b));
   const total = due.reduce((s, b) => s + remaining(b), 0);
   const week = due.filter((b) => b.dueDays >= 0 && b.dueDays <= 7);
   const weekSum = week.reduce((s, b) => s + remaining(b), 0);
@@ -127,12 +138,12 @@ export default function HomeScreen() {
       ? router.push(`/bill/${overdue[0]!.id}`)
       : router.push("/bills");
 
-  const paid = bills.filter((b) => b.status === "paid");
-  const unpaid = bills.filter((b) => b.status !== "paid");
-  // paidAmt includes fully paid bills + partial payments already made on unpaid bills
+  const paid = bills.filter((b) => isPaidThisMonth(b));
+  const unpaid = bills.filter((b) => !isPaidThisMonth(b));
+  // paidAmt = fully paid bills + in-progress partial payments on unpaid bills
   const paidAmt =
-    paid.reduce((s, b) => s + b.amount, 0) +
-    unpaid.reduce((s, b) => s + (b.amountPaid ?? 0), 0);
+    paid.reduce((s, b) => s + amtPaidThisMonth(b), 0) +
+    unpaid.reduce((s, b) => s + amtPaidThisMonth(b), 0);
   // unpaidAmt is only the remaining balance, not the full original amount
   const unpaidAmt = unpaid.reduce((s, b) => s + remaining(b), 0);
   const grand = paidAmt + unpaidAmt;
@@ -405,6 +416,50 @@ export default function HomeScreen() {
           );
         })}
       </View>
+
+      {/* Paid this month — greyed out + strikethrough below the timeline */}
+      {paid.length > 0 && (
+        <>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 20, marginBottom: 12 }}>
+            <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 22, borderWidth: 1, borderColor: t.semantic.ok + "55", paddingVertical: 4, paddingHorizontal: 10 }}>
+              <Icon name="check" size={11} color={t.semantic.ok} />
+              <Low size={11} color={t.semantic.ok}>Paid · {paid.length}</Low>
+            </View>
+            <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
+          </View>
+          <View style={{ gap: 8 }}>
+            {paid.map((b, i) => (
+              <StaggerRow key={b.id} index={due.length + i} reduce={reduce}>
+                <Pressable
+                  onPress={() => openBill(b)}
+                  style={({ pressed }) => [
+                    { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderColor: t.hair, borderRadius: t.radius.md, backgroundColor: t.surface2, paddingVertical: 11, paddingHorizontal: 12, opacity: 0.62 },
+                    pressed && { opacity: 0.45 },
+                  ]}
+                >
+                  <ProviderLogo provider={b.provider} cat={b.cat} size={32} />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Txt size={14} weight="medium" color={t.txtMid} style={{ textDecorationLine: "line-through" }}>
+                      {b.provider}
+                    </Txt>
+                    <Low size={12} style={{ marginTop: 1 }}>{b.cat}</Low>
+                  </View>
+                  <View style={{ alignItems: "flex-end", gap: 3 }}>
+                    <Mono size={13} color={t.txtLow} style={{ textDecorationLine: "line-through" }}>
+                      {money(amtPaidThisMonth(b))}
+                    </Mono>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                      <Icon name="check" size={10} color={t.semantic.ok} />
+                      <Txt size={10} weight="semibold" color={t.semantic.ok}>Paid</Txt>
+                    </View>
+                  </View>
+                </Pressable>
+              </StaggerRow>
+            ))}
+          </View>
+        </>
+      )}
     </Screen>
   );
 }

@@ -579,12 +579,18 @@ function CalBillRow({
       </View>
       <ProviderLogo provider={bill.provider} cat={bill.cat} size={34} />
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Txt size={14} weight="medium">{bill.provider}</Txt>
+        <Txt size={14} weight="medium" style={paid ? { textDecorationLine: "line-through" } : undefined}>{bill.provider}</Txt>
         {children}
       </View>
-      <View style={{ alignItems: "flex-end" }}>
-        <Mono size={14} color={amtColor}>{money(amt)}</Mono>
-        {estLabel && <Low size={9} style={{ marginTop: 1 }}>est.</Low>}
+      <View style={{ alignItems: "flex-end", gap: 3 }}>
+        <Mono size={14} color={amtColor} style={paid ? { textDecorationLine: "line-through" } : undefined}>{money(amt)}</Mono>
+        {paid && (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+            <Icon name="check" size={10} color="#4CAF50" />
+            <Txt size={10} weight="semibold" color="#4CAF50">Paid</Txt>
+          </View>
+        )}
+        {!paid && estLabel && <Low size={9} style={{ marginTop: 1 }}>est.</Low>}
         {baseAmt != null && carryAmt != null && (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 3, marginTop: 2 }}>
             <Low size={9}>{money(baseAmt)}</Low>
