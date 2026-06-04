@@ -47,3 +47,22 @@ accurate.
   aggregate or it overstates when one provider has multiple bills.
 - Home timeline, calendar rows, and lists still EXCLUDE via-card bills from money
   sums (the rule above); only the Insights breakdown attributes + nets.
+
+## Notifications + mark-paid are INCLUSIVE (asymmetry with sums)
+
+Via-card bills are excluded from money SUMS but deliberately INCLUDED in:
+- **Push notifications** — they still get reminder + nudge scheduled, but the copy
+  carries a clue (💳 + the parent card's provider name, "auto-charged to {card}")
+  so the heads-up reads as informational, not "pay this by hand". Card name is
+  resolved in `syncNotifications` (lib/notifications.ts) from `parentCardId`;
+  falls back to generic copy if the card was deleted.
+- **Mark-paid prompt** — marking a "Credit card" bill fully paid in bill detail
+  offers (Alert) to also mark its still-unpaid linked charges paid for the SAME
+  period, so the user clears the statement + its charges in one tap.
+
+**Why:** suppressing notifications for via-card bills would hide useful heads-ups;
+users still want to know a charge is about to hit their card. Do NOT "fix" sums by
+also silencing notifications — that asymmetry is intentional.
+
+**How to apply:** bulk mark-paid uses `togglePaid` (a TOGGLE), so guard each child
+with an "already paid for this period?" check before toggling to stay idempotent.

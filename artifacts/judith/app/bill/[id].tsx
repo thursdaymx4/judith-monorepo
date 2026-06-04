@@ -315,6 +315,12 @@ export default function BillDetailModal() {
   const isCC = bill.cat === "Credit card";
   const linkedCharges = isCC ? bills.filter((b) => b.parentCardId === bill.id) : [];
   const linkedTotal = linkedCharges.reduce((s, b) => s + b.amount, 0);
+  // Linked charges not yet marked paid for the month being viewed — offered for
+  // bulk "mark paid" when the card itself is paid (mirrors how a real statement
+  // settles every charge on it at once).
+  const isPaidForPeriod = (b: Bill, period: string) =>
+    (b.paymentHistory ?? []).some((r) => r.period === period && r.paid >= r.totalDue);
+  const linkedUnpaid = linkedCharges.filter((b) => !isPaidForPeriod(b, viewedPeriod));
   const parentCard = bill.chargedToCard && bill.parentCardId
     ? bills.find((b) => b.id === bill.parentCardId)
     : undefined;
@@ -594,6 +600,31 @@ export default function BillDetailModal() {
           onPress={() => {
             if (!paid) haptics.success();
             togglePaid(bill.id, viewedPeriod);
+            // Marking a credit card paid? Offer to settle the bills charged to it
+            // in one tap, so the user doesn't have to clear each one by hand.
+            if (!paid && isCC && linkedUnpaid.length > 0) {
+              const names = linkedUnpaid.map((c) => c.provider).join(", ");
+              const count = linkedUnpaid.length;
+              Alert.alert(
+                `Mark linked ${count === 1 ? "bill" : "bills"} paid too?`,
+                `${count === 1 ? "1 bill is" : `${count} bills are`} charged to this card (${names}). Mark ${count === 1 ? "it" : "them"} paid for ${periodLabel(viewedPeriod)} as well?`,
+                [
+                  { text: "Just the card", style: "cancel", onPress: () => router.back() },
+                  {
+                    text: "Yes, mark all paid",
+                    onPress: () => {
+                      // togglePaid flips state, so only act on charges still
+                      // unpaid for this period — keeps the bulk action idempotent.
+                      linkedUnpaid.forEach((c) => {
+                        if (!isPaidForPeriod(c, viewedPeriod)) togglePaid(c.id, viewedPeriod);
+                      });
+                      router.back();
+                    },
+                  },
+                ],
+              );
+              return;
+            }
             router.back();
           }}
         />

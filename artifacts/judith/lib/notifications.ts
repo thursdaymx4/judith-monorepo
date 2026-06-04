@@ -10,7 +10,7 @@
  */
 import * as Notifications from "expo-notifications";
 import { Alert, Platform } from "react-native";
-import type { Bill } from "@/constants/data";
+import { isPaidViaCard, type Bill } from "@/constants/data";
 import type { PersonaId } from "@/constants/personas";
 
 // Show alerts even when the app is foregrounded
@@ -61,9 +61,13 @@ function reminderCopy(
   persona: PersonaId,
   bill: Bill,
   leadDays: number,
+  cardName?: string,
 ): { title: string; body: string } {
   const amt = pesoStr(bill.amount);
   const soon = leadDays === 1 ? "tomorrow" : `in ${leadDays} days`;
+  // Card-linked bills are auto-charged, not paid by hand — give a heads-up with
+  // a clear clue about which card it lands on.
+  if (cardName) return cardLinkedReminderCopy(persona, bill, soon, amt, cardName);
   switch (persona) {
     case "funny":
       return {
@@ -93,8 +97,9 @@ function reminderCopy(
   }
 }
 
-function nudgeCopy(persona: PersonaId, bill: Bill): { title: string; body: string } {
+function nudgeCopy(persona: PersonaId, bill: Bill, cardName?: string): { title: string; body: string } {
   const amt = pesoStr(bill.amount);
+  if (cardName) return cardLinkedNudgeCopy(persona, bill, amt, cardName);
   switch (persona) {
     case "funny":
       return {
@@ -124,6 +129,53 @@ function nudgeCopy(persona: PersonaId, bill: Bill): { title: string; body: strin
   }
 }
 
+// ─── Card-linked copy ─────────────────────────────────────────────────────────
+// These bills are auto-charged to a credit card, so the wording shifts from
+// "pay it" to "heads-up, it lands on {card}". The 💳 + card name is the clue.
+
+function cardLinkedReminderCopy(
+  persona: PersonaId,
+  bill: Bill,
+  soon: string,
+  amt: string,
+  cardName: string,
+): { title: string; body: string } {
+  const base = `${amt} will be auto-charged to your ${cardName} card ${soon}.`;
+  switch (persona) {
+    case "funny":
+      return { title: `💳 ${bill.provider} → ${cardName}`, body: `${base} Nothing to pay by hand — just keep ${cardName} happy 😉` };
+    case "sib":
+      return { title: `💳 ${bill.provider} hits ${cardName}`, body: `${base} You don't lift a finger — consider yourself informed.` };
+    case "mama":
+      return { title: `💳 ${bill.provider} (sa ${cardName})`, body: `${base} Auto na 'to sa card mo, anak — pang-alala lang.` };
+    case "marites":
+      return { title: `💳 Psst — ${bill.provider}!`, body: `${base} Naka-charge 'to sa ${cardName} mo, ha — alam mo na!` };
+    default:
+      return { title: `💳 ${bill.provider} via ${cardName}`, body: `${base} Auto-charged to your card — just a heads-up.` };
+  }
+}
+
+function cardLinkedNudgeCopy(
+  persona: PersonaId,
+  bill: Bill,
+  amt: string,
+  cardName: string,
+): { title: string; body: string } {
+  const base = `${amt} is charged to your ${cardName} card today.`;
+  switch (persona) {
+    case "funny":
+      return { title: `💳 ${bill.provider} charges today`, body: `${base} Auto-pay's got it — just looping you in.` };
+    case "sib":
+      return { title: `💳 ${bill.provider} → ${cardName}, today`, body: `${base} No action needed. As always.` };
+    case "mama":
+      return { title: `💳 ${bill.provider} ngayong araw`, body: `${base} Auto na sa card, anak — pang-alala lang.` };
+    case "marites":
+      return { title: `💳 ${bill.provider} today!`, body: `${base} Naka-charge na sa ${cardName} — chika lang!` };
+    default:
+      return { title: `💳 ${bill.provider} via ${cardName}`, body: `${base} Auto-charged — just so you know.` };
+  }
+}
+
 // ─── Identifiers ──────────────────────────────────────────────────────────────
 
 const reminderId = (id: string) => `judith-reminder-${id}`;
@@ -134,7 +186,7 @@ const nudgeId    = (id: string) => `judith-nudge-${id}`;
 async function scheduleBill(
   bill: Bill,
   persona: PersonaId,
-  opts: { reminder: boolean; nudge: boolean; leadDays: number },
+  opts: { reminder: boolean; nudge: boolean; leadDays: number; cardName?: string },
 ): Promise<void> {
   const now = new Date();
 
@@ -149,7 +201,7 @@ async function scheduleBill(
     const fireAt = new Date(dueAt);
     fireAt.setDate(dueAt.getDate() - opts.leadDays);
     if (fireAt > now) {
-      const copy = reminderCopy(persona, bill, opts.leadDays);
+      const copy = reminderCopy(persona, bill, opts.leadDays, opts.cardName);
       ops.push(
         Notifications.scheduleNotificationAsync({
           identifier: reminderId(bill.id),
@@ -161,7 +213,7 @@ async function scheduleBill(
   }
 
   if (opts.nudge && dueAt > now) {
-    const copy = nudgeCopy(persona, bill);
+    const copy = nudgeCopy(persona, bill, opts.cardName);
     ops.push(
       Notifications.scheduleNotificationAsync({
         identifier: nudgeId(bill.id),
@@ -209,8 +261,13 @@ export async function syncNotifications(
 
   const unpaid = bills.filter((b) => b.status !== "paid" && b.dueDays >= 0);
   await Promise.allSettled(
-    unpaid.map((bill) =>
-      scheduleBill(bill, persona, { ...opts, leadDays: 3 }),
-    ),
+    unpaid.map((bill) => {
+      // Card-linked bills still get notified, but with a clue naming the card
+      // they're auto-charged to. Falls back to no clue if the card is gone.
+      const cardName = isPaidViaCard(bill)
+        ? bills.find((c) => c.id === bill.parentCardId)?.provider
+        : undefined;
+      return scheduleBill(bill, persona, { ...opts, leadDays: 3, cardName });
+    }),
   );
 }
