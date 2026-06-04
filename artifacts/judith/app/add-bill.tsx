@@ -31,6 +31,7 @@ export default function AddBillScreen() {
   const [house, setHouse] = useState(existing?.house ?? "");
   const [isBusiness, setIsBusiness] = useState(existing?.isBusiness ?? false);
   const [remDays, setRemDays] = useState(existing?.reminderDays ?? 3);
+  const [statementDay, setStatementDay] = useState(existing?.statementDay ?? 5);
   const [err, setErr] = useState("");
 
   const suggestions = useMemo(() => getProviders(country.code, cat), [country.code, cat]);
@@ -61,6 +62,7 @@ export default function AddBillScreen() {
       house: house.trim() || undefined,
       isBusiness: isBusiness || undefined,
       reminderDays: remDays,
+      statementDay: cat === "Credit card" ? statementDay : undefined,
     });
 
     if (isEdit && existing) {
@@ -278,7 +280,42 @@ export default function AddBillScreen() {
           </Low>
         </View>
 
-
+        {/* CC: statement release day */}
+        {cat === "Credit card" && (
+          <View style={{ marginTop: 20 }}>
+            <FieldLabel text="Statement release day" />
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+              <Pressable
+                onPress={() => setStatementDay((d) => Math.max(1, d - 1))}
+                style={{
+                  width: 42, height: 42, borderRadius: 13, borderWidth: 1,
+                  borderColor: t.hair, backgroundColor: t.surface2,
+                  alignItems: "center", justifyContent: "center",
+                }}
+              >
+                <Text style={{ fontSize: 22, color: t.txtMid, lineHeight: 26 }}>−</Text>
+              </Pressable>
+              <View style={{ alignItems: "center", minWidth: 64 }}>
+                <Mono size={24} weight="bold">{statementDay}</Mono>
+                <Low size={11} style={{ marginTop: 1 }}>of the month</Low>
+              </View>
+              <Pressable
+                onPress={() => setStatementDay((d) => Math.min(28, d + 1))}
+                style={{
+                  width: 42, height: 42, borderRadius: 13, borderWidth: 1,
+                  borderColor: t.hair, backgroundColor: t.surface2,
+                  alignItems: "center", justifyContent: "center",
+                }}
+              >
+                <Icon name="plus" size={18} color={t.txtMid} />
+              </Pressable>
+            </View>
+            <Low size={12} style={{ marginTop: 7 }}>
+              When does your bank release your monthly statement? Judith will nudge you
+              on that day to update this bill's amount.
+            </Low>
+          </View>
+        )}
 
         {/* reminder days stepper */}
         <View style={{ marginTop: 20 }}>

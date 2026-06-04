@@ -30,6 +30,7 @@ export const CAT_COLORS: Record<string, string> = {
   Internet: "#a289f8",
   Mobile: "#3cc998",
   Landline: "#7c9cbc",
+  "Credit card": "#f75c61",
   Subscription: "#df86d7",
   Custom: "#909fb8",
   "TV / Streaming": "#df86d7",

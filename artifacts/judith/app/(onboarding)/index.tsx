@@ -127,7 +127,7 @@ const VGROUPS: VGroup[] = [
   { label: "The essentials", done: "Your essentials are in.", note: "Power, water, internet — the must-pays. Take a breath; this is saved.", askTitle: "Any other utilities?", askSub: "Another meter, association dues, garbage, gas?", addLabel: "Add another bill" },
   { label: "Subscriptions", done: "Subscriptions, logged.", note: "Phone, streaming, apps — the silent drainers. Saved and safe.", askTitle: "Any other subscriptions?", askSub: "Gaming, news, cloud storage, that free trial that wasn’t?", addLabel: "Add a subscription" },
   { label: "Insurance", done: "Insurance policies noted.", note: "Health, car, life \u2014 the policies that protect you. All saved.", askTitle: "Any other insurance?", askSub: "Life insurance, travel insurance, home cover?", addLabel: "Add insurance" },
-  { label: "Loans", done: "", note: "" },
+  { label: "Cards & loans", done: "", note: "" },
 ];
 
 const VLOCAL = {
@@ -148,6 +148,7 @@ const MANUAL_CATS: { cat: string; icon: string }[] = [
   { cat: "Mobile", icon: "smartphone" },
   { cat: "TV / Streaming", icon: "spark" },
   { cat: "Insurance", icon: "lock" },
+  { cat: "Credit card", icon: "card" },
   { cat: "Personal loan", icon: "wallet" },
   { cat: "Other", icon: "plus" },
 ];
@@ -220,7 +221,7 @@ function useOnbVoice(line: string, persona: PersonaId, language = "en") {
 
 
 
-const VARIABLE_CATS = ["Electricity", "Water", "Mobile"];
+const VARIABLE_CATS = ["Electricity", "Water", "Mobile", "Credit card"];
 const kindFor = (cat: string): "Fixed" | "Variable" =>
   VARIABLE_CATS.indexOf(cat) >= 0 ? "Variable" : "Fixed";
 
@@ -1383,6 +1384,7 @@ function ScreenProblem({ ctx }: { ctx: Ctx }) {
     { icon: "droplet", cat: "Water" },
     { icon: "wifi", cat: "Internet" },
     { icon: "smartphone", cat: "Mobile" },
+    { icon: "card", cat: "Credit card" },
     { icon: "spark", cat: "Netflix" },
     { icon: "spark", cat: "Spotify" },
     { icon: "spark", cat: "iCloud+" },
@@ -1803,7 +1805,7 @@ function ScreenIntro({ ctx }: { ctx: Ctx }) {
             { icon: "home",  label: "Essentials",    sub: "Rent, power, water, internet",  hint: "~4 bills" },
             { icon: "spark", label: "Subscriptions", sub: "Phone, streaming, apps",        hint: "~3 bills" },
             { icon: "lock",  label: "Insurance",     sub: "Health, car, life cover",       hint: "skip if none" },
-            { icon: "wallet", label: "Loans",          sub: "Personal, car, or housing loans", hint: "skip if none" },
+            { icon: "card",  label: "Cards & loans", sub: "Credit cards, personal loans",  hint: "skip if none" },
           ];
           return (
             <View style={{ alignSelf: "stretch", marginTop: 22 }}>
@@ -1941,8 +1943,10 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const [formCat, setFormCat] = useState<{ cat: string; icon: string } | null>(null);
   const [manualReturn, setManualReturn] = useState<VMode>("prompt");
   const [form, setForm] = useState<{ provider: string; amount: string; due: string; kind: "Fixed" | "Variable"; subtype?: string; house?: string }>({ provider: "", amount: "", due: "", kind: "Fixed", house: HOUSES[0] });
-  const [phase, setPhase] = useState<"scripted" | "loans">("scripted");
+  const [phase, setPhase] = useState<"scripted" | "cards" | "loans">("scripted");
   const [breatherGroup, setBreatherGroup] = useState(0);
+  const [cardN, setCardN] = useState(0);
+  const [cardDone, setCardDone] = useState(0);
   const [loanN, setLoanN] = useState(0);
   const [loanDone, setLoanDone] = useState(0);
   const [screenshotStatus, setScreenshotStatus] = useState<"idle" | "loading" | "editing">("idle");
@@ -1957,9 +1961,11 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
 
   const scriptedItem = SAMPLES[Math.min(idx, SAMPLES.length - 1)]!;
   const sample: Sample =
-    phase === "loans"
-      ? { ...LOAN_TEMPLATES[loanDone % LOAN_TEMPLATES.length]!, cat: "Personal loan", icon: "wallet", group: 3 }
-      : scriptedItem;
+    phase === "cards"
+      ? { ...CARD_TEMPLATES[cardDone % CARD_TEMPLATES.length]!, cat: "Credit card", icon: "card", group: 2 }
+      : phase === "loans"
+        ? { ...LOAN_TEMPLATES[loanDone % LOAN_TEMPLATES.length]!, cat: "Personal loan", icon: "wallet", group: 3 }
+        : scriptedItem;
 
   const done = mode === "done";
 
@@ -1970,6 +1976,13 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     setScreenshotStatus("idle");
     setScreenshotBills([]);
     setDraftSubs([]);
+    if (phase === "cards") {
+      const d = cardDone + 1;
+      setCardDone(d);
+      if (d >= cardN) startLoans();
+      else setMode("prompt");
+      return;
+    }
     if (phase === "loans") {
       const d = loanDone + 1;
       setLoanDone(d);
@@ -2022,14 +2035,21 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     advanceAfterItem();
   };
   const skipOne = () => advanceAfterItem();
+  const startCards = () => { setPhase("cards"); setCardDone(0); setMode("count"); };
   const startLoans = () => { setPhase("loans"); setLoanDone(0); setMode("count"); };
   const chooseCount = (k: number) => {
-    setLoanN(k);
-    if (k === 0) setMode("more");
-    else { setLoanDone(0); setMode("prompt"); }
+    if (phase === "cards") {
+      setCardN(k);
+      if (k === 0) startLoans();
+      else { setCardDone(0); setMode("prompt"); }
+    } else {
+      setLoanN(k);
+      if (k === 0) setMode("more");
+      else { setLoanDone(0); setMode("prompt"); }
+    }
   };
   const openForm = (c: { cat: string; icon: string }) => {
-    const presets: Record<string, string> = { "Rent / Mortgage": "18000", Electricity: "3450", Water: "890", Internet: "1699", Mobile: "999", "TV / Streaming": "549" };
+    const presets: Record<string, string> = { "Rent / Mortgage": "18000", Electricity: "3450", Water: "890", Internet: "1699", Mobile: "999", "TV / Streaming": "549", "Credit card": "5200" };
     setFormCat(c);
     setForm({ provider: "", amount: presets[c.cat] || "", due: "", kind: kindFor(c.cat), subtype: c.cat === "Rent / Mortgage" ? "Rent" : undefined, house: HOUSES[0] });
     setMode("manualForm");
@@ -2287,15 +2307,19 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     setShowDayPicker(false);
     formEnterAnim.setValue(0);
     Animated.timing(formEnterAnim, { toValue: 1, duration: 380, easing: Easing.bezier(0.2, 0.8, 0.2, 1), useNativeDriver: true }).start();
-  }, [idx, loanDone, phase]);
+  }, [idx, cardDone, loanDone, phase]);
 
   const isFil = isFilipino(language);
   const promptText =
-    phase === "loans"
+    phase === "cards"
       ? isFil
-        ? `Loan ${loanDone + 1} ng ${loanN} — sinong nagpahiram, magkano monthly, at kailan due?`
-        : `Loan ${loanDone + 1} of ${loanN} — lender, the monthly amount, and the due date?`
-      : JUDITH_VOICE.billTextPrompts[sample.cat]?.[isFil ? "fil" : "en"] ?? (isFil ? "Sabihin mo ang tungkol sa bill na ito." : "Tell me about this bill.");
+        ? `Card ${cardDone + 1} ng ${cardN} — anong bangko, magkano ang due, at kailan?`
+        : `Card ${cardDone + 1} of ${cardN} — which bank, the amount due, and the date?`
+      : phase === "loans"
+        ? isFil
+          ? `Loan ${loanDone + 1} ng ${loanN} — sinong nagpahiram, magkano monthly, at kailan due?`
+          : `Loan ${loanDone + 1} of ${loanN} — lender, the monthly amount, and the due date?`
+        : JUDITH_VOICE.billTextPrompts[sample.cat]?.[isFil ? "fil" : "en"] ?? (isFil ? "Sabihin mo ang tungkol sa bill na ito." : "Tell me about this bill.");
 
   // Voice line — intentionally different from promptText so Judith isn't
   // just reading the screen aloud. Canned, shorter, more natural.
@@ -2306,9 +2330,11 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     mode === "breather"
       ? (breatherGroup === 0 ? bv.breather0 : breatherGroup === 1 ? bv.breather1 : bv.breather2)[l]
     : mode === "count"
-      ? bv.countLoans[l]
+      ? (phase === "cards" ? bv.countCards : bv.countLoans)[l]
     : mode === "more"
       ? bv.more[l](bills.length)
+    : phase === "cards"
+      ? cardDone === 0 ? bv.cardFirst[l] : bv.cardNext[l](cardDone + 1)
     : phase === "loans"
       ? loanDone === 0 ? bv.loanFirst[l] : bv.loanNext[l](loanDone + 1)
     : JUDITH_VOICE.billVoice[persona][l][sample.cat] ?? (isFil ? "Ano pa?" : "Go ahead.");
@@ -2321,7 +2347,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       mode === "breather" ? `breather-${breatherGroup}` :
       mode === "count"    ? `count-${phase}` :
       mode === "more"     ? "more" :
-                            `prompt-${phase}-${idx}-${loanDone}`;
+                            `prompt-${phase}-${idx}-${cardDone}-${loanDone}`;
     if (key === lastPlayedPromptKey.current) return;
     lastPlayedPromptKey.current = key;
     if (!voiceText) return;
@@ -2335,7 +2361,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       cancelled = true;
       stopCurrentAudio();
     };
-  }, [mode, phase, idx, loanDone, breatherGroup, voiceText, persona, language]);
+  }, [mode, phase, idx, cardDone, loanDone, breatherGroup, voiceText, persona, language]);
 
   const progress = Math.min(idx + (mode === "done" ? 0 : 1), SAMPLES.length);
   const showConvo = mode === "prompt" || mode === "listening" || mode === "transcribing" || mode === "parsed";
@@ -2374,9 +2400,11 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
             <Low size={11} style={{ marginLeft: 6 }}>Bill {progress} of {SAMPLES.length}</Low>
           </View>
         )}
-        {phase === "loans" && showConvo && (
+        {(phase === "cards" || phase === "loans") && showConvo && (
           <View style={{ marginTop: 10 }}>
-            <Low size={11}>{`Loan ${loanDone + 1} of ${loanN}`}</Low>
+            <Low size={11}>
+              {phase === "cards" ? `Card ${cardDone + 1} of ${cardN}` : `Loan ${loanDone + 1} of ${loanN}`}
+            </Low>
           </View>
         )}
 
@@ -2557,9 +2585,43 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
               <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
                 <JudithAvatar persona={persona} size={44} state="speaking" />
                 <JudithLine style={{ flex: 1 }}>
-                  {"And loans — personal, car, housing, anything. How many?"}
+                  {phase === "cards"
+                    ? "Now the heavy hitters. How many credit cards do you have? I’ll take them one at a time."
+                    : "And loans — personal, car, housing, anything. How many?"}
                 </JudithLine>
               </View>
+              {/* Card recap — shown when moving to the loans phase */}
+              {phase === "loans" && bills.filter((b) => b.cat === "Credit card").length > 0 && (() => {
+                const cards = bills.filter((b) => b.cat === "Credit card");
+                const cardTotal = cards.reduce((s, b) => s + b.amount, 0);
+                return (
+                  <View style={{ alignSelf: "stretch", marginTop: 14 }}>
+                    <Low size={11} style={{ marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>Cards logged · {cur}{fmtNum(cardTotal)}/mo</Low>
+                    <View style={{ borderRadius: 12, borderWidth: 1, borderColor: t.hair, overflow: "hidden" }}>
+                      {cards.map((b, i) => (
+                        <View
+                          key={`card-${i}`}
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 10,
+                            paddingVertical: 10,
+                            paddingHorizontal: 14,
+                            borderBottomWidth: i < cards.length - 1 ? 1 : 0,
+                            borderBottomColor: t.hair,
+                            backgroundColor: t.surface2,
+                          }}
+                        >
+                          <Icon name="card" size={13} color={t.accent} />
+                          <Txt size={13} weight="medium" style={{ flex: 1 }} numberOfLines={1}>{b.provider}</Txt>
+                          <Low size={11} style={{ marginRight: 6 }}>{b.due}</Low>
+                          <Mono size={13} weight="semibold">{cur}{fmtNum(b.amount)}</Mono>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                );
+              })()}
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 9, marginTop: 16 }}>
                 {[0, 1, 2, 3, 4, 5].map((k) => (
                   <Pressable
@@ -2737,14 +2799,14 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                     ))}
                   </View>
                 )}
-                {(["Subscriptions", "Insurance", "Loans"] as const)[breatherGroup] && (
+                {(["Subscriptions", "Insurance", "Cards & loans"] as const)[breatherGroup] && (
                   <View style={{
                     flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14,
                     alignSelf: "stretch", paddingVertical: 9, paddingHorizontal: 12,
                     borderRadius: 12, borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface2,
                   }}>
                     <Low size={12}>Next up:</Low>
-                    <Txt size={12} weight="semibold">{(["Subscriptions", "Insurance", "Loans"] as const)[breatherGroup]}</Txt>
+                    <Txt size={12} weight="semibold">{(["Subscriptions", "Insurance", "Cards & loans"] as const)[breatherGroup]}</Txt>
                   </View>
                 )}
               </View>
@@ -2757,8 +2819,9 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
               { label: "Essentials", filter: (b: OnbBill) => ["Rent / Mortgage","Electricity","Water","Internet"].includes(b.cat) },
               { label: "Subscriptions", filter: (b: OnbBill) => ["Mobile","Phone subscription","TV / Streaming","Web app"].includes(b.cat) },
               { label: "Insurance", filter: (b: OnbBill) => b.cat === "Insurance" },
+              { label: "Cards", filter: (b: OnbBill) => b.cat === "Credit card" },
               { label: "Loans", filter: (b: OnbBill) => b.cat === "Personal loan" },
-              { label: "Other", filter: (b: OnbBill) => !["Rent / Mortgage","Electricity","Water","Internet","Mobile","Phone subscription","TV / Streaming","Web app","Insurance","Personal loan"].includes(b.cat) },
+              { label: "Other", filter: (b: OnbBill) => !["Rent / Mortgage","Electricity","Water","Internet","Mobile","Phone subscription","TV / Streaming","Web app","Insurance","Credit card","Personal loan"].includes(b.cat) },
             ].map(s => ({ ...s, items: bills.filter(s.filter) })).filter(s => s.items.length > 0);
             return (
               <View style={{ alignItems: "center" }}>
@@ -2770,7 +2833,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                 </Low>
                 <JudithAvatar persona={persona} size={68} state="speaking" />
                 <JudithLine style={{ marginTop: 12 }}>
-                  That’s {bills.length} so far — {cur}{fmtNum(total)}/mo. Any more loans, or anything else? Gym, insurance, tuition? Let’s not miss any.
+                  That’s {bills.length} so far — {cur}{fmtNum(total)}/mo. Any more cards, loans, or anything else? Gym, insurance, tuition? Let’s not miss any.
                 </JudithLine>
                 {moreSections.length > 0 && (
                   <View style={{ alignSelf: "stretch", marginTop: 14, gap: 12 }}>
@@ -3054,7 +3117,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
           return (
             <>
               <Btn label={g.addLabel} icon="plus" variant="soft" onPress={() => { setManualReturn("breather"); setMode("manualCats"); }} />
-              <Btn label="Keep going →" onPress={() => { if (breatherGroup === 2) startLoans(); else setMode("prompt"); }} />
+              <Btn label="Keep going →" onPress={() => { if (breatherGroup === 2) startCards(); else setMode("prompt"); }} />
             </>
           );
         })()}

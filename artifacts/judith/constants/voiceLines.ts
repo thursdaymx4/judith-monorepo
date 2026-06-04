@@ -26,8 +26,11 @@ export type BillFlow = {
   breather0:  VoiceLine;
   breather1:  VoiceLine;
   breather2:  VoiceLine;
+  countCards: VoiceLine;
   countLoans: VoiceLine;
   more:       { en: (n: number) => string; fil: (n: number) => string };
+  cardFirst:  VoiceLine;
+  cardNext:   { en: (n: number) => string; fil: (n: number) => string };
   loanFirst:  VoiceLine;
   loanNext:   { en: (n: number) => string; fil: (n: number) => string };
 };
@@ -295,8 +298,11 @@ export const JUDITH_VOICE = {
       breather0:  { en: "Essentials locked in — power, water, internet. All saved.", fil: "Essentials, naka-save na. Kuryente, tubig, internet — done." },
       breather1:  { en: "Subscriptions logged. The quiet drainers are all accounted for.", fil: "Mga subscriptions, naka-log na. Wala nang makakalimutan." },
       breather2:  { en: "Insurance policies noted. The safety net is accounted for.", fil: "Insurance, naka-save na. Ang proteksyon mo — lahat logged." },
+      countCards: { en: "Now the credit cards. How many do you have?", fil: "Ngayon ang mga credit card. Ilan ang mayroon ka?" },
       countLoans: { en: "And loans — personal, car, housing. How many?", fil: "At mga loans — personal, car, bahay. Ilan?" },
       more:       { en: (n) => `${n} bills so far. Any more to add?`, fil: (n) => `${n} na bill na naka-log. May iba pa?` },
+      cardFirst:  { en: "First card — which bank, and what's the amount due?", fil: "Sa una mong card, what's your bank, due date and amount due?" },
+      cardNext:   { en: (n) => `Card ${n} — same details, which bank?`, fil: (n) => `Card ${n} — same details: bank, amount, at kelan due?` },
       loanFirst:  { en: "First loan — who's the lender, and what's the monthly payment?", fil: "Sinong nag pahiram sayo, magkano monthly at tuwing kelan mo kailangan bayaran?" },
       loanNext:   { en: (n) => `Loan ${n} — lender and monthly amount?`, fil: (n) => `Loan ${n} — sino pa, magkano monthly, at kelan?` },
     },
@@ -304,8 +310,11 @@ export const JUDITH_VOICE = {
       breather0:  { en: "Essentials done! The boring-but-critical stuff — nailed it. Look at you.", fil: "Essentials logged na! Ang boring-but-critical — nailed! Proud of you!" },
       breather1:  { en: "Subscriptions saved! All your guilty pleasures — officially on the record.", fil: "Subscriptions, naka-save na rin! Lahat ng guilty pleasures — on record na!" },
       breather2:  { en: "Insurance done! Hope you never need it — but now Judith tracks it so you never miss a payment.", fil: "Insurance, logged na rin! Sana hindi mo kailanman gamitin — pero naka-track na natin." },
+      countCards: { en: "Okay, credit cards. How many are silently judging you right now?", fil: "Sige, credit cards! Ilan ba ang tahimik na naghahari sa'yo?" },
       countLoans: { en: "Loans — the long-term commitment kind. How many?", fil: "Loans — ang pangmatagalang pakikipagtulungan. Ilan?" },
       more:       { en: (n) => `${n} bills down! Any more to confess?`, fil: (n) => `${n} bills na! May iba pa bang gustong i-admit?` },
+      cardFirst:  { en: "First card — which bank, and how much is the damage?", fil: "Una — anong bangko at magkano ang damage?" },
+      cardNext:   { en: (n) => `Card ${n} — which bank and how much?`, fil: (n) => `Card ${n} — anong bangko at magkano?` },
       loanFirst:  { en: "First loan — who do you owe, and how much a month?", fil: "Sinong pinagkakautangan, at magkano monthly?" },
       loanNext:   { en: (n) => `Loan ${n} — who and how much?`, fil: (n) => `Loan ${n} — sino at magkano?` },
     },
@@ -313,8 +322,11 @@ export const JUDITH_VOICE = {
       breather0:  { en: "Essentials noted. Power, water, internet — very predictable. Good.", fil: "Essentials. Naka-save. Ayos." },
       breather1:  { en: "Subscriptions. All logged. You're welcome.", fil: "Mga subscriptions. Naka-save. Tapos na." },
       breather2:  { en: "Insurance. All logged.", fil: "Insurance. Naka-save. Ayos." },
+      countCards: { en: "Credit cards. Of course. How many?", fil: "Credit cards. Syempre. Ilan?" },
       countLoans: { en: "And loans. How deep does this go?", fil: "At mga loans. Hanggang saan ba to?" },
       more:       { en: (n) => `${n} bills. Anything else you've been avoiding?`, fil: (n) => `${n} na bills. May iba pa bang iniiwasan?` },
+      cardFirst:  { en: "Which bank, and how much are you ignoring right now?", fil: "Anong bangko, at magkano ang iniiwan mo?" },
+      cardNext:   { en: (n) => `Card ${n} — bank and amount.`, fil: (n) => `Card ${n} — bangko at halaga.` },
       loanFirst:  { en: "Who's the lender, and how much a month?", fil: "Sino ang nagpahiram at magkano monthly?" },
       loanNext:   { en: (n) => `Loan ${n} — who and how much.`, fil: (n) => `Loan ${n} — sino at magkano.` },
     },
@@ -322,8 +334,11 @@ export const JUDITH_VOICE = {
       breather0:  { en: "Good anak, essentials are all saved — power, water, internet. Done.", fil: "Maganda anak, essentials naka-save na. Kuryente, tubig, internet — done." },
       breather1:  { en: "Subscriptions saved na anak. Good job keeping track.", fil: "Subscriptions naka-save na rin anak. Magaling ka talaga." },
       breather2:  { en: "Good anak, your insurance policies are all saved. Very responsible of you.", fil: "Maganda anak, insurance naka-save na rin. Ang sipag mo talaga." },
+      countCards: { en: "Now anak, the credit cards. How many do you have?", fil: "Ngayon anak, ang mga credit card. Ilan ang mayroon ka?" },
       countLoans: { en: "And any loans anak — personal, car, anything. How many?", fil: "At mga loans anak — personal, car, kahit ano. Ilan?" },
       more:       { en: (n) => `${n} bills na anak. Any more we should add?`, fil: (n) => `${n} bills na anak. May iba pa ba tayong idadagdag?` },
+      cardFirst:  { en: "First card anak — which bank, and how much is due?", fil: "Sa una mong card anak, anong bangko, due date at magkano ang due?" },
+      cardNext:   { en: (n) => `Card ${n} anak — same, which bank and amount?`, fil: (n) => `Card ${n} anak — anong bangko at magkano?` },
       loanFirst:  { en: "First loan anak — who's the lender and how much monthly?", fil: "Sinong nag pahiram sayo anak, magkano monthly at tuwing kelan mo kailangan bayaran?" },
       loanNext:   { en: (n) => `Loan ${n} anak — lender and monthly amount?`, fil: (n) => `Loan ${n} anak — sino at magkano monthly?` },
     },
@@ -331,8 +346,11 @@ export const JUDITH_VOICE = {
       breather0:  { en: "Grabe! Essentials naka-save na! Power, water, internet — logged na lahat besh!", fil: "Grabe! Essentials naka-save na! Kuryente, tubig, internet — done na. Hinga muna." },
       breather1:  { en: "Ay! Subscriptions, saved na rin! Ang dami mo palang bayarin besh!", fil: "Mga subscriptions, naka-save! Wala nang makakalimutan." },
       breather2:  { en: "Ay grabe! Insurance naka-save na rin! Besh ang dami mong proteksyon — respect!", fil: "Ay! Insurance, naka-log na rin! Grabe ka besh, ang haba ng listahan mo!" },
+      countCards: { en: "Ay besh, credit cards na! Ilan ba?! Tell me everything!", fil: "Ngayon ang mga credit card. Ilan ang mayroon ka? Isa-isahin natin." },
       countLoans: { en: "At loans pa?! Grabe, may mga utang pa! Ilan?", fil: "At loans — personal, car, bahay, kahit ano. Ilan?" },
-      more:       { en: (n) => `${n} bills na besh! May iba pa bang chismis — I mean, bills?`, fil: (n) => `${n} na bill na logged. May iba pa? Loans, gym, insurance?` },
+      more:       { en: (n) => `${n} bills na besh! May iba pa bang chismis — I mean, bills?`, fil: (n) => `${n} na bill na logged. May iba pa? Cards, loans, gym, insurance?` },
+      cardFirst:  { en: "Sa una mong card, what's your bank, due date and amount due?", fil: "Sa una mong card, what's your bank, due date and amount due?" },
+      cardNext:   { en: (n) => `Card ${n} — same details: bank, amount, due date?`, fil: (n) => `Card ${n} — same details: bank, amount, at kelan due?` },
       loanFirst:  { en: "Sinong nag pahiram sayo, magkano monthly at tuwing kelan mo kailangan bayaran?", fil: "Sinong nag pahiram sayo, magkano monthly at tuwing kelan mo kailangan bayaran?" },
       loanNext:   { en: (n) => `Loan ${n} — sino pa, magkano monthly, at kelan?`, fil: (n) => `Loan ${n} — sino pa, magkano monthly, at kelan?` },
     },
