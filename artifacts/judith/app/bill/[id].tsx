@@ -306,7 +306,7 @@ export default function BillDetailModal() {
   const daysLate = overdue ? Math.round((today.getTime() - viewedDueDate.getTime()) / 86400000) : 0;
   const daysUntilDue = Math.round((viewedDueDate.getTime() - today.getTime()) / 86400000);
 
-  const partial = isCurrentPeriod && isPartialBill(bill);
+  const partial = (isCurrentPeriod || isFuturePeriod) && isPartialBill(bill);
   const owed = totalOwed(bill);
   const viewedOwed = isFuturePeriod ? bill.amount : owed;
   const pct = partialPct(bill);
@@ -336,11 +336,11 @@ export default function BillDetailModal() {
   const handlePayPartial = () => {
     const amt = parseFloat(input.replace(/,/g, ""));
     if (isNaN(amt) || amt <= 0) return;
-    payPartial(bill.id, amt);
+    payPartial(bill.id, amt, viewedPeriod);
     setInput("");
     setShowInput(false);
     haptics.success();
-    const rem = owed - amt;
+    const rem = viewedOwed - amt;
     if (rem > 0) {
       Alert.alert(
         "Payment recorded",
@@ -585,8 +585,8 @@ export default function BillDetailModal() {
           }}
         />
 
-        {/* Partial payment and CC update — only meaningful for the current period */}
-        {!paid && isCurrentPeriod && (
+        {/* Partial payment — available for current and future periods */}
+        {!paid && (isCurrentPeriod || isFuturePeriod) && (
           <Btn
             label={showInput ? "Cancel" : partial ? "Update partial" : "Pay partial"}
             variant="soft"
@@ -674,7 +674,7 @@ export default function BillDetailModal() {
               value={input}
               onChangeText={setInput}
               keyboardType="decimal-pad"
-              placeholder={Math.round(owed * 0.5).toLocaleString()}
+              placeholder={Math.round(viewedOwed * 0.5).toLocaleString()}
               placeholderTextColor={t.txtLow}
               style={{ fontFamily: t.fonts.mono, fontSize: 24, color: t.txtHi, paddingVertical: 4, flex: 1 }}
             />

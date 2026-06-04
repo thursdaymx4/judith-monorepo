@@ -123,7 +123,7 @@ interface JudithStoreValue extends PersistShape {
   saveBill: (bill: Bill) => void;
   deleteBill: (id: string) => void;
   /** Record a partial (or full) cumulative payment amount for a bill. */
-  payPartial: (id: string, amountPaid: number) => void;
+  payPartial: (id: string, amountPaid: number, period?: string) => void;
   /** Roll any unpaid balance forward as carryOver and reset this cycle. */
   rolloverBill: (id: string) => void;
   /**
@@ -296,21 +296,23 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
         }),
       deleteBill: (id) =>
         setState((s) => ({ ...s, bills: s.bills.filter((b) => b.id !== id) })),
-      payPartial: (id, amountPaid) => {
+      payPartial: (id, amountPaid, period) => {
         const today = new Date();
         setState((s) => ({
           ...s,
           bills: s.bills.map((b) => {
             if (b.id !== id) return b;
-            const cp = computeNaturalPeriod(b, today);
-            const owed = b.amount + (b.carryOver ?? 0);
+            const cp = period ?? computeNaturalPeriod(b, today);
+            const isFuture = cp > computeNaturalPeriod(b, today);
+            // Future months have no carry-in
+            const owed = isFuture ? b.amount : b.amount + (b.carryOver ?? 0);
             if (amountPaid >= owed) {
               const [pYr, pMo] = cp.split("-").map(Number) as [number, number];
               const dueDateForPeriod = new Date(pYr, pMo - 1, Math.min(b.dueDate ?? 1, _daysInMonth(pYr, pMo - 1)));
               const record: BillCycleRecord = {
                 period: cp,
                 charged: b.amount,
-                carriedIn: b.carryOver ?? 0,
+                carriedIn: isFuture ? 0 : (b.carryOver ?? 0),
                 totalDue: owed,
                 paid: owed,
                 rolledOver: 0,
