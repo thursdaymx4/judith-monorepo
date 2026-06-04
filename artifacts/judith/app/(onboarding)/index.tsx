@@ -211,7 +211,7 @@ function useOnbVoice(line: string, persona: PersonaId, language = "en") {
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  });
+  }, []);
 }
 
 
