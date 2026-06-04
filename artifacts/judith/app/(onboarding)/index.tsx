@@ -1881,7 +1881,6 @@ type VMode =
   | "parsed"
   | "manualCats"
   | "manualForm"
-  | "cardLink"
   | "breather"
   | "more"
   | "count"
@@ -1931,7 +1930,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     if (silenceRef.current.timer !== null) { clearTimeout(silenceRef.current.timer); silenceRef.current.timer = null; }
   };
 
-  const [mode, setMode] = useState<VMode>("prompt");
+  const [mode, setMode] = useState<VMode>("count");
   const [idx, setIdx] = useState(0);
   const [heardText, setHeardText] = useState("");
   const [err, setErr] = useState("");
@@ -1945,8 +1944,8 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   } | null>(null);
   const [formCat, setFormCat] = useState<{ cat: string; icon: string } | null>(null);
   const [manualReturn, setManualReturn] = useState<VMode>("prompt");
-  const [form, setForm] = useState<{ provider: string; amount: string; due: string; kind: "Fixed" | "Variable"; subtype?: string; house?: string }>({ provider: "", amount: "", due: "", kind: "Fixed", house: HOUSES[0] });
-  const [phase, setPhase] = useState<"scripted" | "cards" | "loans">("scripted");
+  const [form, setForm] = useState<{ provider: string; amount: string; due: string; kind: "Fixed" | "Variable"; subtype?: string; house?: string; chargedToCard?: boolean; parentCardId?: string }>({ provider: "", amount: "", due: "", kind: "Fixed", house: HOUSES[0] });
+  const [phase, setPhase] = useState<"scripted" | "cards" | "loans">("cards");
   const [breatherGroup, setBreatherGroup] = useState(0);
   const [cardN, setCardN] = useState(0);
   const [cardDone, setCardDone] = useState(0);
@@ -1958,9 +1957,6 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const [draftSubs, setDraftSubs] = useState<DraftSub[]>([]);
   const [parsedEditing, setParsedEditing] = useState(false);
   const [parsedEdits, setParsedEdits] = useState<{ provider: string; amount: string; dueDay: string; kind: "Fixed" | "Variable"; frequency: "monthly" | "annual" }>({ provider: "", amount: "", dueDay: "", kind: "Fixed", frequency: "monthly" });
-  const [pendingBill, setPendingBill] = useState<OnbBill | null>(null);
-  const [cardLinkPick, setCardLinkPick] = useState(false);
-  const cardLinkAfter = useRef<() => void>(() => {});
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [showDayPicker, setShowDayPicker] = useState(false);
   const formEnterAnim = useRef(new Animated.Value(0)).current;
@@ -1985,7 +1981,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     if (phase === "cards") {
       const d = cardDone + 1;
       setCardDone(d);
-      if (d >= cardN) startLoans();
+      if (d >= cardN) startScripted();
       else setMode("prompt");
       return;
     }
@@ -2035,19 +2031,8 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     after();
   };
 
-  /** Save `b`, but first offer the credit-card link step when eligible. */
-  const saveWithCardLink = (b: OnbBill, after: () => void) => {
-    if (canLinkCard(b.cat)) {
-      cardLinkAfter.current = after;
-      setPendingBill(b);
-      setCardLinkPick(false);
-      setMode("cardLink");
-      return;
-    }
-    commitBill(b, after);
-  };
-
   const confirm = () => {
+    const linkCard = canLinkCard(sample.cat) && !!form.chargedToCard;
     const b: OnbBill = {
       provider: parsedBill?.provider || sample.provider,
       cat: sample.cat,
@@ -2059,16 +2044,17 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       frequency: parsedBill?.frequency ?? "monthly",
       subtype: sample.subtype,
       house: HOUSES[0],
+      ...(linkCard ? { chargedToCard: true, parentCardId: form.parentCardId } : {}),
     };
-    saveWithCardLink(b, advanceAfterItem);
+    commitBill(b, advanceAfterItem);
   };
   const skipOne = () => advanceAfterItem();
-  const startCards = () => { setPhase("cards"); setCardDone(0); setMode("count"); };
+  const startScripted = () => { setPhase("scripted"); setIdx(0); setMode("prompt"); };
   const startLoans = () => { setPhase("loans"); setLoanDone(0); setMode("count"); };
   const chooseCount = (k: number) => {
     if (phase === "cards") {
       setCardN(k);
-      if (k === 0) startLoans();
+      if (k === 0) startScripted();
       else { setCardDone(0); setMode("prompt"); }
     } else {
       setLoanN(k);
@@ -2079,12 +2065,13 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const openForm = (c: { cat: string; icon: string }) => {
     const presets: Record<string, string> = { "Rent / Mortgage": "18000", Electricity: "3450", Water: "890", Internet: "1699", Mobile: "999", "TV / Streaming": "549", "Credit card": "5200" };
     setFormCat(c);
-    setForm({ provider: "", amount: presets[c.cat] || "", due: "", kind: kindFor(c.cat), subtype: c.cat === "Rent / Mortgage" ? "Rent" : undefined, house: HOUSES[0] });
+    setForm({ provider: "", amount: presets[c.cat] || "", due: "", kind: kindFor(c.cat), subtype: c.cat === "Rent / Mortgage" ? "Rent" : undefined, house: HOUSES[0], chargedToCard: false, parentCardId: undefined });
     setMode("manualForm");
   };
   const saveForm = () => {
     const cat = formCat ?? (phase === "scripted" ? { cat: sample.cat, icon: sample.icon } : null);
     if (!cat) return;
+    const linkCard = canLinkCard(cat.cat) && !!form.chargedToCard;
     const b: OnbBill = {
       provider: form.provider || cat.cat,
       cat: cat.cat,
@@ -2095,12 +2082,13 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       kind: form.kind || kindFor(cat.cat),
       subtype: form.subtype,
       house: form.house,
+      ...(linkCard ? { chargedToCard: true, parentCardId: form.parentCardId } : {}),
     };
     const after = () => {
       if (manualReturn === "prompt") advanceAfterItem();
       else setMode(manualReturn);
     };
-    saveWithCardLink(b, after);
+    commitBill(b, after);
   };
 
   /* Screenshot upload — encouraged for Phone subscription category */
@@ -2315,7 +2303,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   useEffect(() => {
     if (phase === "scripted" && sample.cat === "Phone subscription") return;
     setFormCat({ cat: sample.cat, icon: sample.icon });
-    setForm({ provider: "", amount: "", due: "", kind: kindFor(sample.cat), subtype: sample.cat === "Rent / Mortgage" ? "Rent" : undefined, house: HOUSES[0] });
+    setForm({ provider: "", amount: "", due: "", kind: kindFor(sample.cat), subtype: sample.cat === "Rent / Mortgage" ? "Rent" : undefined, house: HOUSES[0], chargedToCard: false, parentCardId: undefined });
     setManualReturn("prompt");
     setFocusedField(null);
     setShowDayPicker(false);
@@ -2388,6 +2376,52 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       : phase === "scripted"
         ? { cat: sample.cat, icon: sample.icon }
         : formCat;
+
+  const renderCardToggle = (catName: string) => {
+    if (!canLinkCard(catName)) return null;
+    return (
+      <View style={{ marginTop: 14, paddingHorizontal: 2 }}>
+        <Low size={12} style={{ marginBottom: 8 }}>Auto-charged to a card?</Low>
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <Pressable
+            onPress={() => { haptics.selection(); setForm((f) => ({ ...f, chargedToCard: false, parentCardId: undefined })); }}
+            style={{ flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 22, paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1, borderColor: !form.chargedToCard ? withAlpha(t.accent, 0.5) : t.hair, backgroundColor: !form.chargedToCard ? mix(t.accent, t.surface2, 0.15) : t.surface2 }}
+          >
+            <Txt size={13} weight="medium" color={!form.chargedToCard ? t.txtHi : t.txtMid}>No</Txt>
+          </Pressable>
+          <Pressable
+            onPress={() => { haptics.selection(); setForm((f) => ({ ...f, chargedToCard: true })); }}
+            style={{ flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 22, paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1, borderColor: form.chargedToCard ? withAlpha(t.accent, 0.5) : t.hair, backgroundColor: form.chargedToCard ? mix(t.accent, t.surface2, 0.15) : t.surface2 }}
+          >
+            <Icon name="card" size={13} color={form.chargedToCard ? t.accent : t.txtLow} />
+            <Txt size={13} weight="medium" color={form.chargedToCard ? t.txtHi : t.txtMid}>Yes, via card</Txt>
+          </Pressable>
+        </View>
+        {form.chargedToCard && (cardChoices.length > 0 ? (
+          <View style={{ marginTop: 10 }}>
+            <Low size={12} style={{ marginBottom: 8 }}>Which card pays this?</Low>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {cardChoices.map((c) => {
+                const on = form.parentCardId === c.id;
+                return (
+                  <Pressable
+                    key={c.id}
+                    onPress={() => { haptics.selection(); setForm((f) => ({ ...f, parentCardId: c.id })); }}
+                    style={{ flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 22, paddingVertical: 8, paddingHorizontal: 13, borderWidth: 1, borderColor: on ? withAlpha(t.accent, 0.5) : t.hair, backgroundColor: on ? mix(t.accent, t.surface2, 0.15) : t.surface2 }}
+                  >
+                    <Icon name="card" size={12} color={on ? t.accent : t.txtLow} />
+                    <Txt size={13} weight="medium" color={on ? t.txtHi : t.txtMid}>{c.provider}</Txt>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        ) : (
+          <Low size={11} style={{ marginTop: 8 }}>No cards on file yet — link one later from the bill's page.</Low>
+        ))}
+      </View>
+    );
+  };
 
   return (
     <>
@@ -2509,6 +2543,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                   </Pressable>
                 ))}
               </View>
+              {renderCardToggle(activeFormCat.cat)}
             </Animated.View>
           )}
 
@@ -2600,7 +2635,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                 <JudithAvatar persona={persona} size={44} state="speaking" />
                 <JudithLine style={{ flex: 1 }}>
                   {phase === "cards"
-                    ? "Now the heavy hitters. How many credit cards do you have? I’ll take them one at a time."
+                    ? "Let’s start with your credit cards — we’ll link your other bills to them as we go. How many do you have?"
                     : "And loans — personal, car, housing, anything. How many?"}
                 </JudithLine>
               </View>
@@ -2695,6 +2730,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                   </View>
                 </PCell>
               </View>
+              {renderCardToggle(sample.cat)}
             </>
           )}
           {mode === "parsed" && parsedEditing && (
@@ -2746,43 +2782,6 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                   onChange={(v) => setParsedEdits({ ...parsedEdits, kind: v as "Fixed" | "Variable" })}
                 />
               </View>
-            </View>
-          )}
-
-          {mode === "cardLink" && pendingBill && (
-            <View style={{ alignSelf: "stretch" }}>
-              <JudithLine>
-                {cardLinkPick
-                  ? `Which card covers ${pendingBill.provider}?`
-                  : `Is ${pendingBill.provider} auto-charged to a credit card?`}
-              </JudithLine>
-              {cardLinkPick && (
-                <View style={{ marginTop: 12, gap: 8 }}>
-                  {cardChoices.map((c) => (
-                    <Pressable
-                      key={c.id}
-                      onPress={() => commitBill({ ...pendingBill, chargedToCard: true, parentCardId: c.id }, () => { setPendingBill(null); setCardLinkPick(false); cardLinkAfter.current(); })}
-                      style={({ pressed }) => [
-                        { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderColor: t.hair, borderRadius: t.radius.md, backgroundColor: t.surface2, paddingVertical: 13, paddingHorizontal: 14 },
-                        pressed && { opacity: 0.6 },
-                      ]}
-                    >
-                      <Icon name="card" size={18} color={t.accent} />
-                      <Txt size={14} weight="medium" style={{ flex: 1 }}>{c.provider}</Txt>
-                      <Mono size={13} color={t.txtMid}>{cur}{fmtNum(c.amount)}</Mono>
-                    </Pressable>
-                  ))}
-                  <Pressable
-                    onPress={() => commitBill({ ...pendingBill, chargedToCard: true }, () => { setPendingBill(null); setCardLinkPick(false); cardLinkAfter.current(); })}
-                    style={({ pressed }) => [
-                      { borderWidth: 1, borderColor: t.hair, borderRadius: t.radius.md, backgroundColor: t.surface1, paddingVertical: 13, paddingHorizontal: 14 },
-                      pressed && { opacity: 0.6 },
-                    ]}
-                  >
-                    <Txt size={14} color={t.txtMid}>I'll link the card later</Txt>
-                  </Pressable>
-                </View>
-              )}
             </View>
           )}
 
@@ -2850,14 +2849,14 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                     ))}
                   </View>
                 )}
-                {(["Subscriptions", "Insurance", "Cards & loans"] as const)[breatherGroup] && (
+                {(["Subscriptions", "Insurance", "Loans"] as const)[breatherGroup] && (
                   <View style={{
                     flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14,
                     alignSelf: "stretch", paddingVertical: 9, paddingHorizontal: 12,
                     borderRadius: 12, borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface2,
                   }}>
                     <Low size={12}>Next up:</Low>
-                    <Txt size={12} weight="semibold">{(["Subscriptions", "Insurance", "Cards & loans"] as const)[breatherGroup]}</Txt>
+                    <Txt size={12} weight="semibold">{(["Subscriptions", "Insurance", "Loans"] as const)[breatherGroup]}</Txt>
                   </View>
                 )}
               </View>
@@ -3018,6 +3017,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                   </View>
                 </View>
               )}
+              {renderCardToggle(formCat.cat)}
             </View>
           )}
         </View>
@@ -3163,32 +3163,12 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
             />
           </>
         )}
-        {mode === "cardLink" && pendingBill && !cardLinkPick && (
-          <>
-            <Btn
-              label="Yes, via a card"
-              icon="card"
-              onPress={() => {
-                if (cardChoices.length > 0) setCardLinkPick(true);
-                else commitBill({ ...pendingBill, chargedToCard: true }, () => { setPendingBill(null); cardLinkAfter.current(); });
-              }}
-            />
-            <Btn
-              label="No, I pay it directly"
-              variant="soft"
-              onPress={() => commitBill(pendingBill, () => { setPendingBill(null); cardLinkAfter.current(); })}
-            />
-          </>
-        )}
-        {mode === "cardLink" && cardLinkPick && (
-          <Btn label="← Back" variant="ghost" onPress={() => setCardLinkPick(false)} />
-        )}
         {mode === "breather" && (() => {
           const g = VGROUPS[breatherGroup] || VGROUPS[0]!;
           return (
             <>
               <Btn label={g.addLabel} icon="plus" variant="soft" onPress={() => { setManualReturn("breather"); setMode("manualCats"); }} />
-              <Btn label="Keep going →" onPress={() => { if (breatherGroup === 2) startCards(); else setMode("prompt"); }} />
+              <Btn label="Keep going →" onPress={() => { if (breatherGroup === 2) startLoans(); else setMode("prompt"); }} />
             </>
           );
         })()}
