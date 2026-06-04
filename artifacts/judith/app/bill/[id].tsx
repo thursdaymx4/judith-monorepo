@@ -212,8 +212,11 @@ export default function BillDetailModal() {
   const isFuturePeriod = viewedPeriod > currentPeriod;
 
   const cls = dueClass(bill.dueDays);
-  // For future months the bill hasn't been paid yet regardless of global status
-  const paid = isCurrentPeriod ? bill.status === "paid" : false;
+  // Derive paid status from paymentHistory for the viewed period — not from the
+  // global bill.status flag (which only tracks the current-period status).
+  const paid = (bill.paymentHistory ?? []).some(
+    (r) => r.period === viewedPeriod && r.paid >= r.totalDue,
+  );
   const overdue = !paid && !isFuturePeriod && bill.dueDays < 0;
   const daysLate = -bill.dueDays;
   const partial = isCurrentPeriod && isPartialBill(bill);
@@ -464,19 +467,19 @@ export default function BillDetailModal() {
           </View>
         )}
 
-        {/* Current-month pay / unpay / partial */}
-        {isCurrentPeriod && (
+        {/* Current/past-month pay / unpay / partial (not available for future months) */}
+        {!isFuturePeriod && (
           <>
             <Btn
               label={paid ? "Mark as unpaid" : overdue ? "Mark paid — catch up" : "Mark as fully paid"}
               variant={paid ? "soft" : "primary"}
               onPress={() => {
                 if (!paid) haptics.success();
-                togglePaid(bill.id);
+                togglePaid(bill.id, viewedPeriod);
                 router.back();
               }}
             />
-            {!paid && (
+            {!paid && isCurrentPeriod && (
               <Btn
                 label={showInput ? "Cancel" : partial ? "Update partial" : "Pay partial"}
                 variant="soft"
@@ -486,7 +489,7 @@ export default function BillDetailModal() {
                 }}
               />
             )}
-            {isCC && !showCCUpdate && (
+            {isCC && !showCCUpdate && isCurrentPeriod && (
               <Btn
                 label={statementIsToday ? "Update statement · today" : "Update statement amount"}
                 variant="soft"

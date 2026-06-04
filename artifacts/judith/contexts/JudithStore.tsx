@@ -82,7 +82,7 @@ interface JudithStoreValue extends PersistShape {
   toast: string;
   showToast: (msg: string) => void;
   /* bill ops */
-  togglePaid: (id: string) => void;
+  togglePaid: (id: string, period?: string) => void;
   markPaid: (id: string) => void;
   markUnpaid: (id: string) => void;
   snooze: (id: string, days: number) => void;
@@ -189,35 +189,60 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<JudithStoreValue>(() => {
     const country = countryByCode(state.countryCode);
     const isPaid = state.tier === "chat" || state.tier === "voice";
+    // Auto-advance: if a bill is marked paid but has no paymentHistory record for the
+    // current billing period, the month has rolled over — silently reset it to due.
+    const _today = new Date();
+    const _cp = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, "0")}`;
+    const bills = state.bills.map((b): Bill => {
+      if (b.status !== "paid") return b;
+      const hasCurrentRecord = (b.paymentHistory ?? []).some(
+        (r) => r.period === _cp && r.paid >= r.totalDue,
+      );
+      if (!hasCurrentRecord) return { ...b, status: "due", amountPaid: 0 };
+      return b;
+    });
     return {
       ...state,
+      bills,
       hydrated,
       country,
       money: (n: number) => formatMoney(n, country.cur),
       toast,
       showToast,
-      togglePaid: (id) => {
+      togglePaid: (id, period) => {
         const today = new Date();
-        const period = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+        const cp = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+        const p = period ?? cp;
         mapBills((b) => {
           if (b.id !== id) return b;
           const owed = b.amount + (b.carryOver ?? 0);
-          if (b.status === "paid") {
-            return { ...b, status: "due" as const, amountPaid: 0 };
+          const existing = b.paymentHistory ?? [];
+          const hasRecord = existing.some((r) => r.period === p && r.paid >= r.totalDue);
+          let paymentHistory: BillCycleRecord[];
+          if (hasRecord) {
+            // Mark unpaid: remove this period's record
+            paymentHistory = existing.filter((r) => r.period !== p);
+          } else {
+            // Mark paid: upsert a full-payment record for this period
+            const record: BillCycleRecord = {
+              period: p,
+              charged: b.amount,
+              carriedIn: b.carryOver ?? 0,
+              totalDue: owed,
+              paid: owed,
+              rolledOver: 0,
+              onTime: b.dueDays >= 0,
+            };
+            paymentHistory = [record, ...existing.filter((r) => r.period !== p)].slice(0, 24);
           }
-          const record: BillCycleRecord = {
-            period,
-            charged: b.amount,
-            carriedIn: b.carryOver ?? 0,
-            totalDue: owed,
-            paid: owed,
-            rolledOver: 0,
-            onTime: b.dueDays >= 0,
+          // bill.status always mirrors whether the CURRENT period is paid
+          const isCurrentPaid = paymentHistory.some((r) => r.period === cp && r.paid >= r.totalDue);
+          return {
+            ...b,
+            status: isCurrentPaid ? "paid" as const : "due" as const,
+            amountPaid: isCurrentPaid ? owed : 0,
+            paymentHistory,
           };
-          // Upsert by period: replace any existing entry for this month instead of prepending
-          const existing = (b.paymentHistory ?? []).filter((r) => r.period !== period);
-          const paymentHistory = [record, ...existing].slice(0, 24);
-          return { ...b, status: "paid" as const, amountPaid: owed, paymentHistory };
         });
       },
       markPaid: (id) =>
@@ -244,16 +269,31 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
         }),
       deleteBill: (id) =>
         setState((s) => ({ ...s, bills: s.bills.filter((b) => b.id !== id) })),
-      payPartial: (id, amountPaid) =>
+      payPartial: (id, amountPaid) => {
+        const today = new Date();
+        const cp = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
         setState((s) => ({
           ...s,
           bills: s.bills.map((b) => {
             if (b.id !== id) return b;
             const owed = b.amount + (b.carryOver ?? 0);
-            if (amountPaid >= owed) return { ...b, status: "paid" as const, amountPaid: owed };
+            if (amountPaid >= owed) {
+              const record: BillCycleRecord = {
+                period: cp,
+                charged: b.amount,
+                carriedIn: b.carryOver ?? 0,
+                totalDue: owed,
+                paid: owed,
+                rolledOver: 0,
+                onTime: b.dueDays >= 0,
+              };
+              const paymentHistory = [record, ...(b.paymentHistory ?? []).filter((r) => r.period !== cp)].slice(0, 24);
+              return { ...b, status: "paid" as const, amountPaid: owed, paymentHistory };
+            }
             return { ...b, status: "due" as const, amountPaid: Math.max(0, amountPaid) };
           }),
-        })),
+        }));
+      },
       rolloverBill: (id) => {
         const today = new Date();
         const period = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
