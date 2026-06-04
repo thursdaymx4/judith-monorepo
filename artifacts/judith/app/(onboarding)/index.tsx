@@ -121,7 +121,7 @@ interface VGroup {
   addLabel?: string;
 }
 const VGROUPS: VGroup[] = [
-  { label: "The essentials", done: "Your essentials are in.", note: "Power, water, internet — the must-pays. Take a breath; this is saved.", askTitle: "Any other utilities?", askSub: "Another meter, association dues, garbage, gas?", addLabel: "Add a utility" },
+  { label: "The essentials", done: "Your essentials are in.", note: "Power, water, internet — the must-pays. Take a breath; this is saved.", askTitle: "Any other utilities?", askSub: "Another meter, association dues, garbage, gas?", addLabel: "Add another bill" },
   { label: "Subscriptions", done: "Subscriptions, logged.", note: "Phone, streaming, apps — the silent drainers. Saved and safe.", askTitle: "Any other subscriptions?", askSub: "Gaming, news, cloud storage, that free trial that wasn’t?", addLabel: "Add a subscription" },
   { label: "Cards & loans", done: "", note: "" },
 ];
@@ -2894,7 +2894,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
           return (
             <>
               <Btn label={g.addLabel} icon="plus" variant="soft" onPress={() => { setManualReturn("breather"); setMode("manualCats"); }} />
-              <Btn label="Are there MORE?" onPress={() => { if (breatherGroup === 1) startCards(); else setMode("prompt"); }} />
+              <Btn label="Keep going →" onPress={() => { if (breatherGroup === 1) startCards(); else setMode("prompt"); }} />
             </>
           );
         })()}

@@ -1,10 +1,11 @@
 import { useRouter } from "expo-router";
 import React, { useCallback } from "react";
-import { Modal, Pressable, Text, TextInput, View } from "react-native";
+import { Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 
 import * as Notifications from "expo-notifications";
 import { Icon, type IconName } from "@/components/Icon";
 import { Dot, Low, Mono, Screen, Txt, mix } from "@/components/ui";
+import { LANGUAGES, langDesc, languageByCode } from "@/constants/languages";
 import { PERSONAS } from "@/constants/personas";
 import { useAuth } from "@/contexts/AuthContext";
 import { useJudith, type Toggles } from "@/contexts/JudithStore";
@@ -117,7 +118,7 @@ function SettingsLabel({ children }: { children: React.ReactNode }) {
 export default function SettingsScreen() {
   const t = useTheme();
   const router = useRouter();
-  const { persona, setPersona, toggles, setToggle, reduceMotion, setReduceMotion, asksLeft, tier, theme, setTheme, restart, money, bills, name, guest, country } =
+  const { persona, setPersona, language, setLanguage, toggles, setToggle, reduceMotion, setReduceMotion, asksLeft, tier, theme, setTheme, restart, money, bills, name, guest, country } =
     useJudith();
   const { user } = useAuth();
   const email = user?.email ?? (guest ? "Guest account" : "—");
@@ -127,6 +128,27 @@ export default function SettingsScreen() {
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [confirmText, setConfirmText] = React.useState("");
   const canRestart = confirmText.trim().toLowerCase() === "restart";
+
+  const [langOpen, setLangOpen] = React.useState(false);
+  const [langQ, setLangQ] = React.useState("");
+  const [langExpanded, setLangExpanded] = React.useState<string | null>(null);
+
+  const currentLangDisplay = React.useMemo(() => {
+    for (const l of LANGUAGES) {
+      if (l.code === language && !l.dialects?.length) return { flag: l.flag, native: l.native };
+      const d = (l.dialects ?? []).find((d) => d.code === language);
+      if (d) return { flag: l.flag, native: d.native };
+      if (l.code === language) return { flag: l.flag, native: l.native };
+    }
+    return { flag: "🇬🇧", native: "English" };
+  }, [language]);
+
+  const langQuery = langQ.trim().toLowerCase();
+  const langList = LANGUAGES.filter((l) => {
+    if (!langQuery) return true;
+    if (l.label.toLowerCase().includes(langQuery) || l.native.toLowerCase().includes(langQuery)) return true;
+    return (l.dialects ?? []).some((d) => d.label.toLowerCase().includes(langQuery) || d.native.toLowerCase().includes(langQuery));
+  });
 
   const closeConfirm = () => {
     setConfirmOpen(false);
@@ -318,6 +340,118 @@ export default function SettingsScreen() {
           );
         })}
       </View>
+
+      {/* voice language */}
+      <SettingsLabel>Voice language</SettingsLabel>
+      <Pressable
+        onPress={() => { setLangQ(""); setLangExpanded(null); setLangOpen(true); }}
+        style={({ pressed }) => [
+          { ...rowBase, borderRadius: t.radius.md },
+          pressed && { transform: [{ scale: 0.99 }] },
+        ]}
+      >
+        <IcoBox name="mic" iconSize={17} color={t.accent} />
+        <View style={{ flex: 1 }}>
+          <Txt size={15} weight="medium">{currentLangDisplay.native}</Txt>
+          <Low size={12} style={{ marginTop: 1 }}>Judith's spoken language</Low>
+        </View>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Text style={{ fontSize: 22 }}>{currentLangDisplay.flag}</Text>
+          <Icon name="chev" size={16} color={t.txtMid} />
+        </View>
+      </Pressable>
+
+      <Modal visible={langOpen} transparent animationType="slide" onRequestClose={() => setLangOpen(false)}>
+        <Pressable onPress={() => setLangOpen(false)} style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}>
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={{ backgroundColor: t.surface1, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderColor: t.hair, maxHeight: "85%", paddingBottom: 34 }}
+          >
+            <View style={{ alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: t.hair2, marginTop: 12, marginBottom: 14 }} />
+            <View style={{ paddingHorizontal: 18 }}>
+              <Txt size={18} weight="semibold" style={{ marginBottom: 12 }}>Judith's voice language</Txt>
+              <TextInput
+                value={langQ}
+                onChangeText={setLangQ}
+                placeholder="Search languages…"
+                placeholderTextColor={t.txtLow}
+                style={{
+                  borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface2,
+                  borderRadius: 12, paddingVertical: 11, paddingHorizontal: 14,
+                  color: t.txtHi, fontFamily: t.fonts.regular, fontSize: 14, marginBottom: 12,
+                }}
+              />
+            </View>
+            <ScrollView style={{ paddingHorizontal: 18 }} contentContainerStyle={{ paddingHorizontal: 18, gap: 8, paddingBottom: 12 }}>
+              {langList.map((l) => {
+                const hasDialects = !!l.dialects?.length;
+                const isDialectActive = (l.dialects ?? []).some((d) => d.code === language);
+                const isActive = language === l.code || isDialectActive;
+                const isOpen = langExpanded === l.code || (hasDialects && isDialectActive);
+                return (
+                  <View key={l.code} style={{ gap: 8 }}>
+                    <Pressable
+                      onPress={() => {
+                        if (hasDialects) {
+                          setLangExpanded(isOpen ? null : l.code);
+                        } else {
+                          setLanguage(l.code);
+                          setLangOpen(false);
+                        }
+                      }}
+                      style={({ pressed }) => ({
+                        flexDirection: "row", alignItems: "center", gap: 12,
+                        paddingVertical: 13, paddingHorizontal: 14,
+                        borderRadius: 12, borderWidth: 1,
+                        borderColor: isActive ? t.accent : t.hair,
+                        backgroundColor: isActive ? mix(t.accent, t.surface2, 0.12) : t.surface2,
+                        opacity: pressed ? 0.85 : 1,
+                      })}
+                    >
+                      <Text style={{ fontSize: 24 }}>{l.flag}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Txt size={14} weight="medium">{l.native}</Txt>
+                        <Low size={12} style={{ marginTop: 2 }}>{langDesc(l.code)}</Low>
+                      </View>
+                      {hasDialects
+                        ? <View style={{ transform: [{ rotate: isOpen ? "90deg" : "0deg" }] }}><Icon name="chev" size={16} color={t.txtLow} /></View>
+                        : isActive ? <Icon name="check" size={18} color={t.accent} /> : <View style={{ width: 18 }} />
+                      }
+                    </Pressable>
+                    {hasDialects && isOpen && (
+                      <View style={{ gap: 8, marginLeft: 18 }}>
+                        {l.dialects!.map((d) => {
+                          const don = language === d.code;
+                          return (
+                            <Pressable
+                              key={d.code}
+                              onPress={() => { setLanguage(d.code); setLangOpen(false); }}
+                              style={({ pressed }) => ({
+                                flexDirection: "row", alignItems: "center", gap: 12,
+                                paddingVertical: 12, paddingHorizontal: 14,
+                                borderRadius: 12, borderWidth: 1,
+                                borderColor: don ? t.accent : t.hair,
+                                backgroundColor: don ? mix(t.accent, t.surface2, 0.12) : t.surface2,
+                                opacity: pressed ? 0.85 : 1,
+                              })}
+                            >
+                              <View style={{ flex: 1 }}>
+                                <Txt size={13.5} weight="medium">{d.label}</Txt>
+                                <Low size={12} style={{ marginTop: 2 }}>{d.native} · {d.desc}</Low>
+                              </View>
+                              {don ? <Icon name="check" size={18} color={t.accent} /> : <View style={{ width: 18 }} />}
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* persona */}
       <SettingsLabel>Judith's personality</SettingsLabel>
