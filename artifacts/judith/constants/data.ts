@@ -6,6 +6,24 @@
 export type BillStatus = "due" | "paid";
 export type BillKind = "Fixed" | "Variable";
 
+/** One closed billing cycle — populated when a cycle completes (paid or rolled over). */
+export interface BillCycleRecord {
+  /** "YYYY-MM" for monthly bills, "YYYY" for annual */
+  period: string;
+  /** Base charge for this cycle (excludes carry-in) */
+  charged: number;
+  /** Balance rolled in from the previous cycle */
+  carriedIn: number;
+  /** Total due = charged + carriedIn */
+  totalDue: number;
+  /** Amount actually paid this cycle */
+  paid: number;
+  /** Unpaid balance forwarded to the next cycle */
+  rolledOver: number;
+  /** true = paid on/before due date; false = paid late; null = cycle closed without full payment */
+  onTime: boolean | null;
+}
+
 export interface Bill {
   id: string;
   provider: string;
@@ -33,6 +51,8 @@ export interface Bill {
    * Judith nudges the user on this day to update the bill amount.
    */
   statementDay?: number;
+  /** Closed billing cycles, most-recent-first. Capped at 24. */
+  paymentHistory?: BillCycleRecord[];
 }
 
 /** Total owed this cycle = current charge + any rolled-over balance. */

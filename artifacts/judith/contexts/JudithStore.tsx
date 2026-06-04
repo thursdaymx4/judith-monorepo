@@ -9,7 +9,7 @@ import React, {
   useState,
 } from "react";
 
-import { formatMoney, type Bill } from "@/constants/data";
+import { formatMoney, type Bill, type BillCycleRecord } from "@/constants/data";
 import {
   countryByCode,
   DEFAULT_COUNTRY,
@@ -196,14 +196,28 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       money: (n: number) => formatMoney(n, country.cur),
       toast,
       showToast,
-      togglePaid: (id) =>
+      togglePaid: (id) => {
+        const today = new Date();
+        const period = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
         mapBills((b) => {
           if (b.id !== id) return b;
           const owed = b.amount + (b.carryOver ?? 0);
-          return b.status === "paid"
-            ? { ...b, status: "due" as const, amountPaid: 0 }
-            : { ...b, status: "paid" as const, amountPaid: owed };
-        }),
+          if (b.status === "paid") {
+            return { ...b, status: "due" as const, amountPaid: 0 };
+          }
+          const record: BillCycleRecord = {
+            period,
+            charged: b.amount,
+            carriedIn: b.carryOver ?? 0,
+            totalDue: owed,
+            paid: owed,
+            rolledOver: 0,
+            onTime: b.dueDays >= 0,
+          };
+          const paymentHistory = [record, ...(b.paymentHistory ?? [])].slice(0, 24);
+          return { ...b, status: "paid" as const, amountPaid: owed, paymentHistory };
+        });
+      },
       markPaid: (id) =>
         mapBills((b) => {
           if (b.id !== id) return b;
@@ -238,21 +252,36 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
             return { ...b, status: "due" as const, amountPaid: Math.max(0, amountPaid) };
           }),
         })),
-      rolloverBill: (id) =>
+      rolloverBill: (id) => {
+        const today = new Date();
+        const period = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
         setState((s) => ({
           ...s,
           bills: s.bills.map((b) => {
             if (b.id !== id) return b;
             const owed = b.amount + (b.carryOver ?? 0);
-            const unpaid = owed - (b.amountPaid ?? 0);
+            const paidAmt = b.amountPaid ?? 0;
+            const unpaid = owed - paidAmt;
+            const record: BillCycleRecord = {
+              period,
+              charged: b.amount,
+              carriedIn: b.carryOver ?? 0,
+              totalDue: owed,
+              paid: paidAmt,
+              rolledOver: unpaid > 0 ? unpaid : 0,
+              onTime: null,
+            };
+            const paymentHistory = [record, ...(b.paymentHistory ?? [])].slice(0, 24);
             return {
               ...b,
               status: "due" as const,
               amountPaid: 0,
               carryOver: unpaid > 0 ? unpaid : 0,
+              paymentHistory,
             };
           }),
-        })),
+        }));
+      },
       updateBillAmount: (id, newAmount) =>
         mapBills((b) =>
           b.id === id
