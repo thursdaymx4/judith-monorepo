@@ -417,49 +417,6 @@ export default function HomeScreen() {
         })}
       </View>
 
-      {/* Paid this month — greyed out + strikethrough below the timeline */}
-      {paid.length > 0 && (
-        <>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 20, marginBottom: 12 }}>
-            <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 22, borderWidth: 1, borderColor: t.semantic.ok + "55", paddingVertical: 4, paddingHorizontal: 10 }}>
-              <Icon name="check" size={11} color={t.semantic.ok} />
-              <Low size={11} color={t.semantic.ok}>Paid · {paid.length}</Low>
-            </View>
-            <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
-          </View>
-          <View style={{ gap: 8 }}>
-            {paid.map((b, i) => (
-              <StaggerRow key={b.id} index={due.length + i} reduce={reduce}>
-                <Pressable
-                  onPress={() => openBill(b)}
-                  style={({ pressed }) => [
-                    { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderColor: t.hair, borderRadius: t.radius.md, backgroundColor: t.surface2, paddingVertical: 11, paddingHorizontal: 12, opacity: 0.62 },
-                    pressed && { opacity: 0.45 },
-                  ]}
-                >
-                  <ProviderLogo provider={b.provider} cat={b.cat} size={32} />
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Txt size={14} weight="medium" color={t.txtMid} style={{ textDecorationLine: "line-through" }}>
-                      {b.provider}
-                    </Txt>
-                    <Low size={12} style={{ marginTop: 1 }}>{b.cat}</Low>
-                  </View>
-                  <View style={{ alignItems: "flex-end", gap: 3 }}>
-                    <Mono size={13} color={t.txtLow} style={{ textDecorationLine: "line-through" }}>
-                      {money(amtPaidThisMonth(b))}
-                    </Mono>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
-                      <Icon name="check" size={10} color={t.semantic.ok} />
-                      <Txt size={10} weight="semibold" color={t.semantic.ok}>Paid</Txt>
-                    </View>
-                  </View>
-                </Pressable>
-              </StaggerRow>
-            ))}
-          </View>
-        </>
-      )}
     </Screen>
   );
 }
