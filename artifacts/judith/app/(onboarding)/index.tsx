@@ -2840,6 +2840,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
             <ScanSweep accent={t.accent} />
           </View>
         )}
+
       </Scroll>
 
       {/* CTA zone */}
@@ -2902,7 +2903,12 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
             )}
           </>
         )}
-        {mode === "listening" && <MicBtn live onPress={stopListening} />}
+        {mode === "listening" && (
+          <View style={{ alignItems: "center", gap: 5 }}>
+            <MicBtn live onPress={stopListening} />
+            <Low size={12} style={{ textAlign: "center" }}>Tap the mic again when you're done</Low>
+          </View>
+        )}
         {mode === "transcribing" && <MicBtn live />}
         {mode === "parsed" && !parsedEditing && (
           <>
