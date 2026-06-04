@@ -219,8 +219,17 @@ export default function CalendarScreen() {
       // CC: bank folds any unpaid balance into the new statement — we don't know the
       // new amount yet, so we show the last known amount as an estimate
       if (b.cat === "Credit card") return b.amount;
-      if (b.status === "paid") return b.amount; // fixed bill: fresh cycle
-      return b.amount + (b.carryOver ?? 0);     // utility variable: carry forward
+      if (b.status === "paid") return b.amount; // fresh cycle, no carry
+      // Effective carry into next month:
+      // - If a partial payment was made this cycle: the remaining balance carries forward
+      //   (payPartial stores amountPaid but doesn't set carryOver until rollOver() fires)
+      // - If carryOver was set by a formal rollover (amountPaid reset to 0): use carryOver
+      // - If bill is fully unpaid (amountPaid=0, carryOver=0): no extra carry — fresh amount only
+      const hasPartial = (b.amountPaid ?? 0) > 0;
+      const effectiveCarry = hasPartial
+        ? Math.max(0, totalOwed(b) - (b.amountPaid ?? 0))
+        : (b.carryOver ?? 0);
+      return b.amount + effectiveCarry;
     }
     // Past month — best we can do without history
     return Math.max(0, totalOwed(b) - (b.amountPaid ?? 0));
@@ -366,7 +375,14 @@ export default function CalendarScreen() {
             const cls = dueClass(dd) as Urgency;
             const amt = viewedAmt(b);
             const isCCEst = isFutureMonth && b.cat === "Credit card";
-            const hasCarryOver = isFutureMonth && !isCCEst && b.status !== "paid" && (b.carryOver ?? 0) > 0;
+            // Effective carry uses the same logic as viewedAmt above
+            const hasPartialForLabel = (b.amountPaid ?? 0) > 0;
+            const effectiveCarryForLabel = isFutureMonth && !isCCEst && b.status !== "paid"
+              ? (hasPartialForLabel
+                  ? Math.max(0, totalOwed(b) - (b.amountPaid ?? 0))
+                  : (b.carryOver ?? 0))
+              : 0;
+            const hasCarryOver = effectiveCarryForLabel > 0;
             return (
               <CalBillRow
                 key={b.id}
@@ -384,7 +400,7 @@ export default function CalendarScreen() {
                     {b.cat}
                     {" · "}
                     {dueShort(dd)}
-                    {isCCEst ? " · est." : hasCarryOver ? ` · +₱${(b.carryOver ?? 0).toLocaleString()} carried` : ""}
+                    {isCCEst ? " · est." : hasCarryOver ? ` · +₱${effectiveCarryForLabel.toLocaleString()} carried` : ""}
                   </Low>
                 </View>
               </CalBillRow>
