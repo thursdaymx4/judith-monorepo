@@ -325,7 +325,7 @@ router.post("/ask", askLimiter, async (req, res) => {
     const message = await anthropic.messages.create({
       model: ANTHROPIC_MODEL,
       max_tokens: 120,
-      system: `${systemPrompt(persona)}\n\nBILL CONTEXT (the only source of truth):\n${context}`,
+      system: `${systemPrompt(persona, typeof language === "string" ? language : undefined)}\n\nBILL CONTEXT (the only source of truth):\n${context}`,
       messages: [{ role: "user", content: text.trim() }],
     });
 
@@ -450,7 +450,8 @@ router.post("/ask-onboarding", askOnboardingLimiter, async (req, res) => {
       return;
     }
     const persona = coercePersona(bodyPersona);
-    const voiceId = getVoiceId(persona, typeof language === "string" ? language : undefined);
+    const lang = typeof language === "string" ? language : undefined;
+    const voiceId = getVoiceId(persona, lang);
     const bills = Array.isArray(bodyBills) ? (bodyBills as ClientBill[]) : [];
     const context = buildClientContext(bills, parseLocalDate(localDate));
 
@@ -458,7 +459,7 @@ router.post("/ask-onboarding", askOnboardingLimiter, async (req, res) => {
     const message = await anthropic.messages.create({
       model: ANTHROPIC_MODEL,
       max_tokens: 250,
-      system: `${systemPrompt(persona)}\n\nBILL CONTEXT (the only source of truth):\n${context}`,
+      system: `${systemPrompt(persona, lang)}\n\nBILL CONTEXT (the only source of truth):\n${context}`,
       messages: [{ role: "user", content: text.trim() }],
     });
     const rawReply = message.content
