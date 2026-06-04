@@ -400,7 +400,52 @@ export default function PlansModal() {
         </View>
       ) : (
         <View style={{ gap: 14 }}>
-          {/* VOICE CARD — hero */}
+          {/* CHAT CARD — entry plan, shown first */}
+          <View
+            style={{
+              borderWidth: 1,
+              borderColor: chatActive && !voiceActive ? mix(t.accent, t.surface2, 0.3) : t.hair,
+              borderRadius: 20,
+              backgroundColor: t.surface1,
+              overflow: "hidden",
+            }}
+          >
+            <View style={{ padding: 20, gap: 18 }}>
+              <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
+                <View>
+                  <Txt size={17} weight="semibold">Chat Ask</Txt>
+                  <View style={{ flexDirection: "row", alignItems: "baseline", gap: 4, marginTop: 4 }}>
+                    <Mono size={26} weight="bold" color={chatActive && !voiceActive ? t.accent : t.txtHi}>
+                      {money(99)}
+                    </Mono>
+                    <Low size={12}>/mo</Low>
+                  </View>
+                  <Low size={11} style={{ marginTop: 2 }}>Cancel anytime</Low>
+                </View>
+                {chatActive && !voiceActive && (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1, borderColor: mix(t.semantic.ok, t.surface2, 0.4), borderRadius: 20, paddingVertical: 5, paddingHorizontal: 11, backgroundColor: mix(t.semantic.ok, t.surface2, 0.12) }}>
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: t.semantic.ok }} />
+                    <Txt size={11} weight="semibold" color={t.semantic.ok}>Active</Txt>
+                  </View>
+                )}
+              </View>
+              <View style={{ gap: 10 }}>
+                <Feature text="Unlimited text asks to Judith — type anything, get a real answer" />
+                <Feature text="Bill tracking, reminders, and calendar" />
+                <Feature text="All 5 personas — mama, Marites, ate, and more" />
+              </View>
+              <CtaBtn
+                label={chatActive ? "Current plan" : "Get Chat Ask"}
+                sub={chatActive ? undefined : money(99) + "/month · cancel anytime"}
+                primary={false}
+                disabled={chatActive}
+                loading={buyingTier === "chat"}
+                onPress={() => buy("chat", packages.chat)}
+              />
+            </View>
+          </View>
+
+          {/* VOICE CARD — hero, shown second */}
           <View onLayout={(e) => { voiceCardY.current = e.nativeEvent.layout.y; }}>
             <View
               style={{
@@ -450,51 +495,6 @@ export default function PlansModal() {
                   onPress={() => buy("voice", packages.voice)}
                 />
               </View>
-            </View>
-          </View>
-
-          {/* CHAT CARD */}
-          <View
-            style={{
-              borderWidth: 1,
-              borderColor: chatActive && !voiceActive ? mix(t.accent, t.surface2, 0.3) : t.hair,
-              borderRadius: 20,
-              backgroundColor: t.surface1,
-              overflow: "hidden",
-            }}
-          >
-            <View style={{ padding: 20, gap: 18 }}>
-              <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
-                <View>
-                  <Txt size={17} weight="semibold">Chat Ask</Txt>
-                  <View style={{ flexDirection: "row", alignItems: "baseline", gap: 4, marginTop: 4 }}>
-                    <Mono size={26} weight="bold" color={chatActive && !voiceActive ? t.accent : t.txtHi}>
-                      {money(99)}
-                    </Mono>
-                    <Low size={12}>/mo</Low>
-                  </View>
-                  <Low size={11} style={{ marginTop: 2 }}>Cancel anytime</Low>
-                </View>
-                {chatActive && !voiceActive && (
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1, borderColor: mix(t.semantic.ok, t.surface2, 0.4), borderRadius: 20, paddingVertical: 5, paddingHorizontal: 11, backgroundColor: mix(t.semantic.ok, t.surface2, 0.12) }}>
-                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: t.semantic.ok }} />
-                    <Txt size={11} weight="semibold" color={t.semantic.ok}>Active</Txt>
-                  </View>
-                )}
-              </View>
-              <View style={{ gap: 10 }}>
-                <Feature text="Unlimited text asks to Judith — type anything, get a real answer" />
-                <Feature text="Bill tracking, reminders, and calendar" />
-                <Feature text="All 5 personas — mama, Marites, ate, and more" />
-              </View>
-              <CtaBtn
-                label={chatActive ? "Current plan" : "Get Chat Ask"}
-                sub={chatActive ? undefined : money(99) + "/month · cancel anytime"}
-                primary={false}
-                disabled={chatActive}
-                loading={buyingTier === "chat"}
-                onPress={() => buy("chat", packages.chat)}
-              />
             </View>
           </View>
         </View>
