@@ -25,6 +25,8 @@ export interface Bill {
   amountPaid?: number;
   /** Unpaid balance rolled forward from the previous cycle. */
   carryOver?: number;
+  /** Days before due date to send a reminder (default 3). */
+  reminderDays?: number;
 }
 
 /** Total owed this cycle = current charge + any rolled-over balance. */
@@ -361,7 +363,16 @@ export function makeBillFromAction(
  * given due day relative to today, honoring monthly vs annual cadence.
  */
 export function makeManualBill(
-  a: { provider: string; cat: string; amount: number; dueDay: number; frequency?: "monthly" | "annual" },
+  a: {
+    provider: string;
+    cat: string;
+    amount: number;
+    dueDay: number;
+    frequency?: "monthly" | "annual";
+    kind?: "Fixed" | "Variable";
+    house?: string;
+    reminderDays?: number;
+  },
   today: Date = new Date(),
 ): Bill {
   const base = startOfDay(today);
@@ -395,8 +406,10 @@ export function makeManualBill(
     dueDate: day,
     dueLabel,
     status: "due",
-    kind: "Fixed",
+    kind: a.kind ?? "Fixed",
     frequency: a.frequency ?? "monthly",
+    ...(a.house ? { house: a.house } : {}),
+    ...(a.reminderDays != null ? { reminderDays: a.reminderDays } : {}),
   };
 }
 

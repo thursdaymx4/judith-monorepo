@@ -249,6 +249,11 @@ export default function BillDetailModal() {
             router.back();
           }}
         />
+        <Btn
+          label="Edit bill"
+          variant="soft"
+          onPress={() => router.push(`/add-bill?id=${bill.id}`)}
+        />
         {!paid && (
           <Btn
             label={
