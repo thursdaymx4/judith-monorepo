@@ -174,7 +174,7 @@ function NavBtn({ onPress, rotate }: { onPress: () => void; rotate?: boolean }) 
 export default function CalendarScreen() {
   const t = useTheme();
   const router = useRouter();
-  const { bills, persona, money } = useJudith();
+  const { bills, persona, money, country } = useJudith();
   const [sel, setSel] = useState<number | null>(null);
   const [monthOffset, setMonthOffset] = useState(0);
 
@@ -360,7 +360,7 @@ export default function CalendarScreen() {
           {weeks.map((w, i) => (
             <View key={i} style={{ flex: 1, alignItems: "center", gap: 6 }}>
               <Mono size={10} weight="semibold" color={w > 0 ? t.txtHi : t.txtLow}>
-                {w > 0 ? "₱" + fmtK(w) : "—"}
+                {w > 0 ? country.cur + fmtK(w) : "—"}
               </Mono>
               <View style={{ width: "100%", height: 54, borderRadius: 9, backgroundColor: t.surface2, borderWidth: 1, borderColor: t.hair2, justifyContent: "flex-end", overflow: "hidden" }}>
                 <LinearGradient

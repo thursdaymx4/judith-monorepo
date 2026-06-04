@@ -206,7 +206,7 @@ export default function AddBillScreen() {
               }}
             >
               <View style={{ paddingLeft: 14, justifyContent: "center" }}>
-                <Mono size={15} color={t.txtMid}>₱</Mono>
+                <Mono size={15} color={t.txtMid}>{country.cur}</Mono>
               </View>
               <TextInput
                 value={amount}

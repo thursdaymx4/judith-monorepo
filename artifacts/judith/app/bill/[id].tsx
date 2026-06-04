@@ -228,7 +228,7 @@ export default function BillDetailModal() {
   const t = useTheme();
   const router = useRouter();
   const { id, period: periodParam } = useLocalSearchParams<{ id: string; period?: string }>();
-  const { bills, money, persona, togglePaid, payPartial, updateBillAmount, showToast } = useJudith();
+  const { bills, money, persona, country, togglePaid, payPartial, updateBillAmount, showToast } = useJudith();
   const [showInput, setShowInput] = useState(false);
   const [input, setInput] = useState("");
   const [showCCUpdate, setShowCCUpdate] = useState(false);
@@ -596,7 +596,7 @@ export default function BillDetailModal() {
             Enter the total from your latest bank statement. Judith will reset this month's cycle to that amount.
           </Low>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Mono size={24} weight="bold" color={t.txtHi} style={{ marginRight: 3 }}>₱</Mono>
+            <Mono size={24} weight="bold" color={t.txtHi} style={{ marginRight: 3 }}>{country.cur}</Mono>
             <TextInput
               value={ccInput}
               onChangeText={setCCInput}
@@ -631,7 +631,7 @@ export default function BillDetailModal() {
         >
           <Low size={12}>Amount paid so far (cumulative total)</Low>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Mono size={24} weight="bold" color={t.txtHi} style={{ marginRight: 3 }}>₱</Mono>
+            <Mono size={24} weight="bold" color={t.txtHi} style={{ marginRight: 3 }}>{country.cur}</Mono>
             <TextInput
               value={input}
               onChangeText={setInput}
