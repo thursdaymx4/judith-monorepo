@@ -97,6 +97,26 @@ function buildHistory(bill: Bill): BillCycleRecord[] {
     if (!seen.has(r.period)) { seen.add(r.period); rows.push(r); }
   }
   rows.sort((a, b) => b.period.localeCompare(a.period));
+
+  // Prepend a live "open cycle" row when there is an active carry-in that hasn't
+  // been captured in a closed record yet, so the carry-in is visible in history.
+  const carryIn = bill.carryOver ?? 0;
+  if (carryIn > 0) {
+    const today = new Date();
+    const naturalPeriod = computeNaturalPeriodUI(bill.dueDate ?? 1, bill.paymentHistory, today);
+    if (!seen.has(naturalPeriod)) {
+      rows.unshift({
+        period: naturalPeriod,
+        charged: bill.amount,
+        carriedIn: carryIn,
+        totalDue: bill.amount + carryIn,
+        paid: bill.amountPaid ?? 0,
+        rolledOver: 0,
+        onTime: null,
+      });
+    }
+  }
+
   return rows.slice(0, 24);
 }
 
@@ -203,7 +223,7 @@ function CycleRow({ record, money, naturalPeriod }: { record: BillCycleRecord; m
           </View>
         ) : null}
       </View>
-      {/* 4-column stats: due · paid · carry-in · rolled out */}
+      {/* 3-column stats: due · paid · carry-in */}
       <View style={{ flexDirection: "row" }}>
         {[
           { label: "Total due", val: money(record.totalDue), color: t.txtHi, tip: null },
@@ -218,12 +238,6 @@ function CycleRow({ record, money, naturalPeriod }: { record: BillCycleRecord; m
             val: record.carriedIn > 0 ? money(record.carriedIn) : "—",
             color: record.carriedIn > 0 ? t.semantic.near : t.txtLow,
             tip: "Unpaid balance carried forward from the previous month and added to this month's total.",
-          },
-          {
-            label: "Rolled out",
-            val: record.rolledOver > 0 ? money(record.rolledOver) : "—",
-            color: record.rolledOver > 0 ? t.semantic.near : t.txtLow,
-            tip: "Amount left unpaid this month that will carry into next month's total.",
           },
         ].map((s, i) => (
           <View key={i} style={{ flex: 1 }}>
