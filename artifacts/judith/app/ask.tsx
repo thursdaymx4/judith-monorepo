@@ -271,7 +271,7 @@ export default function AskModal() {
       silenceRef.current = { timer: null, hasSpeech: false };
       const vadStart = Date.now();
       const VAD_MIN_MS = 800;        // settling period — sample ambient noise
-      const VAD_SILENCE_MS = 1500;   // 1.5 s of silence → auto-stop
+      const VAD_SILENCE_MS = 3000;   // 3 s of trailing silence → auto-stop (allows natural mid-sentence pauses)
       const VAD_MAX_MS = 30000;      // hard ceiling — never record more than 30 s
       let adaptiveThreshold = -50;   // updated after settling
       let settlingComplete = false;
@@ -306,17 +306,18 @@ export default function AskModal() {
           return;
         }
         if (db > adaptiveThreshold) {
-          // Active speech — cancel any pending silence timer
+          // Active speech — mark it and cancel any pending silence timer
           silenceRef.current.hasSpeech = true;
           if (silenceRef.current.timer !== null) { clearTimeout(silenceRef.current.timer); silenceRef.current.timer = null; }
-        } else if (silenceRef.current.timer === null) {
-          // Silence (pre- or post-speech) — start countdown unconditionally so
-          // VAD always fires even when the user's voice doesn't cross the threshold.
+        } else if (silenceRef.current.hasSpeech && silenceRef.current.timer === null) {
+          // Trailing silence AFTER the user has spoken — wait VAD_SILENCE_MS so
+          // natural mid-sentence pauses (recalling amounts, due dates) don't cut off.
           silenceRef.current.timer = setTimeout(() => {
             clearVad();
             void stopRecordingRef.current();
           }, VAD_SILENCE_MS);
         }
+        // Pre-speech silence — do nothing; let the user take their time to start
       }, 100);
     } catch (e) {
       setErr(`Couldn't start recording: ${String((e as Error)?.message ?? e)}`);
