@@ -523,6 +523,11 @@ export default function BillDetailModal() {
 
       {/* ── ACTION BUTTONS ──────────────────────────────────── */}
       <View style={{ gap: 9, marginTop: 20 }}>
+        {/* Amount due — shown above the primary action button */}
+        <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "center", gap: 6, paddingBottom: 4 }}>
+          <Low size={12}>{paid ? "Paid" : overdue ? "Amount overdue" : isFuturePeriod ? "Amount due" : "Amount due"}</Low>
+          <Mono size={26} weight="bold" color={paid ? t.semantic.ok : t.semantic[viewedCls]}>{money(viewedOwed)}</Mono>
+        </View>
         {/* Mark paid / unpaid — available for any month (past, current, or future pre-pay) */}
         <Btn
           label={
