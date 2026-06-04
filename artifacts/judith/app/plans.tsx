@@ -1,174 +1,146 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Animated,
+  Easing,
+  Pressable,
+  ScrollView,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon } from "@/components/Icon";
-import { Low, SheetHeader, Txt, mix, Mono } from "@/components/ui";
+import { JudithAvatar } from "@/components/JudithAvatar";
+import { Low, Mono, Txt, mix } from "@/components/ui";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
-import {
-  getTierPackages,
-  purchaseForTier,
-  type TierPackages,
-} from "@/lib/purchases";
+import { getTierPackages, purchaseForTier, type TierPackages } from "@/lib/purchases";
 import type { PurchasesPackage } from "react-native-purchases";
 
-const CHAT_FEATURES = [
-  "Unlimited text asks to Judith",
-  "Bill tracking & reminders",
-  "All 5 personas",
-];
-
-const VOICE_FEATURES = [
-  "Everything in Chat Ask",
-  "Unlimited voice asks (speak + listen)",
-  "Voice replies in your language",
-];
-
-interface PlanCardProps {
-  title: string;
-  price: number;
-  priceLabel: string;
-  badge?: string;
-  highlight?: boolean;
-  features: string[];
-  cta: string;
-  active: boolean;
-  loading: boolean;
-  onPress: () => void;
-  money: (n: number) => string;
+/* ---- thin separator ---- */
+function Sep() {
+  const t = useTheme();
+  return <View style={{ height: 1, backgroundColor: t.hair, marginVertical: 2 }} />;
 }
 
-function PlanCard({
-  title,
-  priceLabel,
-  badge,
-  highlight,
-  features,
-  cta,
-  active,
-  loading,
-  onPress,
-}: PlanCardProps) {
+/* ---- math row ---- */
+function MathRow({
+  label,
+  value,
+  color,
+  sub,
+  large,
+}: {
+  label: string;
+  value: string;
+  color: string;
+  sub?: string;
+  large?: boolean;
+}) {
   const t = useTheme();
   return (
-    <View
-      style={{
-        borderWidth: 1,
-        borderColor: highlight ? mix(t.accent, t.surface2, 0.3) : t.hair,
-        borderRadius: t.radius.md,
-        backgroundColor: highlight
-          ? mix(t.accent, t.surface2, 0.1)
-          : t.surface2,
-        overflow: "hidden",
-      }}
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11 }}>
+      <View style={{ flex: 1 }}>
+        <Txt size={large ? 14 : 13} weight={large ? "semibold" : "regular"} color={t.txtMid}>
+          {label}
+        </Txt>
+        {sub && <Low size={11} style={{ marginTop: 2 }}>{sub}</Low>}
+      </View>
+      <Mono size={large ? 17 : 15} weight="bold" color={color}>
+        {value}
+      </Mono>
+    </View>
+  );
+}
+
+/* ---- feature line ---- */
+function Feature({ text, accent }: { text: string; accent?: boolean }) {
+  const t = useTheme();
+  return (
+    <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
+      <View style={{ marginTop: 2 }}>
+        <Icon name="check" size={14} color={accent ? t.accent : t.semantic.ok} />
+      </View>
+      <Low size={13} style={{ flex: 1, lineHeight: 19 }}>{text}</Low>
+    </View>
+  );
+}
+
+/* ---- main CTA button ---- */
+function CtaBtn({
+  label,
+  sub,
+  loading,
+  disabled,
+  primary,
+  onPress,
+}: {
+  label: string;
+  sub?: string;
+  loading?: boolean;
+  disabled?: boolean;
+  primary?: boolean;
+  onPress: () => void;
+}) {
+  const t = useTheme();
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const onPressIn = () => {
+    if (disabled || loading) return;
+    Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 50 }).start();
+  };
+  const onPressOut = () => {
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 50 }).start();
+  };
+
+  return (
+    <Pressable
+      onPress={disabled || loading ? undefined : onPress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
     >
-      {badge && (
-        <View
-          style={{
-            backgroundColor: t.accent,
-            paddingVertical: 5,
-            alignItems: "center",
-          }}
-        >
-          <Text
-            style={{
-              fontFamily: t.fonts.semibold,
-              fontSize: 11,
-              letterSpacing: 0.6,
-              color: t.onAccent,
-            }}
-          >
-            {badge.toUpperCase()}
-          </Text>
-        </View>
-      )}
-
-      <View style={{ padding: 18, gap: 14 }}>
-        {/* header */}
-        <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
-          <View style={{ gap: 3 }}>
-            <Txt size={17} weight="semibold">{title}</Txt>
-            <Txt size={22} weight="bold" color={highlight ? t.accent : t.txtHi}>
-              {priceLabel}
-            </Txt>
-            <Low size={11}>per month · cancel anytime</Low>
-          </View>
-          {active && (
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 5,
-                borderWidth: 1,
-                borderColor: mix(t.semantic.ok, t.surface2, 0.4),
-                borderRadius: 20,
-                paddingVertical: 4,
-                paddingHorizontal: 10,
-                backgroundColor: mix(t.semantic.ok, t.surface2, 0.12),
-              }}
-            >
-              <View
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: 3,
-                  backgroundColor: t.semantic.ok,
-                }}
-              />
-              <Txt size={11} weight="semibold" color={t.semantic.ok}>
-                Active
-              </Txt>
-            </View>
-          )}
-        </View>
-
-        {/* features */}
-        <View style={{ gap: 8 }}>
-          {features.map((f) => (
-            <View key={f} style={{ flexDirection: "row", alignItems: "flex-start", gap: 9 }}>
-              <View style={{ marginTop: 1 }}>
-                <Icon name="check" size={14} color={t.accent} />
-              </View>
-              <Low size={13} style={{ flex: 1, lineHeight: 18 }}>{f}</Low>
-            </View>
-          ))}
-        </View>
-
-        {/* CTA */}
-        <Pressable
-          onPress={active || loading ? undefined : onPress}
-          style={({ pressed }) => ({
-            alignItems: "center",
-            justifyContent: "center",
-            paddingVertical: 15,
-            borderRadius: 12,
-            backgroundColor: active
-              ? t.surface3
-              : highlight
+      <Animated.View
+        style={{
+          transform: [{ scale }],
+          paddingVertical: 16,
+          borderRadius: 16,
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: 56,
+          backgroundColor: disabled
+            ? t.surface3
+            : primary
               ? t.accent
-              : mix(t.accent, t.surface2, 0.25),
-            borderWidth: active ? 1 : 0,
-            borderColor: t.hair,
-            opacity: pressed && !active && !loading ? 0.85 : 1,
-            minHeight: 50,
-          })}
-        >
-          {loading ? (
-            <ActivityIndicator color={highlight ? t.onAccent : t.accent} size="small" />
-          ) : (
+              : mix(t.accent, t.surface2, 0.2),
+          borderWidth: disabled ? 1 : 0,
+          borderColor: t.hair,
+          gap: 2,
+        }}
+      >
+        {loading ? (
+          <ActivityIndicator color={primary ? t.onAccent : t.accent} size="small" />
+        ) : (
+          <>
             <Txt
               size={15}
               weight="semibold"
-              color={active ? t.txtMid : highlight ? t.onAccent : t.accent}
+              color={disabled ? t.txtMid : primary ? t.onAccent : t.accent}
             >
-              {cta}
+              {label}
             </Txt>
-          )}
-        </Pressable>
-      </View>
-    </View>
+            {sub && !disabled && (
+              <Low
+                size={11}
+                style={{ color: primary ? t.onAccent + "aa" : t.txtLow }}
+              >
+                {sub}
+              </Low>
+            )}
+          </>
+        )}
+      </Animated.View>
+    </Pressable>
   );
 }
 
@@ -177,7 +149,7 @@ export default function PlansModal() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { focus } = useLocalSearchParams<{ focus?: string }>();
-  const { asksLeft, tier, money, subscribe, showToast } = useJudith();
+  const { asksLeft, tier, persona, money, subscribe, showToast } = useJudith();
 
   const [packages, setPackages] = useState<TierPackages>({ chat: null, voice: null });
   const [loadingPkgs, setLoadingPkgs] = useState(true);
@@ -186,13 +158,23 @@ export default function PlansModal() {
   const scrollRef = useRef<ScrollView>(null);
   const voiceCardY = useRef<number>(0);
 
+  /* hero fade-in */
+  const heroOp = useRef(new Animated.Value(0)).current;
+  const heroY = useRef(new Animated.Value(14)).current;
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(heroOp, { toValue: 1, duration: 480, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(heroY, { toValue: 0, duration: 480, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+    ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     getTierPackages()
       .then(setPackages)
       .finally(() => setLoadingPkgs(false));
   }, []);
 
-  // Auto-scroll to the Voice Ask card when arriving with focus=voice
   useEffect(() => {
     if (focus !== "voice") return;
     const id = setTimeout(() => {
@@ -203,11 +185,8 @@ export default function PlansModal() {
 
   const buy = async (targetTier: "chat" | "voice", pkg: PurchasesPackage | null) => {
     if (!pkg) {
-      // RevenueCat not configured (Expo Go / dev build without keys) — simulate locally
       subscribe(targetTier);
-      showToast(
-        targetTier === "chat" ? "Chat Ask activated ✓" : "Voice Ask activated ✓",
-      );
+      showToast(targetTier === "chat" ? "Chat Ask activated ✓" : "Voice Ask activated ✓");
       router.back();
       return;
     }
@@ -230,7 +209,7 @@ export default function PlansModal() {
 
   const chatActive = tier === "chat" || tier === "voice";
   const voiceActive = tier === "voice";
-  const focusVoice = focus === "voice";
+  const isFree = tier === "free";
 
   return (
     <ScrollView
@@ -238,16 +217,98 @@ export default function PlansModal() {
       style={{ flex: 1, backgroundColor: t.canvas }}
       contentContainerStyle={{
         paddingHorizontal: 22,
-        paddingTop: Math.max(insets.top, 44) + 14,
-        paddingBottom: 96,
-        gap: 16,
+        paddingTop: Math.max(insets.top, 44) + 10,
+        paddingBottom: insets.bottom + 48,
       }}
       showsVerticalScrollIndicator={false}
     >
-      <SheetHeader title="Ask Judith plan" onClose={() => router.back()} />
+      {/* close */}
+      <View style={{ flexDirection: "row", justifyContent: "flex-end", marginBottom: 24 }}>
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={10}
+          style={{
+            width: 32, height: 32, borderRadius: 16,
+            backgroundColor: t.surface2, borderWidth: 1, borderColor: t.hair,
+            alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <Icon name="x" size={15} color={t.txtMid} />
+        </Pressable>
+      </View>
 
-      {/* free-tier status */}
-      {tier === "free" && (
+      {/* ---- HERO ---- */}
+      <Animated.View
+        style={{ opacity: heroOp, transform: [{ translateY: heroY }], alignItems: "center", marginBottom: 32 }}
+      >
+        <JudithAvatar persona={persona} size={64} state="idle" />
+        <View style={{ marginTop: 18, alignItems: "center", gap: 8 }}>
+          <Txt
+            size={26}
+            weight="semibold"
+            style={{ textAlign: "center", lineHeight: 33, letterSpacing: -0.5 }}
+          >
+            One late fee costs more{"\n"}than 7 months with Judith.
+          </Txt>
+          <Low size={13} style={{ textAlign: "center", lineHeight: 18 }}>
+            The average credit card late fee in the Philippines{"\n"}is ₱750. Your subscription is ₱99.
+          </Low>
+        </View>
+      </Animated.View>
+
+      {/* ---- MATH CARD ---- */}
+      <View
+        style={{
+          borderWidth: 1,
+          borderColor: t.hair,
+          borderRadius: 18,
+          backgroundColor: t.surface1,
+          paddingHorizontal: 18,
+          overflow: "hidden",
+          marginBottom: 28,
+        }}
+      >
+        <MathRow
+          label="One missed CC payment"
+          sub="BPI, BDO, Security Bank avg."
+          value="−₱750"
+          color={t.semantic.urgent}
+        />
+        <Sep />
+        <MathRow
+          label="Meralco reconnection fee"
+          sub="If disconnected for non-payment"
+          value="−₱300"
+          color={t.semantic.urgent}
+        />
+        <Sep />
+        <MathRow
+          label="Judith Chat Ask / month"
+          sub="Unlimited tracking + reminders"
+          value="₱99"
+          color={t.semantic.ok}
+        />
+        <Sep />
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 10,
+            paddingVertical: 13,
+          }}
+        >
+          <Icon name="trend" size={16} color={t.accent} />
+          <Low size={12} style={{ flex: 1, lineHeight: 17 }}>
+            Avoid just{" "}
+            <Txt size={12} weight="semibold" color={t.txtHi}>one late fee</Txt>
+            {" "}and Judith pays for itself for the{" "}
+            <Txt size={12} weight="semibold" color={t.accent}>entire year.</Txt>
+          </Low>
+        </View>
+      </View>
+
+      {/* ---- FREE ASKS NOTICE ---- */}
+      {isFree && asksLeft > 0 && (
         <View
           style={{
             flexDirection: "row",
@@ -255,90 +316,189 @@ export default function PlansModal() {
             gap: 10,
             borderWidth: 1,
             borderColor: t.hair,
-            borderRadius: t.radius.md,
+            borderRadius: 14,
             backgroundColor: t.surface2,
-            paddingVertical: 12,
-            paddingHorizontal: 14,
-          }}
-        >
-          <Icon name="spark" size={16} color={t.accent} />
-          <Low size={13} style={{ flex: 1 }}>
-            You have{" "}
-            <Mono size={13} color={t.txtHi} weight="bold">
-              {asksLeft}
-            </Mono>{" "}
-            free ask{asksLeft !== 1 ? "s" : ""} remaining. Subscribe for unlimited.
-          </Low>
-        </View>
-      )}
-
-      {/* Upgrade nudge banner — shown when arriving from the voice upgrade sheet */}
-      {focusVoice && !voiceActive && (
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 10,
-            borderWidth: 1,
-            borderColor: mix(t.accent, t.surface2, 0.35),
-            borderRadius: t.radius.md,
-            backgroundColor: mix(t.accent, t.surface2, 0.1),
             paddingVertical: 11,
             paddingHorizontal: 14,
+            marginBottom: 20,
           }}
         >
-          <Icon name="mic" size={16} color={t.accent} />
+          <Icon name="spark" size={15} color={t.accent} />
           <Low size={13} style={{ flex: 1 }}>
-            Voice asks are included in{" "}
-            <Txt size={13} weight="semibold" color={t.txtHi}>Voice Ask (₱199/mo)</Txt>
-            {" "}— upgrade below.
+            You have{" "}
+            <Mono size={13} weight="bold" color={t.txtHi}>{asksLeft}</Mono>
+            {" "}free ask{asksLeft !== 1 ? "s" : ""} left. Subscribe for unlimited.
           </Low>
         </View>
       )}
 
       {loadingPkgs ? (
-        <View style={{ alignItems: "center", paddingVertical: 32 }}>
+        <View style={{ alignItems: "center", paddingVertical: 48 }}>
           <ActivityIndicator color={t.accent} size="large" />
         </View>
       ) : (
-        <>
-          <PlanCard
-            title="Chat Ask"
-            price={99}
-            priceLabel={money(99)}
-            features={CHAT_FEATURES}
-            cta={chatActive ? "Current plan" : "Subscribe · " + money(99) + "/mo"}
-            active={chatActive}
-            loading={buyingTier === "chat"}
-            highlight={!chatActive && !focusVoice}
-            onPress={() => buy("chat", packages.chat)}
-            money={money}
-          />
-
+        <View style={{ gap: 14 }}>
+          {/* ---- VOICE CARD — hero ---- */}
           <View
             onLayout={(e) => { voiceCardY.current = e.nativeEvent.layout.y; }}
           >
-            <PlanCard
-              title="Voice Ask"
-              price={199}
-              priceLabel={money(199)}
-              badge={focusVoice && !voiceActive ? "Recommended for you" : "Includes Chat"}
-              features={VOICE_FEATURES}
-              cta={voiceActive ? "Current plan" : "Subscribe · " + money(199) + "/mo"}
-              active={voiceActive}
-              loading={buyingTier === "voice"}
-              highlight={true}
-              onPress={() => buy("voice", packages.voice)}
-              money={money}
-            />
+            <View
+              style={{
+                borderWidth: 1.5,
+                borderColor: mix(t.accent, t.surface2, 0.35),
+                borderRadius: 20,
+                backgroundColor: mix(t.accent, t.canvas, 0.06),
+                overflow: "hidden",
+              }}
+            >
+              {/* recommended banner */}
+              {!voiceActive && (
+                <View
+                  style={{
+                    backgroundColor: t.accent,
+                    paddingVertical: 6,
+                    alignItems: "center",
+                  }}
+                >
+                  <Txt size={11} weight="semibold" color={t.onAccent} style={{ letterSpacing: 0.8 }}>
+                    MOST POPULAR
+                  </Txt>
+                </View>
+              )}
+
+              <View style={{ padding: 20, gap: 18 }}>
+                {/* header */}
+                <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
+                  <View>
+                    <Txt size={18} weight="semibold">Voice Ask</Txt>
+                    <View style={{ flexDirection: "row", alignItems: "baseline", gap: 4, marginTop: 4 }}>
+                      <Mono size={28} weight="bold" color={t.accent}>{money(199)}</Mono>
+                      <Low size={12}>/mo</Low>
+                    </View>
+                    <Low size={11} style={{ marginTop: 2 }}>Cancel anytime</Low>
+                  </View>
+                  {voiceActive && (
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 5,
+                        borderWidth: 1,
+                        borderColor: mix(t.semantic.ok, t.surface2, 0.4),
+                        borderRadius: 20,
+                        paddingVertical: 5,
+                        paddingHorizontal: 11,
+                        backgroundColor: mix(t.semantic.ok, t.surface2, 0.12),
+                      }}
+                    >
+                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: t.semantic.ok }} />
+                      <Txt size={11} weight="semibold" color={t.semantic.ok}>Active</Txt>
+                    </View>
+                  )}
+                </View>
+
+                {/* features */}
+                <View style={{ gap: 10 }}>
+                  <Feature text="Talk to Judith — speak your question, hear her answer" accent />
+                  <Feature text="Voice replies in Tagalog, English, Bisaya, or any language you set" accent />
+                  <Feature text="Unlimited text + voice asks, all 5 personas" />
+                  <Feature text="Bill tracking, reminders, and calendar — all included" />
+                </View>
+
+                <CtaBtn
+                  label={voiceActive ? "Current plan" : "Get Voice Ask"}
+                  sub={voiceActive ? undefined : money(199) + "/month · cancel anytime"}
+                  primary={!voiceActive}
+                  disabled={voiceActive}
+                  loading={buyingTier === "voice"}
+                  onPress={() => buy("voice", packages.voice)}
+                />
+              </View>
+            </View>
           </View>
-        </>
+
+          {/* ---- CHAT CARD ---- */}
+          <View
+            style={{
+              borderWidth: 1,
+              borderColor: chatActive && !voiceActive ? mix(t.accent, t.surface2, 0.3) : t.hair,
+              borderRadius: 20,
+              backgroundColor: t.surface1,
+              overflow: "hidden",
+            }}
+          >
+            <View style={{ padding: 20, gap: 18 }}>
+              {/* header */}
+              <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
+                <View>
+                  <Txt size={17} weight="semibold">Chat Ask</Txt>
+                  <View style={{ flexDirection: "row", alignItems: "baseline", gap: 4, marginTop: 4 }}>
+                    <Mono size={26} weight="bold" color={chatActive && !voiceActive ? t.accent : t.txtHi}>
+                      {money(99)}
+                    </Mono>
+                    <Low size={12}>/mo</Low>
+                  </View>
+                  <Low size={11} style={{ marginTop: 2 }}>Cancel anytime</Low>
+                </View>
+                {chatActive && !voiceActive && (
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 5,
+                      borderWidth: 1,
+                      borderColor: mix(t.semantic.ok, t.surface2, 0.4),
+                      borderRadius: 20,
+                      paddingVertical: 5,
+                      paddingHorizontal: 11,
+                      backgroundColor: mix(t.semantic.ok, t.surface2, 0.12),
+                    }}
+                  >
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: t.semantic.ok }} />
+                    <Txt size={11} weight="semibold" color={t.semantic.ok}>Active</Txt>
+                  </View>
+                )}
+              </View>
+
+              {/* features */}
+              <View style={{ gap: 10 }}>
+                <Feature text="Unlimited text asks to Judith — type anything, get a real answer" />
+                <Feature text="Bill tracking, reminders, and calendar" />
+                <Feature text="All 5 personas — mama, Marites, ate, and more" />
+              </View>
+
+              <CtaBtn
+                label={chatActive ? "Current plan" : "Get Chat Ask"}
+                sub={chatActive ? undefined : money(99) + "/month · cancel anytime"}
+                primary={false}
+                disabled={chatActive}
+                loading={buyingTier === "chat"}
+                onPress={() => buy("chat", packages.chat)}
+              />
+            </View>
+          </View>
+        </View>
       )}
 
-      <Low size={11} style={{ textAlign: "center", lineHeight: 16 }}>
-        Subscriptions are managed by the App Store / Google Play.{"\n"}
-        Cancel anytime. Prices shown in your local currency.
-      </Low>
+      {/* ---- TRUST FOOTER ---- */}
+      <View style={{ marginTop: 28, gap: 10 }}>
+        <View style={{ flexDirection: "row", justifyContent: "center", gap: 24 }}>
+          {[
+            { icon: "lock" as const, label: "Secure" },
+            { icon: "refresh" as const, label: "Cancel anytime" },
+            { icon: "star" as const, label: "No hidden fees" },
+          ].map((item) => (
+            <View key={item.label} style={{ alignItems: "center", gap: 5 }}>
+              <Icon name={item.icon} size={16} color={t.txtLow} />
+              <Low size={10}>{item.label}</Low>
+            </View>
+          ))}
+        </View>
+        <Low size={11} style={{ textAlign: "center", lineHeight: 16, marginTop: 4 }}>
+          Managed by the App Store / Google Play.{"\n"}
+          Prices shown in your local currency.
+        </Low>
+      </View>
     </ScrollView>
   );
 }
