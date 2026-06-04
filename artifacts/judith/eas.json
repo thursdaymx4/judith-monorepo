@@ -40,10 +40,22 @@
     }
   },
   "submit": {
+    "preview": {
+      "ios": {
+        "language": "en-US",
+        "appleTeamId": "88JK8X8BT7"
+      },
+      "android": {
+        "track": "internal"
+      }
+    },
     "production": {
       "ios": {
         "language": "en-US",
         "appleTeamId": "88JK8X8BT7"
+      },
+      "android": {
+        "track": "internal"
       }
     }
   }
