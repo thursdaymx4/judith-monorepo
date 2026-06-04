@@ -391,6 +391,7 @@ export interface BillLike {
   amountPaid?: number;
   carryOver?: number;
   isBusiness?: boolean;
+  chargedToCard?: boolean;
 }
 
 export function BillRow({
@@ -436,6 +437,26 @@ export function BillRow({
         <View style={{ flex: 1, minWidth: 0 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
             <Text style={{ fontFamily: t.fonts.medium, fontSize: 15, color: t.txtHi }}>{bill.provider}</Text>
+            {bill.chargedToCard && (
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 3,
+                  backgroundColor: t.accent + "1f",
+                  borderWidth: 1,
+                  borderColor: t.accent + "55",
+                  borderRadius: 5,
+                  paddingHorizontal: 5,
+                  paddingVertical: 1,
+                }}
+              >
+                <Icon name="card" size={9} color={t.accent} />
+                <Text style={{ fontFamily: t.fonts.medium, fontSize: 9.5, color: t.accent, letterSpacing: 0.4 }}>
+                  {"via card"}
+                </Text>
+              </View>
+            )}
             {bill.isBusiness && (
               <View
                 style={{

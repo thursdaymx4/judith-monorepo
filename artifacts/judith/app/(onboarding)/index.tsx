@@ -236,6 +236,8 @@ interface OnbBill {
   frequency?: "monthly" | "annual";
   subtype?: string;
   house?: string;
+  chargedToCard?: boolean;
+  parentCardId?: string;
 }
 
 const fmtNum = (n: number): string => n.toLocaleString("en-US");
@@ -1879,6 +1881,7 @@ type VMode =
   | "parsed"
   | "manualCats"
   | "manualForm"
+  | "cardLink"
   | "breather"
   | "more"
   | "count"
@@ -1955,6 +1958,9 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const [draftSubs, setDraftSubs] = useState<DraftSub[]>([]);
   const [parsedEditing, setParsedEditing] = useState(false);
   const [parsedEdits, setParsedEdits] = useState<{ provider: string; amount: string; dueDay: string; kind: "Fixed" | "Variable"; frequency: "monthly" | "annual" }>({ provider: "", amount: "", dueDay: "", kind: "Fixed", frequency: "monthly" });
+  const [pendingBill, setPendingBill] = useState<OnbBill | null>(null);
+  const [cardLinkPick, setCardLinkPick] = useState(false);
+  const cardLinkAfter = useRef<() => void>(() => {});
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [showDayPicker, setShowDayPicker] = useState(false);
   const formEnterAnim = useRef(new Animated.Value(0)).current;
@@ -2005,6 +2011,42 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     setMode("prompt");
   };
 
+  /** Existing credit-card bills that other charges can be linked to. */
+  const cardChoices = storeBills.filter((b) => b.cat === "Credit card");
+  /** True when a category can be auto-charged to a credit card. */
+  const canLinkCard = (cat: string) => cat !== "Credit card" && cat !== "Personal loan";
+
+  /** Persist an onboarding bill (with dup-check), then run `after`. */
+  const commitBill = (b: OnbBill, after: () => void) => {
+    const dup = findDuplicate(storeBills, { provider: b.provider, cat: b.cat });
+    if (dup) {
+      Alert.alert(
+        "Already added",
+        `"${dup.provider}" (${dup.cat}) is already in your bills. Add it again?`,
+        [
+          { text: "Skip", style: "cancel", onPress: after },
+          { text: "Add anyway", onPress: () => { addBill(b); saveBill(onbBillToStoreBill(b)); after(); } },
+        ],
+      );
+      return;
+    }
+    addBill(b);
+    saveBill(onbBillToStoreBill(b));
+    after();
+  };
+
+  /** Save `b`, but first offer the credit-card link step when eligible. */
+  const saveWithCardLink = (b: OnbBill, after: () => void) => {
+    if (canLinkCard(b.cat)) {
+      cardLinkAfter.current = after;
+      setPendingBill(b);
+      setCardLinkPick(false);
+      setMode("cardLink");
+      return;
+    }
+    commitBill(b, after);
+  };
+
   const confirm = () => {
     const b: OnbBill = {
       provider: parsedBill?.provider || sample.provider,
@@ -2018,21 +2060,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       subtype: sample.subtype,
       house: HOUSES[0],
     };
-    const dup = findDuplicate(storeBills, { provider: b.provider, cat: b.cat });
-    if (dup) {
-      Alert.alert(
-        "Already added",
-        `"${dup.provider}" (${dup.cat}) is already in your bills. Add it again?`,
-        [
-          { text: "Skip", style: "cancel", onPress: () => advanceAfterItem() },
-          { text: "Add anyway", onPress: () => { addBill(b); saveBill(onbBillToStoreBill(b)); advanceAfterItem(); } },
-        ],
-      );
-      return;
-    }
-    addBill(b);
-    saveBill(onbBillToStoreBill(b));
-    advanceAfterItem();
+    saveWithCardLink(b, advanceAfterItem);
   };
   const skipOne = () => advanceAfterItem();
   const startCards = () => { setPhase("cards"); setCardDone(0); setMode("count"); };
@@ -2068,25 +2096,11 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       subtype: form.subtype,
       house: form.house,
     };
-    const doSave = () => {
-      addBill(b);
-      saveBill(onbBillToStoreBill(b));
+    const after = () => {
       if (manualReturn === "prompt") advanceAfterItem();
       else setMode(manualReturn);
     };
-    const dup = findDuplicate(storeBills, { provider: b.provider, cat: b.cat });
-    if (dup) {
-      Alert.alert(
-        "Already added",
-        `"${dup.provider}" (${dup.cat}) is already in your bills. Add it again?`,
-        [
-          { text: "Skip", style: "cancel", onPress: () => { if (manualReturn === "prompt") advanceAfterItem(); else setMode(manualReturn); } },
-          { text: "Add anyway", onPress: doSave },
-        ],
-      );
-      return;
-    }
-    doSave();
+    saveWithCardLink(b, after);
   };
 
   /* Screenshot upload — encouraged for Phone subscription category */
@@ -2735,6 +2749,43 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
             </View>
           )}
 
+          {mode === "cardLink" && pendingBill && (
+            <View style={{ alignSelf: "stretch" }}>
+              <JudithLine>
+                {cardLinkPick
+                  ? `Which card covers ${pendingBill.provider}?`
+                  : `Is ${pendingBill.provider} auto-charged to a credit card?`}
+              </JudithLine>
+              {cardLinkPick && (
+                <View style={{ marginTop: 12, gap: 8 }}>
+                  {cardChoices.map((c) => (
+                    <Pressable
+                      key={c.id}
+                      onPress={() => commitBill({ ...pendingBill, chargedToCard: true, parentCardId: c.id }, () => { setPendingBill(null); setCardLinkPick(false); cardLinkAfter.current(); })}
+                      style={({ pressed }) => [
+                        { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderColor: t.hair, borderRadius: t.radius.md, backgroundColor: t.surface2, paddingVertical: 13, paddingHorizontal: 14 },
+                        pressed && { opacity: 0.6 },
+                      ]}
+                    >
+                      <Icon name="card" size={18} color={t.accent} />
+                      <Txt size={14} weight="medium" style={{ flex: 1 }}>{c.provider}</Txt>
+                      <Mono size={13} color={t.txtMid}>{cur}{fmtNum(c.amount)}</Mono>
+                    </Pressable>
+                  ))}
+                  <Pressable
+                    onPress={() => commitBill({ ...pendingBill, chargedToCard: true }, () => { setPendingBill(null); setCardLinkPick(false); cardLinkAfter.current(); })}
+                    style={({ pressed }) => [
+                      { borderWidth: 1, borderColor: t.hair, borderRadius: t.radius.md, backgroundColor: t.surface1, paddingVertical: 13, paddingHorizontal: 14 },
+                      pressed && { opacity: 0.6 },
+                    ]}
+                  >
+                    <Txt size={14} color={t.txtMid}>I'll link the card later</Txt>
+                  </Pressable>
+                </View>
+              )}
+            </View>
+          )}
+
           {err !== "" && showConvo && (
             <Txt size={13} color={t.semantic.urgent} style={{ textAlign: "center" }}>{err}</Txt>
           )}
@@ -3112,6 +3163,26 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
             />
           </>
         )}
+        {mode === "cardLink" && pendingBill && !cardLinkPick && (
+          <>
+            <Btn
+              label="Yes, via a card"
+              icon="card"
+              onPress={() => {
+                if (cardChoices.length > 0) setCardLinkPick(true);
+                else commitBill({ ...pendingBill, chargedToCard: true }, () => { setPendingBill(null); cardLinkAfter.current(); });
+              }}
+            />
+            <Btn
+              label="No, I pay it directly"
+              variant="soft"
+              onPress={() => commitBill(pendingBill, () => { setPendingBill(null); cardLinkAfter.current(); })}
+            />
+          </>
+        )}
+        {mode === "cardLink" && cardLinkPick && (
+          <Btn label="← Back" variant="ghost" onPress={() => setCardLinkPick(false)} />
+        )}
         {mode === "breather" && (() => {
           const g = VGROUPS[breatherGroup] || VGROUPS[0]!;
           return (
@@ -3394,6 +3465,8 @@ function onbBillToStoreBill(b: OnbBill): Bill {
     kind: b.kind,
     subtype: b.subtype as "Rent" | "Mortgage" | undefined,
     frequency: b.frequency,
+    ...(b.chargedToCard ? { chargedToCard: true } : {}),
+    ...(b.parentCardId ? { parentCardId: b.parentCardId } : {}),
   };
 }
 

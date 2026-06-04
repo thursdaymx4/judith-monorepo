@@ -32,9 +32,16 @@ export default function AddBillScreen() {
   const [isBusiness, setIsBusiness] = useState(existing?.isBusiness ?? false);
   const [remDays, setRemDays] = useState(existing?.reminderDays ?? 3);
   const [statementDay, setStatementDay] = useState(existing?.statementDay ?? 5);
+  const [chargedToCard, setChargedToCard] = useState(existing?.chargedToCard ?? false);
+  const [parentCardId, setParentCardId] = useState<string | undefined>(existing?.parentCardId);
   const [err, setErr] = useState("");
 
   const suggestions = useMemo(() => getProviders(country.code, cat), [country.code, cat]);
+  const cardChoices = useMemo(
+    () => bills.filter((b) => b.cat === "Credit card" && b.id !== existing?.id),
+    [bills, existing?.id],
+  );
+  const canLinkCard = cat !== "Credit card" && cat !== "Personal loan";
 
   const amt = Number(amount.replace(/[^0-9.]/g, ""));
   const day = Number(dueDay.replace(/[^0-9]/g, ""));
@@ -63,6 +70,8 @@ export default function AddBillScreen() {
       isBusiness: isBusiness || undefined,
       reminderDays: remDays,
       statementDay: cat === "Credit card" ? statementDay : undefined,
+      chargedToCard: canLinkCard && chargedToCard ? true : undefined,
+      parentCardId: canLinkCard && chargedToCard ? parentCardId : undefined,
     });
 
     if (isEdit && existing) {
@@ -361,6 +370,54 @@ export default function AddBillScreen() {
               : "This is a personal or household bill."}
           </Low>
         </View>
+
+        {/* auto-charged to a credit card */}
+        {canLinkCard && (
+          <View style={{ marginTop: 20 }}>
+            <FieldLabel text="Auto-charged to a card?" opt />
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <Chip
+                label="No"
+                selected={!chargedToCard}
+                onPress={() => { setChargedToCard(false); setParentCardId(undefined); }}
+              />
+              <Chip
+                label="Yes, via card"
+                icon="card"
+                selected={chargedToCard}
+                onPress={() => setChargedToCard(true)}
+              />
+            </View>
+            {chargedToCard && (
+              <View style={{ marginTop: 10 }}>
+                {cardChoices.length > 0 ? (
+                  <>
+                    <Low size={12} style={{ marginBottom: 8 }}>Which card pays this?</Low>
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                      {cardChoices.map((c) => (
+                        <Chip
+                          key={c.id}
+                          label={c.provider}
+                          selected={parentCardId === c.id}
+                          onPress={() => setParentCardId(c.id)}
+                        />
+                      ))}
+                    </View>
+                  </>
+                ) : (
+                  <Low size={12}>
+                    No credit cards yet — add one and you can link it here later.
+                  </Low>
+                )}
+              </View>
+            )}
+            <Low size={12} style={{ marginTop: 7 }}>
+              {chargedToCard
+                ? "Judith won't nudge you to pay this directly — she'll watch the linked card instead."
+                : "Turn this on for bills that auto-bill to a credit card."}
+            </Low>
+          </View>
+        )}
 
         {/* house / property tag */}
         <View style={{ marginTop: 20 }}>

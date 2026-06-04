@@ -24,6 +24,10 @@ export interface AskBill {
   dueMonth?: string;
   /** True when this bill is a business/work expense. */
   isBusiness?: boolean;
+  /** True when this charge is auto-billed to a credit card the user tracks. */
+  chargedToCard?: boolean;
+  /** Name of the credit card this charge is auto-billed to, if known. */
+  cardName?: string | null;
 }
 
 /** Returns Authorization header with the current Supabase session token. */

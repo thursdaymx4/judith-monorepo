@@ -55,6 +55,10 @@ export interface Bill {
   paymentHistory?: BillCycleRecord[];
   /** True when this bill is a business/work expense (default: personal). */
   isBusiness?: boolean;
+  /** True when this charge is auto-billed to a credit card the user also tracks. */
+  chargedToCard?: boolean;
+  /** The `id` of the linked credit-card bill that covers this charge. */
+  parentCardId?: string;
 }
 
 /** Total owed this cycle = current charge + any rolled-over balance. */
@@ -431,6 +435,8 @@ export function makeManualBill(
     isBusiness?: boolean;
     reminderDays?: number;
     statementDay?: number;
+    chargedToCard?: boolean;
+    parentCardId?: string;
   },
   today: Date = new Date(),
 ): Bill {
@@ -471,6 +477,8 @@ export function makeManualBill(
     ...(a.isBusiness ? { isBusiness: true } : {}),
     ...(a.reminderDays != null ? { reminderDays: a.reminderDays } : {}),
     ...(a.statementDay != null ? { statementDay: a.statementDay } : {}),
+    ...(a.chargedToCard ? { chargedToCard: true } : {}),
+    ...(a.parentCardId ? { parentCardId: a.parentCardId } : {}),
   };
 }
 

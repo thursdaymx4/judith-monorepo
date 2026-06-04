@@ -210,6 +210,9 @@ export default function AskModal() {
       const daysAhead = Math.max(b.dueDays ?? 0, 0);
       const dueDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysAhead);
       const dueMonth = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, "0")}`;
+      const cardName = b.chargedToCard && b.parentCardId
+        ? (bills.find((c) => c.id === b.parentCardId)?.provider ?? null)
+        : null;
       return {
         provider: b.provider,
         cat: b.cat,
@@ -219,6 +222,8 @@ export default function AskModal() {
         status: b.status,
         dueMonth,
         isBusiness: b.isBusiness,
+        chargedToCard: b.chargedToCard,
+        cardName,
       };
     });
   };

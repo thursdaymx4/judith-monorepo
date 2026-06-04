@@ -313,6 +313,11 @@ export default function BillDetailModal() {
   const remaining = owed - (bill.amountPaid ?? 0);
   const hasCarryOver = isCurrentPeriod && (bill.carryOver ?? 0) > 0;
   const isCC = bill.cat === "Credit card";
+  const linkedCharges = isCC ? bills.filter((b) => b.parentCardId === bill.id) : [];
+  const linkedTotal = linkedCharges.reduce((s, b) => s + b.amount, 0);
+  const parentCard = bill.chargedToCard && bill.parentCardId
+    ? bills.find((b) => b.id === bill.parentCardId)
+    : undefined;
   const todayDay = today.getDate();
   const statementIsToday = isCC && isCurrentPeriod && bill.statementDay === todayDay;
 
@@ -405,6 +410,14 @@ export default function BillDetailModal() {
           <Low size={12} numberOfLines={1}>
             {bill.cat}{bill.house ? ` · ${bill.house}` : ""}
           </Low>
+          {bill.chargedToCard && (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+              <Icon name="card" size={11} color={t.accent} />
+              <Low size={11} color={t.accent} weight="medium" numberOfLines={1}>
+                {parentCard ? `via ${parentCard.provider}` : "via card"}
+              </Low>
+            </View>
+          )}
         </View>
         <View style={{ alignItems: "flex-end", gap: 3 }}>
           <Mono size={22} weight="bold" color={statusColor}>{money(viewedOwed)}</Mono>
@@ -690,6 +703,41 @@ export default function BillDetailModal() {
             </View>
           </View>
         </View>
+      )}
+
+      {/* ── CHARGES UNDER THIS CARD ─────────────────────────── */}
+      {isCC && linkedCharges.length > 0 && (
+        <>
+          <SectionLabel style={{ marginTop: 24 }}>Charges under this card</SectionLabel>
+          <Card style={{ padding: 0, overflow: "hidden" }}>
+            {linkedCharges.map((c, i) => (
+              <View key={c.id}>
+                {i > 0 && <View style={{ height: 1, backgroundColor: t.hair }} />}
+                <Pressable
+                  onPress={() => router.push(`/bill/${c.id}`)}
+                  style={({ pressed }) => [
+                    { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
+                    pressed && { opacity: 0.6 },
+                  ]}
+                >
+                  <ProviderLogo provider={c.provider} cat={c.cat} size={34} />
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Txt size={14} weight="medium" numberOfLines={1}>{c.provider}</Txt>
+                    <Low size={11} numberOfLines={1}>{c.cat}</Low>
+                  </View>
+                  <Mono size={14} weight="medium" color={t.txtMid}>{money(c.amount)}</Mono>
+                </Pressable>
+              </View>
+            ))}
+            <View style={{ height: 1, backgroundColor: t.hair }} />
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 14 }}>
+              <Low size={12}>
+                {linkedCharges.length} {linkedCharges.length === 1 ? "charge" : "charges"} auto-billed here
+              </Low>
+              <Mono size={14} weight="bold" color={t.txtHi}>~{money(linkedTotal)}</Mono>
+            </View>
+          </Card>
+        </>
       )}
 
       {/* ── PAYMENT HISTORY ─────────────────────────────────── */}

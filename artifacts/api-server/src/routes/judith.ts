@@ -196,6 +196,10 @@ interface ClientBill {
   dueMonth?: string | null;
   /** True when this bill is tagged as a business/work expense. */
   isBusiness?: boolean | null;
+  /** True when this charge is auto-billed to a credit card the user tracks. */
+  chargedToCard?: boolean | null;
+  /** Name of the credit card this charge is auto-billed to, if known. */
+  cardName?: string | null;
 }
 
 function curStr(cur: string, n: number): string {
@@ -235,7 +239,10 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱"): stri
     const when =
       days === 0 ? "due TODAY" : days < 0 ? `OVERDUE by ${Math.abs(days)} day(s)` : `due in ${days} day(s)`;
     const bizTag = b.isBusiness ? " [BUSINESS]" : " [PERSONAL]";
-    return `- ${b.provider ?? "Bill"} (${b.cat ?? "Other"})${bizTag}: ${curStr(cur, b.amount ?? 0)}, ${b.dueLabel ?? "—"}, ${when}, ${b.status ?? "unpaid"}.`;
+    const cardTag = b.chargedToCard
+      ? ` [AUTO-CHARGED${b.cardName ? ` to ${b.cardName}` : " to a card"}]`
+      : "";
+    return `- ${b.provider ?? "Bill"} (${b.cat ?? "Other"})${bizTag}${cardTag}: ${curStr(cur, b.amount ?? 0)}, ${b.dueLabel ?? "—"}, ${when}, ${b.status ?? "unpaid"}.`;
   });
 
   return [
