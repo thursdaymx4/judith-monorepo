@@ -44,7 +44,7 @@ import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useTheme } from "@/hooks/useTheme";
 import { haptics } from "@/lib/haptics";
 import { fileToBase64, playBase64Mp3, stopCurrentAudio } from "@/lib/audio";
-import { transcribeOnboarding, synthOnboarding, fetchSampleOnboarding, parseBillOnboarding, parseSubscriptionScreenshot, askOnboarding } from "@/lib/proxy";
+import { transcribeOnboarding, synthOnboarding, fetchSampleOnboarding, parseBillOnboarding, parseSubscriptionScreenshot, askOnboarding, RateLimitError } from "@/lib/proxy";
 import type { Theme } from "@/constants/theme";
 
 /* ------------------------------------------------------------------ */
@@ -2206,7 +2206,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
         }
       }, 100);
     } catch (e) {
-      setErr(`Couldn’t start recording: ${String((e as Error)?.message ?? e)}`);
+      setErr("The mic couldn’t start. Try tapping it again, or use ‘Type instead’.");
     }
   };
 
@@ -2258,7 +2258,11 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       }
       setMode("parsed");
     } catch (e) {
-      setErr(`Couldn’t transcribe that: ${String((e as Error)?.message ?? e)}`);
+      if (e instanceof RateLimitError) {
+        setErr("Too many requests right now — please wait a moment and try again.");
+      } else {
+        setErr("Couldn’t hear that clearly. Try again, or tap ‘Type instead’.");
+      }
       setMode("prompt");
     }
   };
