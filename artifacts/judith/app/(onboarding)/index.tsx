@@ -3847,50 +3847,119 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
   const { t, persona, language, next } = ctx;
   const cur = ctx.country.cur;
   const paywallIsFil = isFilipino(language);
-  useOnbVoice(JUDITH_VOICE.paywall[persona][paywallIsFil ? "fil" : "en"], persona, language);
-  const [pick, setPick] = useState("chat");
-  const tiers = [
-    { id: "chat", name: "Chat Ask", price: 99, asks: "Unlimited text asks", sub: "Type anything, anytime", tag: undefined as string | undefined },
-    { id: "voice", name: "Voice Ask", price: 199, asks: "Unlimited text + voice asks", sub: "Speak and listen — hands-free", tag: "Includes Chat" },
+  useOnbVoice(JUDITH_VOICE.paywall[persona][paywallIsFil ? 'fil' : 'en'], persona, language);
+  const [pick, setPick] = useState<'chat' | 'voice'>('voice');
+
+  const included: { icon: IconName; label: string }[] = [
+    { icon: 'cal',   label: 'Bill tracking & due-date calendar' },
+    { icon: 'bell',  label: 'Smart reminders before every due date' },
+    { icon: 'chart', label: 'Monthly insights & spending overview' },
+    { icon: 'star',  label: 'All 5 Judith personas' },
   ];
-  const sel = tiers.find((x) => x.id === pick) || tiers[0]!;
+
+  const tiers: { id: 'chat' | 'voice'; name: string; price: number; sub: string; tag?: string }[] = [
+    { id: 'chat',  name: 'Chat Ask',  price: 99,  sub: 'Unlimited text asks · all personas' },
+    { id: 'voice', name: 'Voice Ask', price: 199, sub: 'Everything in Chat + speak & listen', tag: 'Includes Chat' },
+  ];
+  const sel = tiers.find((x) => x.id === pick) ?? tiers[1]!;
+
   return (
     <>
-      <Scroll center>
-        <JudithAvatar persona={persona} size={72} state="speaking" mood="proud" />
-        <Kicker style={{ marginTop: 16, textAlign: "center" }}>Ask Judith</Kicker>
-        <Title style={{ maxWidth: 300, textAlign: "center" }}>You’ve got 8 free asks to start</Title>
-        <Lede style={{ maxWidth: 290, textAlign: "center" }}>
-          Try her free. Bills and reminders stay free forever. Upgrade when you’re ready for unlimited asks.
-        </Lede>
+      <Scroll>
+        {/* avatar */}
+        <View style={{ alignItems: 'center', paddingTop: 8, paddingBottom: 18 }}>
+          <JudithAvatar persona={persona} size={60} state='idle' />
+        </View>
 
-        <View style={{ gap: 10, width: "100%", marginTop: 20 }}>
+        {/* what the one-time purchase already includes */}
+        <Kicker>Already yours</Kicker>
+        <Title style={{ lineHeight: 34 }}>Your purchase{"\n"}includes all of this.</Title>
+        <View style={{ gap: 11, marginTop: 16 }}>
+          {included.map((item) => (
+            <View key={item.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 13 }}>
+              <View style={{
+                width: 32, height: 32, borderRadius: 9,
+                backgroundColor: mix(t.accent, t.surface2, 0.14),
+                borderWidth: 1, borderColor: mix(t.accent, t.surface2, 0.3),
+                alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Icon name={item.icon} size={15} color={t.accent} />
+              </View>
+              <Txt size={14} color={t.txtMid} style={{ flex: 1 }}>{item.label}</Txt>
+            </View>
+          ))}
+        </View>
+        <Low size={12} style={{ marginTop: 10 }}>Forever. No subscription needed for any of this.</Low>
+
+        {/* divider */}
+        <View style={{ height: 1, backgroundColor: t.hair, marginVertical: 22 }} />
+
+        {/* math close */}
+        <Kicker>The math</Kicker>
+        <Title style={{ lineHeight: 34, marginBottom: 14 }}>One late fee costs more{"\n"}than 7 months of asks.</Title>
+        <View style={{
+          borderWidth: 1, borderColor: t.hair, borderRadius: 16,
+          backgroundColor: t.surface1, overflow: 'hidden', marginBottom: 22,
+        }}>
+          {[
+            { label: 'Missed CC payment fee', sub: 'BPI, BDO, Security Bank avg.', val: '−₱750', color: t.semantic.urgent },
+            { label: 'Postpaid late payment fee', sub: 'Globe, Smart, PLDT — automatic', val: '−₱200', color: t.semantic.urgent },
+            { label: 'Judith Chat Ask / month', sub: 'Unlimited asks, all month', val: cur + '99', color: t.semantic.ok },
+          ].map((row, i) => (
+            <View key={row.label}>
+              {i > 0 && <View style={{ height: 1, backgroundColor: t.hair }} />}
+              <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 16 }}>
+                <View style={{ flex: 1 }}>
+                  <Txt size={13} color={t.txtMid}>{row.label}</Txt>
+                  <Low size={11} style={{ marginTop: 1 }}>{row.sub}</Low>
+                </View>
+                <Mono size={15} weight='bold' color={row.color}>{row.val}</Mono>
+              </View>
+            </View>
+          ))}
+          <View style={{ height: 1, backgroundColor: t.hair }} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 16 }}>
+            <Icon name='trend' size={14} color={t.accent} />
+            <Low size={12} style={{ flex: 1, lineHeight: 17 }}>
+              Avoid just <Txt size={12} weight='semibold' color={t.txtHi}>one late fee</Txt> and Judith pays for itself for the{' '}
+              <Txt size={12} weight='semibold' color={t.accent}>entire year.</Txt>
+            </Low>
+          </View>
+        </View>
+
+        {/* subscription upsell */}
+        <Kicker>Want to also talk to Judith?</Kicker>
+        <View style={{ gap: 9, marginBottom: 10 }}>
           {tiers.map((tier) => {
             const on = pick === tier.id;
             return (
               <Pressable
                 key={tier.id}
                 onPress={() => setPick(tier.id)}
-                style={{ padding: 15, borderRadius: t.radius.md, borderWidth: 1, borderColor: on ? t.accent : t.hair, backgroundColor: on ? mix(t.accent, t.surface2, 0.1) : t.surface2 }}
+                style={{
+                  padding: 14, borderRadius: t.radius.md,
+                  borderWidth: on ? 1.5 : 1,
+                  borderColor: on ? t.accent : t.hair,
+                  backgroundColor: on ? mix(t.accent, t.surface2, 0.1) : t.surface2,
+                }}
               >
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 11 }}>
-                  <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: on ? t.accent : t.hair, alignItems: "center", justifyContent: "center" }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11 }}>
+                  <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: on ? t.accent : t.hair, alignItems: 'center', justifyContent: 'center' }}>
                     {on && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: t.accent }} />}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      <Txt size={16} weight="semibold">{tier.name}</Txt>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Txt size={15} weight='semibold'>{tier.name}</Txt>
                       {tier.tag && (
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, borderColor: t.accent, borderRadius: 22, paddingVertical: 2, paddingHorizontal: 8, backgroundColor: mix(t.accent, t.surface2, 0.16) }}>
-                          <Icon name="star" size={10} color={t.txtHi} />
-                          <Txt size={10} color={t.txtHi}>{tier.tag}</Txt>
+                        <View style={{ borderWidth: 1, borderColor: t.accent, borderRadius: 22, paddingVertical: 2, paddingHorizontal: 7, backgroundColor: mix(t.accent, t.surface2, 0.16) }}>
+                          <Txt size={10} color={t.accent}>{tier.tag}</Txt>
                         </View>
                       )}
                     </View>
-                    <Low size={12.5} style={{ marginTop: 2 }}>{tier.asks}</Low>
+                    <Low size={12} style={{ marginTop: 2 }}>{tier.sub}</Low>
                   </View>
-                  <View style={{ alignItems: "flex-end" }}>
-                    <Mono size={20} weight="bold">{cur}{tier.price}</Mono>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Mono size={18} weight='bold'>{cur}{tier.price}</Mono>
                     <Low size={10}>/mo</Low>
                   </View>
                 </View>
@@ -3898,15 +3967,17 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
             );
           })}
         </View>
-        <Low size={11} style={{ marginTop: 12, textAlign: "center" }}>Cancel anytime · managed by App Store / Google Play</Low>
+        <Low size={11} style={{ textAlign: 'center' }}>Cancel anytime · managed by App Store / Google Play</Low>
       </Scroll>
+
       <CtaBar>
-        <Btn label={`Subscribe · ${cur}${sel.price}/mo`} onPress={next} />
-        <Btn label="Start with 8 free asks" variant="ghost" onPress={next} />
+        <Btn label={'Subscribe · ' + cur + sel.price + '/mo'} onPress={next} />
+        <Btn label='Start with 8 free asks' variant='ghost' onPress={next} />
       </CtaBar>
     </>
   );
 }
+
 
 /* ================================================================== */
 /* flow controller                                                    */
