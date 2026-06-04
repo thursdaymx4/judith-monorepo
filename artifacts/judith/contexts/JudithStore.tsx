@@ -214,7 +214,9 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
             rolledOver: 0,
             onTime: b.dueDays >= 0,
           };
-          const paymentHistory = [record, ...(b.paymentHistory ?? [])].slice(0, 24);
+          // Upsert by period: replace any existing entry for this month instead of prepending
+          const existing = (b.paymentHistory ?? []).filter((r) => r.period !== period);
+          const paymentHistory = [record, ...existing].slice(0, 24);
           return { ...b, status: "paid" as const, amountPaid: owed, paymentHistory };
         });
       },

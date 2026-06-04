@@ -52,8 +52,12 @@ function buildChart(bill: Bill): ChartPoint[] {
 }
 
 function buildHistory(bill: Bill): BillCycleRecord[] {
-  // Only real recorded cycles — never synthetic or static backfill
-  const rows: BillCycleRecord[] = [...(bill.paymentHistory ?? [])];
+  // Deduplicate by period (upsert is now enforced in the store, but guard here too)
+  const seen = new Set<string>();
+  const rows: BillCycleRecord[] = [];
+  for (const r of bill.paymentHistory ?? []) {
+    if (!seen.has(r.period)) { seen.add(r.period); rows.push(r); }
+  }
   rows.sort((a, b) => b.period.localeCompare(a.period));
   return rows.slice(0, 24);
 }
@@ -181,7 +185,7 @@ function CycleRow({ record, money }: { record: BillCycleRecord; money: (n: numbe
 export default function BillDetailModal() {
   const t = useTheme();
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, period: periodParam } = useLocalSearchParams<{ id: string; period?: string }>();
   const { bills, money, persona, togglePaid, payPartial, updateBillAmount, showToast } = useJudith();
   const [showInput, setShowInput] = useState(false);
   const [input, setInput] = useState("");
@@ -200,18 +204,28 @@ export default function BillDetailModal() {
     );
   }
 
+  // ── Period-awareness (calendar may open a future/past month's slot) ──
+  const today = new Date();
+  const currentPeriod = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const viewedPeriod = periodParam ?? currentPeriod;
+  const isCurrentPeriod = viewedPeriod === currentPeriod;
+  const isFuturePeriod = viewedPeriod > currentPeriod;
+
   const cls = dueClass(bill.dueDays);
-  const paid = bill.status === "paid";
-  const overdue = !paid && bill.dueDays < 0;
+  // For future months the bill hasn't been paid yet regardless of global status
+  const paid = isCurrentPeriod ? bill.status === "paid" : false;
+  const overdue = !paid && !isFuturePeriod && bill.dueDays < 0;
   const daysLate = -bill.dueDays;
-  const partial = isPartialBill(bill);
+  const partial = isCurrentPeriod && isPartialBill(bill);
   const owed = totalOwed(bill);
+  // For future months show the base amount (fresh cycle, no carry-in yet)
+  const viewedOwed = isFuturePeriod ? bill.amount : owed;
   const pct = partialPct(bill);
   const remaining = owed - (bill.amountPaid ?? 0);
-  const hasCarryOver = (bill.carryOver ?? 0) > 0;
+  const hasCarryOver = isCurrentPeriod && (bill.carryOver ?? 0) > 0;
   const isCC = bill.cat === "Credit card";
-  const todayDay = new Date().getDate();
-  const statementIsToday = isCC && bill.statementDay === todayDay;
+  const todayDay = today.getDate();
+  const statementIsToday = isCC && isCurrentPeriod && bill.statementDay === todayDay;
 
   const chartPoints = buildChart(bill);
   const historyRows = buildHistory(bill);
@@ -245,7 +259,7 @@ export default function BillDetailModal() {
     }
   };
 
-  const statusColor = paid ? t.semantic.ok : t.semantic[cls];
+  const statusColor = isFuturePeriod ? t.txtLow : paid ? t.semantic.ok : t.semantic[cls];
 
   return (
     <Screen contentStyle={{ paddingTop: 14 }}>
@@ -273,7 +287,7 @@ export default function BillDetailModal() {
           </Low>
         </View>
         <View style={{ alignItems: "flex-end", gap: 3 }}>
-          <Mono size={22} weight="bold" color={statusColor}>{money(owed)}</Mono>
+          <Mono size={22} weight="bold" color={statusColor}>{money(viewedOwed)}</Mono>
           <View
             style={{
               flexDirection: "row",
@@ -287,13 +301,15 @@ export default function BillDetailModal() {
           >
             {paid && <Icon name="check" size={10} color={statusColor} />}
             <Low size={10} color={statusColor} weight="medium">
-              {paid
-                ? "paid"
-                : overdue
-                  ? `${daysLate}d overdue`
-                  : bill.dueDays === 0
-                    ? "due today"
-                    : `in ${bill.dueDays}d`}
+              {isFuturePeriod
+                ? `due ${periodLabel(viewedPeriod)}`
+                : paid
+                  ? "paid"
+                  : overdue
+                    ? `${daysLate}d overdue`
+                    : bill.dueDays === 0
+                      ? "due today"
+                      : `in ${bill.dueDays}d`}
             </Low>
           </View>
         </View>
@@ -425,52 +441,71 @@ export default function BillDetailModal() {
 
       {/* ── ACTION BUTTONS ──────────────────────────────────── */}
       <View style={{ gap: 9, marginTop: 20 }}>
-        <Btn
-          label={paid ? "Mark as unpaid" : overdue ? "Mark paid — catch up" : "Mark as fully paid"}
-          variant={paid ? "soft" : "primary"}
-          onPress={() => {
-            if (!paid) haptics.success();
-            togglePaid(bill.id);
-            router.back();
-          }}
-        />
-        <View style={{ flexDirection: "row", gap: 9 }}>
-          <View style={{ flex: 1 }}>
-            <Btn
-              label="Edit bill"
-              variant="soft"
-              onPress={() => router.push(`/add-bill?id=${bill.id}`)}
-            />
+        {/* Future-month notice: this is a preview, not yet payable */}
+        {isFuturePeriod && (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "flex-start",
+              gap: 10,
+              borderWidth: 1,
+              borderColor: t.hair,
+              borderRadius: 12,
+              paddingVertical: 12,
+              paddingHorizontal: 14,
+              backgroundColor: t.surface2,
+            }}
+          >
+            <Icon name="cal" size={14} color={t.txtLow} />
+            <Low size={13} style={{ flex: 1, lineHeight: 18 }}>
+              This is <Txt size={13} weight="semibold">{periodLabel(viewedPeriod)}</Txt>'s bill.
+              {" "}You haven't paid it yet — come back when it's due to mark it paid.
+            </Low>
           </View>
-          {!paid && (
-            <View style={{ flex: 1 }}>
+        )}
+
+        {/* Current-month pay / unpay / partial */}
+        {isCurrentPeriod && (
+          <>
+            <Btn
+              label={paid ? "Mark as unpaid" : overdue ? "Mark paid — catch up" : "Mark as fully paid"}
+              variant={paid ? "soft" : "primary"}
+              onPress={() => {
+                if (!paid) haptics.success();
+                togglePaid(bill.id);
+                router.back();
+              }}
+            />
+            {!paid && (
               <Btn
                 label={showInput ? "Cancel" : partial ? "Update partial" : "Pay partial"}
                 variant="soft"
                 onPress={() => {
-                  if (showInput) {
-                    setShowInput(false);
-                    setInput("");
-                  } else {
-                    setInput(bill.amountPaid ? String(bill.amountPaid) : "");
-                    setShowInput(true);
-                  }
+                  if (showInput) { setShowInput(false); setInput(""); }
+                  else { setInput(bill.amountPaid ? String(bill.amountPaid) : ""); setShowInput(true); }
                 }}
               />
-            </View>
-          )}
-        </View>
-        {isCC && !showCCUpdate && (
-          <Btn
-            label={statementIsToday ? "Update statement · today" : "Update statement amount"}
-            variant="soft"
-            onPress={() => {
-              setCCInput(String(bill.amount));
-              setShowCCUpdate(true);
-              setShowInput(false);
-            }}
-          />
+            )}
+            {isCC && !showCCUpdate && (
+              <Btn
+                label={statementIsToday ? "Update statement · today" : "Update statement amount"}
+                variant="soft"
+                onPress={() => {
+                  setCCInput(String(bill.amount));
+                  setShowCCUpdate(true);
+                  setShowInput(false);
+                }}
+              />
+            )}
+          </>
         )}
+
+        {/* Edit bill — always visible */}
+        <Btn
+          label="Edit bill"
+          variant="soft"
+          onPress={() => router.push(`/add-bill?id=${bill.id}`)}
+        />
       </View>
 
       {/* ── CC UPDATE INPUT ─────────────────────────────────── */}

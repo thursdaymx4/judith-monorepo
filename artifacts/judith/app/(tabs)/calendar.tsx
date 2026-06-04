@@ -190,7 +190,8 @@ export default function CalendarScreen() {
   const prevMonth = () => { haptics.light(); setSel(null); setMonthOffset((o) => o - 1); };
   const nextMonth = () => { haptics.light(); setSel(null); setMonthOffset((o) => o + 1); };
 
-  const openBill = (b: Bill) => router.push(`/bill/${b.id}`);
+  const viewedPeriodKey = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+  const openBill = (b: Bill) => router.push(`/bill/${b.id}?period=${viewedPeriodKey}`);
 
   // Days from today to the bill's due day within the VIEWED month.
   // Annual bills: use their stored dueDays (points to the actual annual occurrence).
