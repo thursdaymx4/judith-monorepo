@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
-import { Alert, TextInput, View } from "react-native";
+import { Alert, Pressable, TextInput, View } from "react-native";
 
 import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
@@ -203,28 +203,41 @@ function CycleRow({ record, money, naturalPeriod }: { record: BillCycleRecord; m
           </View>
         ) : null}
       </View>
-      {/* 4-column stats: due · paid · carry-in · on time */}
+      {/* 4-column stats: due · paid · carry-in · rolled out */}
       <View style={{ flexDirection: "row" }}>
         {[
-          { label: "Total due", val: money(record.totalDue), color: t.txtHi },
+          { label: "Total due", val: money(record.totalDue), color: t.txtHi, tip: null },
           {
             label: "Paid",
             val: money(record.paid),
             color: record.paid >= record.totalDue ? t.semantic.ok : t.semantic.near,
+            tip: null,
           },
           {
             label: "Carry-in",
             val: record.carriedIn > 0 ? money(record.carriedIn) : "—",
             color: record.carriedIn > 0 ? t.semantic.near : t.txtLow,
+            tip: "Unpaid balance carried forward from the previous month and added to this month's total.",
           },
           {
             label: "Rolled out",
             val: record.rolledOver > 0 ? money(record.rolledOver) : "—",
             color: record.rolledOver > 0 ? t.semantic.near : t.txtLow,
+            tip: "Amount left unpaid this month that will carry into next month's total.",
           },
         ].map((s, i) => (
           <View key={i} style={{ flex: 1 }}>
-            <Low size={10} style={{ marginBottom: 3 }}>{s.label}</Low>
+            {s.tip ? (
+              <Pressable
+                onPress={() => Alert.alert(s.label, s.tip!)}
+                hitSlop={6}
+                style={{ marginBottom: 3 }}
+              >
+                <Low size={10}>{s.label} <Low size={9} color={t.accent}>ⓘ</Low></Low>
+              </Pressable>
+            ) : (
+              <Low size={10} style={{ marginBottom: 3 }}>{s.label}</Low>
+            )}
             <Mono size={12} weight="semibold" color={s.color}>{s.val}</Mono>
           </View>
         ))}
