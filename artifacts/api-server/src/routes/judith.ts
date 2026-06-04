@@ -336,7 +336,7 @@ router.post("/ask", askLimiter, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
-    const { text, bills: bodyBills, persona: bodyPersona, localDate, language, wantVoice, currency, countryName } = req.body ?? {};
+    const { text, bills: bodyBills, persona: bodyPersona, localDate, language, includeVoice, currency, countryName } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
       res.status(400).json({ error: "text is required" });
       return;
@@ -373,12 +373,14 @@ router.post("/ask", askLimiter, async (req, res) => {
     let audioBase64: string | null = null;
     let mime = "audio/mpeg";
     let ttsOk = false;
-    if (wantVoice !== false) {
+    let ttsChars = 0;
+    if (includeVoice !== false) {
       try {
         const audio = await synthesize(reply, voiceId, { live: true, speed: getSpeakingSpeed(persona) });
         audioBase64 = audio.base64;
         mime = audio.mime;
         ttsOk = true;
+        ttsChars = reply.length;
       } catch (ttsErr) {
         logger.error({ err: ttsErr }, "tts failed during ask");
       }
@@ -395,6 +397,7 @@ router.post("/ask", askLimiter, async (req, res) => {
         input_chars: text.trim().length,
         reply_chars: reply.length,
         tts_ok: ttsOk,
+        tts_chars: ttsChars,
         input_tokens: message.usage.input_tokens,
         output_tokens: message.usage.output_tokens,
       })
