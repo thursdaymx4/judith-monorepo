@@ -53,6 +53,8 @@ export interface Bill {
   statementDay?: number;
   /** Closed billing cycles, most-recent-first. Capped at 24. */
   paymentHistory?: BillCycleRecord[];
+  /** True when this bill is a business/work expense (default: personal). */
+  isBusiness?: boolean;
 }
 
 /** Total owed this cycle = current charge + any rolled-over balance. */
@@ -397,6 +399,7 @@ export function makeManualBill(
     frequency?: "monthly" | "annual";
     kind?: "Fixed" | "Variable";
     house?: string;
+    isBusiness?: boolean;
     reminderDays?: number;
     statementDay?: number;
   },
@@ -436,6 +439,7 @@ export function makeManualBill(
     kind: a.kind ?? "Fixed",
     frequency: a.frequency ?? "monthly",
     ...(a.house ? { house: a.house } : {}),
+    ...(a.isBusiness ? { isBusiness: true } : {}),
     ...(a.reminderDays != null ? { reminderDays: a.reminderDays } : {}),
     ...(a.statementDay != null ? { statementDay: a.statementDay } : {}),
   };

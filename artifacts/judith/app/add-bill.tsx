@@ -29,6 +29,7 @@ export default function AddBillScreen() {
   const [frequency, setFrequency] = useState<"monthly" | "annual">(existing?.frequency ?? "monthly");
   const [kind, setKind] = useState<"Fixed" | "Variable">(existing?.kind ?? "Fixed");
   const [house, setHouse] = useState(existing?.house ?? "");
+  const [isBusiness, setIsBusiness] = useState(existing?.isBusiness ?? false);
   const [remDays, setRemDays] = useState(existing?.reminderDays ?? 3);
   const [statementDay, setStatementDay] = useState(existing?.statementDay ?? 5);
   const [err, setErr] = useState("");
@@ -59,6 +60,7 @@ export default function AddBillScreen() {
       frequency,
       kind,
       house: house.trim() || undefined,
+      isBusiness: isBusiness || undefined,
       reminderDays: remDays,
       statementDay: cat === "Credit card" ? statementDay : undefined,
     });
@@ -70,6 +72,7 @@ export default function AddBillScreen() {
         status: existing.status,
         amountPaid: existing.amountPaid,
         carryOver: existing.carryOver,
+        paymentHistory: existing.paymentHistory,
       });
       showToast(`Updated: ${base.provider}`);
     } else {
@@ -324,6 +327,20 @@ export default function AddBillScreen() {
               <Icon name="plus" size={18} color={t.txtMid} />
             </Pressable>
           </View>
+        </View>
+
+        {/* business / personal tag */}
+        <View style={{ marginTop: 20 }}>
+          <FieldLabel text="Usage" />
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <Chip label="Personal" selected={!isBusiness} onPress={() => setIsBusiness(false)} />
+            <Chip label="Business" selected={isBusiness} onPress={() => setIsBusiness(true)} />
+          </View>
+          <Low size={12} style={{ marginTop: 7 }}>
+            {isBusiness
+              ? "This is a work or business expense — you can filter it separately in Insights."
+              : "This is a personal or household bill."}
+          </Low>
         </View>
 
         {/* house / property tag */}

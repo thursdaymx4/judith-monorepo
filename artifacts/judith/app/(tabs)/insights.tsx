@@ -1,7 +1,7 @@
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import React, { useState } from "react";
-import { Pressable, View } from "react-native";
+import React, { useMemo, useState } from "react";
+import { Pressable, ScrollView, View } from "react-native";
 import Svg, { Circle, G } from "react-native-svg";
 
 import { Icon } from "@/components/Icon";
@@ -12,9 +12,31 @@ import { useJudith } from "@/contexts/JudithStore";
 import { useCountUp } from "@/hooks/useCountUp";
 import { useTheme } from "@/hooks/useTheme";
 
+/* ─── types ─────────────────────────────────────────────────────── */
+
+type PeriodKey = "this-month" | "last-month" | "3mo" | "6mo" | "custom";
+type TrayKey = "period" | "tag" | "house" | "cat" | "prov" | null;
+type TagFilter = "all" | "personal" | "business";
 interface CatSlice { cat: string; value: number; color: string }
 
-/* ---- donut ---- */
+/* ─── period helpers ─────────────────────────────────────────────── */
+
+const MO = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function toPeriodStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function formatPeriodChip(p: string): string {
+  const [yr, mo] = p.split("-");
+  const name = MO[parseInt(mo ?? "1", 10) - 1] ?? "";
+  return parseInt(yr ?? "0", 10) !== new Date().getFullYear()
+    ? `${name} '${String(yr).slice(2)}`
+    : name;
+}
+
+/* ─── Donut ──────────────────────────────────────────────────────── */
+
 function Donut({ segments, total, size = 130 }: { segments: CatSlice[]; total: number; size?: number }) {
   const t = useTheme();
   const stroke = 18;
@@ -24,12 +46,12 @@ function Donut({ segments, total, size = 130 }: { segments: CatSlice[]; total: n
   return (
     <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       <G rotation={-90} origin={`${size / 2}, ${size / 2}`}>
-        <Circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={t.surface3} strokeWidth={stroke} />
+        <Circle cx={size/2} cy={size/2} r={r} fill="none" stroke={t.surface3} strokeWidth={stroke} />
         {segments.map((s, i) => {
           const len = total > 0 ? (s.value / total) * C : 0;
           const dash = Math.max(0, len - 3);
           const seg = (
-            <Circle key={i} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={s.color}
+            <Circle key={i} cx={size/2} cy={size/2} r={r} fill="none" stroke={s.color}
               strokeWidth={stroke} strokeLinecap="round"
               strokeDasharray={`${dash} ${C - dash}`} strokeDashoffset={-acc} />
           );
@@ -41,7 +63,8 @@ function Donut({ segments, total, size = 130 }: { segments: CatSlice[]; total: n
   );
 }
 
-/* ---- paid vs billed bar ---- */
+/* ─── PaidBilledBar ──────────────────────────────────────────────── */
+
 function PaidBilledBar({ paidTotal, billedTotal, paidFrac, money }: {
   paidTotal: number; billedTotal: number; paidFrac: number; money: (n: number) => string;
 }) {
@@ -49,23 +72,20 @@ function PaidBilledBar({ paidTotal, billedTotal, paidFrac, money }: {
   const paidPct = Math.round(paidFrac * 100);
   return (
     <View style={{ gap: 10, marginTop: 16 }}>
-      {/* billed bar with paid overlay */}
       <View>
         <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
-          <Low size={11}>Billed this month</Low>
+          <Low size={11}>Billed</Low>
           <Mono size={11} weight="semibold">{money(billedTotal)}</Mono>
         </View>
         <View style={{ height: 10, borderRadius: 5, backgroundColor: t.surface3, overflow: "hidden" }}>
-          <LinearGradient
-            colors={[t.accent, mix(t.accent, t.surface3, 0.4)]}
+          <LinearGradient colors={[t.accent, mix(t.accent, t.surface3, 0.4)]}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-            style={{ width: "100%", height: "100%", borderRadius: 5 }}
-          />
+            style={{ width: "100%", height: "100%", borderRadius: 5 }} />
         </View>
       </View>
       <View>
         <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
-          <Low size={11}>Paid so far</Low>
+          <Low size={11}>Paid</Low>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
             <Txt size={11} weight="semibold" color={paidPct === 100 ? t.semantic.ok : t.txtHi}>{money(paidTotal)}</Txt>
             <Low size={10}>({paidPct}%)</Low>
@@ -73,11 +93,9 @@ function PaidBilledBar({ paidTotal, billedTotal, paidFrac, money }: {
         </View>
         <View style={{ height: 10, borderRadius: 5, backgroundColor: t.surface3, overflow: "hidden" }}>
           {paidFrac > 0 && (
-            <LinearGradient
-              colors={[t.semantic.ok, mix(t.semantic.ok, t.surface3, 0.3)]}
+            <LinearGradient colors={[t.semantic.ok, mix(t.semantic.ok, t.surface3, 0.3)]}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={{ width: `${paidPct}%`, height: "100%", borderRadius: 5 }}
-            />
+              style={{ width: `${paidPct}%`, height: "100%", borderRadius: 5 }} />
           )}
         </View>
       </View>
@@ -85,16 +103,23 @@ function PaidBilledBar({ paidTotal, billedTotal, paidFrac, money }: {
   );
 }
 
-type TrayKey = "cat" | "prov" | "house" | null;
+/* ─── filter chips ───────────────────────────────────────────────── */
 
-function FChip({ active, label, icon, onPress }: {
-  active: boolean; label: string; icon: "home" | "layers" | "grid"; onPress: () => void;
+function FChip({ active, label, badge, onPress }: {
+  active: boolean; label: string; badge?: number; onPress: () => void;
 }) {
   const t = useTheme();
   const color = active ? t.accent : t.txtMid;
   return (
-    <Pressable onPress={onPress} style={{ flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingVertical: 8, paddingHorizontal: 8, borderRadius: 11, borderWidth: 1, borderColor: active ? t.accent : t.hair, backgroundColor: active ? mix(t.accent, t.surface2, 0.12) : t.surface2 }}>
-      <Icon name={icon} size={13} color={color} />
+    <Pressable
+      onPress={onPress}
+      style={{ flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 11, borderWidth: 1, borderColor: active ? t.accent : t.hair, backgroundColor: active ? mix(t.accent, t.surface2, 0.12) : t.surface2 }}
+    >
+      {(badge ?? 0) > 1 && (
+        <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
+          <Txt size={9} weight="bold" color={t.onAccent}>{badge}</Txt>
+        </View>
+      )}
       <Txt size={12} weight="semibold" color={color} numberOfLines={1}>{label}</Txt>
       <Icon name="chev" size={12} color={color} />
     </Pressable>
@@ -104,171 +129,394 @@ function FChip({ active, label, icon, onPress }: {
 function TrayChip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
   const t = useTheme();
   return (
-    <Pressable onPress={onPress} style={{ borderWidth: 1, borderColor: selected ? t.accent : t.hair, borderRadius: 22, paddingVertical: 7, paddingHorizontal: 12, backgroundColor: selected ? mix(t.accent, t.surface2, 0.16) : t.surface2 }}>
+    <Pressable
+      onPress={onPress}
+      style={{ flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1, borderColor: selected ? t.accent : t.hair, borderRadius: 22, paddingVertical: 7, paddingHorizontal: 12, backgroundColor: selected ? mix(t.accent, t.surface2, 0.16) : t.surface2 }}
+    >
+      {selected && <Icon name="check" size={11} color={t.accent} />}
       <Txt size={12.5} color={selected ? t.txtHi : t.txtMid}>{label}</Txt>
     </Pressable>
   );
 }
+
+/* ─── main screen ────────────────────────────────────────────────── */
 
 export default function InsightsScreen() {
   const t = useTheme();
   const router = useRouter();
   const { bills, persona, money } = useJudith();
 
-  const [catF, setCatF] = useState("All");
-  const [provF, setProvF] = useState("All");
+  /* filter state */
+  const [period, setPeriod] = useState<PeriodKey>("this-month");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+  const [tagF, setTagF] = useState<TagFilter>("all");
   const [houseF, setHouseF] = useState("All");
+  const [catSel, setCatSel] = useState<Set<string>>(new Set());
+  const [provSel, setProvSel] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState<TrayKey>(null);
 
-  const houses = Array.from(new Set(bills.map((b) => b.house).filter((h): h is string => Boolean(h))));
-  const multiHouse = houses.length > 1;
-  const allCats = Array.from(new Set(
-    bills.filter((b) => houseF === "All" || b.house === houseF).map((b) => b.cat)
-  ));
-  const allProvs = Array.from(new Set(
-    bills
-      .filter((b) => (houseF === "All" || b.house === houseF) && (catF === "All" || b.cat === catF))
-      .map((b) => b.provider)
-  ));
+  /* active period list (null = current month) */
+  const activePeriods = useMemo((): string[] | null => {
+    if (period === "this-month") return null;
+    const today = new Date();
+    const ago = (n: number) => toPeriodStr(new Date(today.getFullYear(), today.getMonth() - n, 1));
+    if (period === "last-month") return [ago(1)];
+    if (period === "3mo")        return [ago(3), ago(2), ago(1)];
+    if (period === "6mo")        return [ago(6), ago(5), ago(4), ago(3), ago(2), ago(1)];
+    if (period === "custom" && customFrom && customTo && customFrom <= customTo) {
+      const res: string[] = [];
+      let [y, m] = customFrom.split("-").map(Number) as [number, number];
+      const [ty, tm] = customTo.split("-").map(Number) as [number, number];
+      while (y < ty || (y === ty && m <= tm)) {
+        res.push(`${y}-${String(m).padStart(2, "0")}`);
+        if (++m > 12) { m = 1; y++; }
+      }
+      return res;
+    }
+    return null;
+  }, [period, customFrom, customTo]);
 
-  const active = bills.filter(
-    (b) =>
-      (houseF === "All" || b.house === houseF) &&
-      (catF === "All" || b.cat === catF) &&
-      (provF === "All" || b.provider === provF),
+  const isHistorical = activePeriods !== null;
+
+  /* last 24 months for custom picker */
+  const last24Months = useMemo(() => {
+    const today = new Date();
+    return Array.from({ length: 24 }, (_, i) =>
+      toPeriodStr(new Date(today.getFullYear(), today.getMonth() - (23 - i), 1))
+    );
+  }, []);
+
+  /* available filter options */
+  const houses = useMemo(() =>
+    Array.from(new Set(bills.map(b => b.house).filter((h): h is string => Boolean(h)))),
+    [bills]
+  );
+  const multiHouse = houses.length > 1;
+
+  const baseFiltered = useMemo(() => bills.filter(b =>
+    (houseF === "All" || b.house === houseF) &&
+    (tagF === "all" ||
+      (tagF === "business" ? b.isBusiness === true : !b.isBusiness))
+  ), [bills, houseF, tagF]);
+
+  const allCats = useMemo(() =>
+    Array.from(new Set(baseFiltered.map(b => b.cat))),
+    [baseFiltered]
+  );
+  const allProvs = useMemo(() =>
+    Array.from(new Set(
+      baseFiltered.filter(b => catSel.size === 0 || catSel.has(b.cat)).map(b => b.provider)
+    )),
+    [baseFiltered, catSel]
   );
 
-  // Real totals only — from the user's actual logged bills
-  const billedTotal = active.reduce((s, b) => s + b.amount, 0);
-  const billedTotalA = useCountUp(billedTotal);
+  const filteredBills = useMemo(() => baseFiltered.filter(b =>
+    (catSel.size === 0 || catSel.has(b.cat)) &&
+    (provSel.size === 0 || provSel.has(b.provider))
+  ), [baseFiltered, catSel, provSel]);
 
-  const paidTotal = active.reduce((s, b) => {
-    if (b.status === "paid") return s + b.amount;
-    return s + (b.amountPaid ?? 0);
-  }, 0);
+  /* stats */
+  const { billedTotal, paidTotal, catSlices, topProviders } = useMemo(() => {
+    let billed = 0, paid = 0;
+    const catMap: Record<string, number> = {};
+    const provMap: Record<string, { amount: number; cat: string; id: string }> = {};
+
+    if (!isHistorical) {
+      filteredBills.forEach(b => {
+        billed += b.amount;
+        paid += b.status === "paid" ? b.amount : (b.amountPaid ?? 0);
+        catMap[b.cat] = (catMap[b.cat] ?? 0) + b.amount;
+        provMap[b.provider] = { amount: (provMap[b.provider]?.amount ?? 0) + b.amount, cat: b.cat, id: b.id };
+      });
+    } else {
+      filteredBills.forEach(b => {
+        const recs = (b.paymentHistory ?? []).filter(r => activePeriods!.includes(r.period));
+        recs.forEach(r => {
+          billed += r.totalDue;
+          paid += r.paid;
+          catMap[b.cat] = (catMap[b.cat] ?? 0) + r.totalDue;
+          provMap[b.provider] = { amount: (provMap[b.provider]?.amount ?? 0) + r.totalDue, cat: b.cat, id: b.id };
+        });
+      });
+    }
+
+    const catSlices: CatSlice[] = Object.entries(catMap)
+      .map(([cat, value]) => ({ cat, value, color: (CAT_COLORS as Record<string, string>)[cat] ?? t.accent }))
+      .sort((a, b) => b.value - a.value);
+
+    const topProviders = Object.entries(provMap)
+      .map(([provider, d]) => ({ provider, ...d }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 5);
+
+    return { billedTotal: billed, paidTotal: paid, catSlices, topProviders };
+  }, [filteredBills, isHistorical, activePeriods, t.accent]);
+
+  const billedTotalA = useCountUp(billedTotal);
   const unpaidTotal = billedTotal - paidTotal;
   const paidFrac = billedTotal > 0 ? paidTotal / billedTotal : 0;
   const paidPct = Math.round(paidFrac * 100);
+  const biggest = topProviders[0] ?? null;
+  const providerCount = new Set(filteredBills.map(b => b.provider)).size;
 
-  const catMap: Record<string, number> = {};
-  active.forEach((b) => { catMap[b.cat] = (catMap[b.cat] || 0) + b.amount; });
-  const cats: CatSlice[] = Object.keys(catMap)
-    .map((cat) => ({ cat, value: catMap[cat]!, color: CAT_COLORS[cat] || t.accent }))
-    .sort((a, b) => b.value - a.value);
+  /* display labels */
+  const periodDisplayLabel = useMemo((): string => {
+    const today = new Date();
+    if (period === "this-month") return `${MO[today.getMonth()]} ${today.getFullYear()}`;
+    if (period === "last-month") {
+      const d = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      return `${MO[d.getMonth()]} ${d.getFullYear()}`;
+    }
+    if (period === "3mo") {
+      const from = new Date(today.getFullYear(), today.getMonth() - 3, 1);
+      const to   = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      return `${MO[from.getMonth()]} – ${MO[to.getMonth()]} ${to.getFullYear()}`;
+    }
+    if (period === "6mo") {
+      const from = new Date(today.getFullYear(), today.getMonth() - 6, 1);
+      const to   = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      return `${MO[from.getMonth()]} – ${MO[to.getMonth()]} ${to.getFullYear()}`;
+    }
+    if (period === "custom" && customFrom && customTo) {
+      return `${formatPeriodChip(customFrom)} – ${formatPeriodChip(customTo)}`;
+    }
+    return `${MO[today.getMonth()]} ${today.getFullYear()}`;
+  }, [period, customFrom, customTo]);
 
-  const providers = active.slice().sort((a, b) => b.amount - a.amount).slice(0, 5);
-  const biggest = active.slice().sort((a, b) => b.amount - a.amount)[0];
-  const providerCount = new Set(active.map((b) => b.provider)).size;
+  const periodChipLabel = useMemo((): string => {
+    if (period === "this-month") return "This month";
+    if (period === "last-month") return "Last month";
+    if (period === "3mo")        return "3 months";
+    if (period === "6mo")        return "6 months";
+    if (period === "custom") {
+      if (!customFrom || !customTo) return "Custom";
+      return `${formatPeriodChip(customFrom)} – ${formatPeriodChip(customTo)}`;
+    }
+    return "Period";
+  }, [period, customFrom, customTo]);
+
+  /* multi-select helpers */
+  const toggleCat = (c: string) => setCatSel(prev => { const s = new Set(prev); s.has(c) ? s.delete(c) : s.add(c); return s; });
+  const toggleProv = (p: string) => setProvSel(prev => { const s = new Set(prev); s.has(p) ? s.delete(p) : s.add(p); return s; });
+
+  const anyActive = period !== "this-month" || tagF !== "all" || houseF !== "All" || catSel.size > 0 || provSel.size > 0;
+  const clearAll = () => {
+    setPeriod("this-month"); setCustomFrom(""); setCustomTo("");
+    setTagF("all"); setHouseF("All"); setCatSel(new Set()); setProvSel(new Set()); setOpen(null);
+  };
 
   const card = { borderWidth: 1, borderColor: t.hair, borderRadius: t.radius.md, backgroundColor: t.surface2, padding: t.space.pad } as const;
   const sectionLabel = { fontFamily: t.fonts.medium, fontSize: 13, color: t.txtMid, letterSpacing: 0.5, textTransform: "uppercase" as const, marginTop: 18, marginBottom: 10 };
 
-  // Current month label for display
-  const now = new Date();
-  const monthLabel = now.toLocaleString("default", { month: "long" });
-  const yearLabel = now.getFullYear();
-
   return (
     <Screen>
       {/* header */}
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 6, marginBottom: 12 }}>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginTop: 6, marginBottom: 14 }}>
         <Txt size={28} weight="semibold" style={{ letterSpacing: -0.56 }}>Insights</Txt>
-        <Low size={12}>{monthLabel} {yearLabel}</Low>
-      </View>
-
-      {/* filters */}
-      <View style={{ marginBottom: 14 }}>
-        <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-          {multiHouse && (
-            <FChip active={houseF !== "All"} label={houseF === "All" ? "All homes" : houseF} icon="home" onPress={() => setOpen(open === "house" ? null : "house")} />
+        <View style={{ alignItems: "flex-end", gap: 3 }}>
+          <Low size={12}>{periodDisplayLabel}</Low>
+          {anyActive && (
+            <Pressable onPress={clearAll} hitSlop={8}>
+              <Low size={11} color={t.accent}>Clear filters</Low>
+            </Pressable>
           )}
-          <FChip active={catF !== "All"} label={catF === "All" ? "Category" : catF} icon="layers" onPress={() => setOpen(open === "cat" ? null : "cat")} />
-          <FChip active={provF !== "All"} label={provF === "All" ? "Provider" : provF} icon="grid" onPress={() => setOpen(open === "prov" ? null : "prov")} />
         </View>
-        {open === "house" && (
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7, marginTop: 10 }}>
-            {["All", ...houses].map((h) => (
-              <TrayChip key={h} label={h === "All" ? "All homes" : h} selected={houseF === h} onPress={() => { setHouseF(h); setOpen(null); }} />
-            ))}
-          </View>
-        )}
-        {open === "cat" && (
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7, marginTop: 10 }}>
-            {["All", ...allCats].map((c) => (
-              <TrayChip key={c} label={c} selected={catF === c} onPress={() => { setCatF(c); setProvF("All"); setOpen(null); }} />
-            ))}
-          </View>
-        )}
-        {open === "prov" && (
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7, marginTop: 10 }}>
-            {["All", ...allProvs].map((p) => (
-              <TrayChip key={p} label={p} selected={provF === p} onPress={() => { setProvF(p); setOpen(null); }} />
-            ))}
-          </View>
-        )}
       </View>
 
-      {active.length === 0 ? (
-        <View style={[card, { alignItems: "center", paddingVertical: 30, paddingHorizontal: 16 }]}>
-          <Low>No bills logged yet.</Low>
+      {/* ── filter chips (horizontal scroll) ── */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ gap: 8, paddingRight: 4 }}
+        style={{ marginBottom: 10 }}
+      >
+        <FChip
+          active={period !== "this-month"}
+          label={periodChipLabel}
+          onPress={() => setOpen(open === "period" ? null : "period")}
+        />
+        <FChip
+          active={tagF !== "all"}
+          label={tagF === "all" ? "Tag" : tagF === "business" ? "Business" : "Personal"}
+          onPress={() => setOpen(open === "tag" ? null : "tag")}
+        />
+        {multiHouse && (
+          <FChip
+            active={houseF !== "All"}
+            label={houseF === "All" ? "Home" : houseF}
+            onPress={() => setOpen(open === "house" ? null : "house")}
+          />
+        )}
+        <FChip
+          active={catSel.size > 0}
+          label={catSel.size === 0 ? "Category" : catSel.size === 1 ? [...catSel][0]! : `${catSel.size} cats`}
+          badge={catSel.size}
+          onPress={() => setOpen(open === "cat" ? null : "cat")}
+        />
+        <FChip
+          active={provSel.size > 0}
+          label={provSel.size === 0 ? "Provider" : provSel.size === 1 ? [...provSel][0]! : `${provSel.size} providers`}
+          badge={provSel.size}
+          onPress={() => setOpen(open === "prov" ? null : "prov")}
+        />
+      </ScrollView>
+
+      {/* ── filter trays ── */}
+      {open === "period" && (
+        <View style={{ marginBottom: 14, gap: 10 }}>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
+            {(["this-month","last-month","3mo","6mo"] as PeriodKey[]).map((key) => (
+              <TrayChip
+                key={key}
+                label={key === "this-month" ? "This month" : key === "last-month" ? "Last month" : key === "3mo" ? "3 months" : "6 months"}
+                selected={period === key}
+                onPress={() => { setPeriod(key); setOpen(null); }}
+              />
+            ))}
+            <TrayChip
+              label="Custom range"
+              selected={period === "custom"}
+              onPress={() => setPeriod("custom")}
+            />
+          </View>
+          {period === "custom" && (
+            <View style={{ gap: 10 }}>
+              <View>
+                <Low size={11} style={{ marginBottom: 8 }}>
+                  From{customFrom ? ` · ${formatPeriodChip(customFrom)}` : " — pick a month"}
+                </Low>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 7 }}>
+                  {last24Months.map(m => (
+                    <TrayChip key={m} label={formatPeriodChip(m)} selected={customFrom === m} onPress={() => setCustomFrom(m)} />
+                  ))}
+                </ScrollView>
+              </View>
+              <View>
+                <Low size={11} style={{ marginBottom: 8 }}>
+                  To{customTo ? ` · ${formatPeriodChip(customTo)}` : " — pick a month"}
+                </Low>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 7 }}>
+                  {last24Months.filter(m => !customFrom || m >= customFrom).map(m => (
+                    <TrayChip key={m} label={formatPeriodChip(m)} selected={customTo === m}
+                      onPress={() => { setCustomTo(m); if (customFrom) setOpen(null); }} />
+                  ))}
+                </ScrollView>
+              </View>
+            </View>
+          )}
+        </View>
+      )}
+
+      {open === "tag" && (
+        <View style={{ flexDirection: "row", gap: 7, marginBottom: 14 }}>
+          <TrayChip label="All" selected={tagF === "all"} onPress={() => { setTagF("all"); setOpen(null); }} />
+          <TrayChip label="Personal" selected={tagF === "personal"} onPress={() => { setTagF("personal"); setOpen(null); }} />
+          <TrayChip label="Business" selected={tagF === "business"} onPress={() => { setTagF("business"); setOpen(null); }} />
+        </View>
+      )}
+
+      {open === "house" && (
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7, marginBottom: 14 }}>
+          {["All", ...houses].map(h => (
+            <TrayChip key={h} label={h === "All" ? "All homes" : h} selected={houseF === h} onPress={() => { setHouseF(h); setOpen(null); }} />
+          ))}
+        </View>
+      )}
+
+      {open === "cat" && (
+        <View style={{ marginBottom: 14, gap: 9 }}>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
+            <TrayChip label="All categories" selected={catSel.size === 0} onPress={() => setCatSel(new Set())} />
+            {allCats.map(c => (
+              <TrayChip key={c} label={c} selected={catSel.has(c)} onPress={() => toggleCat(c)} />
+            ))}
+          </View>
+          <Pressable onPress={() => setOpen(null)} hitSlop={8} style={{ alignSelf: "flex-start" }}>
+            <Low size={12} color={t.accent}>Done</Low>
+          </Pressable>
+        </View>
+      )}
+
+      {open === "prov" && (
+        <View style={{ marginBottom: 14, gap: 9 }}>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
+            <TrayChip label="All providers" selected={provSel.size === 0} onPress={() => setProvSel(new Set())} />
+            {allProvs.map(p => (
+              <TrayChip key={p} label={p} selected={provSel.has(p)} onPress={() => toggleProv(p)} />
+            ))}
+          </View>
+          <Pressable onPress={() => setOpen(null)} hitSlop={8} style={{ alignSelf: "flex-start" }}>
+            <Low size={12} color={t.accent}>Done</Low>
+          </Pressable>
+        </View>
+      )}
+
+      {/* ── main content ── */}
+      {filteredBills.length === 0 && !isHistorical ? (
+        <View style={[card, { alignItems: "center", paddingVertical: 30 }]}>
+          <Low>No bills match this filter.</Low>
+        </View>
+      ) : isHistorical && billedTotal === 0 ? (
+        <View style={[card, { alignItems: "center", paddingVertical: 28, paddingHorizontal: 16, gap: 8 }]}>
+          <Low size={13}>No payment data for this period.</Low>
+          <Low size={12} style={{ textAlign: "center", lineHeight: 17 }}>
+            Records build up as you mark bills paid or roll them over each month.
+          </Low>
         </View>
       ) : (
         <>
-          {/* ── total billed + paid vs billed ── */}
+          {/* total + paid bar */}
           <View style={[card, { marginBottom: 12 }]}>
-            <Low size={12}>Total billed this month</Low>
+            <Low size={12}>{isHistorical ? "Total billed" : "Total billed this month"}</Low>
             <Mono size={36} weight="semibold" style={{ letterSpacing: -0.8, marginTop: 2 }}>
               {money(Math.round(billedTotalA))}
             </Mono>
-
-            <PaidBilledBar
-              paidTotal={paidTotal}
-              billedTotal={billedTotal}
-              paidFrac={paidFrac}
-              money={money}
-            />
+            <PaidBilledBar paidTotal={paidTotal} billedTotal={billedTotal} paidFrac={paidFrac} money={money} />
           </View>
 
           {/* KPI grid */}
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 4 }}>
-            <View style={[card, { width: "47.5%", paddingVertical: 14, paddingHorizontal: 15, gap: 2 }]}>
-              <Low size={11}>Biggest bill</Low>
-              <Mono size={19} weight="semibold">{biggest ? money(biggest.amount) : "—"}</Mono>
-              <Low size={11}>{biggest ? biggest.provider : ""}</Low>
-            </View>
-            <View style={[card, { width: "47.5%", paddingVertical: 14, paddingHorizontal: 15, gap: 2 }]}>
-              <Low size={11}>Avg / bill</Low>
-              <Mono size={19} weight="semibold">{active.length ? money(billedTotal / active.length) : "—"}</Mono>
-              <Low size={11}>{active.length} {active.length === 1 ? "bill" : "bills"}</Low>
-            </View>
-            <View style={[card, { width: "47.5%", paddingVertical: 14, paddingHorizontal: 15, gap: 2 }]}>
-              <Low size={11}>Providers</Low>
-              <Mono size={19} weight="semibold">{providerCount}</Mono>
-              <Low size={11}>across {cats.length} {cats.length === 1 ? "category" : "categories"}</Low>
-            </View>
-            <View style={[card, { width: "47.5%", paddingVertical: 14, paddingHorizontal: 15, gap: 2 }]}>
-              <Low size={11}>Still owed</Low>
-              <Mono size={19} weight="semibold" color={unpaidTotal > 0 ? t.semantic.urgent : t.semantic.ok}>
-                {money(unpaidTotal)}
-              </Mono>
-              <Low size={11} color={paidPct === 100 ? t.semantic.ok : t.txtMid}>
-                {paidPct === 100 ? "All paid ✓" : `${paidPct}% paid`}
-              </Low>
-            </View>
+            {[
+              { label: "Biggest bill", value: biggest ? money(biggest.amount) : "—", sub: biggest?.provider ?? "" },
+              {
+                label: isHistorical ? "Avg / month" : "Avg / bill",
+                value: isHistorical
+                  ? (activePeriods!.length > 0 ? money(billedTotal / activePeriods!.length) : "—")
+                  : (filteredBills.length ? money(billedTotal / filteredBills.length) : "—"),
+                sub: isHistorical
+                  ? `${activePeriods!.length} months`
+                  : `${filteredBills.length} ${filteredBills.length === 1 ? "bill" : "bills"}`,
+              },
+              { label: "Providers", value: String(providerCount), sub: `${catSlices.length} ${catSlices.length === 1 ? "category" : "categories"}` },
+              {
+                label: "Still owed",
+                value: money(unpaidTotal),
+                sub: paidPct === 100 ? "All paid ✓" : `${paidPct}% paid`,
+                valueColor: unpaidTotal > 0 ? t.semantic.urgent : t.semantic.ok,
+                subColor: paidPct === 100 ? t.semantic.ok : t.txtMid,
+              },
+            ].map((kpi, i) => (
+              <View key={i} style={[card, { width: "47.5%", paddingVertical: 14, paddingHorizontal: 15, gap: 2 }]}>
+                <Low size={11}>{kpi.label}</Low>
+                <Mono size={19} weight="semibold" color={kpi.valueColor}>{kpi.value}</Mono>
+                <Low size={11} color={kpi.subColor}>{kpi.sub}</Low>
+              </View>
+            ))}
           </View>
 
           {/* where it goes */}
           <Txt style={sectionLabel}>WHERE IT GOES</Txt>
           <View style={[card, { flexDirection: "row", gap: 16, alignItems: "center" }]}>
             <View style={{ position: "relative" }}>
-              <Donut segments={cats} total={billedTotal} size={130} />
-              <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                <Low size={10}>monthly</Low>
+              <Donut segments={catSlices} total={billedTotal} size={130} />
+              <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" }}>
+                <Low size={10}>total</Low>
                 <Mono size={15} weight="semibold">{money(billedTotal)}</Mono>
               </View>
             </View>
-            <View style={{ flex: 1, flexDirection: "column", gap: 9 }}>
-              {cats.map((c) => (
+            <View style={{ flex: 1, gap: 9 }}>
+              {catSlices.map(c => (
                 <View key={c.cat} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                   <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.color, shadowColor: c.color, shadowOpacity: 0.9, shadowRadius: 4, shadowOffset: { width: 0, height: 0 } }} />
                   <Txt size={13} style={{ flex: 1 }}>{c.cat}</Txt>
@@ -281,14 +529,14 @@ export default function InsightsScreen() {
 
           {/* top providers */}
           <Txt style={sectionLabel}>TOP PROVIDERS</Txt>
-          <View style={{ flexDirection: "column", gap: 9 }}>
-            {providers.map((b) => (
-              <View key={b.id} style={{ flexDirection: "row", alignItems: "center", gap: 13, borderWidth: 1, borderColor: t.hair, borderRadius: t.radius.md, backgroundColor: t.surface2, paddingVertical: 13, paddingHorizontal: 14 }}>
+          <View style={{ gap: 9 }}>
+            {topProviders.map(b => (
+              <View key={b.provider} style={{ flexDirection: "row", alignItems: "center", gap: 13, borderWidth: 1, borderColor: t.hair, borderRadius: t.radius.md, backgroundColor: t.surface2, paddingVertical: 13, paddingHorizontal: 14 }}>
                 <ProviderLogo provider={b.provider} cat={b.cat} size={38} />
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Txt size={15} weight="medium">{b.provider}</Txt>
                   <Low size={12} style={{ marginTop: 2 }}>
-                    {b.cat} · {billedTotal > 0 ? Math.round((b.amount / billedTotal) * 100) : 0}% of bills
+                    {b.cat} · {billedTotal > 0 ? Math.round((b.amount / billedTotal) * 100) : 0}% of total
                   </Low>
                 </View>
                 <Mono size={15} weight="semibold">{money(b.amount)}</Mono>
@@ -298,7 +546,7 @@ export default function InsightsScreen() {
         </>
       )}
 
-      {/* ask about spending */}
+      {/* ask Judith */}
       <Pressable
         onPress={() => router.push("/ask")}
         style={({ pressed }) => [
