@@ -2042,15 +2042,16 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     setMode("manualForm");
   };
   const saveForm = () => {
-    if (!formCat) return;
+    const cat = formCat ?? (phase === "scripted" ? { cat: sample.cat, icon: sample.icon } : null);
+    if (!cat) return;
     const b: OnbBill = {
-      provider: form.provider || formCat.cat,
-      cat: formCat.cat,
-      icon: formCat.icon,
+      provider: form.provider || cat.cat,
+      cat: cat.cat,
+      icon: cat.icon,
       amount: parseFloat(form.amount) || 0,
       due: form.due || "—",
       dueDays: 20,
-      kind: form.kind || kindFor(formCat.cat),
+      kind: form.kind || kindFor(cat.cat),
       subtype: form.subtype,
       house: form.house,
     };
@@ -2343,6 +2344,14 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const progress = Math.min(idx + (mode === "done" ? 0 : 1), SAMPLES.length);
   const showConvo = mode === "prompt" || mode === "listening" || mode === "transcribing" || mode === "parsed";
   const isPhoneSub = phase === "scripted" && sample.cat === "Phone subscription";
+  // Derive form category directly from sample for scripted flow — avoids effect timing
+  // issues (e.g. Insurance arriving after a breather where formCat hasn't updated yet).
+  const activeFormCat =
+    mode === "manualForm" || mode === "manualCats"
+      ? formCat
+      : phase === "scripted"
+        ? { cat: sample.cat, icon: sample.icon }
+        : formCat;
 
   return (
     <>
@@ -2386,7 +2395,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
             </View>
           )}
           {/* Inline form — shown directly in prompt for non-phone-sub items */}
-          {mode === "prompt" && !done && !isPhoneSub && formCat && (
+          {mode === "prompt" && !done && !isPhoneSub && activeFormCat && (
             <Animated.View
               style={{
                 opacity: formEnterAnim,
@@ -2404,14 +2413,14 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
               >
                 {/* Provider row */}
                 <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, backgroundColor: focusedField === "provider" ? mix(t.accent, t.surface1, 0.07) : "transparent" }}>
-                  <Icon name={formCat.icon as IconName} size={14} color={focusedField === "provider" ? t.accent : t.txtLow} />
+                  <Icon name={activeFormCat.icon as IconName} size={14} color={focusedField === "provider" ? t.accent : t.txtLow} />
                   <Txt size={13} color={t.txtLow} style={{ marginLeft: 10, width: 62 }}>Provider</Txt>
                   <TextInput
                     value={form.provider}
                     onChangeText={(v) => setForm((f) => ({ ...f, provider: v }))}
                     onFocus={() => { setFocusedField("provider"); haptics.selection(); }}
                     onBlur={() => setFocusedField(null)}
-                    placeholder={getProviderPlaceholder(ctx.country.code, formCat.cat)}
+                    placeholder={getProviderPlaceholder(ctx.country.code, activeFormCat.cat)}
                     placeholderTextColor={t.txtLow}
                     returnKeyType="next"
                     style={{ flex: 1, color: t.txtHi, fontSize: 15, fontFamily: t.fonts.medium, paddingVertical: 15, textAlign: "right" }}
