@@ -9,7 +9,7 @@ import React, {
   useState,
 } from "react";
 
-import { formatMoney, type Bill, type BillCycleRecord } from "@/constants/data";
+import { formatMoney, isPaidViaCard, totalOwed, type Bill, type BillCycleRecord } from "@/constants/data";
 import {
   countryByCode,
   DEFAULT_COUNTRY,
@@ -248,55 +248,124 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       showToast,
       togglePaid: (id, period) => {
         const today = new Date();
-        mapBills((b) => {
-          if (b.id !== id) return b;
-          // Natural period is always fresh from dueDay, never stale dueDays
-          const cp = computeNaturalPeriod(b, today);
-          const p = period ?? cp;
-          const owed = b.amount + (b.carryOver ?? 0);
-          const existing = b.paymentHistory ?? [];
-          const hasRecord = existing.some((r) => r.period === p && r.paid >= r.totalDue);
-          let paymentHistory: BillCycleRecord[];
-          if (hasRecord) {
-            paymentHistory = existing.filter((r) => r.period !== p);
-          } else {
-            // Compute onTime from the viewed period's actual due date vs today
-            const [pYr, pMo] = p.split("-").map(Number) as [number, number];
-            const dueDateForPeriod = new Date(pYr, pMo - 1, Math.min(b.dueDate ?? 1, _daysInMonth(pYr, pMo - 1)));
-            const record: BillCycleRecord = {
-              period: p,
-              charged: b.amount,
-              carriedIn: b.carryOver ?? 0,
-              totalDue: owed,
-              paid: owed,
-              rolledOver: 0,
-              onTime: today <= dueDateForPeriod,
-            };
-            paymentHistory = [record, ...existing.filter((r) => r.period !== p)].slice(0, 24);
-          }
-          // bill.status mirrors whether the NATURAL period is paid (recomputed after toggle)
-          const newNaturalPeriod = computeNaturalPeriod({ dueDate: b.dueDate, paymentHistory }, today);
-          const isCurrentPaid = paymentHistory.some((r) => r.period === newNaturalPeriod && r.paid >= r.totalDue);
-          // Credit cards are a revolving balance, not a recurring charge: a
-          // settled statement must STAY at zero (amountPaid kept = owed) until the
-          // user enters the next statement (updateBillAmount), instead of the
-          // natural period advancing and re-billing the full amount next cycle.
-          // So mirror the toggled period's outcome directly for cards.
-          if (b.cat === "Credit card") {
-            const justPaid = !hasRecord; // added a paid record (vs. removed one when un-paying)
-            return {
-              ...b,
-              status: justPaid ? "paid" as const : "due" as const,
-              amountPaid: justPaid ? owed : 0,
-              paymentHistory,
-            };
-          }
-          return {
-            ...b,
-            status: isCurrentPaid ? "paid" as const : "due" as const,
-            amountPaid: isCurrentPaid ? owed : 0,
-            paymentHistory,
-          };
+        setState((s) => {
+          const target = s.bills.find((b) => b.id === id);
+          if (!target) return s;
+          // Direction of THIS toggle (for the target's period), so we can mirror
+          // it onto a linked card: a charge paid → that much paid back on the card.
+          const tCp = computeNaturalPeriod(target, today);
+          const tP = period ?? tCp;
+          const targetJustPaid = !(target.paymentHistory ?? []).some(
+            (r) => r.period === tP && r.paid >= r.totalDue,
+          );
+          // A non-card charge auto-billed to a credit card mirrors onto that card:
+          // marking the charge paid records a partial payment of its amount against
+          // the card's statement (un-paying reverses it). Cards never cascade.
+          const linkedCardId =
+            target.cat !== "Credit card" && isPaidViaCard(target)
+              ? target.parentCardId
+              : undefined;
+          const chargeAmt = target.amount;
+
+          const bills = s.bills.map((b) => {
+            if (b.id === id) {
+              // Natural period is always fresh from dueDay, never stale dueDays
+              const cp = computeNaturalPeriod(b, today);
+              const p = period ?? cp;
+              const owed = b.amount + (b.carryOver ?? 0);
+              const existing = b.paymentHistory ?? [];
+              const hasRecord = existing.some((r) => r.period === p && r.paid >= r.totalDue);
+              let paymentHistory: BillCycleRecord[];
+              if (hasRecord) {
+                paymentHistory = existing.filter((r) => r.period !== p);
+              } else {
+                // Compute onTime from the viewed period's actual due date vs today
+                const [pYr, pMo] = p.split("-").map(Number) as [number, number];
+                const dueDateForPeriod = new Date(pYr, pMo - 1, Math.min(b.dueDate ?? 1, _daysInMonth(pYr, pMo - 1)));
+                const record: BillCycleRecord = {
+                  period: p,
+                  charged: b.amount,
+                  carriedIn: b.carryOver ?? 0,
+                  totalDue: owed,
+                  paid: owed,
+                  rolledOver: 0,
+                  onTime: today <= dueDateForPeriod,
+                };
+                paymentHistory = [record, ...existing.filter((r) => r.period !== p)].slice(0, 24);
+              }
+              // bill.status mirrors whether the NATURAL period is paid (recomputed after toggle)
+              const newNaturalPeriod = computeNaturalPeriod({ dueDate: b.dueDate, paymentHistory }, today);
+              const isCurrentPaid = paymentHistory.some((r) => r.period === newNaturalPeriod && r.paid >= r.totalDue);
+              // Credit cards are a revolving balance, not a recurring charge: a
+              // settled statement must STAY at zero (amountPaid kept = owed) until the
+              // user enters the next statement (updateBillAmount), instead of the
+              // natural period advancing and re-billing the full amount next cycle.
+              // So mirror the toggled period's outcome directly for cards.
+              if (b.cat === "Credit card") {
+                const justPaid = !hasRecord; // added a paid record (vs. removed one when un-paying)
+                return {
+                  ...b,
+                  status: justPaid ? "paid" as const : "due" as const,
+                  amountPaid: justPaid ? owed : 0,
+                  paymentHistory,
+                };
+              }
+              return {
+                ...b,
+                status: isCurrentPaid ? "paid" as const : "due" as const,
+                amountPaid: isCurrentPaid ? owed : 0,
+                paymentHistory,
+              };
+            }
+            // Mirror a linked charge's paid/unpaid state onto its parent card.
+            // The card's outstanding is a single (current-statement) balance, so
+            // only mirror toggles for the card's CURRENT statement period —
+            // toggling a charge in a past/future month must not move today's
+            // card balance.
+            if (
+              linkedCardId &&
+              b.id === linkedCardId &&
+              tP === computeNaturalPeriod(b, today)
+            ) {
+              const owedCard = totalOwed(b);
+              const existingCard = b.paymentHistory ?? [];
+              const cur = b.amountPaid ?? 0;
+              const next = targetJustPaid
+                ? Math.min(owedCard, cur + chargeAmt)
+                : Math.max(0, cur - chargeAmt);
+              const fullyPaid = owedCard > 0 && next >= owedCard;
+              // Keep paymentHistory in lockstep with the running balance so every
+              // screen (home/calendar read history first) agrees on the card state.
+              let cardHistory = existingCard;
+              if (fullyPaid) {
+                if (!existingCard.some((r) => r.period === tP && r.paid >= r.totalDue)) {
+                  const [cy, cmo] = tP.split("-").map(Number) as [number, number];
+                  const dueForP = new Date(cy, cmo - 1, Math.min(b.dueDate ?? 1, _daysInMonth(cy, cmo - 1)));
+                  const rec: BillCycleRecord = {
+                    period: tP,
+                    charged: b.amount,
+                    carriedIn: b.carryOver ?? 0,
+                    totalDue: owedCard,
+                    paid: owedCard,
+                    rolledOver: 0,
+                    onTime: today <= dueForP,
+                  };
+                  cardHistory = [rec, ...existingCard.filter((r) => r.period !== tP)].slice(0, 24);
+                }
+              } else {
+                // Dropped below full — clear any stale "settled" record for tP.
+                cardHistory = existingCard.filter((r) => r.period !== tP);
+              }
+              return {
+                ...b,
+                amountPaid: next,
+                status: fullyPaid ? ("paid" as const) : ("due" as const),
+                paymentHistory: cardHistory,
+              };
+            }
+            return b;
+          });
+          return { ...s, bills };
         });
       },
       markPaid: (id) =>

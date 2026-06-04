@@ -26,6 +26,17 @@ nothing next month until the bank issues a new statement. Showing the full
 - The user resets the cycle via `updateBillAmount` (sets new `amount`, clears
   `amountPaid`/`carryOver`).
 
+**Two-way link with card-linked charges:** a non-card charge auto-billed to a
+tracked card (`isPaidViaCard`: chargedToCard + parentCardId) mirrors onto that
+card when toggled paid/unpaid — card `amountPaid` ±= the charge amount (clamped
+0..totalOwed), in lockstep with the card's paid record for that period. This
+moves the amount from "excluded charge" to "reduced card", so total owed stays
+consistent (the charge cost was always inside the card statement).
+**Critical guard:** only mirror when the charge's toggled period equals the
+card's CURRENT natural period — the card balance is a single scalar, so toggling
+a past/future linked charge must NOT move today's card outstanding. Cards never
+cascade onto other cards.
+
 **Known limitation (intentionally out of scope):** `computeNaturalPeriod` still
 advances a fully-paid CC to next month once the due date passes, so the
 bill-detail *current* period can momentarily show the new (empty) cycle at full
