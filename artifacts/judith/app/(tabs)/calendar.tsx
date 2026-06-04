@@ -55,7 +55,7 @@ function CalLegend() {
 
 /* ---- variant: heatmap dots ---- */
 function CalHeat({
-  byDay, sel, setSel, firstDow, daysInMonth, todayDate, getDueDays, getAmt, isFuture,
+  byDay, sel, setSel, firstDow, daysInMonth, todayDate, getDueDays, getAmt, isFuture, isPaid,
 }: {
   byDay: ByDay;
   sel: number | null;
@@ -66,6 +66,7 @@ function CalHeat({
   getDueDays: (b: Bill) => number;
   getAmt: (b: Bill) => number;
   isFuture: boolean;
+  isPaid: (b: Bill) => boolean;
 }) {
   const t = useTheme();
   const cells: (number | null)[] = [];
@@ -73,9 +74,10 @@ function CalHeat({
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
   while (cells.length % 7 !== 0) cells.push(null);
 
-  // In future months all bills are "upcoming" (not yet paid for that cycle)
+  // In future months all bills are "upcoming" (none paid that cycle yet).
+  // Otherwise filter out bills already paid in the viewed period.
   const dueBills = (items: Bill[]) =>
-    isFuture ? items : items.filter((b) => b.status !== "paid");
+    isFuture ? items : items.filter((b) => !isPaid(b));
 
   let maxDay = 1;
   Object.keys(byDay).forEach((k) => {
@@ -193,6 +195,25 @@ export default function CalendarScreen() {
   const viewedPeriodKey = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
   const openBill = (b: Bill) => router.push(`/bill/${b.id}?period=${viewedPeriodKey}`);
 
+  // Whether the bill was fully paid in the VIEWED period — read from paymentHistory so
+  // the answer is correct even after togglePaid advances the natural period to next month.
+  const isPaidInPeriod = (b: Bill): boolean =>
+    (b.paymentHistory ?? []).some((r) => r.period === viewedPeriodKey && r.paid >= r.totalDue);
+
+  // Amount already paid toward this bill in the viewed period.
+  // Falls back to b.amountPaid for in-progress partial payments (no history record yet).
+  const amtPaidInPeriod = (b: Bill): number => {
+    const rec = (b.paymentHistory ?? []).find((r) => r.period === viewedPeriodKey);
+    if (rec) return rec.paid;
+    return isCurrentMonth ? (b.amountPaid ?? 0) : 0;
+  };
+
+  // For the future-month carry calculation we need to know whether the CURRENT natural
+  // period was paid (not the future viewed period).
+  const currentPeriodKey = `${todayReal.getFullYear()}-${String(todayReal.getMonth() + 1).padStart(2, "0")}`;
+  const isCurrentPeriodPaid = (b: Bill): boolean =>
+    (b.paymentHistory ?? []).some((r) => r.period === currentPeriodKey && r.paid >= r.totalDue);
+
   // Days from today to the bill's due day within the VIEWED month.
   // Annual bills: use their stored dueDays (points to the actual annual occurrence).
   // Monthly bills: recompute to the viewed month's occurrence of dueDate.
@@ -208,19 +229,19 @@ export default function CalendarScreen() {
   };
 
   // Amount owed for this bill in the viewed month:
-  //   current month  → remaining balance (totalOwed − amountPaid)
+  //   current month  → remaining balance (totalOwed − paid this period)
   //   future month   → base amount + whatever carryOver wasn't paid yet
-  //                    (paid bills get a fresh cycle = base amount only)
-  //   past month     → show remaining as best approximation
+  //                    (bills paid in the current period get a fresh cycle)
+  //   past month     → 0 if paid that period, else totalOwed
   const viewedAmt = (b: Bill): number => {
     if (isCurrentMonth) {
-      return Math.max(0, totalOwed(b) - (b.amountPaid ?? 0));
+      return Math.max(0, totalOwed(b) - amtPaidInPeriod(b));
     }
     if (isFutureMonth) {
       // CC: bank folds any unpaid balance into the new statement — we don't know the
       // new amount yet, so we show the last known amount as an estimate
       if (b.cat === "Credit card") return b.amount;
-      if (b.status === "paid") return b.amount; // fresh cycle, no carry
+      if (isCurrentPeriodPaid(b)) return b.amount; // fresh cycle, no carry
       // Effective carry into next month:
       // - If a partial payment was made this cycle: the remaining balance carries forward
       //   (payPartial stores amountPaid but doesn't set carryOver until rollOver() fires)
@@ -232,8 +253,8 @@ export default function CalendarScreen() {
         : (b.carryOver ?? 0);
       return b.amount + effectiveCarry;
     }
-    // Past month — best we can do without history
-    return Math.max(0, totalOwed(b) - (b.amountPaid ?? 0));
+    // Past month — 0 if paymentHistory shows it was paid that month, otherwise full owed
+    return Math.max(0, totalOwed(b) - amtPaidInPeriod(b));
   };
 
   // Bills applicable to the viewed month.
@@ -250,14 +271,14 @@ export default function CalendarScreen() {
     return true; // monthly → every month
   });
 
-  // Upcoming: unpaid bills in the viewed month.
-  // In future months every bill is "upcoming" (none have been paid for that cycle yet).
-  const agendaForMonth = isCurrentMonth
-    ? billsForMonth.filter((b) => b.status !== "paid")
-    : billsForMonth;
+  // Upcoming: unpaid bills in the viewed month — derived from paymentHistory so it
+  // stays correct even after togglePaid advances the natural period.
+  const agendaForMonth = isFutureMonth
+    ? billsForMonth
+    : billsForMonth.filter((b) => !isPaidInPeriod(b));
 
   // "Paid this month" section — only meaningful for the current month
-  const agendaPaid = isCurrentMonth ? bills.filter((b) => b.status === "paid") : [];
+  const agendaPaid = isCurrentMonth ? bills.filter((b) => isPaidInPeriod(b)) : [];
 
   const monthTotal = agendaForMonth.reduce((s, b) => s + viewedAmt(b), 0);
   const agenda = agendaForMonth.slice().sort((a, b) => a.dueDate - b.dueDate);
@@ -329,6 +350,7 @@ export default function CalendarScreen() {
         getDueDays={viewedDueDays}
         getAmt={viewedAmt}
         isFuture={isFutureMonth}
+        isPaid={isPaidInPeriod}
       />
 
       {/* weekly cash flow */}
@@ -437,6 +459,7 @@ export default function CalendarScreen() {
         getDueDays={viewedDueDays}
         getAmt={viewedAmt}
         isFuture={isFutureMonth}
+        isPaid={isPaidInPeriod}
       />
     </Screen>
   );
@@ -444,7 +467,7 @@ export default function CalendarScreen() {
 
 /* ---- day overlay: bills due on a tapped date ---- */
 function DayBillsModal({
-  day, bills, money, monthName, onClose, onOpenBill, getDueDays, getAmt, isFuture,
+  day, bills, money, monthName, onClose, onOpenBill, getDueDays, getAmt, isFuture, isPaid,
 }: {
   day: number | null;
   bills: Bill[];
@@ -455,11 +478,12 @@ function DayBillsModal({
   getDueDays: (b: Bill) => number;
   getAmt: (b: Bill) => number;
   isFuture: boolean;
+  isPaid: (b: Bill) => boolean;
 }) {
   const t = useTheme();
   const items = bills.slice().sort((a, b) => getDueDays(a) - getDueDays(b));
-  const dueItems = isFuture ? items : items.filter((b) => b.status !== "paid");
-  const paidItems = isFuture ? [] : items.filter((b) => b.status === "paid");
+  const dueItems = isFuture ? items : items.filter((b) => !isPaid(b));
+  const paidItems = isFuture ? [] : items.filter((b) => isPaid(b));
   const dueTotal = dueItems.reduce((s, b) => s + getAmt(b), 0);
 
   return (
