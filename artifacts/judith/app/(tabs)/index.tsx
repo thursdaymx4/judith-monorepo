@@ -399,7 +399,7 @@ export default function HomeScreen() {
                           {isPaidViaCard(b) && (
                             <View style={{ flexDirection: "row", alignItems: "center", gap: 3, paddingVertical: 1, paddingHorizontal: 6, borderRadius: 8, backgroundColor: t.surface3 }}>
                               <Icon name="card" size={9} color={t.txtLow} />
-                              <Low size={10}>via card</Low>
+                              <Low size={10}>via {bills.find((c) => c.id === b.parentCardId)?.provider ?? "card"}</Low>
                             </View>
                           )}
                         </View>

@@ -392,6 +392,7 @@ export interface BillLike {
   carryOver?: number;
   isBusiness?: boolean;
   chargedToCard?: boolean;
+  parentCardId?: string;
 }
 
 export function BillRow({
@@ -404,6 +405,8 @@ export function BillRow({
   money: (n: number) => string;
 }) {
   const t = useTheme();
+  const { bills } = useJudith();
+  const cardName = bills.find((c) => c.id === bill.parentCardId)?.provider ?? "card";
   const cls = dueClass(bill.dueDays) as Urgency;
   const paid = bill.status === "paid";
   const partial = isPartialBill(bill as Parameters<typeof isPartialBill>[0]);
@@ -453,7 +456,7 @@ export function BillRow({
               >
                 <Icon name="card" size={9} color={t.accent} />
                 <Text style={{ fontFamily: t.fonts.medium, fontSize: 9.5, color: t.accent, letterSpacing: 0.4 }}>
-                  {"via card"}
+                  {`via ${cardName}`}
                 </Text>
               </View>
             )}
