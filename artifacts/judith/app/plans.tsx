@@ -276,9 +276,9 @@ export default function PlansModal() {
         />
         <Sep />
         <MathRow
-          label="Meralco reconnection fee"
-          sub="If disconnected for non-payment"
-          value="−₱300"
+          label="Postpaid late payment surcharge"
+          sub="Globe, Smart, PLDT — added automatically"
+          value="−₱200"
           color={t.semantic.urgent}
         />
         <Sep />
