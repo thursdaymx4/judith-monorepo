@@ -253,7 +253,7 @@ export default function AskModal() {
     setBusy(true);
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
     try {
-      const { reply, audioBase64, action } = await askJudith(q, askBills(), persona, language, canUseVoice());
+      const { reply, audioBase64, action } = await askJudith(q, askBills(), persona, language, canUseVoice(), country.cur, country.name);
       const finalReply = reply?.trim() || localFallback(q);
       setMessages((m) => [...m, { role: "judith", text: finalReply }]);
       if (audioBase64) {

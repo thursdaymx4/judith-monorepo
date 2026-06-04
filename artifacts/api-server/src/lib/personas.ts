@@ -154,8 +154,11 @@ function languageInstruction(language?: string): string {
 - Use natural contractions and conversational rhythm appropriate for ${name}.`;
 }
 
-export function systemPrompt(persona: PersonaId, language?: string): string {
-  return `You are Judith, a personal due-date assistant for users in the Philippines.
+export function systemPrompt(persona: PersonaId, language?: string, countryName?: string, currency?: string): string {
+  const location = countryName ?? "the Philippines";
+  const cur = currency ?? "₱";
+  return `You are Judith, a personal due-date assistant for users in ${location}.
+The user's currency is ${cur}. Always use ${cur} when quoting amounts — never use ₱ unless that is the user's currency.
 
 PERSONA: ${TONE[persona]}
 

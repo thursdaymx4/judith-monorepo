@@ -14,7 +14,6 @@ import {
   type PersonaId,
 } from "../lib/personas";
 import {
-  amountToWords,
   englishDate,
   englishWeekday,
 } from "../lib/normalize";
@@ -117,7 +116,7 @@ function daysBetween(from: Date, to: Date): number {
 }
 
 /** Builds an accurate, English-normalized context block from the user's bills. */
-function buildBillsContext(bills: BillRow[], today: Date): string {
+function buildBillsContext(bills: BillRow[], today: Date, cur = "₱"): string {
   if (bills.length === 0) {
     return "The user has no bills saved yet.";
   }
@@ -141,9 +140,9 @@ function buildBillsContext(bills: BillRow[], today: Date): string {
     const amount =
       bill.amount_type === "variable"
         ? bill.amount != null
-          ? `variable, last known ${amountToWords(bill.amount)}`
+          ? `variable, last known ${curStr(cur, bill.amount)}`
           : "variable amount, not yet known"
-        : amountToWords(bill.amount);
+        : curStr(cur, bill.amount ?? 0);
 
     const bizTag = bill.is_business ? " [BUSINESS]" : " [PERSONAL]";
 
@@ -178,8 +177,8 @@ function buildBillsContext(bills: BillRow[], today: Date): string {
 
   const summary: string[] = [
     `Today is ${englishDate(today)} (${englishWeekday(today)}).`,
-    `Total of fixed bills due within 7 days: ${amountToWords(dueThisWeek)}.`,
-    `Total of fixed bills due this month: ${amountToWords(dueThisMonth)}.`,
+    `Total of fixed bills due within 7 days: ${curStr(cur, dueThisWeek)}.`,
+    `Total of fixed bills due this month: ${curStr(cur, dueThisMonth)}.`,
   ];
   if (nextLabel) summary.push(`Next bill due: ${nextLabel}.`);
 
@@ -199,11 +198,11 @@ interface ClientBill {
   isBusiness?: boolean | null;
 }
 
-function pesoStr(n: number): string {
-  return `₱${Math.round(n).toLocaleString("en-US")}`;
+function curStr(cur: string, n: number): string {
+  return `${cur}${Math.round(n).toLocaleString("en-US")}`;
 }
 
-function buildClientContext(bills: ClientBill[], today: Date): string {
+function buildClientContext(bills: ClientBill[], today: Date, cur = "₱"): string {
   const due = bills.filter((b) => b.status !== "paid");
   const total = due.reduce((s, b) => s + (b.amount ?? 0), 0);
   const dueThisWeek = due
@@ -225,7 +224,7 @@ function buildClientContext(bills: ClientBill[], today: Date): string {
       const label = new Date(yr!, (mo ?? 1) - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" });
       const paidCount = bills.filter((b) => b.dueMonth === key && b.status === "paid").length;
       const unpaidCount = count - paidCount;
-      return `- ${label}: ${pesoStr(total)} total (${count} bill${count === 1 ? "" : "s"}, ${paidCount} paid, ${unpaidCount} unpaid)`;
+      return `- ${label}: ${curStr(cur, total)} total (${count} bill${count === 1 ? "" : "s"}, ${paidCount} paid, ${unpaidCount} unpaid)`;
     });
 
   const bizUnpaid = bills.filter((b) => b.isBusiness && b.status !== "paid");
@@ -236,15 +235,15 @@ function buildClientContext(bills: ClientBill[], today: Date): string {
     const when =
       days === 0 ? "due TODAY" : days < 0 ? `OVERDUE by ${Math.abs(days)} day(s)` : `due in ${days} day(s)`;
     const bizTag = b.isBusiness ? " [BUSINESS]" : " [PERSONAL]";
-    return `- ${b.provider ?? "Bill"} (${b.cat ?? "Other"})${bizTag}: ${pesoStr(b.amount ?? 0)}, ${b.dueLabel ?? "—"}, ${when}, ${b.status ?? "unpaid"}.`;
+    return `- ${b.provider ?? "Bill"} (${b.cat ?? "Other"})${bizTag}: ${curStr(cur, b.amount ?? 0)}, ${b.dueLabel ?? "—"}, ${when}, ${b.status ?? "unpaid"}.`;
   });
 
   return [
     `Today is ${englishDate(today)} (${englishWeekday(today)}).`,
-    `Total still due (unpaid): ${pesoStr(total)}.`,
-    `Total of bills due within 7 days: ${pesoStr(dueThisWeek)}.`,
+    `Total still due (unpaid): ${curStr(cur, total)}.`,
+    `Total of bills due within 7 days: ${curStr(cur, dueThisWeek)}.`,
     bizUnpaid.length > 0
-      ? `Business bills still unpaid: ${bizUnpaid.length} bill${bizUnpaid.length === 1 ? "" : "s"} totalling ${pesoStr(bizTotal)}.`
+      ? `Business bills still unpaid: ${bizUnpaid.length} bill${bizUnpaid.length === 1 ? "" : "s"} totalling ${curStr(cur, bizTotal)}.`
       : "Business bills still unpaid: none.",
     "",
     "MONTHLY TOTALS (all bills including paid):",
@@ -337,12 +336,14 @@ router.post("/ask", askLimiter, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
-    const { text, bills: bodyBills, persona: bodyPersona, localDate, language, wantVoice } = req.body ?? {};
+    const { text, bills: bodyBills, persona: bodyPersona, localDate, language, wantVoice, currency, countryName } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
       res.status(400).json({ error: "text is required" });
       return;
     }
     const today = parseLocalDate(localDate);
+    const cur: string = typeof currency === "string" && currency.trim() ? currency.trim() : "₱";
+    const country: string = typeof countryName === "string" && countryName.trim() ? countryName.trim() : "the Philippines";
 
     let persona: PersonaId;
     let voiceId: string;
@@ -350,19 +351,19 @@ router.post("/ask", askLimiter, async (req, res) => {
     if (Array.isArray(bodyBills)) {
       persona = coercePersona(bodyPersona);
       voiceId = getVoiceId(persona, typeof language === "string" ? language : undefined);
-      context = buildClientContext(bodyBills as ClientBill[], today);
+      context = buildClientContext(bodyBills as ClientBill[], today, cur);
     } else {
       const data = await loadUserData(user.id);
       persona = data.persona;
       voiceId = data.voiceId;
-      context = buildBillsContext(data.bills, today);
+      context = buildBillsContext(data.bills, today, cur);
     }
 
     const anthropic = getAnthropic();
     const message = await anthropic.messages.create({
       model: ANTHROPIC_MODEL,
       max_tokens: 120,
-      system: `${systemPrompt(persona, typeof language === "string" ? language : undefined)}\n\nBILL CONTEXT (the only source of truth):\n${context}`,
+      system: `${systemPrompt(persona, typeof language === "string" ? language : undefined, country, cur)}\n\nBILL CONTEXT (the only source of truth):\n${context}`,
       messages: [{ role: "user", content: text.trim() }],
     });
 

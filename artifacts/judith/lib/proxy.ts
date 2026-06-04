@@ -119,6 +119,8 @@ export function askJudith(
   persona?: PersonaId,
   language?: string,
   wantVoice?: boolean,
+  currency?: string,
+  countryName?: string,
 ): Promise<AskResult> {
   return postJson("/ask", {
     text,
@@ -127,6 +129,8 @@ export function askJudith(
     localDate: localDateString(),
     language,
     wantVoice: wantVoice ?? true,
+    currency,
+    countryName,
   });
 }
 
