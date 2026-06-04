@@ -21,6 +21,40 @@ import type { AccentId, ThemeName } from "@/constants/theme";
 const STORAGE_KEY = "judith_store_v1";
 const FREE_ASKS = 8;
 
+function _daysInMonth(year: number, month: number): number {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+/**
+ * Compute a bill's "natural" billing period fresh from its stored dueDate
+ * (day-of-month), never from the stale dueDays field.
+ *
+ * Rules:
+ *   today.date < dueDay  → due later this month → this month's period
+ *   today.date >= dueDay → due date has passed this month:
+ *     – if this month is already paid → advance to next month
+ *     – otherwise → this month (overdue or due today)
+ */
+function computeNaturalPeriod(
+  b: Pick<Bill, "dueDate" | "paymentHistory">,
+  today: Date,
+): string {
+  const todayDay = today.getDate();
+  const dueDay = b.dueDate ?? 1;
+  const yr = today.getFullYear();
+  const mo = today.getMonth();
+  const thisMonth = `${yr}-${String(mo + 1).padStart(2, "0")}`;
+  if (todayDay < dueDay) return thisMonth;
+  const thisMonthPaid = (b.paymentHistory ?? []).some(
+    (r) => r.period === thisMonth && r.paid >= r.totalDue,
+  );
+  if (thisMonthPaid) {
+    const next = new Date(yr, mo + 1, 1);
+    return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`;
+  }
+  return thisMonth;
+}
+
 /** free = 8 trial asks; chat = unlimited text asks; voice = unlimited text + voice asks */
 export type AskTier = "free" | "chat" | "voice";
 
@@ -189,25 +223,11 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<JudithStoreValue>(() => {
     const country = countryByCode(state.countryCode);
     const isPaid = state.tier === "chat" || state.tier === "voice";
-    // Auto-advance: if a bill is marked paid but has no paymentHistory record for its
-    // natural billing period (derived from the bill's own due date, not just today's
-    // calendar month), the cycle has rolled over — silently reset it to due.
-    const _today = new Date();
-    const bills = state.bills.map((b): Bill => {
-      if (b.status !== "paid") return b;
-      // Compute this bill's natural period from its next/last due date
-      const _dd = new Date(_today);
-      _dd.setDate(_today.getDate() + (b.dueDays ?? 0));
-      const _bp = `${_dd.getFullYear()}-${String(_dd.getMonth() + 1).padStart(2, "0")}`;
-      const hasCurrentRecord = (b.paymentHistory ?? []).some(
-        (r) => r.period === _bp && r.paid >= r.totalDue,
-      );
-      if (!hasCurrentRecord) return { ...b, status: "due", amountPaid: 0 };
-      return b;
-    });
+    // paymentHistory is the single source of truth for per-month paid status.
+    // bill.status is a convenience mirror updated by togglePaid — no auto-reset needed.
     return {
       ...state,
-      bills,
+      bills: state.bills,
       hydrated,
       country,
       money: (n: number) => formatMoney(n, country.cur),
@@ -217,20 +237,19 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
         const today = new Date();
         mapBills((b) => {
           if (b.id !== id) return b;
-          // Determine the bill's natural billing period from its due date
-          const _dd = new Date(today);
-          _dd.setDate(today.getDate() + (b.dueDays ?? 0));
-          const cp = `${_dd.getFullYear()}-${String(_dd.getMonth() + 1).padStart(2, "0")}`;
+          // Natural period is always fresh from dueDay, never stale dueDays
+          const cp = computeNaturalPeriod(b, today);
           const p = period ?? cp;
           const owed = b.amount + (b.carryOver ?? 0);
           const existing = b.paymentHistory ?? [];
           const hasRecord = existing.some((r) => r.period === p && r.paid >= r.totalDue);
           let paymentHistory: BillCycleRecord[];
           if (hasRecord) {
-            // Mark unpaid: remove this period's record
             paymentHistory = existing.filter((r) => r.period !== p);
           } else {
-            // Mark paid: upsert a full-payment record for this period
+            // Compute onTime from the viewed period's actual due date vs today
+            const [pYr, pMo] = p.split("-").map(Number) as [number, number];
+            const dueDateForPeriod = new Date(pYr, pMo - 1, Math.min(b.dueDate ?? 1, _daysInMonth(pYr, pMo - 1)));
             const record: BillCycleRecord = {
               period: p,
               charged: b.amount,
@@ -238,12 +257,13 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
               totalDue: owed,
               paid: owed,
               rolledOver: 0,
-              onTime: b.dueDays >= 0,
+              onTime: today <= dueDateForPeriod,
             };
             paymentHistory = [record, ...existing.filter((r) => r.period !== p)].slice(0, 24);
           }
-          // bill.status always mirrors whether the CURRENT period is paid
-          const isCurrentPaid = paymentHistory.some((r) => r.period === cp && r.paid >= r.totalDue);
+          // bill.status mirrors whether the NATURAL period is paid (recomputed after toggle)
+          const newNaturalPeriod = computeNaturalPeriod({ dueDate: b.dueDate, paymentHistory }, today);
+          const isCurrentPaid = paymentHistory.some((r) => r.period === newNaturalPeriod && r.paid >= r.totalDue);
           return {
             ...b,
             status: isCurrentPaid ? "paid" as const : "due" as const,
@@ -282,12 +302,11 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
           ...s,
           bills: s.bills.map((b) => {
             if (b.id !== id) return b;
-            // Use the bill's natural period, not just today's calendar month
-            const _dd = new Date(today);
-            _dd.setDate(today.getDate() + (b.dueDays ?? 0));
-            const cp = `${_dd.getFullYear()}-${String(_dd.getMonth() + 1).padStart(2, "0")}`;
+            const cp = computeNaturalPeriod(b, today);
             const owed = b.amount + (b.carryOver ?? 0);
             if (amountPaid >= owed) {
+              const [pYr, pMo] = cp.split("-").map(Number) as [number, number];
+              const dueDateForPeriod = new Date(pYr, pMo - 1, Math.min(b.dueDate ?? 1, _daysInMonth(pYr, pMo - 1)));
               const record: BillCycleRecord = {
                 period: cp,
                 charged: b.amount,
@@ -295,7 +314,7 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
                 totalDue: owed,
                 paid: owed,
                 rolledOver: 0,
-                onTime: b.dueDays >= 0,
+                onTime: today <= dueDateForPeriod,
               };
               const paymentHistory = [record, ...(b.paymentHistory ?? []).filter((r) => r.period !== cp)].slice(0, 24);
               return { ...b, status: "paid" as const, amountPaid: owed, paymentHistory };

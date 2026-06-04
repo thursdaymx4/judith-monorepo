@@ -6,7 +6,6 @@ import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Btn, Card, Low, Mono, ProviderLogo, Screen, SectionLabel, SheetHeader, Txt } from "@/components/ui";
 import {
-  dueClass,
   isPartialBill,
   partialPct,
   totalOwed,
@@ -20,6 +19,11 @@ import { haptics } from "@/lib/haptics";
 /* ─── helpers ────────────────────────────────────────────────────── */
 
 const MONTH_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTH_LONG = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+function _dim(year: number, month: number): number { // month 0-indexed
+  return new Date(year, month + 1, 0).getDate();
+}
 
 function periodLabel(period: string): string {
   const [yr, mo] = period.split("-");
@@ -27,6 +31,40 @@ function periodLabel(period: string): string {
   const thisYear = new Date().getFullYear();
   if (parseInt(yr ?? "0", 10) !== thisYear) return `${moName} '${String(yr).slice(2)}`;
   return moName;
+}
+
+function periodLabelLong(period: string): string {
+  const [yr, mo] = period.split("-");
+  return `${MONTH_LONG[parseInt(mo ?? "1", 10) - 1] ?? ""} ${yr}`;
+}
+
+function shiftPeriod(period: string, delta: number): string {
+  const [yr, mo] = period.split("-").map(Number) as [number, number];
+  const d = new Date(yr, mo - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/**
+ * Compute a bill's natural billing period fresh from its dueDay (day-of-month).
+ * Same logic as the store helper — if today < dueDay → this month; otherwise this
+ * month if unpaid, or next month if already paid.
+ */
+function computeNaturalPeriodUI(
+  dueDay: number,
+  paymentHistory: BillCycleRecord[] | undefined,
+  today: Date,
+): string {
+  const todayDay = today.getDate();
+  const yr = today.getFullYear();
+  const mo = today.getMonth();
+  const thisMonth = `${yr}-${String(mo + 1).padStart(2, "0")}`;
+  if (todayDay < dueDay) return thisMonth;
+  const paid = (paymentHistory ?? []).some((r) => r.period === thisMonth && r.paid >= r.totalDue);
+  if (paid) {
+    const next = new Date(yr, mo + 1, 1);
+    return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`;
+  }
+  return thisMonth;
 }
 
 type ChartPoint = { label: string; value: number; current: boolean };
@@ -125,30 +163,34 @@ function MiniBarChart({ points, money }: { points: ChartPoint[]; money: (n: numb
   );
 }
 
-function CycleRow({ record, money }: { record: BillCycleRecord; money: (n: number) => string }) {
+function CycleRow({ record, money, naturalPeriod }: { record: BillCycleRecord; money: (n: number) => string; naturalPeriod: string }) {
   const t = useTheme();
+  const isPaidAhead = record.period > naturalPeriod;
   return (
     <View style={{ paddingVertical: 14, paddingHorizontal: 14 }}>
       {/* header: period + on-time badge */}
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
         <Txt size={13} weight="semibold">{periodLabel(record.period)}</Txt>
-        {record.onTime === true && (
+        {isPaidAhead ? (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: t.accent + "18", borderRadius: 20, paddingVertical: 3, paddingHorizontal: 9 }}>
+            <Icon name="check" size={10} color={t.accent} />
+            <Low size={10} color={t.accent} weight="medium">Paid ahead</Low>
+          </View>
+        ) : record.onTime === true ? (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: t.semantic.ok + "18", borderRadius: 20, paddingVertical: 3, paddingHorizontal: 9 }}>
             <Icon name="check" size={10} color={t.semantic.ok} />
             <Low size={10} color={t.semantic.ok} weight="medium">On time</Low>
           </View>
-        )}
-        {record.onTime === false && (
+        ) : record.onTime === false ? (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: t.semantic.urgent + "18", borderRadius: 20, paddingVertical: 3, paddingHorizontal: 9 }}>
             <Low size={10} color={t.semantic.urgent} weight="medium">Paid late</Low>
           </View>
-        )}
-        {record.onTime === null && record.rolledOver > 0 && (
+        ) : record.onTime === null && record.rolledOver > 0 ? (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: t.semantic.near + "18", borderRadius: 20, paddingVertical: 3, paddingHorizontal: 9 }}>
             <Icon name="trend" size={9} color={t.semantic.near} />
             <Low size={10} color={t.semantic.near} weight="medium">Partially paid</Low>
           </View>
-        )}
+        ) : null}
       </View>
       {/* 4-column stats: due · paid · carry-in · on time */}
       <View style={{ flexDirection: "row" }}>
@@ -194,6 +236,13 @@ export default function BillDetailModal() {
 
   const bill = bills.find((b) => b.id === id);
 
+  // Compute natural period before early return — useState must be unconditional.
+  const today = new Date();
+  const billNaturalPeriod = bill
+    ? computeNaturalPeriodUI(bill.dueDate ?? 1, bill.paymentHistory, today)
+    : `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const [viewedPeriod, setViewedPeriod] = useState<string>(periodParam ?? billNaturalPeriod);
+
   if (!bill) {
     return (
       <Screen contentStyle={{ paddingTop: 14 }}>
@@ -204,29 +253,23 @@ export default function BillDetailModal() {
     );
   }
 
-  // ── Period-awareness (calendar may open a future/past month's slot) ──
-  const today = new Date();
-  // Derive the bill's natural billing period from its own due date, not just
-  // today's calendar month.  A bill due June 1 while today is May 28 belongs
-  // to period "2026-06" so the user can mark it paid before month-end.
-  const billDueDate = new Date(today);
-  billDueDate.setDate(today.getDate() + (bill.dueDays ?? 0));
-  const billNaturalPeriod = `${billDueDate.getFullYear()}-${String(billDueDate.getMonth() + 1).padStart(2, "0")}`;
-  const viewedPeriod = periodParam ?? billNaturalPeriod;
+  // ── Derived values for the viewed period ──────────────────────────
   const isCurrentPeriod = viewedPeriod === billNaturalPeriod;
   const isFuturePeriod = viewedPeriod > billNaturalPeriod;
 
-  const cls = dueClass(bill.dueDays);
-  // Derive paid status from paymentHistory for the viewed period — not from the
-  // global bill.status flag (which only tracks the current-period status).
+  // Due date for the viewed period — always fresh from dueDate day-of-month
+  const [vpYr, vpMo] = viewedPeriod.split("-").map(Number) as [number, number];
+  const viewedDueDate = new Date(vpYr, vpMo - 1, Math.min(bill.dueDate ?? 1, _dim(vpYr, vpMo - 1)));
+
   const paid = (bill.paymentHistory ?? []).some(
     (r) => r.period === viewedPeriod && r.paid >= r.totalDue,
   );
-  const overdue = !paid && !isFuturePeriod && bill.dueDays < 0;
-  const daysLate = -bill.dueDays;
+  const overdue = !paid && today > viewedDueDate;
+  const daysLate = overdue ? Math.round((today.getTime() - viewedDueDate.getTime()) / 86400000) : 0;
+  const daysUntilDue = Math.round((viewedDueDate.getTime() - today.getTime()) / 86400000);
+
   const partial = isCurrentPeriod && isPartialBill(bill);
   const owed = totalOwed(bill);
-  // For future months show the base amount (fresh cycle, no carry-in yet)
   const viewedOwed = isFuturePeriod ? bill.amount : owed;
   const pct = partialPct(bill);
   const remaining = owed - (bill.amountPaid ?? 0);
@@ -234,6 +277,10 @@ export default function BillDetailModal() {
   const isCC = bill.cat === "Credit card";
   const todayDay = today.getDate();
   const statementIsToday = isCC && isCurrentPeriod && bill.statementDay === todayDay;
+
+  const viewedCls: "overdue" | "urgent" | "near" | "ok" =
+    overdue ? "overdue" : daysUntilDue <= 3 ? "urgent" : daysUntilDue <= 7 ? "near" : "ok";
+  const statusColor = isFuturePeriod && !paid ? t.txtLow : paid ? t.semantic.ok : t.semantic[viewedCls];
 
   const chartPoints = buildChart(bill);
   const historyRows = buildHistory(bill);
@@ -267,12 +314,39 @@ export default function BillDetailModal() {
     }
   };
 
-  const statusColor = isFuturePeriod ? t.txtLow : paid ? t.semantic.ok : t.semantic[cls];
-
   return (
     <Screen contentStyle={{ paddingTop: 14 }}>
       <SheetHeader title={bill.provider} onClose={() => router.back()} />
-      <View style={{ height: 14 }} />
+
+      {/* ── MONTH NAVIGATOR ──────────────────────────────────── */}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          paddingHorizontal: 4,
+          paddingVertical: 8,
+        }}
+      >
+        <Btn
+          label="‹"
+          variant="soft"
+          onPress={() => setViewedPeriod((p) => shiftPeriod(p, -1))}
+          style={{ minWidth: 40, paddingHorizontal: 14 }}
+        />
+        <Txt size={14} weight="semibold" style={{ flex: 1, textAlign: "center" }}>
+          {periodLabelLong(viewedPeriod)}
+          {isCurrentPeriod && (
+            <Txt size={12} weight="regular" color={t.txtLow}>{" · current"}</Txt>
+          )}
+        </Txt>
+        <Btn
+          label="›"
+          variant="soft"
+          onPress={() => setViewedPeriod((p) => shiftPeriod(p, 1))}
+          style={{ minWidth: 40, paddingHorizontal: 14 }}
+        />
+      </View>
 
       {/* ── COMPACT STATUS CARD ──────────────────────────────── */}
       <View
@@ -309,15 +383,15 @@ export default function BillDetailModal() {
           >
             {paid && <Icon name="check" size={10} color={statusColor} />}
             <Low size={10} color={statusColor} weight="medium">
-              {isFuturePeriod
-                ? `due ${periodLabel(viewedPeriod)}`
-                : paid
-                  ? "paid"
-                  : overdue
-                    ? `${daysLate}d overdue`
-                    : bill.dueDays === 0
-                      ? "due today"
-                      : `in ${bill.dueDays}d`}
+              {paid
+                ? "paid"
+                : overdue
+                  ? `${daysLate}d overdue`
+                  : daysUntilDue === 0
+                    ? "due today"
+                    : daysUntilDue > 30
+                      ? `due ${periodLabel(viewedPeriod)}`
+                      : `in ${daysUntilDue}d`}
             </Low>
           </View>
         </View>
@@ -449,63 +523,46 @@ export default function BillDetailModal() {
 
       {/* ── ACTION BUTTONS ──────────────────────────────────── */}
       <View style={{ gap: 9, marginTop: 20 }}>
-        {/* Future-month notice: this is a preview, not yet payable */}
-        {isFuturePeriod && (
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "flex-start",
-              gap: 10,
-              borderWidth: 1,
-              borderColor: t.hair,
-              borderRadius: 12,
-              paddingVertical: 12,
-              paddingHorizontal: 14,
-              backgroundColor: t.surface2,
-            }}
-          >
-            <Icon name="cal" size={14} color={t.txtLow} />
-            <Low size={13} style={{ flex: 1, lineHeight: 18 }}>
-              This is <Txt size={13} weight="semibold">{periodLabel(viewedPeriod)}</Txt>'s bill.
-              {" "}You haven't paid it yet — come back when it's due to mark it paid.
-            </Low>
-          </View>
-        )}
+        {/* Mark paid / unpaid — available for any month (past, current, or future pre-pay) */}
+        <Btn
+          label={
+            paid
+              ? "Mark as unpaid"
+              : isFuturePeriod
+                ? `Pay ${periodLabel(viewedPeriod)} ahead`
+                : overdue
+                  ? "Mark paid — catch up"
+                  : "Mark as fully paid"
+          }
+          variant={paid ? "soft" : "primary"}
+          onPress={() => {
+            if (!paid) haptics.success();
+            togglePaid(bill.id, viewedPeriod);
+            router.back();
+          }}
+        />
 
-        {/* Current/past-month pay / unpay / partial (not available for future months) */}
-        {!isFuturePeriod && (
-          <>
-            <Btn
-              label={paid ? "Mark as unpaid" : overdue ? "Mark paid — catch up" : "Mark as fully paid"}
-              variant={paid ? "soft" : "primary"}
-              onPress={() => {
-                if (!paid) haptics.success();
-                togglePaid(bill.id, viewedPeriod);
-                router.back();
-              }}
-            />
-            {!paid && isCurrentPeriod && (
-              <Btn
-                label={showInput ? "Cancel" : partial ? "Update partial" : "Pay partial"}
-                variant="soft"
-                onPress={() => {
-                  if (showInput) { setShowInput(false); setInput(""); }
-                  else { setInput(bill.amountPaid ? String(bill.amountPaid) : ""); setShowInput(true); }
-                }}
-              />
-            )}
-            {isCC && !showCCUpdate && isCurrentPeriod && (
-              <Btn
-                label={statementIsToday ? "Update statement · today" : "Update statement amount"}
-                variant="soft"
-                onPress={() => {
-                  setCCInput(String(bill.amount));
-                  setShowCCUpdate(true);
-                  setShowInput(false);
-                }}
-              />
-            )}
-          </>
+        {/* Partial payment and CC update — only meaningful for the current period */}
+        {!paid && isCurrentPeriod && (
+          <Btn
+            label={showInput ? "Cancel" : partial ? "Update partial" : "Pay partial"}
+            variant="soft"
+            onPress={() => {
+              if (showInput) { setShowInput(false); setInput(""); }
+              else { setInput(bill.amountPaid ? String(bill.amountPaid) : ""); setShowInput(true); }
+            }}
+          />
+        )}
+        {isCC && !showCCUpdate && isCurrentPeriod && (
+          <Btn
+            label={statementIsToday ? "Update statement · today" : "Update statement amount"}
+            variant="soft"
+            onPress={() => {
+              setCCInput(String(bill.amount));
+              setShowCCUpdate(true);
+              setShowInput(false);
+            }}
+          />
         )}
 
         {/* Edit bill — always visible */}
@@ -600,7 +657,7 @@ export default function BillDetailModal() {
             {historyRows.map((record, i) => (
               <View key={record.period}>
                 {i > 0 && <View style={{ height: 1, backgroundColor: t.hair }} />}
-                <CycleRow record={record} money={money} />
+                <CycleRow record={record} money={money} naturalPeriod={billNaturalPeriod} />
               </View>
             ))}
           </Card>
