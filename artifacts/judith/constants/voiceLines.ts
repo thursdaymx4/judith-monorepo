@@ -25,6 +25,7 @@ export type PersonaLines = Record<PersonaId, VoiceLine>;
 export type BillFlow = {
   breather0:  VoiceLine;
   breather1:  VoiceLine;
+  breather2:  VoiceLine;
   countCards: VoiceLine;
   countLoans: VoiceLine;
   more:       { en: (n: number) => string; fil: (n: number) => string };
@@ -156,6 +157,7 @@ export const JUDITH_VOICE = {
         "Phone subscription": "Screenshot your Subscriptions in Settings — fastest way. Or list them one by one.",
         "TV / Streaming":     "Any streaming services? Which ones and how much?",
         "Web app":            "Any web subscriptions — Canva, Notion, anything like that?",
+        Insurance:            "Any insurance policies — health, car, or life? Which provider and how much a month?",
         "Credit card":        "Which bank, and what's the amount due?",
         "Personal loan":      "Who's the lender, and what's the monthly payment?",
       },
@@ -168,6 +170,7 @@ export const JUDITH_VOICE = {
         "Phone subscription": "I-screenshot ang Subscriptions mo sa Settings — mas madali. O isa-isahin mo.",
         "TV / Streaming":     "May streaming ka ba? Alin-alin at magkano?",
         "Web app":            "May web subscriptions ka pa — Canva, Notion, ganyan?",
+        Insurance:            "May insurance ka ba — health, car, o life? Anong provider at magkano monthly?",
         "Credit card":        "Anong bangko at magkano ang due?",
         "Personal loan":      "Sino ang lender at magkano monthly?",
       },
@@ -182,6 +185,7 @@ export const JUDITH_VOICE = {
         "Phone subscription": "Screenshot your Subscriptions in Settings — easiest confession method. Or list them.",
         "TV / Streaming":     "Streaming — which ones are you guiltlessly paying for?",
         "Web app":            "Any web apps you're quietly funding? Canva, Notion, that sort of thing?",
+        Insurance:            "Insurance — the thing we pay hoping to never use. Which ones and how much?",
         "Credit card":        "Which bank, and how much is this month's reality check?",
         "Personal loan":      "Who's the lender, and how much a month?",
       },
@@ -194,6 +198,7 @@ export const JUDITH_VOICE = {
         "Phone subscription": "I-screenshot na lang ang Subscriptions — pinakamadaling paraan. O isa-isahin.",
         "TV / Streaming":     "Streaming — alin-alin ang binabayaran mo nang walang hiya?",
         "Web app":            "May mga web apps na tahimik na binabayaran? Canva, Notion, ganyan?",
+        Insurance:            "Insurance — ang binabayaran nating sana ay hindi kailanman gamitin! Alin-alin at magkano?",
         "Credit card":        "Anong bangko at magkano ang katotohanan ngayon?",
         "Personal loan":      "Sino ang inutangan at magkano monthly?",
       },
@@ -208,6 +213,7 @@ export const JUDITH_VOICE = {
         "Phone subscription": "Screenshot Subscriptions in Settings. Or just list them.",
         "TV / Streaming":     "Streaming. Which ones?",
         "Web app":            "Web subscriptions you've been ignoring?",
+        Insurance:            "Insurance. Health, car, life. Which ones and how much?",
         "Credit card":        "Bank and amount due.",
         "Personal loan":      "Lender and monthly payment.",
       },
@@ -220,6 +226,7 @@ export const JUDITH_VOICE = {
         "Phone subscription": "I-screenshot ang Subscriptions. O ilista mo.",
         "TV / Streaming":     "Streaming. Alin-alin?",
         "Web app":            "May web subscriptions ka pa ba?",
+        Insurance:            "Insurance. Health, car, life. Alin-alin at magkano?",
         "Credit card":        "Bangko at halaga ng due.",
         "Personal loan":      "Sino ang lender at magkano monthly.",
       },
@@ -234,6 +241,7 @@ export const JUDITH_VOICE = {
         "Phone subscription": "Screenshot Subscriptions anak, from your phone Settings. Or tell me each one.",
         "TV / Streaming":     "Any streaming anak? Which ones?",
         "Web app":            "Any web subscriptions anak? Canva, Notion?",
+        Insurance:            "Any insurance anak? Health, car, or life? Which company and how much a month?",
         "Credit card":        "Which bank anak, and how much is due?",
         "Personal loan":      "Who's the lender anak, and how much a month?",
       },
@@ -246,6 +254,7 @@ export const JUDITH_VOICE = {
         "Phone subscription": "I-screenshot ang Subscriptions mo anak. O isa-isa mo sa akin.",
         "TV / Streaming":     "May streaming ka ba anak? Alin-alin?",
         "Web app":            "May web subscriptions anak? Canva, Notion?",
+        Insurance:            "May insurance ka ba anak? Health, car, o life? Anong company at magkano monthly?",
         "Credit card":        "Anong bangko anak at magkano ang due?",
         "Personal loan":      "Sino ang lender anak at magkano monthly?",
       },
@@ -260,6 +269,7 @@ export const JUDITH_VOICE = {
         "Phone subscription": "I-screenshot mo na lang ang Subscriptions mo sa Settings! O isa-isa mo sa akin besh!",
         "TV / Streaming":     "Streaming! Alin-alin?! Netflix?! Disney?! Spill!",
         "Web app":            "May web apps ka pa?! Canva, Notion?! Grabe ang dami mo!",
+        Insurance:            "Insurance pa?! Ay grabe besh! Health? Car? Life?! Ilan ba talaga ang bayarin mo?!",
         "Credit card":        "Credit card! Anong bangko at magkano ang utang?!",
         "Personal loan":      "Utang! Sinong nagpahiram at magkano monthly?!",
       },
@@ -272,6 +282,7 @@ export const JUDITH_VOICE = {
         "Phone subscription": "I-screenshot na ang Subscriptions mo sa Settings! O isa-isa mo sa akin besh!",
         "TV / Streaming":     "May streaming ka ba?! Alin-alin?! Grabe!",
         "Web app":            "Other web apps subscription pa?! Grabe ang dami mo besh!",
+        Insurance:            "May insurance pa?! Grabe ka besh! Health, car, life?! Sino-sino lahat?!",
         "Credit card":        "Credit card! Anong bangko at magkano ang due?!",
         "Personal loan":      "May utang pa?! Sinong nagpahiram at magkano monthly?!",
       },
@@ -286,6 +297,7 @@ export const JUDITH_VOICE = {
     pro: {
       breather0:  { en: "Essentials locked in — power, water, internet. All saved.", fil: "Essentials, naka-save na. Kuryente, tubig, internet — done." },
       breather1:  { en: "Subscriptions logged. The quiet drainers are all accounted for.", fil: "Mga subscriptions, naka-log na. Wala nang makakalimutan." },
+      breather2:  { en: "Insurance policies noted. The safety net is accounted for.", fil: "Insurance, naka-save na. Ang proteksyon mo — lahat logged." },
       countCards: { en: "Now the credit cards. How many do you have?", fil: "Ngayon ang mga credit card. Ilan ang mayroon ka?" },
       countLoans: { en: "And loans — personal, car, housing. How many?", fil: "At mga loans — personal, car, bahay. Ilan?" },
       more:       { en: (n) => `${n} bills so far. Any more to add?`, fil: (n) => `${n} na bill na naka-log. May iba pa?` },
@@ -297,6 +309,7 @@ export const JUDITH_VOICE = {
     funny: {
       breather0:  { en: "Essentials done! The boring-but-critical stuff — nailed it. Look at you.", fil: "Essentials logged na! Ang boring-but-critical — nailed! Proud of you!" },
       breather1:  { en: "Subscriptions saved! All your guilty pleasures — officially on the record.", fil: "Subscriptions, naka-save na rin! Lahat ng guilty pleasures — on record na!" },
+      breather2:  { en: "Insurance done! Hope you never need it — but now Judith tracks it so you never miss a payment.", fil: "Insurance, logged na rin! Sana hindi mo kailanman gamitin — pero naka-track na natin." },
       countCards: { en: "Okay, credit cards. How many are silently judging you right now?", fil: "Sige, credit cards! Ilan ba ang tahimik na naghahari sa'yo?" },
       countLoans: { en: "Loans — the long-term commitment kind. How many?", fil: "Loans — ang pangmatagalang pakikipagtulungan. Ilan?" },
       more:       { en: (n) => `${n} bills down! Any more to confess?`, fil: (n) => `${n} bills na! May iba pa bang gustong i-admit?` },
@@ -308,6 +321,7 @@ export const JUDITH_VOICE = {
     sib: {
       breather0:  { en: "Essentials noted. Power, water, internet — very predictable. Good.", fil: "Essentials. Naka-save. Ayos." },
       breather1:  { en: "Subscriptions. All logged. You're welcome.", fil: "Mga subscriptions. Naka-save. Tapos na." },
+      breather2:  { en: "Insurance. All logged.", fil: "Insurance. Naka-save. Ayos." },
       countCards: { en: "Credit cards. Of course. How many?", fil: "Credit cards. Syempre. Ilan?" },
       countLoans: { en: "And loans. How deep does this go?", fil: "At mga loans. Hanggang saan ba to?" },
       more:       { en: (n) => `${n} bills. Anything else you've been avoiding?`, fil: (n) => `${n} na bills. May iba pa bang iniiwasan?` },
@@ -319,6 +333,7 @@ export const JUDITH_VOICE = {
     mama: {
       breather0:  { en: "Good anak, essentials are all saved — power, water, internet. Done.", fil: "Maganda anak, essentials naka-save na. Kuryente, tubig, internet — done." },
       breather1:  { en: "Subscriptions saved na anak. Good job keeping track.", fil: "Subscriptions naka-save na rin anak. Magaling ka talaga." },
+      breather2:  { en: "Good anak, your insurance policies are all saved. Very responsible of you.", fil: "Maganda anak, insurance naka-save na rin. Ang sipag mo talaga." },
       countCards: { en: "Now anak, the credit cards. How many do you have?", fil: "Ngayon anak, ang mga credit card. Ilan ang mayroon ka?" },
       countLoans: { en: "And any loans anak — personal, car, anything. How many?", fil: "At mga loans anak — personal, car, kahit ano. Ilan?" },
       more:       { en: (n) => `${n} bills na anak. Any more we should add?`, fil: (n) => `${n} bills na anak. May iba pa ba tayong idadagdag?` },
@@ -330,6 +345,7 @@ export const JUDITH_VOICE = {
     marites: {
       breather0:  { en: "Grabe! Essentials naka-save na! Power, water, internet — logged na lahat besh!", fil: "Grabe! Essentials naka-save na! Kuryente, tubig, internet — done na. Hinga muna." },
       breather1:  { en: "Ay! Subscriptions, saved na rin! Ang dami mo palang bayarin besh!", fil: "Mga subscriptions, naka-save! Wala nang makakalimutan." },
+      breather2:  { en: "Ay grabe! Insurance naka-save na rin! Besh ang dami mong proteksyon — respect!", fil: "Ay! Insurance, naka-log na rin! Grabe ka besh, ang haba ng listahan mo!" },
       countCards: { en: "Ay besh, credit cards na! Ilan ba?! Tell me everything!", fil: "Ngayon ang mga credit card. Ilan ang mayroon ka? Isa-isahin natin." },
       countLoans: { en: "At loans pa?! Grabe, may mga utang pa! Ilan?", fil: "At loans — personal, car, bahay, kahit ano. Ilan?" },
       more:       { en: (n) => `${n} bills na besh! May iba pa bang chismis — I mean, bills?`, fil: (n) => `${n} na bill na logged. May iba pa? Cards, loans, gym, insurance?` },

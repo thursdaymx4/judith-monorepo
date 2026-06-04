@@ -124,6 +124,7 @@ interface VGroup {
 const VGROUPS: VGroup[] = [
   { label: "The essentials", done: "Your essentials are in.", note: "Power, water, internet — the must-pays. Take a breath; this is saved.", askTitle: "Any other utilities?", askSub: "Another meter, association dues, garbage, gas?", addLabel: "Add another bill" },
   { label: "Subscriptions", done: "Subscriptions, logged.", note: "Phone, streaming, apps — the silent drainers. Saved and safe.", askTitle: "Any other subscriptions?", askSub: "Gaming, news, cloud storage, that free trial that wasn’t?", addLabel: "Add a subscription" },
+  { label: "Insurance", done: "Insurance policies noted.", note: "Health, car, life \u2014 the policies that protect you. All saved.", askTitle: "Any other insurance?", askSub: "Life insurance, travel insurance, home cover?", addLabel: "Add insurance" },
   { label: "Cards & loans", done: "", note: "" },
 ];
 
@@ -144,6 +145,7 @@ const MANUAL_CATS: { cat: string; icon: string }[] = [
   { cat: "Internet", icon: "wifi" },
   { cat: "Mobile", icon: "smartphone" },
   { cat: "TV / Streaming", icon: "spark" },
+  { cat: "Insurance", icon: "lock" },
   { cat: "Credit card", icon: "card" },
   { cat: "Personal loan", icon: "wallet" },
   { cat: "Other", icon: "plus" },
@@ -1789,18 +1791,60 @@ function ScreenIntro({ ctx }: { ctx: Ctx }) {
         </View>
         <Kicker style={{ marginTop: 14, textAlign: "center" }}>Before we start</Kicker>
         <Title style={{ maxWidth: 300, textAlign: "center" }}>
-          Do you have 5–7 minutes now to map your whole bill picture?
+          One session. Your whole bill picture.
         </Title>
         <Lede style={{ maxWidth: 290, textAlign: "center" }}>
-          More bills than most? It may take a little longer — worth it.
+          I’ll walk you through 4 groups — takes 5–7 minutes and you’re done.
         </Lede>
+
+        {/* 4-group roadmap */}
+        {((): React.ReactNode => {
+          const steps: { icon: IconName; label: string; sub: string; hint: string }[] = [
+            { icon: "home",  label: "Essentials",    sub: "Rent, power, water, internet",  hint: "~4 bills" },
+            { icon: "spark", label: "Subscriptions", sub: "Phone, streaming, apps",        hint: "~3 bills" },
+            { icon: "lock",  label: "Insurance",     sub: "Health, car, life cover",       hint: "skip if none" },
+            { icon: "card",  label: "Cards & loans", sub: "Credit cards, personal loans",  hint: "skip if none" },
+          ];
+          return (
+            <View style={{ alignSelf: "stretch", marginTop: 22 }}>
+              {steps.map((step, i) => (
+                <View key={step.label}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                    <View style={{
+                      width: 36, height: 36, borderRadius: 18,
+                      backgroundColor: mix(t.accent, t.canvas, 0.14),
+                      borderWidth: 1, borderColor: withAlpha(t.accent, 0.28),
+                      alignItems: "center", justifyContent: "center",
+                    }}>
+                      <Icon name={step.icon} size={14} color={t.accent} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Txt size={14} weight="semibold">{step.label}</Txt>
+                      <Low size={12}>{step.sub}</Low>
+                    </View>
+                    <Low size={11} style={{
+                      borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3,
+                      backgroundColor: t.surface2, borderWidth: 1, borderColor: t.hair,
+                    }}>
+                      {step.hint}
+                    </Low>
+                  </View>
+                  {i < steps.length - 1 && (
+                    <View style={{ marginLeft: 17.5, width: 1.5, height: 10, backgroundColor: t.hair, marginVertical: 3 }} />
+                  )}
+                </View>
+              ))}
+            </View>
+          );
+        })()}
+
         <View
           style={{
             flexDirection: "row",
             alignItems: "center",
             gap: 8,
-            marginTop: 22,
-            maxWidth: 300,
+            marginTop: 18,
+            alignSelf: "stretch",
             paddingVertical: 9,
             paddingHorizontal: 13,
             borderRadius: 12,
@@ -2241,7 +2285,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const l = isFil ? "fil" : "en";
   const voiceText =
     mode === "breather"
-      ? (breatherGroup === 0 ? bv.breather0 : bv.breather1)[l]
+      ? (breatherGroup === 0 ? bv.breather0 : breatherGroup === 1 ? bv.breather1 : bv.breather2)[l]
     : mode === "count"
       ? (phase === "cards" ? bv.countCards : bv.countLoans)[l]
     : mode === "more"
@@ -2622,6 +2666,16 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                     ))}
                   </View>
                 )}
+                {(["Subscriptions", "Insurance", "Cards & loans"] as const)[breatherGroup] && (
+                  <View style={{
+                    flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14,
+                    alignSelf: "stretch", paddingVertical: 9, paddingHorizontal: 12,
+                    borderRadius: 12, borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface2,
+                  }}>
+                    <Low size={12}>Next up:</Low>
+                    <Txt size={12} weight="semibold">{(["Subscriptions", "Insurance", "Cards & loans"] as const)[breatherGroup]}</Txt>
+                  </View>
+                )}
               </View>
             );
           })()}
@@ -2631,9 +2685,10 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
             const moreSections = [
               { label: "Essentials", filter: (b: OnbBill) => ["Rent / Mortgage","Electricity","Water","Internet"].includes(b.cat) },
               { label: "Subscriptions", filter: (b: OnbBill) => ["Mobile","Phone subscription","TV / Streaming","Web app"].includes(b.cat) },
+              { label: "Insurance", filter: (b: OnbBill) => b.cat === "Insurance" },
               { label: "Cards", filter: (b: OnbBill) => b.cat === "Credit card" },
               { label: "Loans", filter: (b: OnbBill) => b.cat === "Personal loan" },
-              { label: "Other", filter: (b: OnbBill) => !["Rent / Mortgage","Electricity","Water","Internet","Mobile","Phone subscription","TV / Streaming","Web app","Credit card","Personal loan"].includes(b.cat) },
+              { label: "Other", filter: (b: OnbBill) => !["Rent / Mortgage","Electricity","Water","Internet","Mobile","Phone subscription","TV / Streaming","Web app","Insurance","Credit card","Personal loan"].includes(b.cat) },
             ].map(s => ({ ...s, items: bills.filter(s.filter) })).filter(s => s.items.length > 0);
             return (
               <View style={{ alignItems: "center" }}>
@@ -2895,7 +2950,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
           return (
             <>
               <Btn label={g.addLabel} icon="plus" variant="soft" onPress={() => { setManualReturn("breather"); setMode("manualCats"); }} />
-              <Btn label="Keep going →" onPress={() => { if (breatherGroup === 1) startCards(); else setMode("prompt"); }} />
+              <Btn label="Keep going →" onPress={() => { if (breatherGroup === 2) startCards(); else setMode("prompt"); }} />
             </>
           );
         })()}

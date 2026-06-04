@@ -502,6 +502,8 @@ const SAMPLES_PH: OBSample[] = [
   { group: 1, provider: "Globe Postpaid",cat: "Mobile",                           icon: "smartphone", amount: 1299,  due: "18th", dueDays: 8,  utter: "My Globe phone plan, 1,299, every 18th.",                  toks: ["Globe", "1,299", "18th"] },
   { group: 1, provider: "iCloud+",       cat: "Phone subscription",               icon: "spark",      amount: 149,   due: "1st",  dueDays: 14, utter: "iCloud storage, 149, on the 1st.",                        toks: ["iCloud", "149", "1st"] },
   { group: 1, provider: "Canva Pro",     cat: "Web app",                          icon: "spark",      amount: 199,   due: "9th",  dueDays: 22, utter: "Canva Pro, 199, every 9th?",                              toks: ["Canva", "199", "9th"] },
+  { group: 2, provider: "Maxicare",      cat: "Insurance",                        icon: "lock",       amount: 1500,  due: "15th", dueDays: 11, utter: "My Maxicare HMO, 1,500 a month, due every 15th.",           toks: ["Maxicare", "1,500", "15th"] },
+  { group: 2, provider: "MAPFRE",        cat: "Insurance",                        icon: "lock",       amount: 800,   due: "1st",  dueDays: 27, utter: "Car insurance with MAPFRE, about nine thousand a year.",     toks: ["MAPFRE", "car insurance", "nine thousand"] },
 ];
 
 const SAMPLES_US: OBSample[] = [
@@ -512,6 +514,8 @@ const SAMPLES_US: OBSample[] = [
   { group: 1, provider: "AT&T",           cat: "Mobile",                           icon: "smartphone", amount: 65,   due: "18th", dueDays: 8,  utter: "My AT&T phone plan, sixty-five, every 18th.",            toks: ["AT&T", "sixty-five", "18th"] },
   { group: 1, provider: "iCloud+",        cat: "Phone subscription",               icon: "spark",      amount: 3,    due: "1st",  dueDays: 14, utter: "iCloud Plus, three dollars, on the 1st.",               toks: ["iCloud", "three dollars", "1st"] },
   { group: 1, provider: "Microsoft 365",  cat: "Web app",                          icon: "spark",      amount: 10,   due: "9th",  dueDays: 22, utter: "Microsoft 365, ten dollars, every 9th?",                toks: ["Microsoft", "ten dollars", "9th"] },
+  { group: 2, provider: "Blue Shield",    cat: "Insurance",                        icon: "lock",       amount: 380,  due: "1st",  dueDays: 27, utter: "My Blue Shield health insurance, three-eighty a month, due the 1st.", toks: ["Blue Shield", "three-eighty", "1st"] },
+  { group: 2, provider: "GEICO",          cat: "Insurance",                        icon: "lock",       amount: 110,  due: "15th", dueDays: 11, utter: "GEICO car insurance, one-ten a month, due the 15th.",    toks: ["GEICO", "one-ten", "15th"] },
 ];
 
 const SAMPLES_SG: OBSample[] = [
@@ -522,6 +526,8 @@ const SAMPLES_SG: OBSample[] = [
   { group: 1, provider: "StarHub",      cat: "Mobile",                            icon: "smartphone", amount: 45,   due: "18th", dueDays: 8,  utter: "StarHub mobile, forty-five dollars, every 18th.",           toks: ["StarHub", "forty-five", "18th"] },
   { group: 1, provider: "iCloud+",      cat: "Phone subscription",                icon: "spark",      amount: 4,    due: "1st",  dueDays: 14, utter: "iCloud Plus, four dollars, on the 1st.",                   toks: ["iCloud", "four dollars", "1st"] },
   { group: 1, provider: "Google One",   cat: "Web app",                           icon: "spark",      amount: 3,    due: "9th",  dueDays: 22, utter: "Google One, three dollars, every 9th?",                    toks: ["Google One", "three dollars", "9th"] },
+  { group: 2, provider: "Prudential",   cat: "Insurance",                         icon: "lock",       amount: 120,  due: "15th", dueDays: 11, utter: "Prudential health insurance, one-twenty a month, due the 15th.", toks: ["Prudential", "one-twenty", "15th"] },
+  { group: 2, provider: "AXA",          cat: "Insurance",                         icon: "lock",       amount: 90,   due: "1st",  dueDays: 27, utter: "AXA car insurance, ninety dollars a month, due the 1st.",   toks: ["AXA", "ninety", "1st"] },
 ];
 
 const SAMPLES_AU: OBSample[] = [
@@ -532,6 +538,8 @@ const SAMPLES_AU: OBSample[] = [
   { group: 1, provider: "Optus",           cat: "Mobile",                           icon: "smartphone", amount: 55,   due: "18th", dueDays: 8,  utter: "Optus mobile, fifty-five, every 18th.",                  toks: ["Optus", "fifty-five", "18th"] },
   { group: 1, provider: "iCloud+",         cat: "Phone subscription",               icon: "spark",      amount: 5,    due: "1st",  dueDays: 14, utter: "iCloud Plus, five dollars, on the 1st.",                toks: ["iCloud", "five dollars", "1st"] },
   { group: 1, provider: "Microsoft 365",   cat: "Web app",                          icon: "spark",      amount: 11,   due: "9th",  dueDays: 22, utter: "Microsoft 365, eleven dollars, every 9th?",             toks: ["Microsoft", "eleven dollars", "9th"] },
+  { group: 2, provider: "Medibank",        cat: "Insurance",                        icon: "lock",       amount: 150,  due: "15th", dueDays: 11, utter: "My Medibank health insurance, one-fifty a month, due the 15th.", toks: ["Medibank", "one-fifty", "15th"] },
+  { group: 2, provider: "NRMA",            cat: "Insurance",                        icon: "lock",       amount: 120,  due: "1st",  dueDays: 27, utter: "NRMA car insurance, one-twenty a month, due the 1st.",  toks: ["NRMA", "one-twenty", "1st"] },
 ];
 
 const SAMPLES_GB: OBSample[] = [
@@ -542,6 +550,8 @@ const SAMPLES_GB: OBSample[] = [
   { group: 1, provider: "EE",             cat: "Mobile",                           icon: "smartphone", amount: 30,   due: "18th", dueDays: 8,  utter: "EE mobile, thirty pounds, every 18th.",               toks: ["EE", "thirty", "18th"] },
   { group: 1, provider: "iCloud+",        cat: "Phone subscription",               icon: "spark",      amount: 3,    due: "1st",  dueDays: 14, utter: "iCloud Plus, three pounds, on the 1st.",             toks: ["iCloud", "three pounds", "1st"] },
   { group: 1, provider: "Microsoft 365",  cat: "Web app",                          icon: "spark",      amount: 8,    due: "9th",  dueDays: 22, utter: "Microsoft 365, eight pounds, every 9th?",              toks: ["Microsoft", "eight pounds", "9th"] },
+  { group: 2, provider: "AXA Health",     cat: "Insurance",                        icon: "lock",       amount: 45,   due: "15th", dueDays: 11, utter: "AXA Health, forty-five pounds a month, due the 15th.", toks: ["AXA", "forty-five", "15th"] },
+  { group: 2, provider: "Direct Line",    cat: "Insurance",                        icon: "lock",       amount: 65,   due: "1st",  dueDays: 27, utter: "Direct Line car insurance, sixty-five pounds a month, due the 1st.", toks: ["Direct Line", "sixty-five", "1st"] },
 ];
 
 const SAMPLES_CA: OBSample[] = [
@@ -552,6 +562,8 @@ const SAMPLES_CA: OBSample[] = [
   { group: 1, provider: "Rogers",         cat: "Mobile",                           icon: "smartphone", amount: 65,   due: "18th", dueDays: 8,  utter: "Rogers mobile, sixty-five, every 18th.",              toks: ["Rogers", "sixty-five", "18th"] },
   { group: 1, provider: "iCloud+",        cat: "Phone subscription",               icon: "spark",      amount: 4,    due: "1st",  dueDays: 14, utter: "iCloud Plus, four dollars, on the 1st.",             toks: ["iCloud", "four dollars", "1st"] },
   { group: 1, provider: "Microsoft 365",  cat: "Web app",                          icon: "spark",      amount: 10,   due: "9th",  dueDays: 22, utter: "Microsoft 365, ten dollars, every 9th?",              toks: ["Microsoft", "ten dollars", "9th"] },
+  { group: 2, provider: "Manulife",       cat: "Insurance",                        icon: "lock",       amount: 180,  due: "15th", dueDays: 11, utter: "My Manulife health insurance, one-eighty a month, due the 15th.", toks: ["Manulife", "one-eighty", "15th"] },
+  { group: 2, provider: "Intact",         cat: "Insurance",                        icon: "lock",       amount: 120,  due: "1st",  dueDays: 27, utter: "Intact car insurance, one-twenty a month, due the 1st.", toks: ["Intact", "one-twenty", "1st"] },
 ];
 
 const SAMPLES_MAP: Record<string, OBSample[]> = {
