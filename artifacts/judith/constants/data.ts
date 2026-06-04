@@ -141,6 +141,20 @@ export const PROVIDERS: Record<string, Provider[]> = {
     { name: "Google One", color: "#4285F4", short: "G" },
     { name: "Microsoft 365", color: "#D83B01", short: "MS" },
   ],
+  Insurance: [
+    { name: "Maxicare", color: "#0057A8", short: "MX" },
+    { name: "PhilHealth", color: "#007041", short: "PH" },
+    { name: "Sun Life", color: "#FFCC00", short: "SL" },
+    { name: "Manulife", color: "#00A758", short: "MN" },
+    { name: "AXA", color: "#1A1446", short: "AX" },
+    { name: "Prudential", color: "#ED1C24", short: "PR" },
+    { name: "FWD", color: "#E6007E", short: "FWD" },
+    { name: "BPI MS", color: "#A6192E", short: "BPI" },
+    { name: "GEICO", color: "#007CBB", short: "GC" },
+    { name: "Blue Shield", color: "#003087", short: "BS" },
+    { name: "Medibank", color: "#E4002B", short: "MB" },
+    { name: "Direct Line", color: "#CC0000", short: "DL" },
+  ],
   Custom: [],
 };
 
@@ -152,6 +166,7 @@ export const CAT_ICONS: Record<string, string> = {
   Landline: "phone",
   "Credit card": "card",
   Subscription: "spark",
+  Insurance: "lock",
   Custom: "plus",
 };
 
