@@ -393,6 +393,7 @@ export default function CalendarScreen() {
                 monthShort={monthShort}
                 displayAmt={amt}
                 estLabel={isCCEst}
+                carryAmt={hasCarryOver ? effectiveCarryForLabel : undefined}
               >
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
                   <Dot kind={cls} />
@@ -400,7 +401,7 @@ export default function CalendarScreen() {
                     {b.cat}
                     {" · "}
                     {dueShort(dd)}
-                    {isCCEst ? " · est." : hasCarryOver ? ` · +₱${effectiveCarryForLabel.toLocaleString()} carried` : ""}
+                    {isCCEst ? " · est." : hasCarryOver ? " · carried balance" : ""}
                   </Low>
                 </View>
               </CalBillRow>
@@ -522,7 +523,7 @@ function DayBillsModal({
 
 /* ---- agenda bill row with date chip ---- */
 function CalBillRow({
-  bill, onPress, amtColor, money, paid, monthShort, displayAmt, estLabel, children,
+  bill, onPress, amtColor, money, paid, monthShort, displayAmt, estLabel, carryAmt, children,
 }: {
   bill: Bill;
   onPress: () => void;
@@ -532,10 +533,13 @@ function CalBillRow({
   monthShort: string;
   displayAmt?: number;
   estLabel?: boolean;
+  /** Carry-over portion of displayAmt — when set, shows a ₱base + ₱carry breakdown below the total */
+  carryAmt?: number;
   children: React.ReactNode;
 }) {
   const t = useTheme();
   const amt = displayAmt ?? bill.amount;
+  const baseAmt = carryAmt && carryAmt > 0 ? amt - carryAmt : null;
   return (
     <Pressable
       onPress={onPress}
@@ -556,6 +560,12 @@ function CalBillRow({
       <View style={{ alignItems: "flex-end" }}>
         <Mono size={14} color={amtColor}>{money(amt)}</Mono>
         {estLabel && <Low size={9} style={{ marginTop: 1 }}>est.</Low>}
+        {baseAmt != null && carryAmt != null && (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 3, marginTop: 2 }}>
+            <Low size={9}>{money(baseAmt)}</Low>
+            <Low size={9} color={t.semantic.near}>+{money(carryAmt)}</Low>
+          </View>
+        )}
       </View>
     </Pressable>
   );
