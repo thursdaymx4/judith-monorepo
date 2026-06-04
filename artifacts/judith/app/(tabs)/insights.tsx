@@ -475,7 +475,7 @@ export default function InsightsScreen() {
         <>
           {/* total + paid bar */}
           <View style={[card, { marginBottom: 12 }]}>
-            <Low size={12}>{isHistorical ? "Total billed" : "Total billed this month"}</Low>
+            <Low size={12}>{isHistorical ? "Total bill" : "Total bill this month"}</Low>
             <Mono size={36} weight="semibold" style={{ letterSpacing: -0.8, marginTop: 2 }}>
               {money(Math.round(billedTotalA))}
             </Mono>
