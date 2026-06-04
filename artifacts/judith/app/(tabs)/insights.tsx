@@ -219,10 +219,26 @@ export default function InsightsScreen() {
   ), [baseFiltered, catSel, provSel]);
 
   /* stats */
-  const { billedTotal, paidTotal, catSlices, topProviders } = useMemo(() => {
+  const { billedTotal, paidTotal, catTotal, catSlices, topProviders, biggest } = useMemo(() => {
     let billed = 0, paid = 0;
+    // "Where it goes" uses an attribute + net model: a bill auto-charged to a
+    // linked card is shown under its OWN category (e.g. Meralco → Electricity),
+    // and each card contributes only its un-itemized remainder (statement minus
+    // the tracked charges linked to it) under "Credit card". This keeps the
+    // grand total identical to the billed total (no double-counting) while
+    // showing people where their money actually goes.
     const catMap: Record<string, number> = {};
     const provMap: Record<string, { amount: number; cat: string; id: string }> = {};
+    // Largest single bill (via-card excluded — its cost lives in the card statement).
+    let biggest: { amount: number; provider: string; cat: string; id: string } | null = null;
+    const considerBiggest = (amount: number, provider: string, cat: string, id: string) => {
+      if (amount > (biggest?.amount ?? 0)) biggest = { amount, provider, cat, id };
+    };
+
+    const addCat = (cat: string, v: number) => { if (v > 0) catMap[cat] = (catMap[cat] ?? 0) + v; };
+    const addProv = (provider: string, v: number, cat: string, id: string) => {
+      if (v > 0) provMap[provider] = { amount: (provMap[provider]?.amount ?? 0) + v, cat, id };
+    };
 
     if (!isHistorical) {
       const _now = new Date();
@@ -232,45 +248,66 @@ export default function InsightsScreen() {
         if (rec) return rec.paid;
         return b.amountPaid ?? 0; // in-progress partial
       };
+      // Tracked charges linked to each card id.
+      const linkedByCard: Record<string, number> = {};
       filteredBills.forEach(b => {
-        // Bills auto-charged to a linked card are excluded — their cost is
-        // already represented by the card's statement (avoids double-counting).
-        if (isPaidViaCard(b)) return;
+        if (isPaidViaCard(b) && b.parentCardId) linkedByCard[b.parentCardId] = (linkedByCard[b.parentCardId] ?? 0) + b.amount;
+      });
+      filteredBills.forEach(b => {
+        if (isPaidViaCard(b)) {
+          // Attribute the merchant charge to its real category/provider.
+          addCat(b.cat, b.amount);
+          addProv(b.provider, b.amount, b.cat, b.id);
+          return; // not in billed/paid — the card's statement covers it
+        }
         billed += b.amount;
         paid += _amtPaid(b);
-        catMap[b.cat] = (catMap[b.cat] ?? 0) + b.amount;
-        provMap[b.provider] = { amount: (provMap[b.provider]?.amount ?? 0) + b.amount, cat: b.cat, id: b.id };
+        considerBiggest(b.amount, b.provider, b.cat, b.id);
+        // A card contributes only the part of its statement not explained by tracked charges.
+        const net = Math.max(0, b.amount - (linkedByCard[b.id] ?? 0));
+        addCat(b.cat, net);
+        addProv(b.provider, net, b.cat, b.id);
       });
     } else {
+      const linkedByCard: Record<string, number> = {};
       filteredBills.forEach(b => {
-        if (isPaidViaCard(b)) return; // cost is captured by the linked card's statement
+        if (isPaidViaCard(b) && b.parentCardId) {
+          const recs = (b.paymentHistory ?? []).filter(r => activePeriods!.includes(r.period));
+          recs.forEach(r => { linkedByCard[b.parentCardId!] = (linkedByCard[b.parentCardId!] ?? 0) + r.totalDue; });
+        }
+      });
+      filteredBills.forEach(b => {
         const recs = (b.paymentHistory ?? []).filter(r => activePeriods!.includes(r.period));
-        recs.forEach(r => {
-          billed += r.totalDue;
-          paid += r.paid;
-          catMap[b.cat] = (catMap[b.cat] ?? 0) + r.totalDue;
-          provMap[b.provider] = { amount: (provMap[b.provider]?.amount ?? 0) + r.totalDue, cat: b.cat, id: b.id };
-        });
+        const totalDue = recs.reduce((s, r) => s + r.totalDue, 0);
+        if (isPaidViaCard(b)) {
+          addCat(b.cat, totalDue);
+          addProv(b.provider, totalDue, b.cat, b.id);
+          return;
+        }
+        recs.forEach(r => { billed += r.totalDue; paid += r.paid; considerBiggest(r.totalDue, b.provider, b.cat, b.id); });
+        const net = Math.max(0, totalDue - (linkedByCard[b.id] ?? 0));
+        addCat(b.cat, net);
+        addProv(b.provider, net, b.cat, b.id);
       });
     }
 
     const catSlices: CatSlice[] = Object.entries(catMap)
       .map(([cat, value]) => ({ cat, value, color: (CAT_COLORS as Record<string, string>)[cat] ?? t.accent }))
       .sort((a, b) => b.value - a.value);
+    const catTotal = catSlices.reduce((s, c) => s + c.value, 0);
 
     const topProviders = Object.entries(provMap)
       .map(([provider, d]) => ({ provider, ...d }))
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 5);
 
-    return { billedTotal: billed, paidTotal: paid, catSlices, topProviders };
+    return { billedTotal: billed, paidTotal: paid, catTotal, catSlices, topProviders, biggest: biggest as { amount: number; provider: string; cat: string; id: string } | null };
   }, [filteredBills, isHistorical, activePeriods, t.accent]);
 
   const billedTotalA = useCountUp(billedTotal);
   const unpaidTotal = billedTotal - paidTotal;
   const paidFrac = billedTotal > 0 ? paidTotal / billedTotal : 0;
   const paidPct = Math.round(paidFrac * 100);
-  const biggest = topProviders[0] ?? null;
   const providerCount = new Set(filteredBills.map(b => b.provider)).size;
 
   /* display labels */
@@ -522,10 +559,10 @@ export default function InsightsScreen() {
           <Txt style={sectionLabel}>WHERE IT GOES</Txt>
           <View style={[card, { flexDirection: "row", gap: 16, alignItems: "center" }]}>
             <View style={{ position: "relative" }}>
-              <Donut segments={catSlices} total={billedTotal} size={130} />
+              <Donut segments={catSlices} total={catTotal} size={130} />
               <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" }}>
                 <Low size={10}>total</Low>
-                <Mono size={15} weight="semibold">{money(billedTotal)}</Mono>
+                <Mono size={15} weight="semibold">{money(catTotal)}</Mono>
               </View>
             </View>
             <View style={{ flex: 1, gap: 9 }}>
@@ -533,7 +570,7 @@ export default function InsightsScreen() {
                 <View key={c.cat} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                   <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.color, shadowColor: c.color, shadowOpacity: 0.9, shadowRadius: 4, shadowOffset: { width: 0, height: 0 } }} />
                   <Txt size={13} style={{ flex: 1 }}>{c.cat}</Txt>
-                  <Low size={11}>{billedTotal > 0 ? Math.round((c.value / billedTotal) * 100) : 0}%</Low>
+                  <Low size={11}>{catTotal > 0 ? Math.round((c.value / catTotal) * 100) : 0}%</Low>
                   <Mono size={12} weight="semibold" style={{ minWidth: 52, textAlign: "right" }}>{money(c.value)}</Mono>
                 </View>
               ))}
@@ -549,7 +586,7 @@ export default function InsightsScreen() {
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Txt size={15} weight="medium">{b.provider}</Txt>
                   <Low size={12} style={{ marginTop: 2 }}>
-                    {b.cat} · {billedTotal > 0 ? Math.round((b.amount / billedTotal) * 100) : 0}% of total
+                    {b.cat} · {catTotal > 0 ? Math.round((b.amount / catTotal) * 100) : 0}% of total
                   </Low>
                 </View>
                 <Mono size={15} weight="semibold">{money(b.amount)}</Mono>

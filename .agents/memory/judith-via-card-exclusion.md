@@ -31,5 +31,19 @@ accurate.
   users see what makes up the card balance.
 - Calendar heat dot: derive urgency colour + bubble size from payable bills only;
   via-card-only days get a small neutral dot (no false urgency), still tappable.
-- Insights uses the inverse-but-consistent framing: skip via-card bills in the
-  category/provider loops; the card statement (cat "Credit card") still counts.
+- Insights "Where it goes" (donut + Top Providers) uses an ATTRIBUTE + NET model,
+  NOT plain exclusion: a via-card merchant bill is attributed to its OWN category/
+  provider (e.g. Meralco → Electricity), and each card (cat "Credit card")
+  contributes only its un-itemized remainder = max(0, statement − Σ tracked charges
+  linked to it). Grand total of the netted slices equals the billed total in the
+  normal case (statement ≥ linked), so no double-count. **Why:** users wanted to
+  see where money actually goes instead of everything tucked under "Credit card".
+- Headline `billedTotal`/`paidTotal`/paid% stay on the card-statement model
+  (via-card excluded) — unchanged. The donut `total` and ALL percentages use
+  `catTotal` (Σ netted slices), so the donut stays self-consistent even when
+  tracked charges exceed a statement (remainder clamped ≥ 0).
+- "Biggest bill" KPI = largest SINGLE bill amount (via-card excluded; per-period
+  record in historical mode), tracked directly — do NOT derive it from a provider
+  aggregate or it overstates when one provider has multiple bills.
+- Home timeline, calendar rows, and lists still EXCLUDE via-card bills from money
+  sums (the rule above); only the Insights breakdown attributes + nets.
