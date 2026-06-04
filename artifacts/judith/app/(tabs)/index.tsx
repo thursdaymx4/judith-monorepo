@@ -17,7 +17,7 @@ import {
   SpeechBubble,
   Txt,
 } from "@/components/ui";
-import { dueClass, dueShort, isPartialBill, partialPct, totalOwed, type Bill } from "@/constants/data";
+import { dueClass, dueShort, isPaidViaCard, isPartialBill, partialPct, totalOwed, type Bill } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
 import { useCountUp } from "@/hooks/useCountUp";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
@@ -126,20 +126,26 @@ export default function HomeScreen() {
     .sort((a, b) => a.dueDays - b.dueDays);
   // Remaining balance per bill (full amount minus any payment already made this period)
   const remaining = (b: Bill) => Math.max(0, totalOwed(b) - amtPaidThisMonth(b));
-  const total = due.reduce((s, b) => s + remaining(b), 0);
-  const week = due.filter((b) => b.dueDays >= 0 && b.dueDays <= 7);
+  // Money totals exclude bills auto-charged to a linked card — their cost is
+  // already in the card's statement, so counting both would double-count. They
+  // still appear in the timeline below, tagged "via card".
+  const payable = due.filter((b) => !isPaidViaCard(b));
+  const total = payable.reduce((s, b) => s + remaining(b), 0);
+  const week = payable.filter((b) => b.dueDays >= 0 && b.dueDays <= 7);
   const weekSum = week.reduce((s, b) => s + remaining(b), 0);
-  const soon = due.filter((b) => b.dueDays <= 3).length;
+  const soon = payable.filter((b) => b.dueDays <= 3).length;
 
-  const overdue = due.filter((b) => b.dueDays < 0);
+  const overdue = payable.filter((b) => b.dueDays < 0);
   const overdueTotal = overdue.reduce((s, b) => s + remaining(b), 0);
   const openOverdue = () =>
     overdue.length === 1
       ? router.push(`/bill/${overdue[0]!.id}`)
       : router.push("/bills");
 
-  const paid = bills.filter((b) => isPaidThisMonth(b));
-  const unpaid = bills.filter((b) => !isPaidThisMonth(b));
+  // Paid-progress also tracks only bills you fund directly (excludes via-card).
+  const payableAll = bills.filter((b) => !isPaidViaCard(b));
+  const paid = payableAll.filter((b) => isPaidThisMonth(b));
+  const unpaid = payableAll.filter((b) => !isPaidThisMonth(b));
   // paidAmt = fully paid bills + in-progress partial payments on unpaid bills
   const paidAmt =
     paid.reduce((s, b) => s + amtPaidThisMonth(b), 0) +
@@ -386,14 +392,22 @@ export default function HomeScreen() {
                     >
                       <ProviderLogo provider={b.provider} cat={b.cat} size={34} />
                       <View style={{ flex: 1, minWidth: 0 }}>
-                        <Txt size={14} weight="medium">
-                          {b.provider}
-                        </Txt>
-                        <Low size={12} style={{ marginTop: 2 }} color={cls === "overdue" ? t.semantic.overdue : undefined}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                          <Txt size={14} weight="medium">
+                            {b.provider}
+                          </Txt>
+                          {isPaidViaCard(b) && (
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 3, paddingVertical: 1, paddingHorizontal: 6, borderRadius: 8, backgroundColor: t.surface3 }}>
+                              <Icon name="card" size={9} color={t.txtLow} />
+                              <Low size={10}>via card</Low>
+                            </View>
+                          )}
+                        </View>
+                        <Low size={12} style={{ marginTop: 2 }} color={isPaidViaCard(b) ? undefined : cls === "overdue" ? t.semantic.overdue : undefined}>
                           {b.cat} · {dueShort(b.dueDays)}
                         </Low>
                       </View>
-                      <Mono size={14} color={t.semantic[cls]}>
+                      <Mono size={14} color={isPaidViaCard(b) ? t.txtLow : t.semantic[cls]}>
                         {money(owed)}
                       </Mono>
                     </View>

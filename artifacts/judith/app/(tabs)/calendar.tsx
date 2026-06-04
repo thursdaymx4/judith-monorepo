@@ -17,7 +17,7 @@ import {
   Txt,
   type Urgency,
 } from "@/components/ui";
-import { dueClass, dueShort, totalOwed, type Bill } from "@/constants/data";
+import { dueClass, dueShort, isPaidViaCard, totalOwed, type Bill } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { haptics } from "@/lib/haptics";
@@ -79,7 +79,7 @@ function CalHeat({
 
   let maxDay = 1;
   Object.keys(byDay).forEach((k) => {
-    const total = dueBills(byDay[Number(k)] || []).reduce((s, b) => s + getAmt(b), 0);
+    const total = dueBills(byDay[Number(k)] || []).filter((b) => !isPaidViaCard(b)).reduce((s, b) => s + getAmt(b), 0);
     if (total > maxDay) maxDay = total;
   });
 
@@ -100,12 +100,15 @@ function CalHeat({
               if (d == null) return <View key={"e" + ci} style={{ flex: 1 }} />;
               const items = byDay[d] || [];
               const due = dueBills(items);
-              const top = due.slice().sort((a, b) => getDueDays(a) - getDueDays(b))[0];
+              // Urgency colour + bubble size reflect only what you pay directly;
+              // via-card bills are shown as a small neutral dot (no false urgency).
+              const payableDue = due.filter((b) => !isPaidViaCard(b));
+              const top = payableDue.slice().sort((a, b) => getDueDays(a) - getDueDays(b))[0];
               const cls = top ? (dueClass(getDueDays(top)) as Urgency) : null;
               const isToday = d === todayDate;
               const isSel = d === sel;
-              const dayTotal = due.reduce((s, b) => s + getAmt(b), 0);
-              const sz = due.length ? Math.round(13 + (dayTotal / maxDay) * 20) : 0;
+              const dayTotal = payableDue.reduce((s, b) => s + getAmt(b), 0);
+              const sz = payableDue.length ? Math.round(13 + (dayTotal / maxDay) * 20) : due.length ? 8 : 0;
               const dotColor = cls ? t.semantic[cls] : t.txtLow;
               return (
                 <Pressable
@@ -276,7 +279,12 @@ export default function CalendarScreen() {
   // Paid bills in the viewed month (current = paid this cycle; future = paid ahead)
   const agendaPaid = billsForMonth.filter((b) => isPaidInPeriod(b));
 
-  const monthTotal = agendaForMonth.reduce((s, b) => s + viewedAmt(b), 0);
+  // Money totals exclude bills auto-charged to a linked card — their cost is
+  // already in the card's statement (counting both would double-count). They
+  // still appear in the agenda/day list, tagged "via card".
+  const monthTotal = agendaForMonth
+    .filter((b) => !isPaidViaCard(b))
+    .reduce((s, b) => s + viewedAmt(b), 0);
   const agenda = agendaForMonth.slice().sort((a, b) => a.dueDate - b.dueDate);
 
   // Calendar dot map keyed by day-of-month
@@ -291,6 +299,7 @@ export default function CalendarScreen() {
   for (let s = 1; s <= dim; s += 7) ranges.push([s, Math.min(s + 6, dim)]);
   const weeks = ranges.map(() => 0);
   agendaForMonth.forEach((b) => {
+    if (isPaidViaCard(b)) return; // cost is captured by the linked card's statement
     const w = Math.min(ranges.length - 1, Math.floor((b.dueDate - 1) / 7));
     weeks[w]! += viewedAmt(b);
   });
@@ -480,7 +489,7 @@ function DayBillsModal({
   const items = bills.slice().sort((a, b) => getDueDays(a) - getDueDays(b));
   const dueItems = items.filter((b) => !isPaid(b));
   const paidItems = items.filter((b) => isPaid(b));
-  const dueTotal = dueItems.reduce((s, b) => s + getAmt(b), 0);
+  const dueTotal = dueItems.filter((b) => !isPaidViaCard(b)).reduce((s, b) => s + getAmt(b), 0);
 
   return (
     <Modal visible={day != null} transparent animationType="fade" onRequestClose={onClose}>
@@ -575,11 +584,19 @@ function CalBillRow({
       </View>
       <ProviderLogo provider={bill.provider} cat={bill.cat} size={34} />
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Txt size={14} weight="medium" style={paid ? { textDecorationLine: "line-through" } : undefined}>{bill.provider}</Txt>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <Txt size={14} weight="medium" style={paid ? { textDecorationLine: "line-through" } : undefined}>{bill.provider}</Txt>
+          {isPaidViaCard(bill) && (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 3, paddingVertical: 1, paddingHorizontal: 6, borderRadius: 8, backgroundColor: t.surface3 }}>
+              <Icon name="card" size={9} color={t.txtLow} />
+              <Low size={10}>via card</Low>
+            </View>
+          )}
+        </View>
         {children}
       </View>
       <View style={{ alignItems: "flex-end", gap: 3 }}>
-        <Mono size={14} color={amtColor} style={paid ? { textDecorationLine: "line-through" } : undefined}>{money(amt)}</Mono>
+        <Mono size={14} color={isPaidViaCard(bill) && !paid ? t.txtLow : amtColor} style={paid ? { textDecorationLine: "line-through" } : undefined}>{money(amt)}</Mono>
         {paid && (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
             <Icon name="check" size={10} color="#4CAF50" />

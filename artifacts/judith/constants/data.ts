@@ -66,6 +66,20 @@ export function totalOwed(b: Pick<Bill, "amount" | "carryOver">): number {
   return b.amount + (b.carryOver ?? 0);
 }
 
+/**
+ * True when this bill is auto-charged to a linked credit card the user also
+ * tracks. Its cost is already captured by that card's statement total, so it
+ * must be EXCLUDED from every money sum (due totals, calendar totals, spend
+ * breakdown) to avoid double-counting. The bill still appears in lists/timeline,
+ * tagged "via card", so the user can see what makes up the card balance.
+ */
+export function isPaidViaCard(b: Pick<Bill, "chargedToCard" | "parentCardId">): boolean {
+  // Require an actual linked card. If "via card" was set but no card was chosen
+  // (or the linked card was deleted), there is no statement covering this charge,
+  // so it must keep counting toward totals rather than silently disappearing.
+  return !!b.chargedToCard && !!b.parentCardId;
+}
+
 /** Percentage of this cycle's total already paid (0–100). */
 export function partialPct(
   b: Pick<Bill, "amount" | "carryOver" | "amountPaid" | "status">,

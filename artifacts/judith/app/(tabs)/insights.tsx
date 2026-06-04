@@ -7,6 +7,7 @@ import Svg, { Circle, G } from "react-native-svg";
 import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Low, Mono, ProviderLogo, Screen, Txt, mix } from "@/components/ui";
+import { isPaidViaCard, type Bill } from "@/constants/data";
 import { CAT_COLORS } from "@/constants/theme";
 import { useJudith } from "@/contexts/JudithStore";
 import { useCountUp } from "@/hooks/useCountUp";
@@ -232,6 +233,9 @@ export default function InsightsScreen() {
         return b.amountPaid ?? 0; // in-progress partial
       };
       filteredBills.forEach(b => {
+        // Bills auto-charged to a linked card are excluded — their cost is
+        // already represented by the card's statement (avoids double-counting).
+        if (isPaidViaCard(b)) return;
         billed += b.amount;
         paid += _amtPaid(b);
         catMap[b.cat] = (catMap[b.cat] ?? 0) + b.amount;
@@ -239,6 +243,7 @@ export default function InsightsScreen() {
       });
     } else {
       filteredBills.forEach(b => {
+        if (isPaidViaCard(b)) return; // cost is captured by the linked card's statement
         const recs = (b.paymentHistory ?? []).filter(r => activePeriods!.includes(r.period));
         recs.forEach(r => {
           billed += r.totalDue;

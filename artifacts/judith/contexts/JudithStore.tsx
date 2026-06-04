@@ -308,7 +308,18 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
           };
         }),
       deleteBill: (id) =>
-        setState((s) => ({ ...s, bills: s.bills.filter((b) => b.id !== id) })),
+        setState((s) => ({
+          ...s,
+          bills: s.bills
+            .filter((b) => b.id !== id)
+            // Drop any "via card" link pointing at the deleted card so the
+            // orphaned charge starts counting toward totals again.
+            .map((b) =>
+              b.parentCardId === id
+                ? { ...b, chargedToCard: undefined, parentCardId: undefined }
+                : b,
+            ),
+        })),
       payPartial: (id, amountPaid, period) => {
         const today = new Date();
         setState((s) => ({

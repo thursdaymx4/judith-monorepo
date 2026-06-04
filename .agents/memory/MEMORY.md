@@ -13,3 +13,4 @@
 - [Judith rate limiting](judith-rate-limiting.md) — express-rate-limit v8; use ipKeyGenerator (not req.ip) in custom keyGenerators to avoid ERR_ERL_KEY_GEN_IPV6 crash on startup.
 - [Judith WatchConnectivity crash](judith-watch-connectivity.md) — TurboModuleRegistry.getEnforcing() fires at module-init time; try/catch around await import() cannot intercept it; Watch code requires a dev build.
 - [Judith tier model](judith-tier-model.md) — AskTier is "free"|"chat"|"voice"; Chat Ask=₱99 text-only, Voice Ask=₱199 text+voice; onboarding paywall and voice nudge must match these names exactly.
+- [Judith via-card exclusion](judith-via-card-exclusion.md) — charged-to-card bills excluded from ALL money sums (never lists); isPaidViaCard requires parentCardId; deleteBill clears dangling links.
