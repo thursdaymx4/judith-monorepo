@@ -17,8 +17,12 @@ import {
 } from "@/constants/countries";
 import type { PersonaId } from "@/constants/personas";
 import type { AccentId, ThemeName } from "@/constants/theme";
+import { useAuth } from "@/contexts/AuthContext";
 
-const STORAGE_KEY = "judith_store_v1";
+const STORAGE_KEY_BASE = "judith_store_v1";
+function storageKeyForUser(userId: string | null | undefined): string {
+  return userId ? `${STORAGE_KEY_BASE}_${userId}` : STORAGE_KEY_BASE;
+}
 const FREE_ASKS = 8;
 
 function _daysInMonth(year: number, month: number): number {
@@ -160,11 +164,16 @@ interface JudithStoreValue extends PersistShape {
 const JudithContext = createContext<JudithStoreValue | undefined>(undefined);
 
 export function JudithProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const storageKey = storageKeyForUser(user?.id);
+
   const [state, setState] = useState<PersistShape>(DEFAULTS);
   const [hydrated, setHydrated] = useState(false);
   const [toast, setToast] = useState("");
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track which key we last hydrated from so we re-hydrate on account switch.
+  const hydratedKeyRef = useRef<string | null>(null);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -172,10 +181,14 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
     toastTimer.current = setTimeout(() => setToast(""), 2200);
   }, []);
 
-  // hydrate
+  // Hydrate (or re-hydrate) whenever the storage key changes (login / logout / account switch).
   useEffect(() => {
+    if (hydratedKeyRef.current === storageKey) return;
+    hydratedKeyRef.current = storageKey;
     let active = true;
-    AsyncStorage.getItem(STORAGE_KEY)
+    setHydrated(false);
+    setState(DEFAULTS);
+    AsyncStorage.getItem(storageKey)
       .then((raw) => {
         if (!active) return;
         if (raw) {
@@ -195,19 +208,19 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
     return () => {
       active = false;
     };
-  }, []);
+  }, [storageKey]);
 
-  // persist (debounced)
+  // persist (debounced) — always write to the current user's key
   useEffect(() => {
     if (!hydrated) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)).catch(() => {});
+      AsyncStorage.setItem(storageKey, JSON.stringify(state)).catch(() => {});
     }, 250);
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
-  }, [state, hydrated]);
+  }, [state, hydrated, storageKey]);
 
   const patch = useCallback((p: Partial<PersistShape>) => {
     setState((s) => ({ ...s, ...p }));
@@ -398,10 +411,10 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       setGuest: (v) => patch({ guest: v }),
       restart: () => {
         setState({ ...DEFAULTS });
-        AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
+        AsyncStorage.removeItem(storageKey).catch(() => {});
       },
     };
-  }, [state, hydrated, patch, mapBills, toast, showToast]);
+  }, [state, hydrated, patch, mapBills, toast, showToast, storageKey]);
 
   return (
     <JudithContext.Provider value={value}>{children}</JudithContext.Provider>

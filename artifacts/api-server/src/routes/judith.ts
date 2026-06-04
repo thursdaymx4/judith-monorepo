@@ -345,19 +345,16 @@ router.post("/ask", askLimiter, async (req, res) => {
     const cur: string = typeof currency === "string" && currency.trim() ? currency.trim() : "₱";
     const country: string = typeof countryName === "string" && countryName.trim() ? countryName.trim() : "the Philippines";
 
-    let persona: PersonaId;
-    let voiceId: string;
-    let context: string;
-    if (Array.isArray(bodyBills)) {
-      persona = coercePersona(bodyPersona);
-      voiceId = getVoiceId(persona, typeof language === "string" ? language : undefined);
-      context = buildClientContext(bodyBills as ClientBill[], today, cur);
-    } else {
-      const data = await loadUserData(user.id);
-      persona = data.persona;
-      voiceId = data.voiceId;
-      context = buildBillsContext(data.bills, today, cur);
+    // Bills MUST come from the client. Never fall back to loading another
+    // user's data from Supabase — that would be a cross-user data leak.
+    if (!Array.isArray(bodyBills)) {
+      res.status(400).json({ error: "bills array is required" });
+      return;
     }
+
+    const persona: PersonaId = coercePersona(bodyPersona);
+    const voiceId: string = getVoiceId(persona, typeof language === "string" ? language : undefined);
+    const context: string = buildClientContext(bodyBills as ClientBill[], today, cur);
 
     const anthropic = getAnthropic();
     const message = await anthropic.messages.create({
