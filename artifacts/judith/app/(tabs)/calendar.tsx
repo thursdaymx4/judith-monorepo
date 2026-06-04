@@ -55,7 +55,7 @@ function CalLegend() {
 
 /* ---- variant: heatmap dots ---- */
 function CalHeat({
-  byDay, sel, setSel, firstDow, daysInMonth, todayDate,
+  byDay, sel, setSel, firstDow, daysInMonth, todayDate, getDueDays, getAmt, isFuture,
 }: {
   byDay: ByDay;
   sel: number | null;
@@ -63,6 +63,9 @@ function CalHeat({
   firstDow: number;
   daysInMonth: number;
   todayDate: number | null;
+  getDueDays: (b: Bill) => number;
+  getAmt: (b: Bill) => number;
+  isFuture: boolean;
 }) {
   const t = useTheme();
   const cells: (number | null)[] = [];
@@ -70,13 +73,13 @@ function CalHeat({
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
   while (cells.length % 7 !== 0) cells.push(null);
 
-  const rem = (b: Bill) => totalOwed(b) - (b.amountPaid ?? 0);
+  // In future months all bills are "upcoming" (not yet paid for that cycle)
+  const dueBills = (items: Bill[]) =>
+    isFuture ? items : items.filter((b) => b.status !== "paid");
 
   let maxDay = 1;
   Object.keys(byDay).forEach((k) => {
-    const total = (byDay[Number(k)] || [])
-      .filter((b) => b.status !== "paid")
-      .reduce((s, b) => s + rem(b), 0);
+    const total = dueBills(byDay[Number(k)] || []).reduce((s, b) => s + getAmt(b), 0);
     if (total > maxDay) maxDay = total;
   });
 
@@ -96,12 +99,12 @@ function CalHeat({
             {row.map((d, ci) => {
               if (d == null) return <View key={"e" + ci} style={{ flex: 1 }} />;
               const items = byDay[d] || [];
-              const due = items.filter((b) => b.status !== "paid");
-              const top = due.slice().sort((a, b) => a.dueDays - b.dueDays)[0];
-              const cls = top ? (dueClass(top.dueDays) as Urgency) : null;
+              const due = dueBills(items);
+              const top = due.slice().sort((a, b) => getDueDays(a) - getDueDays(b))[0];
+              const cls = top ? (dueClass(getDueDays(top)) as Urgency) : null;
               const isToday = d === todayDate;
               const isSel = d === sel;
-              const dayTotal = due.reduce((s, b) => s + rem(b), 0);
+              const dayTotal = due.reduce((s, b) => s + getAmt(b), 0);
               const sz = due.length ? Math.round(13 + (dayTotal / maxDay) * 20) : 0;
               const dotColor = cls ? t.semantic[cls] : t.txtLow;
               return (
@@ -177,9 +180,10 @@ export default function CalendarScreen() {
   const viewDate = new Date(todayReal.getFullYear(), todayReal.getMonth() + monthOffset, 1);
   const monthIndex = viewDate.getMonth();
   const year = viewDate.getFullYear();
-  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+  const dim = new Date(year, monthIndex + 1, 0).getDate(); // days in viewed month
   const firstDow = new Date(year, monthIndex, 1).getDay();
-  const isCurrentMonth = monthIndex === todayReal.getMonth() && year === todayReal.getFullYear();
+  const isCurrentMonth = monthOffset === 0;
+  const isFutureMonth = monthOffset > 0;
   const todayDate = isCurrentMonth ? todayReal.getDate() : null;
   const monthShort = MONTHS[monthIndex]!.slice(0, 3);
 
@@ -188,25 +192,85 @@ export default function CalendarScreen() {
 
   const openBill = (b: Bill) => router.push(`/bill/${b.id}`);
 
-  const dueBills = bills.filter((b) => b.status !== "paid");
-  const byDay: ByDay = {};
-  bills.forEach((b) => {
-    (byDay[b.dueDate] = byDay[b.dueDate] || []).push(b);
+  // Days from today to the bill's due day within the VIEWED month.
+  // Annual bills: use their stored dueDays (points to the actual annual occurrence).
+  // Monthly bills: recompute to the viewed month's occurrence of dueDate.
+  const todayStart = new Date(
+    todayReal.getFullYear(), todayReal.getMonth(), todayReal.getDate()
+  ).getTime();
+
+  const viewedDueDays = (b: Bill): number => {
+    if (b.frequency === "annual") return b.dueDays;
+    const dayInMonth = Math.min(b.dueDate, dim);
+    const target = new Date(year, monthIndex, dayInMonth).getTime();
+    return Math.round((target - todayStart) / 86_400_000);
+  };
+
+  // Amount owed for this bill in the viewed month:
+  //   current month  → remaining balance (totalOwed − amountPaid)
+  //   future month   → base amount + whatever carryOver wasn't paid yet
+  //                    (paid bills get a fresh cycle = base amount only)
+  //   past month     → show remaining as best approximation
+  const viewedAmt = (b: Bill): number => {
+    if (isCurrentMonth) {
+      return Math.max(0, totalOwed(b) - (b.amountPaid ?? 0));
+    }
+    if (isFutureMonth) {
+      if (b.status === "paid") return b.amount; // fresh cycle, no carryover
+      return b.amount + (b.carryOver ?? 0);     // unpaid: carryover rolls forward
+    }
+    // Past month — best we can do without history
+    return Math.max(0, totalOwed(b) - (b.amountPaid ?? 0));
+  };
+
+  // Bills applicable to the viewed month.
+  // Monthly bills → always, as long as dueDate ≤ days in that month.
+  // Annual bills  → only in the month their next occurrence actually falls.
+  const billsForMonth = bills.filter((b) => {
+    if (b.dueDate > dim) return false; // e.g. Feb 30 doesn't exist
+    if (b.frequency === "annual") {
+      // Annual: include only when the real due date falls in the viewed month
+      const nextDue = new Date(todayReal.getTime());
+      nextDue.setDate(nextDue.getDate() + b.dueDays);
+      return nextDue.getFullYear() === year && nextDue.getMonth() === monthIndex;
+    }
+    return true; // monthly → every month
   });
 
-  const calRem = (b: Bill) => totalOwed(b) - (b.amountPaid ?? 0);
-  const monthTotal = dueBills.reduce((s, b) => s + calRem(b), 0);
-  const agenda = dueBills.slice().sort((a, b) => a.dueDate - b.dueDate);
-  const agendaPaid = bills.filter((b) => b.status === "paid");
+  // Upcoming: unpaid bills in the viewed month.
+  // In future months every bill is "upcoming" (none have been paid for that cycle yet).
+  const agendaForMonth = isCurrentMonth
+    ? billsForMonth.filter((b) => b.status !== "paid")
+    : billsForMonth;
 
+  // "Paid this month" section — only meaningful for the current month
+  const agendaPaid = isCurrentMonth ? bills.filter((b) => b.status === "paid") : [];
+
+  const monthTotal = agendaForMonth.reduce((s, b) => s + viewedAmt(b), 0);
+  const agenda = agendaForMonth.slice().sort((a, b) => a.dueDate - b.dueDate);
+
+  // Calendar dot map keyed by day-of-month
+  const byDay: ByDay = {};
+  billsForMonth.forEach((b) => {
+    const d = Math.min(b.dueDate, dim);
+    (byDay[d] = byDay[d] || []).push(b);
+  });
+
+  // Weekly bar chart
   const ranges: [number, number][] = [];
-  for (let s = 1; s <= daysInMonth; s += 7) ranges.push([s, Math.min(s + 6, daysInMonth)]);
+  for (let s = 1; s <= dim; s += 7) ranges.push([s, Math.min(s + 6, dim)]);
   const weeks = ranges.map(() => 0);
-  dueBills.forEach((b) => {
+  agendaForMonth.forEach((b) => {
     const w = Math.min(ranges.length - 1, Math.floor((b.dueDate - 1) / 7));
-    weeks[w]! += calRem(b);
+    weeks[w]! += viewedAmt(b);
   });
   const maxW = Math.max(1, ...weeks);
+
+  // "This week" count: bills due within the next 7 days
+  const thisWeekCount = agendaForMonth.filter((b) => {
+    const d = viewedDueDays(b);
+    return d >= 0 && d <= 7;
+  }).length;
 
   return (
     <Screen>
@@ -230,11 +294,11 @@ export default function CalendarScreen() {
         </View>
         <View style={{ alignItems: "flex-end", gap: 2 }}>
           <Low size={12} style={{ textAlign: "right" }}>
-            <Txt size={12} weight="semibold" color={t.txtHi}>{dueBills.length}</Txt> bills
+            <Txt size={12} weight="semibold" color={t.txtHi}>{agendaForMonth.length}</Txt> bills
           </Low>
           <Low size={12} style={{ textAlign: "right" }}>
             <Txt size={12} weight="semibold" color={t.semantic.near}>
-              {dueBills.filter((b) => b.dueDays <= 7).length}
+              {thisWeekCount}
             </Txt> this week
           </Low>
         </View>
@@ -247,8 +311,11 @@ export default function CalendarScreen() {
         sel={sel}
         setSel={setSel}
         firstDow={firstDow}
-        daysInMonth={daysInMonth}
+        daysInMonth={dim}
         todayDate={todayDate}
+        getDueDays={viewedDueDays}
+        getAmt={viewedAmt}
+        isFuture={isFutureMonth}
       />
 
       {/* weekly cash flow */}
@@ -278,7 +345,9 @@ export default function CalendarScreen() {
 
       {/* agenda */}
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 18, marginBottom: 10 }}>
-        <SectionLabel style={{ marginTop: 0, marginBottom: 0 }}>Upcoming</SectionLabel>
+        <SectionLabel style={{ marginTop: 0, marginBottom: 0 }}>
+          {isFutureMonth ? `Bills in ${MONTHS[monthIndex]}` : "Upcoming"}
+        </SectionLabel>
       </View>
 
       {agenda.length === 0 ? (
@@ -290,12 +359,28 @@ export default function CalendarScreen() {
       ) : (
         <View style={{ gap: 9 }}>
           {agenda.map((b) => {
-            const cls = dueClass(b.dueDays) as Urgency;
+            const dd = viewedDueDays(b);
+            const cls = dueClass(dd) as Urgency;
+            const amt = viewedAmt(b);
+            const hasCarryOver = isFutureMonth && b.status !== "paid" && (b.carryOver ?? 0) > 0;
             return (
-              <CalBillRow key={b.id} bill={b} onPress={() => openBill(b)} amtColor={t.semantic[cls]} money={money} monthShort={monthShort} displayAmt={calRem(b)}>
+              <CalBillRow
+                key={b.id}
+                bill={b}
+                onPress={() => openBill(b)}
+                amtColor={t.semantic[cls]}
+                money={money}
+                monthShort={monthShort}
+                displayAmt={amt}
+              >
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
                   <Dot kind={cls} />
-                  <Low size={12}>{b.cat} · {dueShort(b.dueDays)}</Low>
+                  <Low size={12}>
+                    {b.cat}
+                    {" · "}
+                    {dueShort(dd)}
+                    {hasCarryOver ? ` · +₱${(b.carryOver ?? 0).toLocaleString()} carried` : ""}
+                  </Low>
                 </View>
               </CalBillRow>
             );
@@ -326,6 +411,9 @@ export default function CalendarScreen() {
         monthName={MONTHS[monthIndex]!}
         onClose={() => setSel(null)}
         onOpenBill={(b) => { setSel(null); openBill(b); }}
+        getDueDays={viewedDueDays}
+        getAmt={viewedAmt}
+        isFuture={isFutureMonth}
       />
     </Screen>
   );
@@ -333,7 +421,7 @@ export default function CalendarScreen() {
 
 /* ---- day overlay: bills due on a tapped date ---- */
 function DayBillsModal({
-  day, bills, money, monthName, onClose, onOpenBill,
+  day, bills, money, monthName, onClose, onOpenBill, getDueDays, getAmt, isFuture,
 }: {
   day: number | null;
   bills: Bill[];
@@ -341,11 +429,16 @@ function DayBillsModal({
   monthName: string;
   onClose: () => void;
   onOpenBill: (b: Bill) => void;
+  getDueDays: (b: Bill) => number;
+  getAmt: (b: Bill) => number;
+  isFuture: boolean;
 }) {
   const t = useTheme();
-  const items = bills.slice().sort((a, b) => a.dueDays - b.dueDays);
-  const modalRem = (b: Bill) => totalOwed(b) - (b.amountPaid ?? 0);
-  const dueTotal = items.filter((b) => b.status !== "paid").reduce((s, b) => s + modalRem(b), 0);
+  const items = bills.slice().sort((a, b) => getDueDays(a) - getDueDays(b));
+  const dueItems = isFuture ? items : items.filter((b) => b.status !== "paid");
+  const paidItems = isFuture ? [] : items.filter((b) => b.status === "paid");
+  const dueTotal = dueItems.reduce((s, b) => s + getAmt(b), 0);
+
   return (
     <Modal visible={day != null} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}>
@@ -362,18 +455,43 @@ function DayBillsModal({
             {dueTotal > 0 ? ` · ${money(dueTotal)} due` : ""}
           </Low>
           <View style={{ gap: 9 }}>
-            {items.map((b) => {
-              const isPaid = b.status === "paid";
-              const cls = dueClass(b.dueDays) as Urgency;
+            {dueItems.map((b) => {
+              const dd = getDueDays(b);
+              const cls = dueClass(dd) as Urgency;
               return (
-                <CalBillRow key={b.id} bill={b} onPress={() => onOpenBill(b)} amtColor={isPaid ? t.txtLow : t.semantic[cls]} money={money} paid={isPaid} monthShort={monthName.slice(0, 3)} displayAmt={isPaid ? b.amount : modalRem(b)}>
+                <CalBillRow
+                  key={b.id}
+                  bill={b}
+                  onPress={() => onOpenBill(b)}
+                  amtColor={t.semantic[cls]}
+                  money={money}
+                  monthShort={monthName.slice(0, 3)}
+                  displayAmt={getAmt(b)}
+                >
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
-                    {isPaid ? <Icon name="check" size={12} color={t.txtLow} /> : <Dot kind={cls} />}
-                    <Low size={12}>{isPaid ? `Paid · ${b.cat}` : `${b.cat} · ${dueShort(b.dueDays)}`}</Low>
+                    <Dot kind={cls} />
+                    <Low size={12}>{b.cat} · {dueShort(dd)}</Low>
                   </View>
                 </CalBillRow>
               );
             })}
+            {paidItems.map((b) => (
+              <CalBillRow
+                key={b.id}
+                bill={b}
+                onPress={() => onOpenBill(b)}
+                amtColor={t.txtLow}
+                money={money}
+                paid
+                monthShort={monthName.slice(0, 3)}
+                displayAmt={b.amount}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
+                  <Icon name="check" size={12} color={t.txtLow} />
+                  <Low size={12}>Paid · {b.cat}</Low>
+                </View>
+              </CalBillRow>
+            ))}
           </View>
         </Pressable>
       </Pressable>
