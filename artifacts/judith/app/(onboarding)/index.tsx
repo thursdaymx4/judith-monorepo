@@ -7,6 +7,7 @@ import {
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as ImagePicker from "expo-image-picker";
 import {
+  Alert,
   Animated,
   Easing,
   Modal,
@@ -30,7 +31,7 @@ import {
   countryFood,
   type Country,
 } from "@/constants/countries";
-import { HOUSES, type Bill } from "@/constants/data";
+import { HOUSES, findDuplicate, type Bill } from "@/constants/data";
 import {
   getSamples, getCardTemplates, getLoanTemplates,
   getDLocal, getProviderPlaceholder, getQuickAsks,
@@ -1916,7 +1917,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const CARD_TEMPLATES = getCardTemplates(ctx.country.code);
   const LOAN_TEMPLATES = getLoanTemplates(ctx.country.code);
   const { t, persona, bills, addBill, next, language } = ctx;
-  const { saveBill } = useJudith();
+  const { saveBill, bills: storeBills } = useJudith();
   const cur = ctx.country.cur;
   const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
   // ── Voice Activity Detection refs ─────────────────────────────────
@@ -2017,6 +2018,18 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       subtype: sample.subtype,
       house: HOUSES[0],
     };
+    const dup = findDuplicate(storeBills, { provider: b.provider, cat: b.cat });
+    if (dup) {
+      Alert.alert(
+        "Already added",
+        `"${dup.provider}" (${dup.cat}) is already in your bills. Add it again?`,
+        [
+          { text: "Skip", style: "cancel", onPress: () => advanceAfterItem() },
+          { text: "Add anyway", onPress: () => { addBill(b); saveBill(onbBillToStoreBill(b)); advanceAfterItem(); } },
+        ],
+      );
+      return;
+    }
     addBill(b);
     saveBill(onbBillToStoreBill(b));
     advanceAfterItem();
@@ -2055,16 +2068,25 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       subtype: form.subtype,
       house: form.house,
     };
-    addBill(b);
-    saveBill(onbBillToStoreBill(b));
-    // "Type instead" replaces the voice step for that slot — advance exactly
-    // like voice confirmation does (next item / breather / cards).
-    // "Add bill" from breather or "more" is an add-extra flow — return there.
-    if (manualReturn === "prompt") {
-      advanceAfterItem();
-    } else {
-      setMode(manualReturn);
+    const doSave = () => {
+      addBill(b);
+      saveBill(onbBillToStoreBill(b));
+      if (manualReturn === "prompt") advanceAfterItem();
+      else setMode(manualReturn);
+    };
+    const dup = findDuplicate(storeBills, { provider: b.provider, cat: b.cat });
+    if (dup) {
+      Alert.alert(
+        "Already added",
+        `"${dup.provider}" (${dup.cat}) is already in your bills. Add it again?`,
+        [
+          { text: "Skip", style: "cancel", onPress: () => { if (manualReturn === "prompt") advanceAfterItem(); else setMode(manualReturn); } },
+          { text: "Add anyway", onPress: doSave },
+        ],
+      );
+      return;
     }
+    doSave();
   };
 
   /* Screenshot upload — encouraged for Phone subscription category */

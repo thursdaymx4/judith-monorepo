@@ -266,6 +266,20 @@ export const QUICK_ASKS = [
   "When's my next due date?",
 ];
 
+/**
+ * Returns an existing bill that looks like a duplicate of the candidate.
+ * Match = same provider (case-insensitive trim) AND same category.
+ */
+export function findDuplicate(
+  bills: Bill[],
+  candidate: { provider: string; cat: string },
+): Bill | undefined {
+  const norm = (s: string) => s.trim().toLowerCase();
+  return bills.find(
+    (b) => norm(b.provider) === norm(candidate.provider) && b.cat === candidate.cat,
+  );
+}
+
 /** Money formatter — currency symbol from the selected country. */
 export function formatMoney(n: number, symbol = "₱"): string {
   return symbol + Math.round(n).toLocaleString("en-US");

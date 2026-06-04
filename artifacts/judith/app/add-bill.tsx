@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon } from "@/components/Icon";
 import { Btn, Chip, Low, Mono, Txt } from "@/components/ui";
-import { CAT_ICONS, PROVIDERS, makeManualBill } from "@/constants/data";
+import { CAT_ICONS, PROVIDERS, findDuplicate, makeManualBill } from "@/constants/data";
 import { getProviders, getProviderPlaceholder } from "@/constants/providers";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
@@ -76,6 +76,25 @@ export default function AddBillScreen() {
       });
       showToast(`Updated: ${base.provider}`);
     } else {
+      const dup = findDuplicate(bills, base);
+      if (dup) {
+        Alert.alert(
+          "Possible duplicate",
+          `You already have "${dup.provider}" under ${dup.cat}. Add another one?`,
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Add anyway",
+              onPress: () => {
+                saveBill(base);
+                showToast(`Added: ${base.provider}`);
+                router.back();
+              },
+            },
+          ],
+        );
+        return;
+      }
       saveBill(base);
       showToast(`Added: ${base.provider}`);
     }
