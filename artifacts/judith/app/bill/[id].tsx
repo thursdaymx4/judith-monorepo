@@ -7,7 +7,6 @@ import { JudithAvatar } from "@/components/JudithAvatar";
 import { Btn, Card, Low, Mono, ProviderLogo, Screen, SectionLabel, SheetHeader, Txt } from "@/components/ui";
 import {
   dueClass,
-  HISTORY,
   isPartialBill,
   partialPct,
   totalOwed,
@@ -46,46 +45,17 @@ function buildChart(bill: Bill): ChartPoint[] {
       continue;
     }
     const real = bill.paymentHistory?.find((r) => r.period === period);
-    if (real) { points.push({ label, value: real.totalDue, current: false }); continue; }
-    const hist = (HISTORY[bill.id] ?? []).find((h) => h.m === label);
-    if (hist) { points.push({ label, value: hist.a, current: false }); continue; }
-    const seed = (mo * 7 + (bill.id.charCodeAt(0) ?? 0) * 3) % 100;
-    points.push({ label, value: Math.round(bill.amount * (1 + (seed - 50) / 1000)), current: false });
+    // Only show real recorded data — no synthetic or static backfill
+    points.push({ label, value: real ? real.totalDue : 0, current: false });
   }
   return points;
 }
 
 function buildHistory(bill: Bill): BillCycleRecord[] {
+  // Only real recorded cycles — never synthetic or static backfill
   const rows: BillCycleRecord[] = [...(bill.paymentHistory ?? [])];
-  const today = new Date();
-
-  (HISTORY[bill.id] ?? []).forEach((h) => {
-    const moIdx = MONTH_SHORT.indexOf(h.m);
-    if (moIdx < 0) return;
-    const yr = moIdx > today.getMonth() ? today.getFullYear() - 1 : today.getFullYear();
-    const period = `${yr}-${String(moIdx + 1).padStart(2, "0")}`;
-    if (rows.some((r) => r.period === period)) return;
-    rows.push({ period, charged: h.a, carriedIn: 0, totalDue: h.a, paid: h.a, rolledOver: 0, onTime: true });
-  });
-
-  if ((bill.carryOver ?? 0) > 0) {
-    const lm = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-    const period = `${lm.getFullYear()}-${String(lm.getMonth() + 1).padStart(2, "0")}`;
-    if (!rows.some((r) => r.period === period)) {
-      rows.push({
-        period,
-        charged: bill.amount,
-        carriedIn: 0,
-        totalDue: bill.amount,
-        paid: bill.amount - (bill.carryOver ?? 0),
-        rolledOver: bill.carryOver ?? 0,
-        onTime: null,
-      });
-    }
-  }
-
   rows.sort((a, b) => b.period.localeCompare(a.period));
-  return rows.slice(0, 12);
+  return rows.slice(0, 24);
 }
 
 /* ─── sub-components ─────────────────────────────────────────────── */
@@ -101,28 +71,40 @@ function MiniBarChart({ points, money }: { points: ChartPoint[]; money: (n: numb
       ? Math.round(((current.value - prev.value) / prev.value) * 100)
       : null;
 
+  const hasHistory = points.some((p) => !p.current && p.value > 0);
+
   return (
     <View>
       <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 5 }}>
         {points.map((p, i) => {
-          const h = Math.max(6, Math.round((p.value / max) * BAR_H));
+          const h = p.value > 0 ? Math.max(6, Math.round((p.value / max) * BAR_H)) : 0;
           return (
-            <View key={i} style={{ flex: 1, alignItems: "center" }}>
+            <View key={i} style={{ flex: 1 }}>
               <View style={{ height: BAR_H, justifyContent: "flex-end" }}>
-                <View
-                  style={{
-                    height: h,
-                    borderRadius: 5,
-                    backgroundColor: p.current ? t.accent : t.accent + "44",
-                  }}
-                />
+                {h > 0 && (
+                  <View
+                    style={{
+                      height: h,
+                      borderRadius: 5,
+                      alignSelf: "stretch",
+                      backgroundColor: p.current ? t.accent : t.accent + "55",
+                    }}
+                  />
+                )}
               </View>
               <Low size={9} style={{ marginTop: 4, textAlign: "center" }}>{p.label}</Low>
             </View>
           );
         })}
       </View>
-      {trend !== null && current && (
+      {!hasHistory && (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 }}>
+          <Low size={11} style={{ fontStyle: "italic" }}>
+            Previous months will appear here as you record payments.
+          </Low>
+        </View>
+      )}
+      {hasHistory && trend !== null && current && (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 10 }}>
           <Icon
             name={trend > 0 ? "trend" : "trenddown"}
