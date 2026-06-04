@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon } from "@/components/Icon";
+import type { IconName } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Low, Mono, Txt, mix } from "@/components/ui";
 import { useJudith } from "@/contexts/JudithStore";
@@ -50,6 +51,27 @@ function MathRow({
       <Mono size={large ? 17 : 15} weight="bold" color={color}>
         {value}
       </Mono>
+    </View>
+  );
+}
+
+/* ---- outcome / relief row ---- */
+function Relief({ icon, headline, body }: { icon: IconName; headline: string; body: string }) {
+  const t = useTheme();
+  return (
+    <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 14, borderWidth: 1, borderColor: t.hair, borderRadius: 16, backgroundColor: t.surface2, padding: 16 }}>
+      <View style={{
+        width: 36, height: 36, borderRadius: 10,
+        backgroundColor: mix(t.accent, t.surface2, 0.14),
+        borderWidth: 1, borderColor: mix(t.accent, t.surface2, 0.3),
+        alignItems: "center", justifyContent: "center", marginTop: 1,
+      }}>
+        <Icon name={icon} size={16} color={t.accent} />
+      </View>
+      <View style={{ flex: 1, gap: 4 }}>
+        <Txt size={14} weight="semibold">{headline}</Txt>
+        <Low size={12} style={{ lineHeight: 18 }}>{body}</Low>
+      </View>
     </View>
   );
 }
@@ -237,26 +259,28 @@ export default function PlansModal() {
         </Pressable>
       </View>
 
-      {/* ---- HERO ---- */}
+      {/* ── HERO ── */}
       <Animated.View
         style={{ opacity: heroOp, transform: [{ translateY: heroY }], alignItems: "center", marginBottom: 32 }}
       >
         <JudithAvatar persona={persona} size={64} state="idle" />
-        <View style={{ marginTop: 18, alignItems: "center", gap: 8 }}>
+        <View style={{ marginTop: 18, alignItems: "center", gap: 10 }}>
           <Txt
-            size={26}
+            size={27}
             weight="semibold"
-            style={{ textAlign: "center", lineHeight: 33, letterSpacing: -0.5 }}
+            style={{ textAlign: "center", lineHeight: 34, letterSpacing: -0.5 }}
           >
-            One late fee costs more{"\n"}than 7 months with Judith.
+            {money(99)}/month.{"\n"}Less than one late fee.
           </Txt>
-          <Low size={13} style={{ textAlign: "center", lineHeight: 18 }}>
-            The average credit card late fee in the Philippines{"\n"}is ₱750. Your subscription is ₱99.
+          <Low size={13} style={{ textAlign: "center", lineHeight: 20 }}>
+            Globe suspends your line at Day 30. BDO charges{"\n"}
+            ₱750 automatically. Meralco disconnects without{"\n"}
+            mercy. Judith costs less than any of that.
           </Low>
         </View>
       </Animated.View>
 
-      {/* ---- MATH CARD ---- */}
+      {/* ── MATH CARD: 1 month of fees vs 1 month of Judith ── */}
       <View
         style={{
           borderWidth: 1,
@@ -265,49 +289,83 @@ export default function PlansModal() {
           backgroundColor: t.surface1,
           paddingHorizontal: 18,
           overflow: "hidden",
-          marginBottom: 28,
+          marginBottom: 20,
         }}
       >
+        {/* section label */}
+        <View style={{ paddingTop: 14, paddingBottom: 6 }}>
+          <Low size={10} style={{ letterSpacing: 0.8, textTransform: "uppercase" }}>
+            One bad month, without Judith
+          </Low>
+        </View>
         <MathRow
-          label="One missed CC payment"
-          sub="BPI, BDO, Security Bank avg."
-          value="−₱750"
+          label="Credit card late fee"
+          sub="BPI, BDO, Security Bank — automatic, no grace"
+          value="₱750"
           color={t.semantic.urgent}
         />
         <Sep />
         <MathRow
-          label="Postpaid late payment surcharge"
-          sub="Globe, Smart, PLDT — added automatically"
-          value="−₱200"
+          label="Postpaid reconnection fee"
+          sub="Globe, Smart, PLDT — charged when line is cut"
+          value="₱200"
           color={t.semantic.urgent}
         />
         <Sep />
         <MathRow
-          label="Judith Chat Ask / month"
-          sub="Unlimited tracking + reminders"
-          value="₱99"
+          label="Meralco reconnection"
+          sub="Service interruption after 30-day overdue"
+          value="₱150"
+          color={t.semantic.urgent}
+        />
+        <Sep />
+        <MathRow
+          label="Total risk, one bad month"
+          value="₱1,100"
+          color={t.semantic.urgent}
+          large
+        />
+
+        {/* divider */}
+        <View style={{ height: 1, backgroundColor: mix(t.accent, t.surface2, 0.3), marginVertical: 6 }} />
+
+        <MathRow
+          label="Judith — all your bills, all month"
+          sub="Every due date tracked, every bill reminded"
+          value={money(99)}
           color={t.semantic.ok}
+          large
         />
         <Sep />
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 10,
-            paddingVertical: 13,
-          }}
-        >
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12 }}>
           <Icon name="trend" size={16} color={t.accent} />
           <Low size={12} style={{ flex: 1, lineHeight: 17 }}>
-            Avoid just{" "}
-            <Txt size={12} weight="semibold" color={t.txtHi}>one late fee</Txt>
-            {" "}and Judith pays for itself for the{" "}
+            One avoided late fee and Judith pays for itself for the{" "}
             <Txt size={12} weight="semibold" color={t.accent}>entire year.</Txt>
           </Low>
         </View>
       </View>
 
-      {/* ---- FREE ASKS NOTICE ---- */}
+      {/* ── WHAT YOU ACTUALLY GET (emotional) ── */}
+      <View style={{ gap: 10, marginBottom: 28 }}>
+        <Relief
+          icon="bell"
+          headline="No service cutoffs"
+          body="Globe and PLDT suspend at Day 30. Meralco sends a disconnection notice at Day 28. Judith nudges you days before it ever reaches that point."
+        />
+        <Relief
+          icon="card"
+          headline="No surprise late charges"
+          body="Credit card fees hit automatically — no call, no warning, just ₱750 gone. Judith shows every due date clearly, weeks in advance."
+        />
+        <Relief
+          icon="sliders"
+          headline="Finally in control"
+          body="No more keeping five due dates in your head or panicking mid-month. Every bill tracked. Every cycle clear. Judith holds it all so you don't have to."
+        />
+      </View>
+
+      {/* ── FREE ASKS NOTICE ── */}
       {isFree && asksLeft > 0 && (
         <View
           style={{
@@ -332,16 +390,15 @@ export default function PlansModal() {
         </View>
       )}
 
+      {/* ── PLAN CARDS ── */}
       {loadingPkgs ? (
         <View style={{ alignItems: "center", paddingVertical: 48 }}>
           <ActivityIndicator color={t.accent} size="large" />
         </View>
       ) : (
         <View style={{ gap: 14 }}>
-          {/* ---- VOICE CARD — hero ---- */}
-          <View
-            onLayout={(e) => { voiceCardY.current = e.nativeEvent.layout.y; }}
-          >
+          {/* VOICE CARD — hero */}
+          <View onLayout={(e) => { voiceCardY.current = e.nativeEvent.layout.y; }}>
             <View
               style={{
                 borderWidth: 1.5,
@@ -351,23 +408,14 @@ export default function PlansModal() {
                 overflow: "hidden",
               }}
             >
-              {/* recommended banner */}
               {!voiceActive && (
-                <View
-                  style={{
-                    backgroundColor: t.accent,
-                    paddingVertical: 6,
-                    alignItems: "center",
-                  }}
-                >
+                <View style={{ backgroundColor: t.accent, paddingVertical: 6, alignItems: "center" }}>
                   <Txt size={11} weight="semibold" color={t.onAccent} style={{ letterSpacing: 0.8 }}>
                     MOST POPULAR
                   </Txt>
                 </View>
               )}
-
               <View style={{ padding: 20, gap: 18 }}>
-                {/* header */}
                 <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
                   <View>
                     <Txt size={18} weight="semibold">Voice Ask</Txt>
@@ -378,33 +426,18 @@ export default function PlansModal() {
                     <Low size={11} style={{ marginTop: 2 }}>Cancel anytime</Low>
                   </View>
                   {voiceActive && (
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 5,
-                        borderWidth: 1,
-                        borderColor: mix(t.semantic.ok, t.surface2, 0.4),
-                        borderRadius: 20,
-                        paddingVertical: 5,
-                        paddingHorizontal: 11,
-                        backgroundColor: mix(t.semantic.ok, t.surface2, 0.12),
-                      }}
-                    >
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1, borderColor: mix(t.semantic.ok, t.surface2, 0.4), borderRadius: 20, paddingVertical: 5, paddingHorizontal: 11, backgroundColor: mix(t.semantic.ok, t.surface2, 0.12) }}>
                       <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: t.semantic.ok }} />
                       <Txt size={11} weight="semibold" color={t.semantic.ok}>Active</Txt>
                     </View>
                   )}
                 </View>
-
-                {/* features */}
                 <View style={{ gap: 10 }}>
                   <Feature text="Talk to Judith — speak your question, hear her answer" accent />
                   <Feature text="Voice replies in Tagalog, English, Bisaya, or any language you set" accent />
                   <Feature text="Unlimited text + voice asks, all 5 personas" />
                   <Feature text="Bill tracking, reminders, and calendar — all included" />
                 </View>
-
                 <CtaBtn
                   label={voiceActive ? "Current plan" : "Get Voice Ask"}
                   sub={voiceActive ? undefined : money(199) + "/month · cancel anytime"}
@@ -417,7 +450,7 @@ export default function PlansModal() {
             </View>
           </View>
 
-          {/* ---- CHAT CARD ---- */}
+          {/* CHAT CARD */}
           <View
             style={{
               borderWidth: 1,
@@ -428,7 +461,6 @@ export default function PlansModal() {
             }}
           >
             <View style={{ padding: 20, gap: 18 }}>
-              {/* header */}
               <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" }}>
                 <View>
                   <Txt size={17} weight="semibold">Chat Ask</Txt>
@@ -441,32 +473,17 @@ export default function PlansModal() {
                   <Low size={11} style={{ marginTop: 2 }}>Cancel anytime</Low>
                 </View>
                 {chatActive && !voiceActive && (
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 5,
-                      borderWidth: 1,
-                      borderColor: mix(t.semantic.ok, t.surface2, 0.4),
-                      borderRadius: 20,
-                      paddingVertical: 5,
-                      paddingHorizontal: 11,
-                      backgroundColor: mix(t.semantic.ok, t.surface2, 0.12),
-                    }}
-                  >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1, borderColor: mix(t.semantic.ok, t.surface2, 0.4), borderRadius: 20, paddingVertical: 5, paddingHorizontal: 11, backgroundColor: mix(t.semantic.ok, t.surface2, 0.12) }}>
                     <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: t.semantic.ok }} />
                     <Txt size={11} weight="semibold" color={t.semantic.ok}>Active</Txt>
                   </View>
                 )}
               </View>
-
-              {/* features */}
               <View style={{ gap: 10 }}>
                 <Feature text="Unlimited text asks to Judith — type anything, get a real answer" />
                 <Feature text="Bill tracking, reminders, and calendar" />
                 <Feature text="All 5 personas — mama, Marites, ate, and more" />
               </View>
-
               <CtaBtn
                 label={chatActive ? "Current plan" : "Get Chat Ask"}
                 sub={chatActive ? undefined : money(99) + "/month · cancel anytime"}
@@ -480,7 +497,7 @@ export default function PlansModal() {
         </View>
       )}
 
-      {/* ---- TRUST FOOTER ---- */}
+      {/* ── TRUST FOOTER ── */}
       <View style={{ marginTop: 28, gap: 10 }}>
         <View style={{ flexDirection: "row", justifyContent: "center", gap: 24 }}>
           {[

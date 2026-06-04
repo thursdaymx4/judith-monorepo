@@ -3896,15 +3896,18 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
 
         {/* math close */}
         <Kicker>The math</Kicker>
-        <Title style={{ lineHeight: 34, marginBottom: 14 }}>One late fee costs more{"\n"}than 7 months of asks.</Title>
+        <Title style={{ lineHeight: 34, marginBottom: 14 }}>{cur}99/month.{"\n"}Less than one late fee.</Title>
         <View style={{
           borderWidth: 1, borderColor: t.hair, borderRadius: 16,
-          backgroundColor: t.surface1, overflow: 'hidden', marginBottom: 22,
+          backgroundColor: t.surface1, overflow: 'hidden', marginBottom: 14,
         }}>
+          <View style={{ paddingTop: 12, paddingBottom: 4, paddingHorizontal: 16 }}>
+            <Low size={10} style={{ letterSpacing: 0.8, textTransform: 'uppercase' }}>One bad month, without Judith</Low>
+          </View>
           {[
-            { label: 'Missed CC payment fee', sub: 'BPI, BDO, Security Bank avg.', val: '−₱750', color: t.semantic.urgent },
-            { label: 'Postpaid late payment fee', sub: 'Globe, Smart, PLDT — automatic', val: '−₱200', color: t.semantic.urgent },
-            { label: 'Judith Chat Ask / month', sub: 'Unlimited asks, all month', val: cur + '99', color: t.semantic.ok },
+            { label: 'Credit card late fee', sub: 'BPI, BDO, Security Bank — no grace period', val: '−₱750', color: t.semantic.urgent },
+            { label: 'Postpaid reconnection fee', sub: 'Globe, Smart, PLDT — automatic charge', val: '−₱200', color: t.semantic.urgent },
+            { label: 'Meralco reconnection', sub: 'Service interruption after 30-day overdue', val: '−₱150', color: t.semantic.urgent },
           ].map((row, i) => (
             <View key={row.label}>
               {i > 0 && <View style={{ height: 1, backgroundColor: t.hair }} />}
@@ -3918,13 +3921,59 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
             </View>
           ))}
           <View style={{ height: 1, backgroundColor: t.hair }} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 16 }}>
+            <View style={{ flex: 1 }}>
+              <Txt size={14} weight='semibold' color={t.txtMid}>Total risk, one bad month</Txt>
+            </View>
+            <Mono size={16} weight='bold' color={t.semantic.urgent}>₱1,100</Mono>
+          </View>
+          <View style={{ height: 1, backgroundColor: mix(t.accent, t.surface2, 0.3) }} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 16 }}>
+            <View style={{ flex: 1 }}>
+              <Txt size={14} weight='semibold' color={t.txtMid}>Judith — all your bills, all month</Txt>
+              <Low size={11} style={{ marginTop: 1 }}>Every due date tracked, every bill reminded</Low>
+            </View>
+            <Mono size={16} weight='bold' color={t.semantic.ok}>{cur}99</Mono>
+          </View>
+          <View style={{ height: 1, backgroundColor: t.hair }} />
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 16 }}>
             <Icon name='trend' size={14} color={t.accent} />
             <Low size={12} style={{ flex: 1, lineHeight: 17 }}>
-              Avoid just <Txt size={12} weight='semibold' color={t.txtHi}>one late fee</Txt> and Judith pays for itself for the{' '}
+              One avoided late fee and Judith pays for itself for the{' '}
               <Txt size={12} weight='semibold' color={t.accent}>entire year.</Txt>
             </Low>
           </View>
+        </View>
+
+        {/* emotional outcomes */}
+        <View style={{ gap: 9, marginBottom: 22 }}>
+          {[
+            {
+              icon: 'bell' as IconName,
+              headline: 'No service cutoffs',
+              body: 'Globe and PLDT suspend at Day 30. Meralco disconnects after a notice. Judith nudges you days before it gets there.',
+            },
+            {
+              icon: 'card' as IconName,
+              headline: 'No surprise late charges',
+              body: 'CC fees hit automatically — ₱750, no warning, no mercy. Judith keeps every due date visible weeks in advance.',
+            },
+            {
+              icon: 'sliders' as IconName,
+              headline: 'Finally in control',
+              body: "No more keeping five due dates in your head. Every bill tracked. Every cycle clear. You stop dreading the end of the month.",
+            },
+          ].map((item) => (
+            <View key={item.headline} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 13, borderWidth: 1, borderColor: t.hair, borderRadius: 14, backgroundColor: t.surface2, padding: 14 }}>
+              <View style={{ width: 34, height: 34, borderRadius: 9, backgroundColor: mix(t.accent, t.surface2, 0.14), borderWidth: 1, borderColor: mix(t.accent, t.surface2, 0.3), alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
+                <Icon name={item.icon} size={15} color={t.accent} />
+              </View>
+              <View style={{ flex: 1, gap: 3 }}>
+                <Txt size={13} weight='semibold'>{item.headline}</Txt>
+                <Low size={12} style={{ lineHeight: 17 }}>{item.body}</Low>
+              </View>
+            </View>
+          ))}
         </View>
 
         {/* subscription upsell */}
