@@ -332,7 +332,7 @@ export default function BillDetailModal() {
           label="‹"
           variant="soft"
           onPress={() => setViewedPeriod((p) => shiftPeriod(p, -1))}
-          style={{ minWidth: 40, paddingHorizontal: 14 }}
+          style={{ width: 44, paddingHorizontal: 0 }}
         />
         <Txt size={14} weight="semibold" style={{ flex: 1, textAlign: "center" }}>
           {periodLabelLong(viewedPeriod)}
@@ -344,7 +344,7 @@ export default function BillDetailModal() {
           label="›"
           variant="soft"
           onPress={() => setViewedPeriod((p) => shiftPeriod(p, 1))}
-          style={{ minWidth: 40, paddingHorizontal: 14 }}
+          style={{ width: 44, paddingHorizontal: 0 }}
         />
       </View>
 
