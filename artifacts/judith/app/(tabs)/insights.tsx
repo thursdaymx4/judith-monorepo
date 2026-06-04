@@ -69,35 +69,36 @@ function PaidBilledBar({ paidTotal, billedTotal, paidFrac, money }: {
   paidTotal: number; billedTotal: number; paidFrac: number; money: (n: number) => string;
 }) {
   const t = useTheme();
-  const paidPct = Math.round(paidFrac * 100);
+  const paidPct   = Math.round(paidFrac * 100);
+  const unpaidAmt = billedTotal - paidTotal;
+  const allPaid   = unpaidAmt <= 0;
   return (
-    <View style={{ gap: 10, marginTop: 16 }}>
-      <View>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
-          <Low size={11}>Billed</Low>
-          <Mono size={11} weight="semibold">{money(billedTotal)}</Mono>
-        </View>
-        <View style={{ height: 10, borderRadius: 5, backgroundColor: t.surface3, overflow: "hidden" }}>
-          <LinearGradient colors={[t.accent, mix(t.accent, t.surface3, 0.4)]}
+    <View style={{ marginTop: 16, gap: 8 }}>
+      {/* segmented bar */}
+      <View style={{ flexDirection: "row", height: 12, borderRadius: 6, overflow: "hidden", backgroundColor: t.semantic.err + "55" }}>
+        {paidFrac > 0 && (
+          <LinearGradient
+            colors={[t.semantic.ok, mix(t.semantic.ok, "#00e066", 0.3)]}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-            style={{ width: "100%", height: "100%", borderRadius: 5 }} />
-        </View>
+            style={{ width: `${paidPct}%`, height: "100%" }}
+          />
+        )}
       </View>
-      <View>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+      {/* labels — paid left, unpaid right — can never overlap */}
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.semantic.ok }} />
           <Low size={11}>Paid</Low>
+          <Txt size={11} weight="semibold" color={t.semantic.ok}>{money(paidTotal)}</Txt>
+          <Low size={10}>({paidPct}%)</Low>
+        </View>
+        {!allPaid && (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-            <Txt size={11} weight="semibold" color={paidPct === 100 ? t.semantic.ok : t.txtHi}>{money(paidTotal)}</Txt>
-            <Low size={10}>({paidPct}%)</Low>
+            <Low size={11}>Unpaid</Low>
+            <Txt size={11} weight="semibold" color={t.semantic.err}>{money(unpaidAmt)}</Txt>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.semantic.err }} />
           </View>
-        </View>
-        <View style={{ height: 10, borderRadius: 5, backgroundColor: t.surface3, overflow: "hidden" }}>
-          {paidFrac > 0 && (
-            <LinearGradient colors={[t.semantic.ok, mix(t.semantic.ok, t.surface3, 0.3)]}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={{ width: `${paidPct}%`, height: "100%", borderRadius: 5 }} />
-          )}
-        </View>
+        )}
       </View>
     </View>
   );
