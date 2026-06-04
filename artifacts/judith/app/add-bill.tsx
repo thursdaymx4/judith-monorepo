@@ -4,11 +4,12 @@ import { Alert, Pressable, ScrollView, Text, TextInput, View } from "react-nativ
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon } from "@/components/Icon";
-import { Btn, Chip, Low, Mono, Txt } from "@/components/ui";
+import { Btn, Chip, Low, Mono, ProviderLogo, RoundBtn, SectionLabel, Txt } from "@/components/ui";
 import { CAT_ICONS, PROVIDERS, findDuplicate, makeManualBill } from "@/constants/data";
 import { getProviders, getProviderPlaceholder } from "@/constants/providers";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
+import { haptics } from "@/lib/haptics";
 
 const CATEGORIES = Object.keys(PROVIDERS);
 
@@ -17,7 +18,7 @@ export default function AddBillScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { bills, saveBill, deleteBill, showToast, country } = useJudith();
+  const { bills, saveBill, deleteBill, showToast, country, money } = useJudith();
 
   const existing = id ? (bills.find((b) => b.id === id) ?? null) : null;
   const isEdit = !!existing;
@@ -45,15 +46,20 @@ export default function AddBillScreen() {
 
   const amt = Number(amount.replace(/[^0-9.]/g, ""));
   const day = Number(dueDay.replace(/[^0-9]/g, ""));
-  const valid =
-    provider.trim().length > 0 && Number.isFinite(amt) && amt > 0 && day >= 1 && day <= 31;
+  const validProvider = provider.trim().length > 0;
+  const validAmount = Number.isFinite(amt) && amt > 0;
+  const validDay = day >= 1 && day <= 31;
+  const valid = validProvider && validAmount && validDay;
+
+  const clearErr = () => { if (err) setErr(""); };
 
   const save = () => {
     if (!valid) {
+      haptics.error();
       setErr(
-        provider.trim().length === 0
+        !validProvider
           ? "Tell me who this bill is from."
-          : !(amt > 0)
+          : !validAmount
             ? "Enter the amount."
             : "Enter a due day between 1 and 31.",
       );
@@ -83,6 +89,7 @@ export default function AddBillScreen() {
         carryOver: existing.carryOver,
         paymentHistory: existing.paymentHistory,
       });
+      haptics.success();
       showToast(`Updated: ${base.provider}`);
     } else {
       const dup = findDuplicate(bills, base);
@@ -96,6 +103,7 @@ export default function AddBillScreen() {
               text: "Add anyway",
               onPress: () => {
                 saveBill(base);
+                haptics.success();
                 showToast(`Added: ${base.provider}`);
                 router.back();
               },
@@ -105,6 +113,7 @@ export default function AddBillScreen() {
         return;
       }
       saveBill(base);
+      haptics.success();
       showToast(`Added: ${base.provider}`);
     }
     router.back();
@@ -121,6 +130,7 @@ export default function AddBillScreen() {
           style: "destructive",
           onPress: () => {
             deleteBill(existing!.id);
+            haptics.success();
             showToast("Bill deleted");
             router.back();
           },
@@ -148,31 +158,140 @@ export default function AddBillScreen() {
     </View>
   );
 
+  /* Reusable +/- stepper with bounded, disabled-aware buttons. */
+  const Stepper = ({
+    value,
+    onDec,
+    onInc,
+    canDec,
+    canInc,
+    unit,
+  }: {
+    value: number;
+    onDec: () => void;
+    onInc: () => void;
+    canDec: boolean;
+    canInc: boolean;
+    unit: string;
+  }) => {
+    const stepBtn = (active: boolean) => ({
+      width: 46,
+      height: 46,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: t.hair,
+      backgroundColor: t.surface2,
+      alignItems: "center" as const,
+      justifyContent: "center" as const,
+      opacity: active ? 1 : 0.35,
+    });
+    return (
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          backgroundColor: t.surface1,
+          borderWidth: 1,
+          borderColor: t.hair,
+          borderRadius: 16,
+          paddingVertical: 10,
+          paddingHorizontal: 12,
+        }}
+      >
+        <Pressable
+          disabled={!canDec}
+          onPress={() => { haptics.light(); onDec(); }}
+          style={({ pressed }) => [stepBtn(canDec), pressed && canDec && { transform: [{ scale: 0.94 }] }]}
+        >
+          <Text style={{ fontSize: 24, color: t.txtHi, lineHeight: 28 }}>−</Text>
+        </Pressable>
+        <View style={{ alignItems: "center", minWidth: 80 }}>
+          <Mono size={26} weight="bold">{value}</Mono>
+          <Low size={11} style={{ marginTop: 1 }}>{unit}</Low>
+        </View>
+        <Pressable
+          disabled={!canInc}
+          onPress={() => { haptics.light(); onInc(); }}
+          style={({ pressed }) => [stepBtn(canInc), pressed && canInc && { transform: [{ scale: 0.94 }] }]}
+        >
+          <Icon name="plus" size={19} color={t.txtHi} />
+        </Pressable>
+      </View>
+    );
+  };
+
+  const freqSuffix = frequency === "monthly" ? "/mo" : "/yr";
+
   return (
     <View style={{ flex: 1, backgroundColor: t.canvas, paddingTop: Math.max(insets.top, 44) + 6 }}>
       {/* header */}
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 22, marginBottom: 6 }}>
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={10}
-          style={{
-            width: 32, height: 32, borderRadius: 16,
-            alignItems: "center", justifyContent: "center",
-            backgroundColor: t.surface2, borderWidth: 1, borderColor: t.hair,
-          }}
-        >
-          <Icon name="x" size={15} color={t.txtMid} />
-        </Pressable>
-        <Txt size={22} weight="semibold">{isEdit ? "Edit bill" : "Add a bill"}</Txt>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 12,
+          paddingHorizontal: 22,
+          paddingBottom: 12,
+          borderBottomWidth: 1,
+          borderBottomColor: t.hair2,
+        }}
+      >
+        <RoundBtn icon="x" size={34} onPress={() => router.back()} />
+        <View style={{ flex: 1 }}>
+          <Txt size={21} weight="bold">{isEdit ? "Edit bill" : "Add a bill"}</Txt>
+          <Low size={12} style={{ marginTop: 1 }}>
+            {isEdit ? "Update the details below" : "A few quick details and you're set"}
+          </Low>
+        </View>
       </View>
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 10, paddingBottom: insets.bottom + 120 }}
+        contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 16, paddingBottom: insets.bottom + 130 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* category */}
+        {/* live preview */}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 13,
+            backgroundColor: t.surface2,
+            borderWidth: 1,
+            borderColor: t.hair,
+            borderRadius: 18,
+            paddingVertical: 14,
+            paddingHorizontal: 16,
+            marginBottom: 6,
+          }}
+        >
+          <ProviderLogo provider={provider.trim() || undefined} cat={cat} size={46} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Txt size={16} weight="semibold" numberOfLines={1}>
+              {provider.trim() || "New bill"}
+            </Txt>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
+              <Icon name={(CAT_ICONS[cat] ?? "spark") as never} size={12} color={t.txtLow} />
+              <Low size={12}>
+                {cat}{validDay ? ` · due the ${day}${ordinal(day)}` : ""}
+              </Low>
+            </View>
+          </View>
+          <View style={{ alignItems: "flex-end" }}>
+            {validAmount ? (
+              <Mono size={18} weight="bold" color={t.accent}>{money(amt)}</Mono>
+            ) : (
+              <Mono size={18} weight="bold" color={t.txtLow}>{country.cur}—</Mono>
+            )}
+            <Low size={11} style={{ marginTop: 1 }}>{freqSuffix}</Low>
+          </View>
+        </View>
+
+        {/* ───────── the basics ───────── */}
+        <SectionLabel>The basics</SectionLabel>
+
         <FieldLabel text="Category" />
         <ScrollView
           horizontal
@@ -186,17 +305,17 @@ export default function AddBillScreen() {
               label={c}
               icon={(CAT_ICONS[c] ?? "spark") as never}
               selected={cat === c}
-              onPress={() => { setCat(c); if (err) setErr(""); }}
+              onPress={() => { haptics.selection(); setCat(c); clearErr(); }}
             />
           ))}
         </ScrollView>
 
         {/* provider */}
-        <View style={{ marginTop: 20 }}>
+        <View style={{ marginTop: 18 }}>
           <FieldLabel text="Who is it from?" />
           <TextInput
             value={provider}
-            onChangeText={(v) => { setProvider(v); if (err) setErr(""); }}
+            onChangeText={(v) => { setProvider(v); clearErr(); }}
             placeholder={getProviderPlaceholder(country.code, cat)}
             placeholderTextColor={t.txtLow}
             style={inputStyle}
@@ -213,7 +332,7 @@ export default function AddBillScreen() {
                   key={s.name}
                   label={s.name}
                   selected={provider.trim() === s.name}
-                  onPress={() => { setProvider(s.name); if (err) setErr(""); }}
+                  onPress={() => { haptics.selection(); setProvider(s.name); clearErr(); }}
                 />
               ))}
             </ScrollView>
@@ -221,34 +340,34 @@ export default function AddBillScreen() {
         </View>
 
         {/* amount + due day */}
-        <View style={{ flexDirection: "row", gap: 12, marginTop: 20 }}>
-          <View style={{ flex: 1.3 }}>
+        <View style={{ flexDirection: "row", gap: 12, marginTop: 18 }}>
+          <View style={{ flex: 1.35 }}>
             <FieldLabel text="Amount" />
             <View
               style={{
-                ...inputStyle,
+                backgroundColor: t.surface1,
+                borderWidth: 1,
+                borderColor: validAmount ? t.hair : t.hair,
+                borderRadius: 14,
                 flexDirection: "row",
                 alignItems: "center",
-                paddingVertical: 0,
-                paddingHorizontal: 0,
+                paddingHorizontal: 14,
               }}
             >
-              <View style={{ paddingLeft: 14, justifyContent: "center" }}>
-                <Mono size={15} color={t.txtMid}>{country.cur}</Mono>
-              </View>
+              <Mono size={18} color={t.txtMid}>{country.cur}</Mono>
               <TextInput
                 value={amount}
-                onChangeText={(v) => { setAmount(v); if (err) setErr(""); }}
+                onChangeText={(v) => { setAmount(v); clearErr(); }}
                 placeholder="0"
                 placeholderTextColor={t.txtLow}
                 keyboardType="numeric"
                 style={{
                   flex: 1,
-                  paddingVertical: 12,
+                  paddingVertical: 13,
                   paddingHorizontal: 8,
                   color: t.txtHi,
-                  fontSize: 15,
-                  fontFamily: t.fonts.regular,
+                  fontSize: 19,
+                  fontFamily: t.fonts.monoBold,
                 }}
               />
             </View>
@@ -257,30 +376,30 @@ export default function AddBillScreen() {
             <FieldLabel text="Due day" />
             <TextInput
               value={dueDay}
-              onChangeText={(v) => { setDueDay(v.replace(/[^0-9]/g, "").slice(0, 2)); if (err) setErr(""); }}
+              onChangeText={(v) => { setDueDay(v.replace(/[^0-9]/g, "").slice(0, 2)); clearErr(); }}
               placeholder="1–31"
               placeholderTextColor={t.txtLow}
               keyboardType="number-pad"
-              style={inputStyle}
+              style={{ ...inputStyle, fontSize: 19, fontFamily: t.fonts.monoBold, textAlign: "center" }}
             />
           </View>
         </View>
 
-        {/* frequency */}
-        <View style={{ marginTop: 20 }}>
-          <FieldLabel text="How often?" />
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            <Chip label="Monthly" selected={frequency === "monthly"} onPress={() => setFrequency("monthly")} />
-            <Chip label="Yearly" selected={frequency === "annual"} onPress={() => setFrequency("annual")} />
-          </View>
+        {/* ───────── schedule ───────── */}
+        <SectionLabel>Schedule</SectionLabel>
+
+        <FieldLabel text="How often?" />
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <Chip label="Monthly" selected={frequency === "monthly"} onPress={() => { haptics.selection(); setFrequency("monthly"); }} />
+          <Chip label="Yearly" selected={frequency === "annual"} onPress={() => { haptics.selection(); setFrequency("annual"); }} />
         </View>
 
         {/* bill type */}
-        <View style={{ marginTop: 20 }}>
+        <View style={{ marginTop: 18 }}>
           <FieldLabel text="Bill type" />
           <View style={{ flexDirection: "row", gap: 8 }}>
-            <Chip label="Fixed" selected={kind === "Fixed"} onPress={() => setKind("Fixed")} />
-            <Chip label="Variable" selected={kind === "Variable"} onPress={() => setKind("Variable")} />
+            <Chip label="Fixed" selected={kind === "Fixed"} onPress={() => { haptics.selection(); setKind("Fixed"); }} />
+            <Chip label="Variable" selected={kind === "Variable"} onPress={() => { haptics.selection(); setKind("Variable"); }} />
           </View>
           <Low size={12} style={{ marginTop: 7 }}>
             {kind === "Fixed"
@@ -291,101 +410,65 @@ export default function AddBillScreen() {
 
         {/* CC: statement release day */}
         {cat === "Credit card" && (
-          <View style={{ marginTop: 20 }}>
+          <View style={{ marginTop: 18 }}>
             <FieldLabel text="Statement release day" />
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
-              <Pressable
-                onPress={() => setStatementDay((d) => Math.max(1, d - 1))}
-                style={{
-                  width: 42, height: 42, borderRadius: 13, borderWidth: 1,
-                  borderColor: t.hair, backgroundColor: t.surface2,
-                  alignItems: "center", justifyContent: "center",
-                }}
-              >
-                <Text style={{ fontSize: 22, color: t.txtMid, lineHeight: 26 }}>−</Text>
-              </Pressable>
-              <View style={{ alignItems: "center", minWidth: 64 }}>
-                <Mono size={24} weight="bold">{statementDay}</Mono>
-                <Low size={11} style={{ marginTop: 1 }}>of the month</Low>
-              </View>
-              <Pressable
-                onPress={() => setStatementDay((d) => Math.min(28, d + 1))}
-                style={{
-                  width: 42, height: 42, borderRadius: 13, borderWidth: 1,
-                  borderColor: t.hair, backgroundColor: t.surface2,
-                  alignItems: "center", justifyContent: "center",
-                }}
-              >
-                <Icon name="plus" size={18} color={t.txtMid} />
-              </Pressable>
-            </View>
+            <Stepper
+              value={statementDay}
+              canDec={statementDay > 1}
+              canInc={statementDay < 28}
+              onDec={() => setStatementDay((d) => Math.max(1, d - 1))}
+              onInc={() => setStatementDay((d) => Math.min(28, d + 1))}
+              unit="of the month"
+            />
             <Low size={12} style={{ marginTop: 7 }}>
               When does your bank release your monthly statement? Judith will nudge you
-              on that day to update this bill's amount.
+              on that day to update this bill&apos;s amount.
             </Low>
           </View>
         )}
 
         {/* reminder days stepper */}
-        <View style={{ marginTop: 20 }}>
+        <View style={{ marginTop: 18 }}>
           <FieldLabel text="Remind me before due date" />
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
-            <Pressable
-              onPress={() => setRemDays((d) => Math.max(1, d - 1))}
-              style={{
-                width: 42, height: 42, borderRadius: 13, borderWidth: 1,
-                borderColor: t.hair, backgroundColor: t.surface2,
-                alignItems: "center", justifyContent: "center",
-              }}
-            >
-              <Text style={{ fontSize: 22, color: t.txtMid, lineHeight: 26 }}>−</Text>
-            </Pressable>
-            <View style={{ alignItems: "center", minWidth: 64 }}>
-              <Mono size={24} weight="bold">{remDays}</Mono>
-              <Low size={11} style={{ marginTop: 1 }}>{remDays === 1 ? "day before" : "days before"}</Low>
-            </View>
-            <Pressable
-              onPress={() => setRemDays((d) => Math.min(30, d + 1))}
-              style={{
-                width: 42, height: 42, borderRadius: 13, borderWidth: 1,
-                borderColor: t.hair, backgroundColor: t.surface2,
-                alignItems: "center", justifyContent: "center",
-              }}
-            >
-              <Icon name="plus" size={18} color={t.txtMid} />
-            </Pressable>
-          </View>
+          <Stepper
+            value={remDays}
+            canDec={remDays > 1}
+            canInc={remDays < 30}
+            onDec={() => setRemDays((d) => Math.max(1, d - 1))}
+            onInc={() => setRemDays((d) => Math.min(30, d + 1))}
+            unit={remDays === 1 ? "day before" : "days before"}
+          />
         </View>
 
-        {/* business / personal tag */}
-        <View style={{ marginTop: 20 }}>
-          <FieldLabel text="Usage" />
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            <Chip label="Personal" selected={!isBusiness} onPress={() => setIsBusiness(false)} />
-            <Chip label="Business" selected={isBusiness} onPress={() => setIsBusiness(true)} />
-          </View>
-          <Low size={12} style={{ marginTop: 7 }}>
-            {isBusiness
-              ? "This is a work or business expense — you can filter it separately in Insights."
-              : "This is a personal or household bill."}
-          </Low>
+        {/* ───────── organize ───────── */}
+        <SectionLabel>Organize</SectionLabel>
+
+        <FieldLabel text="Usage" />
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <Chip label="Personal" selected={!isBusiness} onPress={() => { haptics.selection(); setIsBusiness(false); }} />
+          <Chip label="Business" selected={isBusiness} onPress={() => { haptics.selection(); setIsBusiness(true); }} />
         </View>
+        <Low size={12} style={{ marginTop: 7 }}>
+          {isBusiness
+            ? "This is a work or business expense — you can filter it separately in Insights."
+            : "This is a personal or household bill."}
+        </Low>
 
         {/* auto-charged to a credit card */}
         {canLinkCard && (
-          <View style={{ marginTop: 20 }}>
+          <View style={{ marginTop: 18 }}>
             <FieldLabel text="Auto-charged to a card?" opt />
             <View style={{ flexDirection: "row", gap: 8 }}>
               <Chip
                 label="No"
                 selected={!chargedToCard}
-                onPress={() => { setChargedToCard(false); setParentCardId(undefined); }}
+                onPress={() => { haptics.selection(); setChargedToCard(false); setParentCardId(undefined); }}
               />
               <Chip
                 label="Yes, via card"
                 icon="card"
                 selected={chargedToCard}
-                onPress={() => setChargedToCard(true)}
+                onPress={() => { haptics.selection(); setChargedToCard(true); }}
               />
             </View>
             {chargedToCard && (
@@ -398,8 +481,9 @@ export default function AddBillScreen() {
                         <Chip
                           key={c.id}
                           label={c.provider}
+                          icon="card"
                           selected={parentCardId === c.id}
-                          onPress={() => setParentCardId(c.id)}
+                          onPress={() => { haptics.selection(); setParentCardId(c.id); }}
                         />
                       ))}
                     </View>
@@ -420,7 +504,7 @@ export default function AddBillScreen() {
         )}
 
         {/* house / property tag */}
-        <View style={{ marginTop: 20 }}>
+        <View style={{ marginTop: 18 }}>
           <FieldLabel text="Property / home tag" opt />
           <TextInput
             value={house}
@@ -435,14 +519,28 @@ export default function AddBillScreen() {
         </View>
 
         {!!err && (
-          <Txt size={13} color={t.semantic.urgent} style={{ marginTop: 18 }}>
-            {err}
-          </Txt>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 8,
+              marginTop: 18,
+              backgroundColor: t.semantic.urgent + "1a",
+              borderWidth: 1,
+              borderColor: t.semantic.urgent + "55",
+              borderRadius: 12,
+              paddingVertical: 11,
+              paddingHorizontal: 13,
+            }}
+          >
+            <Icon name="bell" size={14} color={t.semantic.urgent} />
+            <Txt size={13} color={t.semantic.urgent}>{err}</Txt>
+          </View>
         )}
 
         {!isEdit && (
           <Low size={12} style={{ marginTop: 18 }}>
-            Judith only tracks this — she never moves your money. You'll get a nudge before it's due.
+            Judith only tracks this — she never moves your money. You&apos;ll get a nudge before it&apos;s due.
           </Low>
         )}
       </ScrollView>
@@ -471,4 +569,14 @@ export default function AddBillScreen() {
       </View>
     </View>
   );
+}
+
+/** Ordinal suffix for a day-of-month (1st, 2nd, 3rd, 4th…). */
+function ordinal(n: number): string {
+  const rem10 = n % 10;
+  const rem100 = n % 100;
+  if (rem10 === 1 && rem100 !== 11) return "st";
+  if (rem10 === 2 && rem100 !== 12) return "nd";
+  if (rem10 === 3 && rem100 !== 13) return "rd";
+  return "th";
 }
