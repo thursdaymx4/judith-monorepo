@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import React, { useCallback } from "react";
-import { Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Modal, Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
 
 import * as Notifications from "expo-notifications";
 import { Icon, type IconName } from "@/components/Icon";
@@ -159,6 +159,14 @@ export default function SettingsScreen() {
     closeConfirm();
     restart();
   };
+
+  const handleShare = useCallback(async () => {
+    await Share.share({
+      title: "Track your bills with Judith",
+      message:
+        "Hey! I\u2019ve been using Judith to stay on top of all my bills \u2014 it reminds me before every due date so I never miss a payment. You should try it! \ud83d\udcf1\nhttps://judith.app",
+    });
+  }, []);
 
   const rowBase = {
     flexDirection: "row" as const,
@@ -527,7 +535,7 @@ export default function SettingsScreen() {
           if (!granted) return;
           await Notifications.scheduleNotificationAsync({
             content: {
-              title: `Test · ${persona === "funny" ? "Heads up 👀" : persona === "sarcastic" ? "You knew this was coming." : persona === "mom" ? "Anak, test lang 👋" : persona === "marites" ? "Psst! Test notification 🤫" : "Test notification"}`,
+              title: `Test · ${persona === "funny" ? "Heads up 👀" : persona === "pro" ? "Reminder: you have bills." : persona === "mama" ? "Anak, test lang 👋" : persona === "marites" ? "Psst! Test notification 🤫" : "Test notification"}`,
               body: "Notifications are working! ₱2,500 due in 3 days.",
               sound: true,
             },
@@ -592,6 +600,57 @@ export default function SettingsScreen() {
           </Low>
         </View>
         <Icon name="chev" size={16} color={t.txtMid} />
+      </Pressable>
+
+      {/* share */}
+      <SettingsLabel>Share</SettingsLabel>
+      <Pressable
+        onPress={handleShare}
+        style={({ pressed }) => [
+          {
+            borderRadius: t.radius.md,
+            borderWidth: 1,
+            borderColor: mix(t.accent, t.surface2, 0.38),
+            backgroundColor: mix(t.accent, t.surface2, 0.13),
+            overflow: "hidden",
+          },
+          pressed && { transform: [{ scale: 0.985 }] },
+        ]}
+      >
+        <View style={{ paddingTop: 18, paddingHorizontal: 18, paddingBottom: 16 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 10 }}>
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 12,
+                backgroundColor: mix(t.accent, t.surface2, 0.22),
+                borderWidth: 1,
+                borderColor: mix(t.accent, t.surface2, 0.45),
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Icon name="share" size={19} color={t.accent} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Txt size={15} weight="semibold" color={t.accent}>Tell a friend about Judith</Txt>
+              <Low size={12} style={{ marginTop: 1 }}>They probably have bills too 😅</Low>
+            </View>
+          </View>
+          <View
+            style={{
+              backgroundColor: t.accent,
+              borderRadius: 12,
+              paddingVertical: 12,
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ fontFamily: t.fonts.bold, fontSize: 15, color: "#000", letterSpacing: -0.2 }}>
+              Share Judith 📱
+            </Text>
+          </View>
+        </View>
       </Pressable>
 
       <View style={{ alignItems: "center", marginTop: 22 }}>
