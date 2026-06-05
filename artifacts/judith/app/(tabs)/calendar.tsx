@@ -319,8 +319,11 @@ export default function CalendarScreen() {
       {/* header */}
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <View>
-          <Txt size={28} weight="semibold" style={{ letterSpacing: -0.56 }}>Calendar</Txt>
-          <Low size={12} style={{ marginTop: 2 }}>{MONTHS[monthIndex]} {year}</Low>
+          <Txt size={32} weight="bold" style={{ letterSpacing: -0.7 }}>Calendar</Txt>
+          <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6, marginTop: 3 }}>
+            <Txt size={18} weight="semibold" color={t.txtHi} style={{ letterSpacing: -0.3 }}>{MONTHS[monthIndex]}</Txt>
+            <Txt size={18} weight="semibold" color={t.accent} style={{ letterSpacing: -0.3 }}>{year}</Txt>
+          </View>
         </View>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
           <NavBtn onPress={prevMonth} rotate />
