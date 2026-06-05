@@ -184,7 +184,7 @@ export default function HomeScreen() {
   const { bills, persona, money } = useJudith();
   const reduce = useReducedMotion();
   const [sortBy, setSortBy] = useState<"dueDate" | "amount">("dueDate");
-  const [filterCat, setFilterCat] = useState<string | null>(null);
+  const [filterCats, setFilterCats] = useState<Set<string>>(new Set());
   const [overdueOnly, setOverdueOnly] = useState(false);
 
   const todayDay = new Date().getDate();
@@ -237,7 +237,7 @@ export default function HomeScreen() {
   // Apply active filter then chosen sort order
   const visibleBase = overdueOnly
     ? overdue
-    : timelineBills.filter((b) => filterCat === null || b.cat === filterCat);
+    : timelineBills.filter((b) => filterCats.size === 0 || filterCats.has(b.cat));
   const visible = visibleBase
     .slice()
     .sort((a, b) => sortBy === "amount" ? totalOwed(b) - totalOwed(a) : a.dueDays - b.dueDays);
@@ -252,7 +252,7 @@ export default function HomeScreen() {
   const openOverdue = () => {
     if (overdue.length === 1) { router.push(`/bill/${overdue[0]!.id}`); return; }
     haptics.selection();
-    setFilterCat(null);
+    setFilterCats(new Set());
     setOverdueOnly((v) => !v);
   };
 
@@ -410,7 +410,7 @@ export default function HomeScreen() {
           </Pressable>
         ) : (
           <SectionLabel style={{ marginTop: 0, marginBottom: 0 }}>
-            {filterCat ?? "This month"}
+            {filterCats.size > 0 ? [...filterCats].join(", ") : "This month"}
           </SectionLabel>
         )}
         <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
@@ -443,16 +443,23 @@ export default function HomeScreen() {
         >
           <Chip
             label="All"
-            selected={filterCat === null}
-            onPress={() => { haptics.selection(); setFilterCat(null); }}
+            selected={filterCats.size === 0}
+            onPress={() => { haptics.selection(); setFilterCats(new Set()); }}
           />
           {cats.map((c) => (
             <Chip
               key={c}
               label={c}
               icon={(CAT_ICONS[c] ?? "spark") as IconName}
-              selected={filterCat === c}
-              onPress={() => { haptics.selection(); setFilterCat(filterCat === c ? null : c); }}
+              selected={filterCats.has(c)}
+              onPress={() => {
+                haptics.selection();
+                setFilterCats((prev) => {
+                  const s = new Set(prev);
+                  s.has(c) ? s.delete(c) : s.add(c);
+                  return s;
+                });
+              }}
             />
           ))}
         </ScrollView>
@@ -567,10 +574,10 @@ export default function HomeScreen() {
         })}
       </View>
 
-      {filterCat !== null && !overdueOnly && visible.length > 0 && (
+      {filterCats.size > 0 && !overdueOnly && visible.length > 0 && (
         <View style={{ marginTop: 14, alignItems: "center" }}>
           <Low size={12}>
-            {visible.length} {visible.length === 1 ? "bill" : "bills"} in {filterCat} ·{" "}
+            {visible.length} {visible.length === 1 ? "bill" : "bills"} in {[...filterCats].join(", ")} ·{" "}
             <Mono size={12} weight="bold" color={t.txtHi}>{money(catTotal)}</Mono>
           </Low>
         </View>
