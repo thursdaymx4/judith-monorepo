@@ -1,12 +1,13 @@
 import { useRouter } from "expo-router";
-import React, { useEffect, useRef } from "react";
-import { Animated, Easing, Pressable, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Animated, Easing, Pressable, ScrollView, View } from "react-native";
 
-import { Icon } from "@/components/Icon";
+import { Icon, type IconName } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import {
   BellBtn,
   Card,
+  Chip,
   Dot,
   Low,
   Mono,
@@ -17,9 +18,10 @@ import {
   SpeechBubble,
   Txt,
 } from "@/components/ui";
-import { currentCycleDue, dueClass, dueShort, isPaidViaCard, isPartialBill, partialPct, totalOwed, type Bill } from "@/constants/data";
+import { CAT_ICONS, currentCycleDue, dueClass, dueShort, isPaidViaCard, isPartialBill, partialPct, totalOwed, type Bill } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
 import { useCountUp } from "@/hooks/useCountUp";
+import { haptics } from "@/lib/haptics";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -103,6 +105,8 @@ export default function HomeScreen() {
   const router = useRouter();
   const { bills, persona, money } = useJudith();
   const reduce = useReducedMotion();
+  const [sortBy, setSortBy] = useState<"dueDate" | "amount">("dueDate");
+  const [filterCat, setFilterCat] = useState<string | null>(null);
 
   const todayDay = new Date().getDate();
   const _today = new Date();
@@ -128,6 +132,18 @@ export default function HomeScreen() {
     .filter((b) => !isPaidThisMonth(b))
     .slice()
     .sort((a, b) => a.dueDays - b.dueDays);
+
+  // Build unique category list ordered by count (most-billed first)
+  const catCounts: Record<string, number> = {};
+  due.forEach((b) => { catCounts[b.cat] = (catCounts[b.cat] ?? 0) + 1; });
+  const cats = Object.keys(catCounts).sort((a, b) => catCounts[b]! - catCounts[a]!);
+  const showFilters = cats.length > 1;
+
+  // Apply active filter then chosen sort order
+  const visible = due
+    .filter((b) => filterCat === null || b.cat === filterCat)
+    .slice()
+    .sort((a, b) => sortBy === "amount" ? totalOwed(b) - totalOwed(a) : a.dueDays - b.dueDays);
   // Remaining balance per bill (full amount minus any payment already made this period)
   const remaining = (b: Bill) => Math.max(0, totalOwed(b) - amtPaidThisMonth(b));
   // Money totals exclude bills auto-charged to a linked card — their cost is
@@ -329,19 +345,59 @@ export default function HomeScreen() {
       </Card>
 
       {/* timeline */}
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4, marginBottom: 12 }}>
-        <SectionLabel style={{ marginTop: 0, marginBottom: 0 }}>Your timeline</SectionLabel>
-        <Pill onPress={() => router.push("/bills")} style={{ paddingVertical: 4, paddingHorizontal: 11 }}>
-          <Txt size={12} color={t.txtMid}>
-            See all · {due.length}
-          </Txt>
-        </Pill>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4, marginBottom: showFilters ? 8 : 12 }}>
+        <SectionLabel style={{ marginTop: 0, marginBottom: 0 }}>
+          {filterCat ?? "Your timeline"}
+        </SectionLabel>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+          <Pressable
+            onPress={() => { haptics.selection(); setSortBy((s) => s === "dueDate" ? "amount" : "dueDate"); }}
+            style={{
+              flexDirection: "row", alignItems: "center", gap: 4,
+              paddingVertical: 4, paddingHorizontal: 9, borderRadius: 20, borderWidth: 1,
+              borderColor: sortBy !== "dueDate" ? t.accent : t.hair,
+              backgroundColor: sortBy !== "dueDate" ? t.accent + "22" : "transparent",
+            }}
+          >
+            <Icon name="sliders" size={11} color={sortBy !== "dueDate" ? t.accent : t.txtMid} />
+            <Txt size={11} color={sortBy !== "dueDate" ? t.accent : t.txtMid}>
+              {sortBy === "amount" ? "Amount" : "Due date"}
+            </Txt>
+          </Pressable>
+          <Pill onPress={() => router.push("/bills")} style={{ paddingVertical: 4, paddingHorizontal: 11 }}>
+            <Txt size={12} color={t.txtMid}>See all · {due.length}</Txt>
+          </Pill>
+        </View>
       </View>
 
+      {showFilters && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ marginBottom: 12, marginHorizontal: -4 }}
+          contentContainerStyle={{ paddingHorizontal: 4, gap: 6, flexDirection: "row" }}
+        >
+          <Chip
+            label="All"
+            selected={filterCat === null}
+            onPress={() => { haptics.selection(); setFilterCat(null); }}
+          />
+          {cats.map((c) => (
+            <Chip
+              key={c}
+              label={c}
+              icon={(CAT_ICONS[c] ?? "spark") as IconName}
+              selected={filterCat === c}
+              onPress={() => { haptics.selection(); setFilterCat(filterCat === c ? null : c); }}
+            />
+          ))}
+        </ScrollView>
+      )}
+
       <View>
-        {due.map((b, i) => {
+        {visible.map((b, i) => {
           const cls = dueClass(b.dueDays);
-          const last = i === due.length - 1;
+          const last = i === visible.length - 1;
           return (
             <StaggerRow key={b.id} index={i} reduce={reduce} style={{ marginBottom: last ? 0 : 12 }}>
             <Pressable
