@@ -24,6 +24,10 @@ interface CatSlice { cat: string; value: number; color: string }
 
 const MO = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
+/** Personal vs Business split colors — fixed palette, independent of brand accent. */
+const PERSONAL_COLOR = "#36acff";
+const BUSINESS_COLOR = "#b394ff";
+
 function toPeriodStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
@@ -304,6 +308,48 @@ export default function InsightsScreen() {
     return { billedTotal: billed, paidTotal: paid, catTotal, catSlices, topProviders, biggest: biggest as { amount: number; provider: string; cat: string; id: string } | null };
   }, [filteredBills, isHistorical, activePeriods, t.accent]);
 
+  // Personal vs Business split — only relevant when the user actually tags
+  // business expenses. Computed over house+period (ignores the tag filter, so the
+  // comparison always shows both sides) using the same attribute+net money model
+  // as "Where it goes": a via-card charge counts toward its OWN tag, and a card
+  // contributes only its un-itemized remainder under its tag — so the two sides
+  // sum to the same grand total without double-counting.
+  const hasBusiness = useMemo(() => bills.some(b => b.isBusiness === true), [bills]);
+  const tagSplit = useMemo(() => {
+    if (!hasBusiness) return null;
+    const scoped = bills.filter(b => houseF === "All" || b.house === houseF);
+    let personal = 0, business = 0;
+    const add = (b: Bill, v: number) => {
+      if (v <= 0) return;
+      if (b.isBusiness) business += v; else personal += v;
+    };
+    if (!isHistorical) {
+      const linkedByCard: Record<string, number> = {};
+      scoped.forEach(b => {
+        if (isPaidViaCard(b) && b.parentCardId) linkedByCard[b.parentCardId] = (linkedByCard[b.parentCardId] ?? 0) + b.amount;
+      });
+      scoped.forEach(b => {
+        if (isPaidViaCard(b)) { add(b, b.amount); return; }
+        add(b, Math.max(0, b.amount - (linkedByCard[b.id] ?? 0)));
+      });
+    } else {
+      const linkedByCard: Record<string, number> = {};
+      scoped.forEach(b => {
+        if (isPaidViaCard(b) && b.parentCardId) {
+          const recs = (b.paymentHistory ?? []).filter(r => activePeriods!.includes(r.period));
+          recs.forEach(r => { linkedByCard[b.parentCardId!] = (linkedByCard[b.parentCardId!] ?? 0) + r.totalDue; });
+        }
+      });
+      scoped.forEach(b => {
+        const recs = (b.paymentHistory ?? []).filter(r => activePeriods!.includes(r.period));
+        const totalDue = recs.reduce((s, r) => s + r.totalDue, 0);
+        if (isPaidViaCard(b)) { add(b, totalDue); return; }
+        add(b, Math.max(0, totalDue - (linkedByCard[b.id] ?? 0)));
+      });
+    }
+    return { personal, business, total: personal + business };
+  }, [hasBusiness, bills, houseF, isHistorical, activePeriods]);
+
   const billedTotalA = useCountUp(billedTotal);
   const unpaidTotal = billedTotal - paidTotal;
   const paidFrac = billedTotal > 0 ? paidTotal / billedTotal : 0;
@@ -554,6 +600,37 @@ export default function InsightsScreen() {
               </View>
             ))}
           </View>
+
+          {/* personal vs business — only when the user tags business expenses */}
+          {tagSplit && tagSplit.total > 0 && (
+            <>
+              <Txt style={sectionLabel}>PERSONAL VS BUSINESS</Txt>
+              <View style={card}>
+                <View style={{ flexDirection: "row", height: 12, borderRadius: 6, overflow: "hidden", backgroundColor: t.surface3 }}>
+                  {tagSplit.personal > 0 && (
+                    <View style={{ flex: tagSplit.personal, height: "100%", backgroundColor: PERSONAL_COLOR }} />
+                  )}
+                  {tagSplit.business > 0 && (
+                    <View style={{ flex: tagSplit.business, height: "100%", backgroundColor: BUSINESS_COLOR }} />
+                  )}
+                </View>
+                <View style={{ flexDirection: "row", marginTop: 14, gap: 14 }}>
+                  {[
+                    { label: "Personal", value: tagSplit.personal, color: PERSONAL_COLOR },
+                    { label: "Business", value: tagSplit.business, color: BUSINESS_COLOR },
+                  ].map(row => (
+                    <View key={row.label} style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <View style={{ width: 9, height: 9, borderRadius: 4.5, backgroundColor: row.color, shadowColor: row.color, shadowOpacity: 0.9, shadowRadius: 4, shadowOffset: { width: 0, height: 0 } }} />
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Low size={11}>{row.label} · {Math.round((row.value / tagSplit.total) * 100)}%</Low>
+                        <Mono size={16} weight="semibold">{money(row.value)}</Mono>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </>
+          )}
 
           {/* where it goes */}
           <Txt style={sectionLabel}>WHERE IT GOES</Txt>
