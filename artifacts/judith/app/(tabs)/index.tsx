@@ -185,6 +185,7 @@ export default function HomeScreen() {
   const reduce = useReducedMotion();
   const [sortBy, setSortBy] = useState<"dueDate" | "amount">("dueDate");
   const [filterCats, setFilterCats] = useState<Set<string>>(new Set());
+  const [showBizOnly, setShowBizOnly] = useState(false);
   const [overdueOnly, setOverdueOnly] = useState(false);
 
   const todayDay = new Date().getDate();
@@ -215,11 +216,17 @@ export default function HomeScreen() {
   const daysLeftInMonth = new Date(_today.getFullYear(), _today.getMonth() + 1, 0).getDate() - _today.getDate();
   const timelineBills = due.filter((b) => b.dueDays <= daysLeftInMonth);
 
+  // Business filter — scope timeline to isBusiness before building cats / visible.
+  const hasBizBills = timelineBills.some((b) => b.isBusiness === true);
+  const filteredTimeline = showBizOnly
+    ? timelineBills.filter((b) => b.isBusiness === true)
+    : timelineBills;
+
   // Build unique category list ordered by count (most-billed first)
   const catCounts: Record<string, number> = {};
-  timelineBills.forEach((b) => { catCounts[b.cat] = (catCounts[b.cat] ?? 0) + 1; });
+  filteredTimeline.forEach((b) => { catCounts[b.cat] = (catCounts[b.cat] ?? 0) + 1; });
   const cats = Object.keys(catCounts).sort((a, b) => catCounts[b]! - catCounts[a]!);
-  const showFilters = cats.length > 1;
+  const showFilters = cats.length > 1 || hasBizBills;
 
   // Remaining balance per bill (full amount minus any payment already made this period)
   const remaining = (b: Bill) => Math.max(0, totalOwed(b) - amtPaidThisMonth(b));
@@ -237,7 +244,7 @@ export default function HomeScreen() {
   // Apply active filter then chosen sort order
   const visibleBase = overdueOnly
     ? overdue
-    : timelineBills.filter((b) => filterCats.size === 0 || filterCats.has(b.cat));
+    : filteredTimeline.filter((b) => filterCats.size === 0 || filterCats.has(b.cat));
   const visible = visibleBase
     .slice()
     .sort((a, b) => sortBy === "amount" ? totalOwed(b) - totalOwed(a) : a.dueDays - b.dueDays);
@@ -411,10 +418,23 @@ export default function HomeScreen() {
           </Pressable>
         ) : (
           <SectionLabel style={{ marginTop: 0, marginBottom: 0 }}>
-            {filterCats.size > 0 ? [...filterCats].join(", ") : "This month"}
+            {showBizOnly && filterCats.size === 0 ? "Business" : filterCats.size > 0 ? [...filterCats].join(", ") : "This month"}
           </SectionLabel>
         )}
         <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+          {hasBizBills && (
+            <Pressable
+              onPress={() => { haptics.selection(); setShowBizOnly((v) => !v); }}
+              style={{
+                flexDirection: "row", alignItems: "center", gap: 3,
+                paddingVertical: 4, paddingHorizontal: 9, borderRadius: 20, borderWidth: 1,
+                borderColor: showBizOnly ? t.semantic.urgent : t.hair,
+                backgroundColor: showBizOnly ? t.semantic.urgent + "22" : "transparent",
+              }}
+            >
+              <Txt size={11} weight="semibold" color={showBizOnly ? t.semantic.urgent : t.txtMid}>BIZ</Txt>
+            </Pressable>
+          )}
           <Pressable
             onPress={() => { haptics.selection(); setSortBy((s) => s === "dueDate" ? "amount" : "dueDate"); }}
             style={{
@@ -444,8 +464,8 @@ export default function HomeScreen() {
         >
           <Chip
             label="All"
-            selected={filterCats.size === 0}
-            onPress={() => { haptics.selection(); setFilterCats(new Set()); }}
+            selected={filterCats.size === 0 && !showBizOnly}
+            onPress={() => { haptics.selection(); setFilterCats(new Set()); setShowBizOnly(false); }}
           />
           {cats.map((c) => (
             <Chip
@@ -575,10 +595,13 @@ export default function HomeScreen() {
         })}
       </View>
 
-      {filterCats.size > 0 && !overdueOnly && visible.length > 0 && (
+      {(filterCats.size > 0 || showBizOnly) && !overdueOnly && visible.length > 0 && (
         <View style={{ marginTop: 14, alignItems: "center" }}>
           <Low size={12}>
-            {visible.length} {visible.length === 1 ? "bill" : "bills"} in {[...filterCats].join(", ")} ·{" "}
+            {visible.length}{" "}
+            {showBizOnly ? "business " : ""}
+            {visible.length === 1 ? "bill" : "bills"}
+            {filterCats.size > 0 ? ` in ${[...filterCats].join(", ")}` : ""} ·{" "}
             <Mono size={12} weight="bold" color={t.txtHi}>{money(catTotal)}</Mono>
           </Low>
         </View>
