@@ -7,7 +7,7 @@ import Svg, { Circle, G, Path } from "react-native-svg";
 import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Low, Mono, ProviderLogo, Screen, Txt, mix } from "@/components/ui";
-import { isPaidViaCard, type Bill } from "@/constants/data";
+import { currentCycleDue, isPaidViaCard, totalOwed, type Bill } from "@/constants/data";
 import { CAT_COLORS } from "@/constants/theme";
 import { useJudith } from "@/contexts/JudithStore";
 import { useCountUp } from "@/hooks/useCountUp";
@@ -280,23 +280,32 @@ export default function InsightsScreen() {
         if (rec) return rec.paid;
         return b.amountPaid ?? 0; // in-progress partial
       };
+      // Scope to bills due this month (overdue included) + any already paid this month.
+      const _daysLeft = new Date(_now.getFullYear(), _now.getMonth() + 1, 0).getDate() - _now.getDate();
+      const _curMonthBills = filteredBills.filter(b => {
+        if ((b.paymentHistory ?? []).some(r => r.period === _curPeriod)) return true;
+        const { dueDays } = currentCycleDue(b, _now);
+        return dueDays <= _daysLeft;
+      });
       // Tracked charges linked to each card id.
       const linkedByCard: Record<string, number> = {};
-      filteredBills.forEach(b => {
+      _curMonthBills.forEach(b => {
         if (isPaidViaCard(b) && b.parentCardId) linkedByCard[b.parentCardId] = (linkedByCard[b.parentCardId] ?? 0) + b.amount;
       });
-      filteredBills.forEach(b => {
+      _curMonthBills.forEach(b => {
         if (isPaidViaCard(b)) {
           // Attribute the merchant charge to its real category/provider.
           addCat(b.cat, b.amount);
           addProv(b.provider, b.amount, b.cat, b.id);
           return; // not in billed/paid — the card's statement covers it
         }
-        billed += b.amount;
+        const _owed = totalOwed(b);
+        const _remaining = Math.max(0, _owed - _amtPaid(b));
+        billed += _owed;
         paid += _amtPaid(b);
-        considerBiggest(b.amount, b.provider, b.cat, b.id);
+        considerBiggest(_remaining, b.provider, b.cat, b.id);
         // A card contributes only the part of its statement not explained by tracked charges.
-        const net = Math.max(0, b.amount - (linkedByCard[b.id] ?? 0));
+        const net = Math.max(0, _owed - (linkedByCard[b.id] ?? 0));
         addCat(b.cat, net);
         addProv(b.provider, net, b.cat, b.id);
       });
@@ -361,8 +370,8 @@ export default function InsightsScreen() {
         if (isPaidViaCard(b) && b.parentCardId) linkedByCard[b.parentCardId] = (linkedByCard[b.parentCardId] ?? 0) + b.amount;
       });
       scoped.forEach(b => {
-        if (isPaidViaCard(b)) { add(b, b.amount); return; }
-        add(b, Math.max(0, b.amount - (linkedByCard[b.id] ?? 0)));
+        if (isPaidViaCard(b)) { add(b, totalOwed(b)); return; }
+        add(b, Math.max(0, totalOwed(b) - (linkedByCard[b.id] ?? 0)));
       });
     } else {
       const linkedByCard: Record<string, number> = {};
