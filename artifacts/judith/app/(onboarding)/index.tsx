@@ -245,7 +245,9 @@ interface OnbBill {
   parentCardId?: string;
 }
 
-const fmtNum = (n: number): string => n.toLocaleString("en-US");
+const fmtNum = (n: number): string => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/** Spoken number — no decimals, so text-to-speech doesn't read "point zero zero". */
+const fmtSay = (n: number): string => Math.round(n).toLocaleString("en-US");
 const dueClass = (d: number): "overdue" | "urgent" | "near" | "ok" =>
   d < 0 ? "overdue" : d <= 3 ? "urgent" : d <= 7 ? "near" : "ok";
 
@@ -3660,7 +3662,7 @@ function ScreenCongrats({ ctx }: { ctx: Ctx }) {
     const n = data.length;
     const line = isFilipino(language)
       ? "Yan na yung total mo. Check mo."
-      : `You\u2019ve got ${n} bills \u2014 ${cur}${fmtNum(total)} a month. All set. Let me show you what I see.`;
+      : `You\u2019ve got ${n} bills \u2014 ${cur}${fmtSay(total)} a month. All set. Let me show you what I see.`;
     synthOnboarding(line, persona, language)
       .then(({ audioBase64 }) => { if (!cancelled) playBase64Mp3(audioBase64).catch(() => {}); })
       .catch(() => {});
@@ -3777,8 +3779,8 @@ function ScreenSummary({ ctx }: { ctx: Ctx }) {
         ? `Tracking this could save you ${cur}450 or more in late fees a year.`
         : "I'll keep you on top of every due date.";
     const line = isFilipino(ctx.language)
-      ? `May total kang ${cur}${fmtNum(total)} this month for your bills. Ang pinaka malaking mong bill, obviously ay, ${biggest.provider} — ${cur}${fmtNum(biggest.amount)}. Yung pinaka malapit na due mo ay ${nextDue.provider} — ${cur}${fmtNum(nextDue.amount)}, ${nextDue.dueDays} araw na lang. Ayos ba yung pagkaka lista natin ng bills mo?`
-      : `Okay — ${n} bill${n === 1 ? "" : "s"}, ${cur}${fmtNum(total)} a month. ${biggest.provider}'s the big one at ${cur}${fmtNum(biggest.amount)}. First up is ${nextDue.provider} — due in ${nextDue.dueDays} day${nextDue.dueDays === 1 ? "" : "s"}. ${savings}`;
+      ? `May total kang ${cur}${fmtSay(total)} this month for your bills. Ang pinaka malaking mong bill, obviously ay, ${biggest.provider} — ${cur}${fmtSay(biggest.amount)}. Yung pinaka malapit na due mo ay ${nextDue.provider} — ${cur}${fmtSay(nextDue.amount)}, ${nextDue.dueDays} araw na lang. Ayos ba yung pagkaka lista natin ng bills mo?`
+      : `Okay — ${n} bill${n === 1 ? "" : "s"}, ${cur}${fmtSay(total)} a month. ${biggest.provider}'s the big one at ${cur}${fmtSay(biggest.amount)}. First up is ${nextDue.provider} — due in ${nextDue.dueDays} day${nextDue.dueDays === 1 ? "" : "s"}. ${savings}`;
     synthOnboarding(line, ctx.persona, ctx.language)
       .then(({ audioBase64 }) => {
         if (!cancelled) playBase64Mp3(audioBase64).catch(() => {});
@@ -4151,7 +4153,7 @@ function FeatureShell({
                       {isFil ? "Monthly total mo" : "Your monthly total"}
                     </Txt>
                     <Txt size={30} style={{ fontWeight: "700" }}>
-                      {ctx.country.cur}{total > 0 ? total.toLocaleString() : "—"}
+                      {ctx.country.cur}{total > 0 ? total.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—"}
                     </Txt>
                     {nextDue && (
                       <Txt size={14} color={t.txtMid} style={{ marginTop: 6 }}>

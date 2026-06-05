@@ -398,7 +398,7 @@ export function findDuplicate(
 
 /** Money formatter — currency symbol from the selected country. */
 export function formatMoney(n: number, symbol = "₱"): string {
-  return symbol + Math.round(n).toLocaleString("en-US");
+  return symbol + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 /** Default ₱ formatter (prototype `peso`). */

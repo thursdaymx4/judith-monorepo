@@ -16,4 +16,5 @@
 - [Judith Apple sign-in](judith-apple-signin.md) — uses NATIVE Sign in with Apple (signInWithIdToken), not Supabase web-OAuth; needs bundle ID in Supabase + a real build (Expo Go fails).
 - [Judith legal page URLs](judith-legal-urls.md) — Privacy+Terms is one SPA at /privacy using ?page= switch; in-app links must use ?page=terms, NOT clean /terms (404s, no host rewrite).
 - [Judith CC revolving balance](judith-cc-revolving-balance.md) — credit cards use ccOutstanding(max(0,totalOwed-amountPaid)) for current+future display; togglePaid keeps amountPaid for CC so payments reduce future months (not recurring re-bill).
+- [Judith money formatting](judith-money-formatting.md) — all on-screen money is 000,000.00 via formatMoney/money(); add decimals only to display formatters, keep TTS (synthOnboarding) on a decimal-free helper or it reads "point zero zero".
 - [Judith via-card exclusion](judith-via-card-exclusion.md) — charged-to-card bills excluded from money SUMS (home/calendar/insights/AI-Ask) but kept VISIBLE in lists + INCLUDED in notifications/mark-paid; isPaidViaCard needs parentCardId; dangling links keep counting.
