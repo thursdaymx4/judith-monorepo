@@ -31,3 +31,17 @@ Supabase URL, so the branded custom domain can stay for Google.
 - Nonce: generate a raw nonce, send its SHA-256 hash to `AppleAuthentication.signInAsync`,
   send the RAW nonce to Supabase `signInWithIdToken`. Swallow `ERR_REQUEST_CANCELED`.
 - `app.json` needs `ios.usesAppleSignIn: true` + the `expo-apple-authentication` plugin.
+
+## Cannot be tested in Expo Go
+
+In **Expo Go**, native Apple sign-in returns an id_token whose audience (`aud`) is
+`host.exp.Exponent` (Expo Go's own bundle ID), not `com.app.judith`. Supabase then
+rejects it with: `Unacceptable audience in id_token: [host.exp.Exponent]`.
+
+**Why:** Expo Go runs the JS under Expo's app identity/entitlements, so Apple issues the
+token to Expo Go, not to our app. There is NO code fix — it's a runtime-environment limit.
+
+**How to apply:** Test native Apple sign-in only in a **dev build** (expo-dev-client) or a
+standalone/TestFlight EAS build, where `aud` = `com.app.judith` (already in the Supabase
+Apple Client IDs). Do NOT add `host.exp.Exponent` to the production Client IDs to make
+Expo Go work — that lets any Expo Go app mint accepted tokens (security hole). Use a build.
