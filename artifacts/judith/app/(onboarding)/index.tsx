@@ -4617,7 +4617,7 @@ const FLOW: { id: string; C: (p: { ctx: Ctx }) => React.ReactElement }[] = [
 const SETUP = ["name", "country", "language", "persona", "problem", "stakes", "intro", "voice", "congrats", "summary"];
 const NO_BACK = ["welcome", "personalizing"];
 const SKIPPABLE = ["country", "persona", "income", "notifications"];
-const SAVE_FROM = FLOW.findIndex((f) => f.id === "voice");
+const SAVE_FROM = 0;
 
 export default function OnboardingScreen() {
   const t = useTheme();
