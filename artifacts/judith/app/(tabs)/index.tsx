@@ -543,7 +543,7 @@ export default function HomeScreen() {
                         </View>
                       </View>
                       <Mono size={14} color={isPaidViaCard(b) ? t.txtLow : t.semantic[cls]}>
-                        {money(owed)}
+                        {money(remaining(b))}
                       </Mono>
                     </View>
                     {partial && (
