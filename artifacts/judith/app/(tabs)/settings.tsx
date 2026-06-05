@@ -4,6 +4,7 @@ import { Modal, Pressable, ScrollView, Share, Text, TextInput, View } from "reac
 
 import * as Notifications from "expo-notifications";
 import { Icon, type IconName } from "@/components/Icon";
+import { JudithAvatar } from "@/components/JudithAvatar";
 import { Dot, Low, Mono, Screen, Txt, mix } from "@/components/ui";
 import { LANGUAGES, langDesc, languageByCode } from "@/constants/languages";
 import { PERSONAS } from "@/constants/personas";
@@ -462,41 +463,75 @@ export default function SettingsScreen() {
         </Pressable>
       </Modal>
 
-      {/* persona */}
+      {/* persona — horizontal slidable avatar picker */}
       <SettingsLabel>Judith's personality</SettingsLabel>
-      <View style={{ borderRadius: t.radius.md, overflow: "hidden" }}>
-        {PERSONAS.filter(p => !p.phOnly || country.code === "PH").map((p, i) => {
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ gap: 10, paddingVertical: 2, paddingRight: 4 }}
+      >
+        {PERSONAS.filter(p => !p.phOnly || country.code === "PH").map((p) => {
           const on = persona === p.id;
           return (
             <Pressable
               key={p.id}
               onPress={() => setPersona(p.id)}
-              style={{ ...rowBase, borderTopWidth: i === 0 ? 1 : 0, borderBottomWidth: 0 }}
+              style={({ pressed }) => ({
+                width: 128,
+                alignItems: "center",
+                paddingTop: 14,
+                paddingBottom: 12,
+                paddingHorizontal: 10,
+                borderRadius: t.radius.md,
+                borderWidth: 1,
+                borderColor: on ? t.accent : t.hair,
+                backgroundColor: on ? mix(t.accent, t.surface2, 0.12) : t.surface2,
+                opacity: pressed ? 0.85 : 1,
+              })}
             >
-              <IcoBox name={p.icon as IconName} iconSize={17} color={on ? t.accent : t.txtMid} />
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                  <Txt size={15} weight="medium">{p.name}</Txt>
-                  {p.phOnly && (
-                    <View style={{
-                      backgroundColor: "#f472b6",
-                      borderRadius: 20,
-                      paddingVertical: 2,
-                      paddingHorizontal: 7,
-                    }}>
-                      <Txt size={10} weight="semibold" color="#fff">🇵🇭 PH only</Txt>
-                    </View>
-                  )}
-                </View>
-                <Low size={12} style={{ marginTop: 1 }}>
-                  {p.vibe}
-                </Low>
+              <View>
+                <JudithAvatar persona={p.id} size={56} state="idle" />
+                {on && (
+                  <View
+                    style={{
+                      position: "absolute",
+                      right: -2,
+                      bottom: -2,
+                      width: 20,
+                      height: 20,
+                      borderRadius: 10,
+                      backgroundColor: t.accent,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderWidth: 2,
+                      borderColor: on ? mix(t.accent, t.surface2, 0.12) : t.surface2,
+                    }}
+                  >
+                    <Icon name="check" size={11} color={t.onAccent} />
+                  </View>
+                )}
               </View>
-              {on ? <Icon name="check" size={18} color={t.accent} /> : <View style={{ width: 18 }} />}
+              <Txt size={13.5} weight="semibold" color={on ? t.txtHi : t.txtMid} style={{ marginTop: 9, textAlign: "center" }} numberOfLines={1}>
+                {p.name}
+              </Txt>
+              <Low size={11} style={{ marginTop: 2, textAlign: "center" }} numberOfLines={1}>
+                {p.vibe}
+              </Low>
+              {p.phOnly && (
+                <View style={{
+                  backgroundColor: "#f472b6",
+                  borderRadius: 20,
+                  paddingVertical: 2,
+                  paddingHorizontal: 7,
+                  marginTop: 6,
+                }}>
+                  <Txt size={9.5} weight="semibold" color="#fff">🇵🇭 PH only</Txt>
+                </View>
+              )}
             </Pressable>
           );
         })}
-      </View>
+      </ScrollView>
 
       {/* voice — only for Voice Ask subscribers */}
       {tier === "voice" && (
