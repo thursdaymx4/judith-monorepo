@@ -624,6 +624,11 @@ function CalBillRow({
               <Low size={10}>via {cardName}</Low>
             </View>
           )}
+          {bill.isBusiness && (
+            <View style={{ backgroundColor: "#3b7aff22", borderWidth: 1, borderColor: "#3b7aff55", borderRadius: 5, paddingHorizontal: 5, paddingVertical: 1 }}>
+              <Txt size={9.5} weight="medium" color="#6699ff" style={{ letterSpacing: 0.4 }}>BIZ</Txt>
+            </View>
+          )}
         </View>
         {children}
       </View>
