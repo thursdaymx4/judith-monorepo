@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useJudith, type Toggles } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { requestPermission } from "@/lib/notifications";
+import { PRIVACY_URL, TERMS_URL, openLegal } from "@/constants/legal";
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -652,6 +653,31 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Pressable>
+
+      {/* legal */}
+      <SettingsLabel>Legal</SettingsLabel>
+      <View style={{ borderRadius: t.radius.md, overflow: "hidden" }}>
+        {[
+          { icon: "receipt" as IconName, t: "Terms of Use", s: "Including acceptable & fair use", url: TERMS_URL },
+          { icon: "lock" as IconName, t: "Privacy Policy", s: "How your data is handled", url: PRIVACY_URL },
+        ].map((row, i) => (
+          <Pressable
+            key={row.t}
+            onPress={() => openLegal(row.url)}
+            style={({ pressed }) => [
+              { ...rowBase, borderTopWidth: i === 0 ? 1 : 0, borderBottomWidth: 0 },
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <IcoBox name={row.icon} iconSize={17} color={t.txtMid} />
+            <View style={{ flex: 1 }}>
+              <Txt size={15} weight="medium">{row.t}</Txt>
+              <Low size={12} style={{ marginTop: 1 }}>{row.s}</Low>
+            </View>
+            <Icon name="chev" size={16} color={t.txtMid} />
+          </Pressable>
+        ))}
+      </View>
 
       <View style={{ alignItems: "center", marginTop: 22 }}>
         <Low size={12}>Judith v1.0 · Made for the Philippines</Low>

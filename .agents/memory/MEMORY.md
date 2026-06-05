@@ -13,6 +13,7 @@
 - [Judith rate limiting](judith-rate-limiting.md) — express-rate-limit v8; use ipKeyGenerator (not req.ip) in custom keyGenerators to avoid ERR_ERL_KEY_GEN_IPV6 crash on startup.
 - [Judith WatchConnectivity crash](judith-watch-connectivity.md) — TurboModuleRegistry.getEnforcing() fires at module-init time; try/catch around await import() cannot intercept it; Watch code requires a dev build.
 - [Judith tier model](judith-tier-model.md) — AskTier is "free"|"chat"|"voice"; Chat Ask=₱99 text-only, Voice Ask=₱199 text+voice; onboarding paywall and voice nudge must match these names exactly.
-- [Judith Apple sign-in](judith-apple-signin.md) — Apple uses NATIVE Sign in with Apple (bundle-ID + signInWithIdToken), NOT Supabase web-OAuth; custom-domain return URL can't be Apple-verified. Needs bundle ID in Supabase Apple provider + rebuild.
+- [Judith Apple sign-in](judith-apple-signin.md) — uses NATIVE Sign in with Apple (signInWithIdToken), not Supabase web-OAuth; needs bundle ID in Supabase + a real build (Expo Go fails).
+- [Judith legal page URLs](judith-legal-urls.md) — Privacy+Terms is one SPA at /privacy using ?page= switch; in-app links must use ?page=terms, NOT clean /terms (404s, no host rewrite).
 - [Judith CC revolving balance](judith-cc-revolving-balance.md) — credit cards use ccOutstanding(max(0,totalOwed-amountPaid)) for current+future display; togglePaid keeps amountPaid for CC so payments reduce future months (not recurring re-bill).
 - [Judith via-card exclusion](judith-via-card-exclusion.md) — charged-to-card bills excluded from money SUMS (home/calendar/insights/AI-Ask) but kept VISIBLE in lists + INCLUDED in notifications/mark-paid; isPaidViaCard needs parentCardId; dangling links keep counting.

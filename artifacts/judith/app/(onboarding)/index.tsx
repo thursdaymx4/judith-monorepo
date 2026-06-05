@@ -38,6 +38,7 @@ import {
 } from "@/constants/providers";
 import { LANGUAGES, langSample, langDesc, isFilipino, sttHint } from "@/constants/languages";
 import { getPaywallLocale, fmtFee } from "@/constants/paywallLocale";
+import { PRIVACY_URL, TERMS_URL, openLegal } from "@/constants/legal";
 import { PERSONAS, type PersonaId } from "@/constants/personas";
 import { JUDITH_VOICE } from "@/constants/voiceLines";
 import { LinearGradient } from "expo-linear-gradient";
@@ -4333,6 +4334,12 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
           })}
         </View>
         <Low size={11} style={{ textAlign: 'center' }}>Cancel anytime · managed by App Store / Google Play</Low>
+        <Low size={11} style={{ textAlign: 'center', marginTop: 8, lineHeight: 16 }}>
+          By continuing, you agree to our{' '}
+          <Txt size={11} weight='medium' color={t.accent} style={{ textDecorationLine: 'underline' }} onPress={() => openLegal(TERMS_URL)}>Terms of Use</Txt>
+          {' '}&amp;{' '}
+          <Txt size={11} weight='medium' color={t.accent} style={{ textDecorationLine: 'underline' }} onPress={() => openLegal(PRIVACY_URL)}>Privacy Policy</Txt>.
+        </Low>
       </Scroll>
 
       <CtaBar>
