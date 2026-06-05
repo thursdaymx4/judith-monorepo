@@ -18,3 +18,4 @@
 - [Judith CC revolving balance](judith-cc-revolving-balance.md) — credit cards use ccOutstanding(max(0,totalOwed-amountPaid)) for current+future display; togglePaid keeps amountPaid for CC so payments reduce future months (not recurring re-bill).
 - [Judith money formatting](judith-money-formatting.md) — money DISPLAY is whole-number (no decimals) via formatMoney/money/pesoDisplay/pesoStr/fmtFee/fmtNum; 2 decimals ONLY in money INPUT fields (on-blur to2dp/fmt2); parsers strip commas.
 - [Judith via-card exclusion](judith-via-card-exclusion.md) — charged-to-card bills excluded from money SUMS (home/calendar/insights/AI-Ask) but kept VISIBLE in lists + INCLUDED in notifications/mark-paid; isPaidViaCard needs parentCardId; dangling links keep counting.
+- [Judith Ask number format](judith-ask-number-format.md) — Ask replies render amounts as digits (₱438,835), never spelled-out words; prompt-side rule only; same string also feeds TTS.
