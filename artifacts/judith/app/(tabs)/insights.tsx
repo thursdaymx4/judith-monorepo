@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useMemo, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
-import Svg, { Circle, G } from "react-native-svg";
+import Svg, { Circle, G, Path } from "react-native-svg";
 
 import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
@@ -64,6 +64,34 @@ function Donut({ segments, total, size = 130 }: { segments: CatSlice[]; total: n
           return seg;
         })}
       </G>
+    </Svg>
+  );
+}
+
+/* ─── Pie ────────────────────────────────────────────────────────── */
+/* Solid filled pie (no hole / no gaps) — deliberately distinct from the
+   gapped donut used for "Where it goes". Used for Personal vs Business. */
+function Pie({ slices, size = 120 }: { slices: { value: number; color: string }[]; size?: number }) {
+  const r = size / 2;
+  const total = slices.reduce((s, x) => s + x.value, 0);
+  if (total <= 0) return null;
+  let acc = 0;
+  return (
+    <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      {slices.map((s, i) => {
+        const frac = s.value / total;
+        if (frac <= 0) return null;
+        // A single full-circle slice can't be drawn as an arc path.
+        if (frac >= 1) return <Circle key={i} cx={r} cy={r} r={r} fill={s.color} />;
+        const a0 = acc * 2 * Math.PI - Math.PI / 2;
+        acc += frac;
+        const a1 = acc * 2 * Math.PI - Math.PI / 2;
+        const x0 = r + r * Math.cos(a0), y0 = r + r * Math.sin(a0);
+        const x1 = r + r * Math.cos(a1), y1 = r + r * Math.sin(a1);
+        const large = frac > 0.5 ? 1 : 0;
+        const d = `M ${r} ${r} L ${x0} ${y0} A ${r} ${r} 0 ${large} 1 ${x1} ${y1} Z`;
+        return <Path key={i} d={d} fill={s.color} />;
+      })}
     </Svg>
   );
 }
@@ -309,15 +337,19 @@ export default function InsightsScreen() {
   }, [filteredBills, isHistorical, activePeriods, t.accent]);
 
   // Personal vs Business split — only relevant when the user actually tags
-  // business expenses. Computed over house+period (ignores the tag filter, so the
-  // comparison always shows both sides) using the same attribute+net money model
-  // as "Where it goes": a via-card charge counts toward its OWN tag, and a card
-  // contributes only its un-itemized remainder under its tag — so the two sides
-  // sum to the same grand total without double-counting.
+  // business expenses. Computed over house+period and respects the tag filter
+  // (filtering to Business/Personal collapses the pie to that single side) using
+  // the same attribute+net money model as "Where it goes": a via-card charge
+  // counts toward its OWN tag, and a card contributes only its un-itemized
+  // remainder under its tag — so the two sides sum to the same grand total
+  // without double-counting.
   const hasBusiness = useMemo(() => bills.some(b => b.isBusiness === true), [bills]);
   const tagSplit = useMemo(() => {
     if (!hasBusiness) return null;
-    const scoped = bills.filter(b => houseF === "All" || b.house === houseF);
+    const scoped = bills.filter(b =>
+      (houseF === "All" || b.house === houseF) &&
+      (tagF === "all" || (tagF === "business" ? b.isBusiness === true : !b.isBusiness))
+    );
     let personal = 0, business = 0;
     const add = (b: Bill, v: number) => {
       if (v <= 0) return;
@@ -348,7 +380,7 @@ export default function InsightsScreen() {
       });
     }
     return { personal, business, total: personal + business };
-  }, [hasBusiness, bills, houseF, isHistorical, activePeriods]);
+  }, [hasBusiness, bills, houseF, tagF, isHistorical, activePeriods]);
 
   const billedTotalA = useCountUp(billedTotal);
   const unpaidTotal = billedTotal - paidTotal;
@@ -605,26 +637,24 @@ export default function InsightsScreen() {
           {tagSplit && tagSplit.total > 0 && (
             <>
               <Txt style={sectionLabel}>PERSONAL VS BUSINESS</Txt>
-              <View style={card}>
-                <View style={{ flexDirection: "row", height: 12, borderRadius: 6, overflow: "hidden", backgroundColor: t.surface3 }}>
-                  {tagSplit.personal > 0 && (
-                    <View style={{ flex: tagSplit.personal, height: "100%", backgroundColor: PERSONAL_COLOR }} />
-                  )}
-                  {tagSplit.business > 0 && (
-                    <View style={{ flex: tagSplit.business, height: "100%", backgroundColor: BUSINESS_COLOR }} />
-                  )}
-                </View>
-                <View style={{ flexDirection: "row", marginTop: 14, gap: 14 }}>
+              <View style={[card, { flexDirection: "row", gap: 16, alignItems: "center" }]}>
+                <Pie
+                  slices={[
+                    { value: tagSplit.personal, color: PERSONAL_COLOR },
+                    { value: tagSplit.business, color: BUSINESS_COLOR },
+                  ].filter(s => s.value > 0)}
+                  size={120}
+                />
+                <View style={{ flex: 1, gap: 11 }}>
                   {[
                     { label: "Personal", value: tagSplit.personal, color: PERSONAL_COLOR },
                     { label: "Business", value: tagSplit.business, color: BUSINESS_COLOR },
-                  ].map(row => (
-                    <View key={row.label} style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  ].filter(row => row.value > 0).map(row => (
+                    <View key={row.label} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                       <View style={{ width: 9, height: 9, borderRadius: 4.5, backgroundColor: row.color, shadowColor: row.color, shadowOpacity: 0.9, shadowRadius: 4, shadowOffset: { width: 0, height: 0 } }} />
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <Low size={11}>{row.label} · {Math.round((row.value / tagSplit.total) * 100)}%</Low>
-                        <Mono size={16} weight="semibold">{money(row.value)}</Mono>
-                      </View>
+                      <Txt size={13} style={{ flex: 1 }}>{row.label}</Txt>
+                      <Low size={11}>{Math.round((row.value / tagSplit.total) * 100)}%</Low>
+                      <Mono size={12} weight="semibold" style={{ minWidth: 52, textAlign: "right" }}>{money(row.value)}</Mono>
                     </View>
                   ))}
                 </View>
