@@ -441,6 +441,42 @@ function IcoBox({ name, color, size = 34 }: { name: string; color?: string; size
   );
 }
 
+/* Large centered category visual shown on each ask-bill screen — makes the
+   screen instantly say what we're asking about (e.g. a big Electricity icon). */
+function CategoryHero({ icon, label, sub }: { icon: string; label?: string; sub?: string }) {
+  const t = useTheme();
+  const opa = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(0.9)).current;
+  useEffect(() => {
+    opa.setValue(0);
+    scale.setValue(0.9);
+    Animated.parallel([
+      Animated.timing(opa, { toValue: 1, duration: 400, easing: Easing.bezier(0.2, 0.7, 0.3, 1), useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 1, duration: 400, easing: Easing.bezier(0.2, 0.8, 0.2, 1), useNativeDriver: true }),
+    ]).start();
+  }, [icon]);
+  return (
+    <Animated.View style={{ alignItems: "center", marginTop: 4, marginBottom: 2, opacity: opa, transform: [{ scale }] }}>
+      <View
+        style={{
+          width: 104,
+          height: 104,
+          borderRadius: 30,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: mix(t.accent, t.surface2, 0.16),
+          borderWidth: 1,
+          borderColor: withAlpha(t.accent, 0.28),
+        }}
+      >
+        <Icon name={icon as IconName} size={50} color={t.accent} />
+      </View>
+      {label ? <Txt size={15} weight="semibold" style={{ marginTop: 11 }}>{label}</Txt> : null}
+      {sub ? <Low size={12} style={{ marginTop: 2 }}>{sub}</Low> : null}
+    </Animated.View>
+  );
+}
+
 function RowCard({
   selected,
   onPress,
@@ -1889,6 +1925,7 @@ type VMode =
   | "breather"
   | "more"
   | "count"
+  | "cardIntro"
   | "done";
 
 function highlight(text: string, toks: string[], accent: string): React.ReactNode {
@@ -1976,6 +2013,9 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
 
   const done = mode === "done";
 
+  /** Count of credit cards actually added (not skipped) in the cards phase. */
+  const cardsAddedRef = useRef(0);
+
   const advanceAfterItem = () => {
     setHeardText("");
     setParsedBill(null);
@@ -1986,8 +2026,14 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     if (phase === "cards") {
       const d = cardDone + 1;
       setCardDone(d);
-      if (d >= cardN) startScripted();
-      else setMode("prompt");
+      if (d >= cardN) {
+        // After the last card, explain card-linked bills — but only if at least
+        // one card was actually added (the user may have skipped every slot).
+        if (cardsAddedRef.current > 0) setMode("cardIntro");
+        else startScripted();
+      } else {
+        setMode("prompt");
+      }
       return;
     }
     if (phase === "loans") {
@@ -2019,6 +2065,11 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
 
   /** Persist an onboarding bill (with dup-check), then run `after`. */
   const commitBill = (b: OnbBill, after: () => void) => {
+    const persist = () => {
+      addBill(b);
+      saveBill(onbBillToStoreBill(b));
+      if (b.cat === "Credit card") cardsAddedRef.current += 1;
+    };
     const dup = findDuplicate(storeBills, { provider: b.provider, cat: b.cat });
     if (dup) {
       Alert.alert(
@@ -2026,13 +2077,12 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
         `"${dup.provider}" (${dup.cat}) is already in your bills. Add it again?`,
         [
           { text: "Skip", style: "cancel", onPress: after },
-          { text: "Add anyway", onPress: () => { addBill(b); saveBill(onbBillToStoreBill(b)); after(); } },
+          { text: "Add anyway", onPress: () => { persist(); after(); } },
         ],
       );
       return;
     }
-    addBill(b);
-    saveBill(onbBillToStoreBill(b));
+    persist();
     after();
   };
 
@@ -2049,6 +2099,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       frequency: parsedBill?.frequency ?? "monthly",
       subtype: sample.subtype,
       house: HOUSES[0],
+      ...(form.isBusiness ? { isBusiness: true } : {}),
       ...(linkCard ? { chargedToCard: true, parentCardId: form.parentCardId } : {}),
     };
     commitBill(b, advanceAfterItem);
@@ -2336,7 +2387,11 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const bv = JUDITH_VOICE.billFlow[persona];
   const l = isFil ? "fil" : "en";
   const voiceText =
-    mode === "breather"
+    mode === "cardIntro"
+      ? (isFil
+          ? "Ayos! Pwede mong i-link ang ibang bills sa card na ito. Eto kung paano gumagana."
+          : "Nice work. You can link other bills to this card — here's how it works.")
+    : mode === "breather"
       ? (breatherGroup === 0 ? bv.breather0 : breatherGroup === 1 ? bv.breather1 : bv.breather2)[l]
     : mode === "count"
       ? (phase === "cards" ? bv.countCards : bv.countLoans)[l]
@@ -2351,8 +2406,9 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   /* Auto-play Judith's line aloud each time a new screen/state appears. */
   const lastPlayedPromptKey = useRef("");
   useEffect(() => {
-    if (mode !== "prompt" && mode !== "breather" && mode !== "count" && mode !== "more") return;
+    if (mode !== "prompt" && mode !== "breather" && mode !== "count" && mode !== "more" && mode !== "cardIntro") return;
     const key =
+      mode === "cardIntro" ? "cardIntro" :
       mode === "breather" ? `breather-${breatherGroup}` :
       mode === "count"    ? `count-${phase}` :
       mode === "more"     ? "more" :
@@ -2430,6 +2486,43 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     );
   };
 
+  /** Monthly vs Annual billing — kept on every bill-logging screen. */
+  const renderFrequencyToggle = () => (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginTop: 10, paddingHorizontal: 2 }}>
+      <Low size={12}>Billing:</Low>
+      {(["monthly", "annual"] as const).map((fr) => (
+        <Pressable
+          key={fr}
+          onPress={() => { haptics.selection(); setForm((f) => ({ ...f, frequency: fr })); }}
+          style={{ borderRadius: 22, paddingVertical: 5, paddingHorizontal: 13, borderWidth: 1, borderColor: form.frequency === fr ? withAlpha(t.accent, 0.5) : t.hair, backgroundColor: form.frequency === fr ? mix(t.accent, t.surface2, 0.15) : t.surface2 }}
+        >
+          <Txt size={12} weight="medium" color={form.frequency === fr ? t.txtHi : t.txtMid}>{fr === "monthly" ? "Monthly" : "Annual"}</Txt>
+        </Pressable>
+      ))}
+    </View>
+  );
+
+  /** Personal vs Business tag — kept on every bill-logging screen. */
+  const renderBusinessToggle = () => (
+    <View style={{ marginTop: 14, paddingHorizontal: 2 }}>
+      <Low size={12} style={{ marginBottom: 8 }}>Business expense?</Low>
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        <Pressable
+          onPress={() => { haptics.selection(); setForm((f) => ({ ...f, isBusiness: false })); }}
+          style={{ flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 22, paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1, borderColor: !form.isBusiness ? withAlpha(t.accent, 0.5) : t.hair, backgroundColor: !form.isBusiness ? mix(t.accent, t.surface2, 0.15) : t.surface2 }}
+        >
+          <Txt size={13} weight="medium" color={!form.isBusiness ? t.txtHi : t.txtMid}>Personal</Txt>
+        </Pressable>
+        <Pressable
+          onPress={() => { haptics.selection(); setForm((f) => ({ ...f, isBusiness: true })); }}
+          style={{ flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 22, paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1, borderColor: form.isBusiness ? withAlpha(t.accent, 0.5) : t.hair, backgroundColor: form.isBusiness ? mix(t.accent, t.surface2, 0.15) : t.surface2 }}
+        >
+          <Txt size={13} weight="medium" color={form.isBusiness ? t.txtHi : t.txtMid}>Business</Txt>
+        </Pressable>
+      </View>
+    </View>
+  );
+
   return (
     <>
       <Scroll>
@@ -2465,6 +2558,14 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
 
         {/* conversation area */}
         <View style={{ gap: 11, marginTop: 14, minHeight: 210 }}>
+          {/* Big category visual — instantly shows what we're asking about */}
+          {mode === "prompt" && !done && !isPhoneSub && activeFormCat && (
+            <CategoryHero
+              key={`${phase}-${activeFormCat.cat}-${idx}-${cardDone}-${loanDone}`}
+              icon={activeFormCat.icon}
+              label={activeFormCat.cat}
+            />
+          )}
           {showConvo && !done && (!isPhoneSub || screenshotStatus === "idle") && (
             <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
               <JudithAvatar persona={persona} size={44} state={mode === "listening" ? "listening" : "speaking"} />
@@ -2550,6 +2651,8 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                   </Pressable>
                 ))}
               </View>
+              {renderFrequencyToggle()}
+              {renderBusinessToggle()}
               {renderCardToggle(activeFormCat.cat)}
             </Animated.View>
           )}
@@ -2692,6 +2795,70 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
             </>
           )}
 
+          {mode === "cardIntro" && (() => {
+            const cardCount = Math.max(cardsAddedRef.current, bills.filter((b) => b.cat === "Credit card").length);
+            const many = cardCount !== 1;
+            const points: { icon: IconName; title: string; desc: string }[] = [
+              {
+                icon: "card",
+                title: isFil ? "I-link sa isang tap" : "Link it in one tap",
+                desc: isFil
+                  ? "Kapag nagdagdag ka ng bill, i-tap ang “Yes, via card” at piliin kung aling card ang nagbabayad."
+                  : "When you add a bill, tap “Yes, via card” and choose which card pays for it.",
+              },
+              {
+                icon: "pie",
+                title: isFil ? "Hindi dobleng bilang" : "No double-counting",
+                desc: isFil
+                  ? "Nasa balance na ng card ang singil, kaya hindi na namin idaragdag sa iyong buwanang total na babayaran — tama ang numero."
+                  : "The charge already sits on your card’s balance, so we leave it out of your monthly total due — your number stays honest.",
+              },
+              {
+                icon: "receipt",
+                title: isFil ? "May sariling linya pa rin" : "Still its own line item",
+                desc: isFil
+                  ? "Nananatili itong nakalista sa iyong mga bill para alam mo lagi kung ano ang sakop ng card."
+                  : "It still shows in your bill list as its own line, so you always see what the card is covering.",
+              },
+              {
+                icon: "bell",
+                title: isFil ? "Pinapaalala pa rin" : "Still nudges you",
+                desc: isFil
+                  ? "Makakakuha ka pa rin ng paalala bago mag-due, para walang makalimutan."
+                  : "You’ll still get reminders before it’s due, so nothing slips through.",
+              },
+            ];
+            return (
+              <View style={{ alignItems: "center" }}>
+                <CategoryHero icon="card" />
+                <Txt size={24} weight="bold" style={{ textAlign: "center", marginTop: 8 }}>
+                  {isFil ? "Tungkol sa card-linked bills" : "How card-linked bills work"}
+                </Txt>
+                <JudithLine style={{ marginTop: 12 }}>
+                  {isFil
+                    ? `Ayos — naadded na ${many ? `ang ${cardCount} cards mo` : "ang card mo"}. Pwede mong i-link ang ibang bills (gaya ng Netflix o kuryente) na sinisingil dito.`
+                    : `Nice — ${many ? `those ${cardCount} cards are` : "that card is"} in. You can link other bills (like Netflix or electricity) that get charged to ${many ? "them" : "it"}.`}
+                </JudithLine>
+                <View style={{ alignSelf: "stretch", marginTop: 16, gap: 10 }}>
+                  {points.map((p) => (
+                    <View
+                      key={p.title}
+                      style={{ flexDirection: "row", gap: 12, alignItems: "flex-start", borderRadius: 14, borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface2, padding: 14 }}
+                    >
+                      <View style={{ width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: mix(t.accent, t.canvas, 0.18) }}>
+                        <Icon name={p.icon} size={19} color={t.accent} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Txt size={14} weight="semibold">{p.title}</Txt>
+                        <Low size={12} style={{ marginTop: 2, lineHeight: 17 }}>{p.desc}</Low>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            );
+          })()}
+
           {(mode === "listening" || mode === "transcribing" || mode === "parsed") && (
             <Transcript>
               {mode === "parsed"
@@ -2737,6 +2904,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                   </View>
                 </PCell>
               </View>
+              {renderBusinessToggle()}
               {renderCardToggle(sample.cat)}
             </>
           )}
@@ -2789,6 +2957,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                   onChange={(v) => setParsedEdits({ ...parsedEdits, kind: v as "Fixed" | "Variable" })}
                 />
               </View>
+              {renderBusinessToggle()}
             </View>
           )}
 
@@ -3032,23 +3201,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                   </View>
                 </View>
               )}
-              <View style={{ marginTop: 14, paddingHorizontal: 2 }}>
-                <Low size={12} style={{ marginBottom: 8 }}>Business expense?</Low>
-                <View style={{ flexDirection: "row", gap: 8 }}>
-                  <Pressable
-                    onPress={() => { haptics.selection(); setForm((f) => ({ ...f, isBusiness: false })); }}
-                    style={{ flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 22, paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1, borderColor: !form.isBusiness ? withAlpha(t.accent, 0.5) : t.hair, backgroundColor: !form.isBusiness ? mix(t.accent, t.surface2, 0.15) : t.surface2 }}
-                  >
-                    <Txt size={13} weight="medium" color={!form.isBusiness ? t.txtHi : t.txtMid}>Personal</Txt>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => { haptics.selection(); setForm((f) => ({ ...f, isBusiness: true })); }}
-                    style={{ flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 22, paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1, borderColor: form.isBusiness ? withAlpha(t.accent, 0.5) : t.hair, backgroundColor: form.isBusiness ? mix(t.accent, t.surface2, 0.15) : t.surface2 }}
-                  >
-                    <Txt size={13} weight="medium" color={form.isBusiness ? t.txtHi : t.txtMid}>Business</Txt>
-                  </Pressable>
-                </View>
-              </View>
+              {renderBusinessToggle()}
               {renderCardToggle(formCat.cat)}
             </View>
           )}
@@ -3209,6 +3362,9 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
             <Btn label="Yes, add another" icon="plus" onPress={() => { setManualReturn("more"); setMode("manualCats"); }} />
             <Btn label="No, that’s everything" variant="soft" onPress={() => setMode("done")} />
           </>
+        )}
+        {mode === "cardIntro" && (
+          <Btn label="Got it — keep going →" onPress={() => { haptics.selection(); startScripted(); }} />
         )}
         {mode === "done" && (
           <Btn label="See my bill picture →" onPress={next} />
