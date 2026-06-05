@@ -257,8 +257,9 @@ export default function HomeScreen() {
   };
 
   // Paid-progress scoped to this month's bills only (same window as timelineBills).
-  const paid = payable.filter((b) => isPaidThisMonth(b));
-  const unpaid = payable.filter((b) => !isPaidThisMonth(b));
+  // paid bills are excluded from `due` → not in timelineBills/payable, so source from liveBills.
+  const paid = liveBills.filter((b) => !isPaidViaCard(b) && isPaidThisMonth(b));
+  const unpaid = payable; // already non-via-card, unpaid, current-month scope
   // paidAmt = fully paid bills + in-progress partial payments on unpaid bills
   const paidAmt =
     paid.reduce((s, b) => s + amtPaidThisMonth(b), 0) +
