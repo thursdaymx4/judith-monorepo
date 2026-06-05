@@ -19,7 +19,7 @@ import {
   SpeechBubble,
   Txt,
 } from "@/components/ui";
-import { CAT_ICONS, currentCycleDue, dueClass, dueShort, isPaidViaCard, isPartialBill, nextOccurrence, partialPct, totalOwed, type Bill } from "@/constants/data";
+import { CAT_ICONS, currentCycleDue, dueClass, dueShort, isPaidViaCard, isPartialBill, partialPct, totalOwed, type Bill } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
 import { useCountUp } from "@/hooks/useCountUp";
 import { haptics } from "@/lib/haptics";
@@ -185,7 +185,6 @@ export default function HomeScreen() {
   const reduce = useReducedMotion();
   const [sortBy, setSortBy] = useState<"dueDate" | "amount">("dueDate");
   const [filterCat, setFilterCat] = useState<string | null>(null);
-  const [timelineWindow, setTimelineWindow] = useState<30 | 60 | 90>(30);
   const [overdueOnly, setOverdueOnly] = useState(false);
 
   const todayDay = new Date().getDate();
@@ -205,28 +204,16 @@ export default function HomeScreen() {
   );
 
   // dueDays/dueLabel on the stored bill are stale snapshots the store never
-  // refreshes; recompute them live so the timeline is always accurate.
-  // Rule: if a bill was created THIS month and its due day has already passed,
-  // its first cycle hasn't occurred yet — use nextOccurrence (rolls to next
-  // month) so it shows as upcoming, not falsely overdue. All other bills use
-  // currentCycleDue so unpaid past-due-day bills stay marked overdue.
-  const liveBills = bills.map((b) => {
-    if (
-      b.frequency !== "annual" &&
-      b.createdAt &&
-      b.createdAt.slice(0, 7) === currentPeriodKey &&
-      b.dueDate < _today.getDate()
-    ) {
-      return { ...b, ...nextOccurrence(b, _today) };
-    }
-    return { ...b, ...currentCycleDue(b, _today) };
-  });
+  // refreshes; recompute them live (signed, so passed-but-unpaid bills stay
+  // negative/overdue) so the timeline matches the calendar.
+  const liveBills = bills.map((b) => ({ ...b, ...currentCycleDue(b, _today) }));
   const due = liveBills
     .filter((b) => !isPaidThisMonth(b))
     .slice()
     .sort((a, b) => a.dueDays - b.dueDays);
 
-  const timelineBills = due.filter((b) => b.dueDays <= timelineWindow);
+  const daysLeftInMonth = new Date(_today.getFullYear(), _today.getMonth() + 1, 0).getDate() - _today.getDate();
+  const timelineBills = due.filter((b) => b.dueDays <= daysLeftInMonth);
 
   // Build unique category list ordered by count (most-billed first)
   const catCounts: Record<string, number> = {};
@@ -414,20 +401,10 @@ export default function HomeScreen() {
             <Txt size={12} weight="semibold" color={t.semantic.overdue}>Overdue</Txt>
             <Icon name="close" size={11} color={t.semantic.overdue} />
           </Pressable>
-        ) : filterCat ? (
-          <SectionLabel style={{ marginTop: 0, marginBottom: 0 }}>{filterCat}</SectionLabel>
         ) : (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: t.surface2, borderRadius: 22, borderWidth: 1, borderColor: t.hair, padding: 3 }}>
-            {([30, 60, 90] as const).map((d) => (
-              <Pressable
-                key={d}
-                onPress={() => { haptics.selection(); setTimelineWindow(d); }}
-                style={{ paddingHorizontal: 11, paddingVertical: 5, borderRadius: 18, backgroundColor: timelineWindow === d ? t.accent + "28" : "transparent" }}
-              >
-                <Txt size={12} weight="semibold" color={timelineWindow === d ? t.accent : t.txtLow}>{d}d</Txt>
-              </Pressable>
-            ))}
-          </View>
+          <SectionLabel style={{ marginTop: 0, marginBottom: 0 }}>
+            {filterCat ?? "This month"}
+          </SectionLabel>
         )}
         <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
           <Pressable
