@@ -24,7 +24,14 @@ export default function LoginScreen() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const { persona, setGuest } = useJudith();
-  const { signInWithPassword, signUp, signInWithProvider, resetPassword } = useAuth();
+  const {
+    signInWithPassword,
+    signUp,
+    signInWithProvider,
+    signInWithApple,
+    appleAuthAvailable,
+    resetPassword,
+  } = useAuth();
 
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -80,6 +87,23 @@ export default function LoginScreen() {
     setBusy(provider);
     try {
       await signInWithProvider(provider);
+    } catch (e) {
+      setErr(msg(e, "Sign-in failed"));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const appleSignIn = async () => {
+    setErr("");
+    setNotice("");
+    setBusy("apple");
+    try {
+      if (appleAuthAvailable) {
+        await signInWithApple();
+      } else {
+        await signInWithProvider("apple");
+      }
     } catch (e) {
       setErr(msg(e, "Sign-in failed"));
     } finally {
@@ -185,7 +209,7 @@ export default function LoginScreen() {
             variant="soft"
             icon="apple"
             label={busy === "apple" ? "" : "Continue with Apple"}
-            onPress={() => oauth("apple")}
+            onPress={appleSignIn}
           >
             {busy === "apple" && <ActivityIndicator color={t.txtHi} />}
           </Btn>

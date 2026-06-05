@@ -1,4 +1,6 @@
 import type { Session, User } from "@supabase/supabase-js";
+import * as AppleAuthentication from "expo-apple-authentication";
+import * as Crypto from "expo-crypto";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import React, {
@@ -22,12 +24,14 @@ interface AuthContextValue {
   loading: boolean;
   configured: boolean;
   recoveryActive: boolean;
+  appleAuthAvailable: boolean;
   signInWithPassword: (email: string, password: string) => Promise<void>;
   signUp: (
     email: string,
     password: string,
   ) => Promise<{ needsConfirmation: boolean }>;
   signInWithProvider: (provider: OAuthProvider) => Promise<void>;
+  signInWithApple: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   establishSessionFromUrl: (url: string) => Promise<boolean>;
   updatePassword: (password: string) => Promise<void>;
@@ -70,6 +74,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [recoveryActive, setRecoveryActive] = useState(false);
+  const [appleAuthAvailable, setAppleAuthAvailable] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS !== "ios") return;
+    let active = true;
+    AppleAuthentication.isAvailableAsync()
+      .then((available) => {
+        if (active) setAppleAuthAvailable(available);
+      })
+      .catch(() => {
+        if (active) setAppleAuthAvailable(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!supabase) {
@@ -95,6 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       configured: isSupabaseConfigured,
       recoveryActive,
+      appleAuthAvailable,
       async signInWithPassword(email: string, password: string) {
         if (!supabase) throw new Error("Supabase not configured");
         const { error } = await supabase.auth.signInWithPassword({
@@ -148,6 +169,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         throw new Error("Sign-in did not complete");
       },
+      async signInWithApple() {
+        if (!supabase) throw new Error("Supabase not configured");
+        const rawNonce = `${Crypto.randomUUID()}${Crypto.randomUUID()}`.replace(
+          /-/g,
+          "",
+        );
+        const hashedNonce = await Crypto.digestStringAsync(
+          Crypto.CryptoDigestAlgorithm.SHA256,
+          rawNonce,
+        );
+        let credential: AppleAuthentication.AppleAuthenticationCredential;
+        try {
+          credential = await AppleAuthentication.signInAsync({
+            requestedScopes: [
+              AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+              AppleAuthentication.AppleAuthenticationScope.EMAIL,
+            ],
+            nonce: hashedNonce,
+          });
+        } catch (e) {
+          if ((e as { code?: string })?.code === "ERR_REQUEST_CANCELED") return;
+          throw e;
+        }
+        if (!credential.identityToken) {
+          throw new Error("Apple sign-in failed: no identity token returned");
+        }
+        const { error } = await supabase.auth.signInWithIdToken({
+          provider: "apple",
+          token: credential.identityToken,
+          nonce: rawNonce,
+        });
+        if (error) throw error;
+      },
       async resetPassword(email: string) {
         if (!supabase) throw new Error("Supabase not configured");
         const redirectTo = Linking.createURL("auth/reset");
@@ -199,7 +253,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await supabase?.auth.signOut();
       },
     }),
-    [session, loading, recoveryActive],
+    [session, loading, recoveryActive, appleAuthAvailable],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

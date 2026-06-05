@@ -15,7 +15,8 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.app.judith"
+      "bundleIdentifier": "com.app.judith",
+      "usesAppleSignIn": true
     },
     "android": {
       "package": "com.judith.app"
@@ -32,6 +33,7 @@
       ],
       "expo-font",
       "expo-web-browser",
+      "expo-apple-authentication",
       [
         "expo-audio",
         {
