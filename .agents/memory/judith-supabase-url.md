@@ -20,4 +20,18 @@ fetch means an HTML page came back from a wrong/misrouted URL, not JSON.
 returns undefined on malformed input (fails fast as "not configured").
 
 **How to verify a URL without the inbox:** `GET <url>/auth/v1/health` should
-return a GoTrue JSON 200; an HTML body means the URL is wrong.
+return a GoTrue JSON 200 (or a 401 "No API key" — also a healthy sign the
+endpoint is alive). An HTML body means the URL is wrong.
+
+**A Supabase custom domain is a valid value** (e.g. `https://login.<brand>.com`)
+— it passes `normalizeSupabaseUrl` (returns `.origin`) and serves the same
+`/auth/v1` + `/rest/v1` endpoints with the same anon key. Reason to use one: the
+native OAuth consent dialog shows the branded host instead of the raw
+`<ref>.supabase.co`.
+
+**The URL lives in THREE lockstep locations** — change all together or builds
+diverge from dev: the `EXPO_PUBLIC_SUPABASE_URL` secret (dev; secrets can't be
+set programmatically, request from user), `eas.json` (preview + production env),
+and `build.sh` (preview + production env). When swapping to a custom domain, also
+add `https://<domain>/auth/v1/callback` to the Google OAuth client's authorized
+redirect URIs (keep the old one during transition).
