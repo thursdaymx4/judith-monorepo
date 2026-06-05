@@ -12,6 +12,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { haptics } from "@/lib/haptics";
 
 const CATEGORIES = Object.keys(PROVIDERS);
+const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 export default function AddBillScreen() {
   const t = useTheme();
@@ -27,6 +28,11 @@ export default function AddBillScreen() {
   const [provider, setProvider] = useState(existing?.provider ?? "");
   const [amount, setAmount] = useState(existing?.amount ? String(existing.amount) : "");
   const [dueDay, setDueDay] = useState(existing?.dueDate ? String(existing.dueDate) : "");
+  const [dueMonth, setDueMonth] = useState(() => {
+    if (existing?.frequency !== "annual" || !existing?.dueLabel) return new Date().getMonth() + 1;
+    const m = MONTHS_SHORT.findIndex((s) => existing.dueLabel.startsWith(s));
+    return m >= 0 ? m + 1 : new Date().getMonth() + 1;
+  });
   const [frequency, setFrequency] = useState<"monthly" | "annual">(existing?.frequency ?? "monthly");
   const [kind, setKind] = useState<"Fixed" | "Variable">(existing?.kind ?? "Fixed");
   const [house, setHouse] = useState(existing?.house ?? "");
@@ -70,6 +76,7 @@ export default function AddBillScreen() {
       cat,
       amount: amt,
       dueDay: day,
+      dueMonth: frequency === "annual" ? dueMonth : undefined,
       frequency,
       kind,
       house: house.trim() || undefined,
@@ -275,7 +282,7 @@ export default function AddBillScreen() {
             <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
               <Icon name={(CAT_ICONS[cat] ?? "spark") as never} size={12} color={t.txtLow} />
               <Low size={12}>
-                {cat}{validDay ? ` · due the ${day}${ordinal(day)}` : ""}
+                {cat}{validDay ? (frequency === "annual" ? ` · ${MONTHS_SHORT[dueMonth - 1]} ${day}` : ` · due the ${day}${ordinal(day)}`) : ""}
               </Low>
             </View>
           </View>
@@ -373,7 +380,7 @@ export default function AddBillScreen() {
             </View>
           </View>
           <View style={{ flex: 1 }}>
-            <FieldLabel text="Due day" />
+            <FieldLabel text={frequency === "annual" ? "Day" : "Due day"} />
             <TextInput
               value={dueDay}
               onChangeText={(v) => { setDueDay(v.replace(/[^0-9]/g, "").slice(0, 2)); clearErr(); }}
@@ -384,6 +391,16 @@ export default function AddBillScreen() {
             />
           </View>
         </View>
+        {frequency === "annual" && (
+          <View style={{ marginTop: 12 }}>
+            <FieldLabel text="Month" />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -4 }} contentContainerStyle={{ paddingHorizontal: 4, gap: 6, flexDirection: "row" }}>
+              {MONTHS_SHORT.map((m, i) => (
+                <Chip key={m} label={m} selected={dueMonth === i + 1} onPress={() => { haptics.selection(); setDueMonth(i + 1); }} />
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         {/* ───────── schedule ───────── */}
         <SectionLabel>Schedule</SectionLabel>

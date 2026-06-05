@@ -569,6 +569,8 @@ export function makeManualBill(
     cat: string;
     amount: number;
     dueDay: number;
+    /** 1–12. For annual bills: the calendar month the bill falls due each year. */
+    dueMonth?: number;
     frequency?: "monthly" | "annual";
     kind?: "Fixed" | "Variable";
     house?: string;
@@ -583,12 +585,13 @@ export function makeManualBill(
   const base = startOfDay(today);
   const day = Math.max(1, Math.min(31, Math.round(a.dueDay)));
   const dayFor = (y: number, m: number) => Math.min(day, daysInMonth(y, m));
-  let candidate = new Date(base.getFullYear(), base.getMonth(), dayFor(base.getFullYear(), base.getMonth()));
+  const annualM = a.frequency === "annual" && a.dueMonth != null ? a.dueMonth - 1 : base.getMonth();
+  const initM = a.frequency === "annual" ? annualM : base.getMonth();
+  let candidate = new Date(base.getFullYear(), initM, dayFor(base.getFullYear(), initM));
   if (candidate < base) {
     if (a.frequency === "annual") {
       const y = base.getFullYear() + 1;
-      const m = base.getMonth();
-      candidate = new Date(y, m, dayFor(y, m));
+      candidate = new Date(y, annualM, dayFor(y, annualM));
     } else {
       const y = base.getFullYear();
       const m = base.getMonth() + 1;
