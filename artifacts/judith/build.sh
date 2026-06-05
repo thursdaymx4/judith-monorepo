@@ -82,7 +82,7 @@ cat > eas.json << 'EASJSON'
         "buildConfiguration": "Release"
       },
       "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "https://prbistbxadydyuxdaaex.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://login.judithforduedates.com",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByYmlzdGJ4YWR5ZHl1eGRhYWV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMDQ5MDMsImV4cCI6MjA5NTc4MDkwM30.JnpGqE2SXABHSdvyz5iE8kuhS7HId0GDEiGbNKtVqUU"
       }
     },
@@ -95,7 +95,7 @@ cat > eas.json << 'EASJSON'
       },
       "env": {
         "EXPO_NO_CAPABILITY_SYNC": "1",
-        "EXPO_PUBLIC_SUPABASE_URL": "https://prbistbxadydyuxdaaex.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://login.judithforduedates.com",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByYmlzdGJ4YWR5ZHl1eGRhYWV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMDQ5MDMsImV4cCI6MjA5NTc4MDkwM30.JnpGqE2SXABHSdvyz5iE8kuhS7HId0GDEiGbNKtVqUU"
       }
     }
