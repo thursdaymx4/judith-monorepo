@@ -168,6 +168,8 @@ export default function AccountScreen() {
     restart,
     subscribe,
     showToast,
+    monthlyIncome,
+    setMonthlyIncome,
   } = useJudith();
 
   const email = user?.email ?? (guest ? "Guest account" : "—");
@@ -176,6 +178,8 @@ export default function AccountScreen() {
 
   const [editOpen, setEditOpen] = React.useState(false);
   const [editVal, setEditVal] = React.useState(name);
+  const [incomeOpen, setIncomeOpen] = React.useState(false);
+  const [incomeVal, setIncomeVal] = React.useState(monthlyIncome != null ? String(monthlyIncome) : "");
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [deleteText, setDeleteText] = React.useState("");
   const canDelete = deleteText.trim().toLowerCase() === "delete";
@@ -195,6 +199,22 @@ export default function AccountScreen() {
     setName(editVal.trim());
     setEditOpen(false);
     showToast("Name updated ✓");
+  };
+
+  const openIncome = () => {
+    setIncomeVal(monthlyIncome != null ? String(monthlyIncome) : "");
+    setIncomeOpen(true);
+  };
+  const saveIncome = () => {
+    const n = parseFloat(incomeVal.replace(/,/g, "").trim());
+    if (Number.isFinite(n) && n > 0) {
+      setMonthlyIncome(n);
+      showToast("Income updated ✓");
+    } else if (incomeVal.trim() === "") {
+      setMonthlyIncome(undefined);
+      showToast("Income cleared");
+    }
+    setIncomeOpen(false);
   };
 
   const changePassword = () => {
@@ -350,6 +370,18 @@ export default function AccountScreen() {
         </Pressable>
       </View>
 
+      {/* budget */}
+      <SectionLabel>Budget</SectionLabel>
+      <View style={{ borderRadius: t.radius.md, overflow: "hidden" }}>
+        <Row
+          first
+          icon="wallet"
+          title="Monthly take-home income"
+          subtitle={monthlyIncome != null ? money(monthlyIncome) + " / month" : "Not set — Judith will ask if relevant"}
+          onPress={openIncome}
+        />
+      </View>
+
       {/* security */}
       <SectionLabel>Security</SectionLabel>
       <View style={{ borderRadius: t.radius.md, overflow: "hidden" }}>
@@ -496,6 +528,54 @@ export default function AccountScreen() {
                 <Txt size={14} weight="semibold" color={t.onAccent}>
                   Save
                 </Txt>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* income modal */}
+      <Modal visible={incomeOpen} transparent animationType="fade" onRequestClose={() => setIncomeOpen(false)} statusBarTranslucent>
+        <Pressable
+          onPress={() => setIncomeOpen(false)}
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center", padding: 26 }}
+        >
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={{ width: "100%", maxWidth: 380, borderRadius: 18, borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface2, padding: 22 }}
+          >
+            <Text style={{ fontFamily: t.fonts.semibold, fontSize: 19, color: t.txtHi, letterSpacing: -0.3, marginBottom: 4 }}>
+              Monthly take-home
+            </Text>
+            <Text style={{ fontFamily: t.fonts.regular, fontSize: 13, color: t.txtMid, marginBottom: 14 }}>
+              Judith uses this to help you decide if it{"'"}s safe to spend. Leave blank to clear.
+            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: incomeVal.trim() ? t.accent : t.hair, backgroundColor: t.surface3, borderRadius: 11, paddingHorizontal: 14, paddingVertical: 12, gap: 6 }}>
+              <Text style={{ fontFamily: t.fonts.semibold, fontSize: 16, color: t.txtMid }}>{country.cur}</Text>
+              <TextInput
+                value={incomeVal}
+                onChangeText={setIncomeVal}
+                placeholder="e.g. 50,000"
+                placeholderTextColor={t.txtLow}
+                keyboardType="numeric"
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={saveIncome}
+                style={{ flex: 1, fontFamily: t.fonts.mono, fontSize: 18, color: t.txtHi }}
+              />
+            </View>
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 18 }}>
+              <Pressable
+                onPress={() => setIncomeOpen(false)}
+                style={{ flex: 1, alignItems: "center", paddingVertical: 13, borderRadius: 11, borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface3 }}
+              >
+                <Text style={{ fontFamily: t.fonts.medium, fontSize: 14, color: t.txtHi }}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={saveIncome}
+                style={{ flex: 1, alignItems: "center", paddingVertical: 13, borderRadius: 11, backgroundColor: t.accent }}
+              >
+                <Text style={{ fontFamily: t.fonts.semibold, fontSize: 14, color: t.onAccent }}>Save</Text>
               </Pressable>
             </View>
           </Pressable>

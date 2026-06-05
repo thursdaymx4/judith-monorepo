@@ -125,6 +125,7 @@ export function askJudith(
   includeVoice?: boolean,
   currency?: string,
   countryName?: string,
+  monthlyIncome?: number,
 ): Promise<AskResult> {
   return postJson("/ask", {
     text,
@@ -135,6 +136,7 @@ export function askJudith(
     includeVoice,
     currency,
     countryName,
+    monthlyIncome,
   });
 }
 

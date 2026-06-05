@@ -94,6 +94,8 @@ interface PersistShape {
   onbIdx: number;
   /** Dev/testing bypass: skip Supabase auth and enter the app as a guest. */
   guest: boolean;
+  /** Estimated monthly take-home income (used by Judith to answer budget questions). */
+  monthlyIncome?: number;
 }
 
 const DEFAULTS: PersistShape = {
@@ -113,6 +115,7 @@ const DEFAULTS: PersistShape = {
   onboarded: false,
   onbIdx: 0,
   guest: false,
+  monthlyIncome: undefined,
 };
 
 interface JudithStoreValue extends PersistShape {
@@ -160,6 +163,7 @@ interface JudithStoreValue extends PersistShape {
   setOnboarded: (v: boolean) => void;
   setOnbIdx: (i: number) => void;
   setGuest: (v: boolean) => void;
+  setMonthlyIncome: (n: number | undefined) => void;
   restart: () => void;
 }
 
@@ -535,6 +539,7 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       setOnboarded: (v) => patch({ onboarded: v }),
       setOnbIdx: (i) => patch({ onbIdx: i }),
       setGuest: (v) => patch({ guest: v }),
+      setMonthlyIncome: (n) => patch({ monthlyIncome: n }),
       restart: () => {
         setState({ ...DEFAULTS });
         AsyncStorage.removeItem(storageKey).catch(() => {});

@@ -49,6 +49,7 @@ import { haptics } from "@/lib/haptics";
 import { getTierPackages, type TierPackages } from "@/lib/purchases";
 import { fileToBase64, playBase64Mp3, stopCurrentAudio } from "@/lib/audio";
 import { transcribeOnboarding, synthOnboarding, fetchSampleOnboarding, parseBillOnboarding, parseSubscriptionScreenshot, askOnboarding, RateLimitError } from "@/lib/proxy";
+import { requestPermission } from "@/lib/notifications";
 import type { Theme } from "@/constants/theme";
 
 /* ------------------------------------------------------------------ */
@@ -4155,7 +4156,160 @@ function ScreenFeature3({ ctx }: { ctx: Ctx }) {
 }
 
 /* ================================================================== */
-/* 16. Ask paywall                                                     */
+/* 16. Monthly income                                                  */
+/* ================================================================== */
+
+function ScreenMonthlyIncome({ ctx }: { ctx: Ctx }) {
+  const { t, persona, next, country } = ctx;
+  const { setMonthlyIncome, monthlyIncome } = useJudith();
+  const [val, setVal] = useState(monthlyIncome != null ? String(monthlyIncome) : "");
+
+  const save = () => {
+    const n = parseFloat(val.replace(/,/g, "").trim());
+    if (Number.isFinite(n) && n > 0) {
+      setMonthlyIncome(n);
+    }
+    next();
+  };
+
+  const hasParseable = Number.isFinite(parseFloat(val.replace(/,/g, "").trim())) && parseFloat(val.replace(/,/g, "").trim()) > 0;
+
+  return (
+    <>
+      <Scroll center>
+        <JudithAvatar persona={persona} size={76} state="speaking" />
+        <Kicker style={{ marginTop: 18, textAlign: "center" }}>Help me help you</Kicker>
+        <Title style={{ maxWidth: 300, textAlign: "center" }}>
+          What{"'"}s your monthly take-home?
+        </Title>
+        <Lede style={{ textAlign: "center", maxWidth: 280 }}>
+          I{"'"}ll use this to tell you how much you can safely spend before your next payday. You can update it anytime in settings.
+        </Lede>
+        <View
+          style={{
+            marginTop: 24,
+            alignSelf: "stretch",
+            flexDirection: "row",
+            alignItems: "center",
+            borderWidth: 1,
+            borderColor: hasParseable ? t.accent : t.hair,
+            borderRadius: 14,
+            backgroundColor: t.surface2,
+            paddingHorizontal: 16,
+            paddingVertical: 14,
+            gap: 8,
+          }}
+        >
+          <Txt size={20} weight="semibold" color={t.txtMid}>{country.cur}</Txt>
+          <TextInput
+            style={{
+              flex: 1,
+              fontFamily: t.fonts.mono,
+              fontSize: 26,
+              color: t.txtHi,
+              padding: 0,
+            }}
+            placeholder="e.g. 50,000"
+            placeholderTextColor={t.txtLow}
+            keyboardType="numeric"
+            value={val}
+            onChangeText={setVal}
+            returnKeyType="done"
+            onSubmitEditing={save}
+            autoFocus
+          />
+        </View>
+      </Scroll>
+      <CtaBar>
+        <Btn label="Save & continue" onPress={save} />
+        <Btn label="Skip for now" variant="ghost" onPress={next} />
+      </CtaBar>
+    </>
+  );
+}
+
+/* ================================================================== */
+/* 17. Notifications                                                   */
+/* ================================================================== */
+
+function ScreenNotifications({ ctx }: { ctx: Ctx }) {
+  const { t, persona, next } = ctx;
+  const { setToggle } = useJudith();
+  const [requesting, setRequesting] = useState(false);
+
+  const allow = async () => {
+    setRequesting(true);
+    try {
+      const granted = await requestPermission();
+      if (granted) {
+        setToggle("dueReminders", true);
+        setToggle("nudges", true);
+      }
+    } finally {
+      setRequesting(false);
+    }
+    next();
+  };
+
+  return (
+    <>
+      <Scroll center>
+        <View
+          style={{
+            width: 84,
+            height: 84,
+            borderRadius: 42,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: mix(t.accent, t.canvas, 0.14),
+            borderWidth: 1,
+            borderColor: withAlpha(t.accent, 0.28),
+          }}
+        >
+          <Icon name="bell" size={34} color={t.accent} />
+        </View>
+        <Kicker style={{ marginTop: 18, textAlign: "center" }}>One last thing</Kicker>
+        <Title style={{ maxWidth: 300, textAlign: "center" }}>
+          Never miss a due date.
+        </Title>
+        <Lede style={{ textAlign: "center", maxWidth: 280 }}>
+          Judith sends you a heads-up before each bill is due. You can customize reminders anytime in settings.
+        </Lede>
+        <View style={{ marginTop: 22, alignSelf: "stretch", gap: 10 }}>
+          {[
+            { icon: "bell" as const, text: "Due-date reminders, 3 days before" },
+            { icon: "spark" as const, text: "Friendly nudges for overdue bills" },
+          ].map(({ icon, text }) => (
+            <View
+              key={text}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 12,
+                paddingVertical: 11,
+                paddingHorizontal: 14,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: withAlpha(t.accent, 0.25),
+                backgroundColor: mix(t.accent, t.canvas, 0.09),
+              }}
+            >
+              <Icon name={icon} size={14} color={t.accent} />
+              <Txt size={13.5} color={t.txtMid} style={{ flex: 1 }}>{text}</Txt>
+            </View>
+          ))}
+        </View>
+      </Scroll>
+      <CtaBar>
+        <Btn label={requesting ? "Setting up…" : "Allow notifications"} onPress={requesting ? undefined : allow} />
+        <Btn label="Not now" variant="ghost" onPress={next} />
+      </CtaBar>
+    </>
+  );
+}
+
+/* ================================================================== */
+/* 18. Ask paywall                                                     */
 /* ================================================================== */
 
 function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
@@ -4456,11 +4610,13 @@ const FLOW: { id: string; C: (p: { ctx: Ctx }) => React.ReactElement }[] = [
   { id: "feature1", C: ScreenFeature1 },
   { id: "feature2", C: ScreenFeature2 },
   { id: "feature3", C: ScreenFeature3 },
+  { id: "income", C: ScreenMonthlyIncome },
+  { id: "notifications", C: ScreenNotifications },
   { id: "askpaywall", C: ScreenAskPaywall },
 ];
 const SETUP = ["name", "country", "language", "persona", "problem", "stakes", "intro", "voice", "congrats", "summary"];
 const NO_BACK = ["welcome", "personalizing"];
-const SKIPPABLE = ["country", "persona"];
+const SKIPPABLE = ["country", "persona", "income", "notifications"];
 const SAVE_FROM = FLOW.findIndex((f) => f.id === "voice");
 
 export default function OnboardingScreen() {

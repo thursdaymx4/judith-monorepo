@@ -206,7 +206,7 @@ function curStr(cur: string, n: number): string {
   return `${cur}${Math.round(n).toLocaleString("en-US")}`;
 }
 
-function buildClientContext(bills: ClientBill[], today: Date, cur = "₱"): string {
+function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", monthlyIncome?: number): string {
   // Card-linked charges are auto-paid via a credit card the user ALSO tracks as
   // its own bill, so the card's statement already covers that money. Summing both
   // double-counts. Exclude these from every money SUM (the card statement is the
@@ -258,6 +258,9 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱"): stri
 
   const parts: string[] = [
     `Today is ${englishDate(today)} (${englishWeekday(today)}).`,
+    ...(monthlyIncome != null && Number.isFinite(monthlyIncome) && monthlyIncome > 0
+      ? [`User's estimated monthly take-home income: ${curStr(cur, monthlyIncome)}.`]
+      : []),
     `Total still due (unpaid): ${curStr(cur, total)}.`,
     `Total of bills due within 7 days: ${curStr(cur, dueThisWeek)}.`,
     bizUnpaid.length > 0
@@ -366,7 +369,7 @@ router.post("/ask", askLimiter, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
-    const { text, bills: bodyBills, persona: bodyPersona, localDate, language, includeVoice, currency, countryName } = req.body ?? {};
+    const { text, bills: bodyBills, persona: bodyPersona, localDate, language, includeVoice, currency, countryName, monthlyIncome } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
       res.status(400).json({ error: "text is required" });
       return;
@@ -384,7 +387,8 @@ router.post("/ask", askLimiter, async (req, res) => {
 
     const persona: PersonaId = coercePersona(bodyPersona);
     const voiceId: string = getVoiceId(persona, typeof language === "string" ? language : undefined);
-    const context: string = buildClientContext(bodyBills as ClientBill[], today, cur);
+    const income: number | undefined = typeof monthlyIncome === "number" && monthlyIncome > 0 ? monthlyIncome : undefined;
+    const context: string = buildClientContext(bodyBills as ClientBill[], today, cur, income);
 
     const anthropic = getAnthropic();
     const message = await anthropic.messages.create({
