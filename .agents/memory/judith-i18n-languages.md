@@ -35,6 +35,18 @@ preview) and `sttCode` (ISO hint for Scribe).
   Filipino onboarding voice lines. Use `isFilipino(code)` — never `=== "fil"` —
   or dialect speakers get English narration. (We only have `fil` translations.)
 
+## Money & dates are ALWAYS plain English (every language)
+The conversational reply is localized, but money amounts, weekdays, and dates
+must be spoken/written in plain natural English in EVERY language (not just
+Taglish) — e.g. "three thousand pesos", "Thursday", "June 5".
+**Why:** numbers/dates spoken in the user's own language sound off/unnatural in
+TTS. **How to apply:** enforced in `api-server/src/lib/personas.ts`
+`languageInstruction()` — BOTH the Filipino branch and the other-language branch
+carry this rule (the non-Filipino branch had previously localized them). The bill
+context (`buildBillsContext`/`buildClientContext` in `routes/judith.ts`) already
+emits English forms via `curStr` (en-US), `englishDate`, `englishWeekday`,
+`amountToWords` in `lib/normalize.ts` — keep the prompt and context in lockstep.
+
 ## Adding a language/dialect
 Add to `LANGUAGES` (sample + desc + sttCode), and if it maps to a new country,
 add to `COUNTRIES` + `COUNTRY_FOOD` + `MOM_ENDEARMENT` (all keyed by country code).

@@ -150,7 +150,7 @@ function languageInstruction(language?: string): string {
   return `LANGUAGE RULES (strict):
 - Respond ENTIRELY in ${name}. Do NOT use Tagalog words, Taglish phrases, or Filipino particles.
 - Keep your persona's energy and tone, expressed naturally in ${name}.
-- Say amounts, days, and dates in the natural form for ${name} speakers.
+- EXCEPTION — money amounts, days of the week, and dates: ALWAYS say these in plain, natural English (e.g. "three thousand pesos", "Thursday", "June 5"), even though the rest of the sentence is in ${name}. Do NOT translate, spell out, or localize numbers, currency amounts, weekdays, or dates into ${name} — they sound off when spoken in ${name}.
 - Use natural contractions and conversational rhythm appropriate for ${name}.`;
 }
 
