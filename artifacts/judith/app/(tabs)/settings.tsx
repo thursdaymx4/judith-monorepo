@@ -6,6 +6,7 @@ import * as Notifications from "expo-notifications";
 import { Icon, type IconName } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Dot, Low, Mono, Screen, Txt, mix } from "@/components/ui";
+import { COUNTRIES } from "@/constants/countries";
 import { LANGUAGES, langDesc, languageByCode } from "@/constants/languages";
 import { PERSONAS } from "@/constants/personas";
 import { useAuth } from "@/contexts/AuthContext";
@@ -120,7 +121,7 @@ function SettingsLabel({ children }: { children: React.ReactNode }) {
 export default function SettingsScreen() {
   const t = useTheme();
   const router = useRouter();
-  const { persona, setPersona, language, setLanguage, toggles, setToggle, reduceMotion, setReduceMotion, asksLeft, tier, theme, setTheme, restart, money, bills, name, guest, country } =
+  const { persona, setPersona, language, setLanguage, toggles, setToggle, reduceMotion, setReduceMotion, asksLeft, tier, theme, setTheme, restart, money, bills, name, guest, country, setCountry } =
     useJudith();
   const { user } = useAuth();
   const email = user?.email ?? (guest ? "Guest account" : "—");
@@ -134,6 +135,13 @@ export default function SettingsScreen() {
   const [langOpen, setLangOpen] = React.useState(false);
   const [langQ, setLangQ] = React.useState("");
   const [langExpanded, setLangExpanded] = React.useState<string | null>(null);
+
+  const [countryOpen, setCountryOpen] = React.useState(false);
+  const [countryQ, setCountryQ] = React.useState("");
+  const countryQuery = countryQ.trim().toLowerCase();
+  const countryList = COUNTRIES.filter((c) =>
+    !countryQuery || c.name.toLowerCase().includes(countryQuery) || c.code.toLowerCase().includes(countryQuery)
+  );
 
   const currentLangDisplay = React.useMemo(() => {
     for (const l of LANGUAGES) {
@@ -456,6 +464,77 @@ export default function SettingsScreen() {
                       </View>
                     )}
                   </View>
+                );
+              })}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* where you live */}
+      <SettingsLabel>Where you live</SettingsLabel>
+      <Pressable
+        onPress={() => { setCountryQ(""); setCountryOpen(true); }}
+        style={({ pressed }) => [
+          { ...rowBase, borderRadius: t.radius.md },
+          pressed && { transform: [{ scale: 0.99 }] },
+        ]}
+      >
+        <IcoBox name="globe" iconSize={17} color={t.accent} />
+        <View style={{ flex: 1 }}>
+          <Txt size={15} weight="medium">{country.name}</Txt>
+          <Low size={12} style={{ marginTop: 1 }}>Shapes Judith's voice and cultural context</Low>
+        </View>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Text style={{ fontSize: 22 }}>{country.flag}</Text>
+          <Icon name="chev" size={16} color={t.txtMid} />
+        </View>
+      </Pressable>
+
+      <Modal visible={countryOpen} transparent animationType="slide" onRequestClose={() => setCountryOpen(false)}>
+        <Pressable onPress={() => setCountryOpen(false)} style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}>
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={{ backgroundColor: t.surface1, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderColor: t.hair, maxHeight: "85%", paddingBottom: 34 }}
+          >
+            <View style={{ alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: t.hair2, marginTop: 12, marginBottom: 14 }} />
+            <View style={{ paddingHorizontal: 18 }}>
+              <Txt size={18} weight="semibold" style={{ marginBottom: 12 }}>Where you live</Txt>
+              <TextInput
+                value={countryQ}
+                onChangeText={setCountryQ}
+                placeholder="Search countries…"
+                placeholderTextColor={t.txtLow}
+                style={{
+                  borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface2,
+                  borderRadius: 12, paddingVertical: 11, paddingHorizontal: 14,
+                  color: t.txtHi, fontFamily: t.fonts.regular, fontSize: 14, marginBottom: 12,
+                }}
+              />
+            </View>
+            <ScrollView style={{ paddingHorizontal: 18 }} contentContainerStyle={{ paddingHorizontal: 18, gap: 8, paddingBottom: 12 }}>
+              {countryList.map((c) => {
+                const active = country.code === c.code;
+                return (
+                  <Pressable
+                    key={c.code}
+                    onPress={() => { setCountry(c.code); setCountryOpen(false); }}
+                    style={({ pressed }) => ({
+                      flexDirection: "row", alignItems: "center", gap: 12,
+                      paddingVertical: 13, paddingHorizontal: 14,
+                      borderRadius: 12, borderWidth: 1,
+                      borderColor: active ? t.accent : t.hair,
+                      backgroundColor: active ? mix(t.accent, t.surface2, 0.12) : t.surface2,
+                      opacity: pressed ? 0.85 : 1,
+                    })}
+                  >
+                    <Text style={{ fontSize: 24 }}>{c.flag}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Txt size={14} weight="medium">{c.name}</Txt>
+                      <Low size={12} style={{ marginTop: 2 }}>{c.cur}</Low>
+                    </View>
+                    {active ? <Icon name="check" size={18} color={t.accent} /> : <View style={{ width: 18 }} />}
+                  </Pressable>
                 );
               })}
             </ScrollView>
