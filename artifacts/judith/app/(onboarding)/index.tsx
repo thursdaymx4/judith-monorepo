@@ -237,6 +237,7 @@ interface OnbBill {
   dueDays: number;
   kind: "Fixed" | "Variable";
   frequency?: "monthly" | "annual";
+  isBusiness?: boolean;
   subtype?: string;
   house?: string;
   chargedToCard?: boolean;
@@ -1947,7 +1948,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   } | null>(null);
   const [formCat, setFormCat] = useState<{ cat: string; icon: string } | null>(null);
   const [manualReturn, setManualReturn] = useState<VMode>("prompt");
-  const [form, setForm] = useState<{ provider: string; amount: string; due: string; kind: "Fixed" | "Variable"; subtype?: string; house?: string; chargedToCard?: boolean; parentCardId?: string }>({ provider: "", amount: "", due: "", kind: "Fixed", house: HOUSES[0] });
+  const [form, setForm] = useState<{ provider: string; amount: string; due: string; kind: "Fixed" | "Variable"; frequency: "monthly" | "annual"; isBusiness: boolean; subtype?: string; house?: string; chargedToCard?: boolean; parentCardId?: string }>({ provider: "", amount: "", due: "", kind: "Fixed", frequency: "monthly", isBusiness: false, house: HOUSES[0] });
   const [phase, setPhase] = useState<"scripted" | "cards" | "loans">("cards");
   const [breatherGroup, setBreatherGroup] = useState(0);
   const [cardN, setCardN] = useState(0);
@@ -2068,7 +2069,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const openForm = (c: { cat: string; icon: string }) => {
     const presets: Record<string, string> = { "Rent / Mortgage": "18000", Electricity: "3450", Water: "890", Internet: "1699", Mobile: "999", "TV / Streaming": "549", "Credit card": "5200" };
     setFormCat(c);
-    setForm({ provider: "", amount: presets[c.cat] || "", due: "", kind: kindFor(c.cat), subtype: c.cat === "Rent / Mortgage" ? "Rent" : undefined, house: HOUSES[0], chargedToCard: false, parentCardId: undefined });
+    setForm({ provider: "", amount: presets[c.cat] || "", due: "", kind: kindFor(c.cat), frequency: "monthly", isBusiness: false, subtype: c.cat === "Rent / Mortgage" ? "Rent" : undefined, house: HOUSES[0], chargedToCard: false, parentCardId: undefined });
     setMode("manualForm");
   };
   const saveForm = () => {
@@ -2083,8 +2084,10 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       due: form.due || "—",
       dueDays: 20,
       kind: form.kind || kindFor(cat.cat),
+      frequency: form.frequency,
       subtype: form.subtype,
       house: form.house,
+      ...(form.isBusiness ? { isBusiness: true } : {}),
       ...(linkCard ? { chargedToCard: true, parentCardId: form.parentCardId } : {}),
     };
     const after = () => {
@@ -2306,7 +2309,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   useEffect(() => {
     if (phase === "scripted" && sample.cat === "Phone subscription") return;
     setFormCat({ cat: sample.cat, icon: sample.icon });
-    setForm({ provider: "", amount: "", due: "", kind: kindFor(sample.cat), subtype: sample.cat === "Rent / Mortgage" ? "Rent" : undefined, house: HOUSES[0], chargedToCard: false, parentCardId: undefined });
+    setForm({ provider: "", amount: "", due: "", kind: kindFor(sample.cat), frequency: "monthly", isBusiness: false, subtype: sample.cat === "Rent / Mortgage" ? "Rent" : undefined, house: HOUSES[0], chargedToCard: false, parentCardId: undefined });
     setManualReturn("prompt");
     setFocusedField(null);
     setShowDayPicker(false);
@@ -2991,6 +2994,14 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                   onChange={(v) => setForm({ ...form, kind: v as "Fixed" | "Variable" })}
                 />
               </View>
+              <View style={{ marginTop: 10 }}>
+                <FieldLabel>Billing</FieldLabel>
+                <Seg
+                  options={["Monthly", "Annual"]}
+                  value={form.frequency === "annual" ? "Annual" : "Monthly"}
+                  onChange={(v) => setForm({ ...form, frequency: v === "Annual" ? "annual" : "monthly" })}
+                />
+              </View>
               {formCat.cat === "Rent / Mortgage" && (
                 <View style={{ marginTop: 10 }}>
                   <FieldLabel>Rent or mortgage?</FieldLabel>
@@ -3020,6 +3031,23 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                   </View>
                 </View>
               )}
+              <View style={{ marginTop: 14, paddingHorizontal: 2 }}>
+                <Low size={12} style={{ marginBottom: 8 }}>Business expense?</Low>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <Pressable
+                    onPress={() => { haptics.selection(); setForm((f) => ({ ...f, isBusiness: false })); }}
+                    style={{ flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 22, paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1, borderColor: !form.isBusiness ? withAlpha(t.accent, 0.5) : t.hair, backgroundColor: !form.isBusiness ? mix(t.accent, t.surface2, 0.15) : t.surface2 }}
+                  >
+                    <Txt size={13} weight="medium" color={!form.isBusiness ? t.txtHi : t.txtMid}>Personal</Txt>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => { haptics.selection(); setForm((f) => ({ ...f, isBusiness: true })); }}
+                    style={{ flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 22, paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1, borderColor: form.isBusiness ? withAlpha(t.accent, 0.5) : t.hair, backgroundColor: form.isBusiness ? mix(t.accent, t.surface2, 0.15) : t.surface2 }}
+                  >
+                    <Txt size={13} weight="medium" color={form.isBusiness ? t.txtHi : t.txtMid}>Business</Txt>
+                  </Pressable>
+                </View>
+              </View>
               {renderCardToggle(formCat.cat)}
             </View>
           )}
@@ -3448,6 +3476,7 @@ function onbBillToStoreBill(b: OnbBill): Bill {
     kind: b.kind,
     subtype: b.subtype as "Rent" | "Mortgage" | undefined,
     frequency: b.frequency,
+    ...(b.isBusiness ? { isBusiness: true } : {}),
     ...(b.chargedToCard ? { chargedToCard: true } : {}),
     ...(b.parentCardId ? { parentCardId: b.parentCardId } : {}),
   };
