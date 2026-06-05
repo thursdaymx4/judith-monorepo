@@ -70,7 +70,10 @@ export default function AskModal() {
   const t = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { bills, asksLeft, tier, persona, language, country, consumeAsk, canUseVoice, saveBill, showToast } = useJudith();
+  const { bills, asksLeft, tier, persona, language, country, consumeAsk, canUseVoice, saveBill, showToast, toggles, setToggle } = useJudith();
+  // Voice tier can mute spoken replies (e.g. in public) and get text-only answers.
+  const speakAloud = toggles.voiceReplies;
+  const voiceTier = tier === "voice";
   const [rateLimitSecs, setRateLimitSecs] = React.useState(0);
   const lastAskRef = useRef<number>(0);
   // Countdown timer for rate-limit cooldown
@@ -258,7 +261,10 @@ export default function AskModal() {
     setBusy(true);
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
     try {
-      const { reply, audioBase64, action } = await askJudith(q, askBills(), persona, language, canUseVoice(), country.cur, country.name);
+      // Speak aloud only when the user hasn't muted replies (voice tier) — saves TTS cost and stays silent in public.
+      // The mute only applies to the voice tier; other tiers (e.g. free with asks left) are unaffected.
+      const wantVoice = canUseVoice() && (!voiceTier || speakAloud);
+      const { reply, audioBase64, action } = await askJudith(q, askBills(), persona, language, wantVoice, country.cur, country.name);
       const finalReply = reply?.trim() || localFallback(q);
       setMessages((m) => [...m, { role: "judith", text: finalReply }]);
       if (audioBase64) {
@@ -448,15 +454,42 @@ export default function AskModal() {
             Ask Judith
           </Txt>
         </View>
-        <Pill
-          onPress={() => router.push("/plans")}
-          style={lowAsks ? { borderColor: t.semantic.near } : undefined}
-        >
-          <Icon name={isPaid ? "star" : "spark"} size={13} color={t.accent} />
-          <Txt size={13} weight="bold" color={t.txtHi}>
-            {isPaid ? "Unlimited" : `${asksLeft} asks`}
-          </Txt>
-        </Pill>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          {voiceTier && (
+            <Pressable
+              onPress={() => {
+                const next = !speakAloud;
+                setToggle("voiceReplies", next);
+                showToast(next ? "Judith will speak answers aloud" : "Voice off · text replies only");
+              }}
+              hitSlop={8}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: speakAloud }}
+              accessibilityLabel={speakAloud ? "Mute spoken replies" : "Speak replies aloud"}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: speakAloud ? mix(t.accent, t.canvas, 0.85) : t.surface2,
+                borderWidth: 1,
+                borderColor: speakAloud ? t.accent : t.hair,
+              }}
+            >
+              <Icon name={speakAloud ? "volume" : "volumeOff"} size={16} color={speakAloud ? t.accent : t.txtMid} />
+            </Pressable>
+          )}
+          <Pill
+            onPress={() => router.push("/plans")}
+            style={lowAsks ? { borderColor: t.semantic.near } : undefined}
+          >
+            <Icon name={isPaid ? "star" : "spark"} size={13} color={t.accent} />
+            <Txt size={13} weight="bold" color={t.txtHi}>
+              {isPaid ? "Unlimited" : `${asksLeft} asks`}
+            </Txt>
+          </Pill>
+        </View>
       </View>
 
       {/* body */}

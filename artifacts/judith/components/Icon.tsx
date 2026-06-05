@@ -53,7 +53,9 @@ export type IconName =
   | "flash"
   | "apple"
   | "google"
-  | "share";
+  | "share"
+  | "volume"
+  | "volumeOff";
 
 interface IconProps {
   name: IconName | string;
@@ -343,6 +345,20 @@ function paths(name: string, color: string): React.ReactNode {
           <Path d="M8 10H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-3" />
           <Path d="M12 3v11" />
           <Path d="M9 6l3-3 3 3" />
+        </G>
+      );
+    case "volume":
+      return (
+        <G>
+          <Path d="M11 5 6 9H3v6h3l5 4z" />
+          <Path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" />
+        </G>
+      );
+    case "volumeOff":
+      return (
+        <G>
+          <Path d="M11 5 6 9H3v6h3l5 4z" />
+          <Path d="M22 9l-6 6M16 9l6 6" />
         </G>
       );
     case "google":

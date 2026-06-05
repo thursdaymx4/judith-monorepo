@@ -498,6 +498,27 @@ export default function SettingsScreen() {
         })}
       </View>
 
+      {/* voice — only for Voice Ask subscribers */}
+      {tier === "voice" && (
+        <>
+          <SettingsLabel>Voice</SettingsLabel>
+          <View style={{ borderRadius: t.radius.md, overflow: "hidden" }}>
+            <View style={{ ...rowBase, borderTopWidth: 1, borderBottomWidth: 0 }}>
+              <IcoBox name={toggles.voiceReplies ? "volume" : "volumeOff"} iconSize={17} color={toggles.voiceReplies ? t.accent : t.txtMid} />
+              <View style={{ flex: 1 }}>
+                <Txt size={15} weight="medium">
+                  Speak answers aloud
+                </Txt>
+                <Low size={12} style={{ marginTop: 1 }}>
+                  Turn off to get text-only replies in public
+                </Low>
+              </View>
+              <Toggle on={toggles.voiceReplies} onPress={() => setToggle("voiceReplies", !toggles.voiceReplies)} />
+            </View>
+          </View>
+        </>
+      )}
+
       {/* reminders */}
       <SettingsLabel>Reminders & devices</SettingsLabel>
       <View style={{ borderRadius: t.radius.md, overflow: "hidden" }}>

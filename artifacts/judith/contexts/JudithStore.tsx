@@ -67,6 +67,8 @@ export interface Toggles {
   widget: boolean;
   watch: boolean;
   nudges: boolean;
+  /** Voice tier only: speak Judith's answers aloud. Off = text/chat reply only (e.g. in public). */
+  voiceReplies: boolean;
 }
 
 interface PersistShape {
@@ -105,7 +107,7 @@ const DEFAULTS: PersistShape = {
   theme: "dark",
   accent: "mint",
   countryCode: DEFAULT_COUNTRY.code,
-  toggles: { dueReminders: true, widget: true, watch: false, nudges: true },
+  toggles: { dueReminders: true, widget: true, watch: false, nudges: true, voiceReplies: true },
   reduceMotion: false,
   faceIdLock: false,
   onboarded: false,
@@ -197,7 +199,8 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
             // Migrate legacy tier values to new model
             if ((parsed.tier as string) === "plus") parsed.tier = "chat";
             if ((parsed.tier as string) === "unlimited") parsed.tier = "voice";
-            setState({ ...DEFAULTS, ...parsed });
+            // Deep-merge toggles so newly added keys (e.g. voiceReplies) fall back to defaults
+            setState({ ...DEFAULTS, ...parsed, toggles: { ...DEFAULTS.toggles, ...(parsed.toggles ?? {}) } });
           } catch {
             /* ignore corrupt */
           }
