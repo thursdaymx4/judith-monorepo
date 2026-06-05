@@ -254,10 +254,9 @@ export default function HomeScreen() {
     setOverdueOnly((v) => !v);
   };
 
-  // Paid-progress also tracks only bills you fund directly (excludes via-card).
-  const payableAll = bills.filter((b) => !isPaidViaCard(b));
-  const paid = payableAll.filter((b) => isPaidThisMonth(b));
-  const unpaid = payableAll.filter((b) => !isPaidThisMonth(b));
+  // Paid-progress scoped to this month's bills only (same window as timelineBills).
+  const paid = payable.filter((b) => isPaidThisMonth(b));
+  const unpaid = payable.filter((b) => !isPaidThisMonth(b));
   // paidAmt = fully paid bills + in-progress partial payments on unpaid bills
   const paidAmt =
     paid.reduce((s, b) => s + amtPaidThisMonth(b), 0) +
