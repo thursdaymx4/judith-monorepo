@@ -456,16 +456,14 @@ export function getAllProviderEntries(): ProviderEntry[] {
    Quick asks — country-aware
    ═══════════════════════════════════════════════════════════════════════ */
 
-export function getQuickAsks(countryCode: string): string[] {
-  const elec = getProviders(countryCode, "Electricity")[0]?.name ?? "electricity";
-  const cc   = getProviders(countryCode, "Credit card")[0]?.name ?? "credit card";
+export function getQuickAsks(_countryCode: string): string[] {
   return [
     "What's due this week?",
-    "How much do I owe this month?",
-    "What else do I still have to pay this month and how much in total?",
-    `Did I pay ${elec}?`,
-    `What's my ${cc} balance?`,
-    "When's my next due date?",
+    "How much bills do I still have to pay for this month?",
+    "What's the total due for all my credit cards this month?",
+    "What's my estimated total bill for next month?",
+    "How much will be left from my income next month after bills?",
+    "Can I afford to go on vacation next month?",
   ];
 }
 
