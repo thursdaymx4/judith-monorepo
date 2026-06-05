@@ -221,17 +221,8 @@ export default function HomeScreen() {
   const cats = Object.keys(catCounts).sort((a, b) => catCounts[b]! - catCounts[a]!);
   const showFilters = cats.length > 1;
 
-  // Apply active filter then chosen sort order
-  const visibleBase = overdueOnly
-    ? overdue
-    : timelineBills.filter((b) => filterCat === null || b.cat === filterCat);
-  const visible = visibleBase
-    .slice()
-    .sort((a, b) => sortBy === "amount" ? totalOwed(b) - totalOwed(a) : a.dueDays - b.dueDays);
   // Remaining balance per bill (full amount minus any payment already made this period)
   const remaining = (b: Bill) => Math.max(0, totalOwed(b) - amtPaidThisMonth(b));
-  // Total of the bills currently shown — surfaced as context text when a category filter is active.
-  const catTotal = visible.reduce((s, b) => s + remaining(b), 0);
   // Money totals exclude bills auto-charged to a linked card — their cost is
   // already in the card's statement, so counting both would double-count. They
   // still appear in the timeline below, tagged "via card".
@@ -240,13 +231,24 @@ export default function HomeScreen() {
   // later month inflate the total and it stops matching the Calendar screen's
   // "Due in <month>" figure for the same period.
   const payable = timelineBills.filter((b) => !isPaidViaCard(b));
+  const overdue = payable.filter((b) => b.dueDays < 0);
+  const overdueTotal = overdue.reduce((s, b) => s + remaining(b), 0);
+
+  // Apply active filter then chosen sort order
+  const visibleBase = overdueOnly
+    ? overdue
+    : timelineBills.filter((b) => filterCat === null || b.cat === filterCat);
+  const visible = visibleBase
+    .slice()
+    .sort((a, b) => sortBy === "amount" ? totalOwed(b) - totalOwed(a) : a.dueDays - b.dueDays);
+  // Total of the bills currently shown — surfaced as context text when a category filter is active.
+  const catTotal = visible.reduce((s, b) => s + remaining(b), 0);
+
   const total = payable.reduce((s, b) => s + remaining(b), 0);
   const week = payable.filter((b) => b.dueDays >= 0 && b.dueDays <= 7);
   const weekSum = week.reduce((s, b) => s + remaining(b), 0);
   const soon = payable.filter((b) => b.dueDays <= 3).length;
 
-  const overdue = payable.filter((b) => b.dueDays < 0);
-  const overdueTotal = overdue.reduce((s, b) => s + remaining(b), 0);
   const openOverdue = () => {
     if (overdue.length === 1) { router.push(`/bill/${overdue[0]!.id}`); return; }
     haptics.selection();
