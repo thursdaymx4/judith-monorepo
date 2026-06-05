@@ -228,10 +228,10 @@ export default function HomeScreen() {
   const visible = visibleBase
     .slice()
     .sort((a, b) => sortBy === "amount" ? totalOwed(b) - totalOwed(a) : a.dueDays - b.dueDays);
-  // Total of the bills currently shown — surfaced as context text when a category filter is active.
-  const catTotal = visible.reduce((s, b) => s + totalOwed(b), 0);
   // Remaining balance per bill (full amount minus any payment already made this period)
   const remaining = (b: Bill) => Math.max(0, totalOwed(b) - amtPaidThisMonth(b));
+  // Total of the bills currently shown — surfaced as context text when a category filter is active.
+  const catTotal = visible.reduce((s, b) => s + remaining(b), 0);
   // Money totals exclude bills auto-charged to a linked card — their cost is
   // already in the card's statement, so counting both would double-count. They
   // still appear in the timeline below, tagged "via card".
