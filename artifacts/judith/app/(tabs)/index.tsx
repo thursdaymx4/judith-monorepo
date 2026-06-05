@@ -17,7 +17,7 @@ import {
   SpeechBubble,
   Txt,
 } from "@/components/ui";
-import { dueClass, dueShort, isPaidViaCard, isPartialBill, partialPct, totalOwed, type Bill } from "@/constants/data";
+import { currentCycleDue, dueClass, dueShort, isPaidViaCard, isPartialBill, partialPct, totalOwed, type Bill } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
 import { useCountUp } from "@/hooks/useCountUp";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
@@ -120,7 +120,11 @@ export default function HomeScreen() {
     (b) => b.cat === "Credit card" && b.statementDay === todayDay,
   );
 
-  const due = bills
+  // dueDays/dueLabel on the stored bill are stale snapshots the store never
+  // refreshes; recompute them live (signed, so passed-but-unpaid bills stay
+  // negative/overdue) so the timeline matches the calendar.
+  const liveBills = bills.map((b) => ({ ...b, ...currentCycleDue(b, _today) }));
+  const due = liveBills
     .filter((b) => !isPaidThisMonth(b))
     .slice()
     .sort((a, b) => a.dueDays - b.dueDays);

@@ -39,3 +39,14 @@ the stale snapshot. **How to apply:** compute due dates from `dueDate` via
 so due-today stays today, clamp to days-in-month; annual: keep stored dueDays). All
 roll-forward date math (`makeBillFromAction`, `makeManualBill`, `computeNextDue`)
 must use `< base`, never `<= base`.
+
+Two live helpers exist in `constants/data.ts`, pick by what the surface needs:
+- `nextOccurrence` (roll-forward, never negative) — for "what's your NEXT bill" and
+  for scheduling future things. Used by Ask and `lib/notifications.ts` (you cannot
+  schedule a reminder in the past, so notifications MUST roll forward).
+- `currentCycleDue` (SIGNED current-month offset; passed-but-unpaid stays negative) —
+  for surfaces with an OVERDUE state. Used by home `app/(tabs)/index.tsx` and
+  `lib/watch.ts`; mirrors `calendar.tsx` `viewedDueDays` current-month branch. Using
+  roll-forward here would silently destroy the overdue concept.
+The home screen injects live values via `bills.map(b => ({...b, ...currentCycleDue(b)}))`
+BEFORE any due/week/soon/overdue computation — the spread preserves parentCardId etc.

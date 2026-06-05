@@ -439,6 +439,26 @@ export function nextOccurrence(
   return { dueDays, dueLabel };
 }
 
+/**
+ * Signed days from `today` to the bill's due day in the CURRENT calendar month.
+ * Unlike {@link nextOccurrence}, this does NOT roll forward: a monthly bill whose
+ * due day already passed this month returns a NEGATIVE value (overdue), matching
+ * the calendar's current-month `viewedDueDays`. Use this for surfaces that show an
+ * overdue state (home timeline, watch summary). Annual bills keep their stored
+ * dueDays. The due day is clamped to the number of days in the month.
+ */
+export function currentCycleDue(
+  b: Pick<Bill, "dueDate" | "dueDays" | "dueLabel" | "frequency">,
+  today: Date = new Date(),
+): { dueDays: number; dueLabel: string } {
+  if (b.frequency === "annual") return { dueDays: b.dueDays, dueLabel: b.dueLabel };
+  const base = startOfDay(today);
+  const day = Math.min(b.dueDate, daysInMonth(base.getFullYear(), base.getMonth()));
+  const target = new Date(base.getFullYear(), base.getMonth(), day);
+  const dueDays = Math.round((target.getTime() - base.getTime()) / 86_400_000);
+  return { dueDays, dueLabel: `${MONTHS[target.getMonth()]} ${target.getDate()}` };
+}
+
 /** A subscription detected from a screenshot, before it becomes a Bill. */
 export interface ScannedSubscription {
   provider: string;

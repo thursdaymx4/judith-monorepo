@@ -15,7 +15,7 @@
  *   3. Implement the Watch UI (SwiftUI) that reads userInfo from WCSession.
  */
 import { Platform } from "react-native";
-import type { Bill } from "@/constants/data";
+import { currentCycleDue, type Bill } from "@/constants/data";
 import type { PersonaId } from "@/constants/personas";
 
 // Wrapped in try/catch: TurboModuleRegistry.getEnforcing("RNWatch") throws
@@ -48,20 +48,25 @@ export interface WatchPayload {
 }
 
 function buildPayload(bills: Bill[], persona: PersonaId): WatchPayload {
-  const unpaid = bills.filter((b) => b.status !== "paid").sort((a, b) => a.dueDays - b.dueDays);
+  // Stored dueDays/dueLabel are stale snapshots the store never refreshes;
+  // recompute live (signed, so overdue stays negative) to match the home screen.
+  const unpaid = bills
+    .filter((b) => b.status !== "paid")
+    .map((b) => ({ b, occ: currentCycleDue(b) }))
+    .sort((a, z) => a.occ.dueDays - z.occ.dueDays);
   const next = unpaid[0];
   return {
     generatedAt: new Date().toISOString(),
-    totalOwed: unpaid.reduce((s, b) => s + b.amount, 0),
+    totalOwed: unpaid.reduce((s, x) => s + x.b.amount, 0),
     unpaidCount: unpaid.length,
-    nextProvider: next?.provider ?? "",
-    nextAmount: next?.amount ?? 0,
-    nextDueDays: next?.dueDays ?? 0,
-    nextDueLabel: next?.dueLabel ?? "",
+    nextProvider: next?.b.provider ?? "",
+    nextAmount: next?.b.amount ?? 0,
+    nextDueDays: next?.occ.dueDays ?? 0,
+    nextDueLabel: next?.occ.dueLabel ?? "",
     persona,
     urgentBills: unpaid
-      .filter((b) => b.dueDays <= 3)
-      .map((b) => ({ id: b.id, provider: b.provider, amount: b.amount, dueDays: b.dueDays })),
+      .filter((x) => x.occ.dueDays <= 3)
+      .map((x) => ({ id: x.b.id, provider: x.b.provider, amount: x.b.amount, dueDays: x.occ.dueDays })),
   };
 }
 

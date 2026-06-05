@@ -10,7 +10,7 @@
  */
 import * as Notifications from "expo-notifications";
 import { Alert, Platform } from "react-native";
-import { isPaidViaCard, type Bill } from "@/constants/data";
+import { isPaidViaCard, nextOccurrence, type Bill } from "@/constants/data";
 import type { PersonaId } from "@/constants/personas";
 
 // Show alerts even when the app is foregrounded
@@ -190,9 +190,14 @@ async function scheduleBill(
 ): Promise<void> {
   const now = new Date();
 
-  // Compute the actual due date from today + dueDays (store's live value)
+  // Stored dueDays/dueLabel are stale snapshots; recompute the next occurrence
+  // live (rolls forward — you can't schedule a reminder in the past). A bill due
+  // today stays today; an already-passed monthly bill rolls to next month.
+  const occ = nextOccurrence(bill, now);
+  const liveBill: Bill = { ...bill, dueDays: occ.dueDays, dueLabel: occ.dueLabel };
+
   const dueAt = new Date();
-  dueAt.setDate(dueAt.getDate() + bill.dueDays);
+  dueAt.setDate(dueAt.getDate() + occ.dueDays);
   dueAt.setHours(9, 0, 0, 0);
 
   const ops: Promise<string>[] = [];
@@ -201,7 +206,7 @@ async function scheduleBill(
     const fireAt = new Date(dueAt);
     fireAt.setDate(dueAt.getDate() - opts.leadDays);
     if (fireAt > now) {
-      const copy = reminderCopy(persona, bill, opts.leadDays, opts.cardName);
+      const copy = reminderCopy(persona, liveBill, opts.leadDays, opts.cardName);
       ops.push(
         Notifications.scheduleNotificationAsync({
           identifier: reminderId(bill.id),
@@ -213,7 +218,7 @@ async function scheduleBill(
   }
 
   if (opts.nudge && dueAt > now) {
-    const copy = nudgeCopy(persona, bill, opts.cardName);
+    const copy = nudgeCopy(persona, liveBill, opts.cardName);
     ops.push(
       Notifications.scheduleNotificationAsync({
         identifier: nudgeId(bill.id),
@@ -259,7 +264,9 @@ export async function syncNotifications(
   await cancelAllNotifications();
   if (!opts.reminder && !opts.nudge) return;
 
-  const unpaid = bills.filter((b) => b.status !== "paid" && b.dueDays >= 0);
+  // Don't pre-filter on the stale b.dueDays; scheduleBill recomputes the next
+  // occurrence live and skips anything whose fire time is already in the past.
+  const unpaid = bills.filter((b) => b.status !== "paid");
   await Promise.allSettled(
     unpaid.map((bill) => {
       // Card-linked bills still get notified, but with a clue naming the card
