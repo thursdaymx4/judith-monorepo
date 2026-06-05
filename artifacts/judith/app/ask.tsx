@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Chip, Low, Muted, Pill, SpeechBubble, Txt, mix } from "@/components/ui";
-import { makeBillFromAction, makeSubscriptionBill, nextOccurrence } from "@/constants/data";
+import { makeBillFromAction, makeSubscriptionBill, currentCycleDue, nextOccurrence } from "@/constants/data";
 import { getQuickAsks } from "@/constants/providers";
 import { getPersona } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
@@ -210,12 +210,14 @@ export default function AskModal() {
   const askBills = (): AskBill[] => {
     const today = new Date();
     return bills.map((b) => {
-      // Recompute the due date LIVE from the bill's day-of-month — the stored
-      // dueDays/dueLabel drift over time, so the calendar and Ask would otherwise
-      // disagree (e.g. a bill due today getting reported as next month).
-      const { dueDays, dueLabel } = nextOccurrence(b, today);
-      const daysAhead = Math.max(dueDays, 0);
-      const dueDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysAhead);
+      // Recompute the due date LIVE from the bill's day-of-month, using the same
+      // overdue-aware logic as the home screen (currentCycleDue). This keeps an
+      // overdue bill in the CURRENT month with a NEGATIVE offset instead of
+      // rolling it forward to next month — otherwise Judith drops overdue bills
+      // from "what's due this month" and under-reports the total (home and Ask
+      // would disagree). The signed offset also files the bill in the right month.
+      const { dueDays, dueLabel } = currentCycleDue(b, today);
+      const dueDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + dueDays);
       const dueMonth = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, "0")}`;
       const cardName = b.chargedToCard && b.parentCardId
         ? (bills.find((c) => c.id === b.parentCardId)?.provider ?? null)
