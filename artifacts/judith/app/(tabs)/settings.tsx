@@ -6,7 +6,7 @@ import * as Notifications from "expo-notifications";
 import { Icon, type IconName } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Dot, Low, Mono, Screen, Txt, mix } from "@/components/ui";
-import { COUNTRIES } from "@/constants/countries";
+import { COUNTRIES, CURRENCIES } from "@/constants/countries";
 import { LANGUAGES, langDesc, languageByCode } from "@/constants/languages";
 import { PERSONAS } from "@/constants/personas";
 import { useAuth } from "@/contexts/AuthContext";
@@ -121,7 +121,7 @@ function SettingsLabel({ children }: { children: React.ReactNode }) {
 export default function SettingsScreen() {
   const t = useTheme();
   const router = useRouter();
-  const { persona, setPersona, language, setLanguage, toggles, setToggle, reduceMotion, setReduceMotion, asksLeft, tier, theme, setTheme, restart, money, bills, name, guest, country, setCountry } =
+  const { persona, setPersona, language, setLanguage, toggles, setToggle, reduceMotion, setReduceMotion, asksLeft, tier, theme, setTheme, restart, money, bills, name, guest, country, setCountry, currency, setCurrency } =
     useJudith();
   const { user } = useAuth();
   const email = user?.email ?? (guest ? "Guest account" : "—");
@@ -139,6 +139,13 @@ export default function SettingsScreen() {
   const [countryOpen, setCountryOpen] = React.useState(false);
   const [countryQ, setCountryQ] = React.useState("");
   const countryQuery = countryQ.trim().toLowerCase();
+
+  const [curOpen, setCurOpen] = React.useState(false);
+  const [curQ, setCurQ] = React.useState("");
+  const curQuery = curQ.trim().toLowerCase();
+  const curList = CURRENCIES.filter(
+    (c) => !curQuery || c.cur.toLowerCase().includes(curQuery) || c.label.toLowerCase().includes(curQuery),
+  );
   const countryList = COUNTRIES.filter((c) =>
     !countryQuery || c.name.toLowerCase().includes(countryQuery) || c.code.toLowerCase().includes(countryQuery)
   );
@@ -531,6 +538,83 @@ export default function SettingsScreen() {
                     <Text style={{ fontSize: 24 }}>{c.flag}</Text>
                     <View style={{ flex: 1 }}>
                       <Txt size={14} weight="medium">{c.name}</Txt>
+                      <Low size={12} style={{ marginTop: 2 }}>{c.cur}</Low>
+                    </View>
+                    {active ? <Icon name="check" size={18} color={t.accent} /> : <View style={{ width: 18 }} />}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* currency */}
+      <SettingsLabel>Currency</SettingsLabel>
+      <Pressable
+        onPress={() => { setCurQ(""); setCurOpen(true); }}
+        style={({ pressed }) => [
+          { ...rowBase, borderRadius: t.radius.md },
+          pressed && { transform: [{ scale: 0.99 }] },
+        ]}
+      >
+        <IcoBox name="wallet" iconSize={17} color={t.accent} />
+        <View style={{ flex: 1 }}>
+          <Txt size={15} weight="medium">Currency symbol</Txt>
+          <Low size={12} style={{ marginTop: 1 }}>Symbol only — amounts are not converted</Low>
+        </View>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Txt size={17} weight="semibold" style={{ color: t.accent }}>{currency}</Txt>
+          <Icon name="chev" size={16} color={t.txtMid} />
+        </View>
+      </Pressable>
+
+      <Modal visible={curOpen} transparent animationType="slide" onRequestClose={() => setCurOpen(false)}>
+        <Pressable onPress={() => setCurOpen(false)} style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}>
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={{ backgroundColor: t.surface1, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderColor: t.hair, maxHeight: "85%", paddingBottom: 34 }}
+          >
+            <View style={{ alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: t.hair2, marginTop: 12, marginBottom: 14 }} />
+            <View style={{ paddingHorizontal: 18 }}>
+              <Txt size={18} weight="semibold" style={{ marginBottom: 10 }}>Currency symbol</Txt>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: mix(t.accent, t.surface2, 0.12), borderRadius: 10, paddingVertical: 10, paddingHorizontal: 13, marginBottom: 12 }}>
+                <Icon name="info" size={15} color={t.accent} />
+                <Txt size={12} style={{ color: t.accent, flex: 1, lineHeight: 17 }}>
+                  Changing this only updates the symbol shown in the app. Your amounts stay exactly the same — nothing is converted.
+                </Txt>
+              </View>
+              <TextInput
+                value={curQ}
+                onChangeText={setCurQ}
+                placeholder="Search currencies…"
+                placeholderTextColor={t.txtLow}
+                style={{
+                  borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface2,
+                  borderRadius: 12, paddingVertical: 11, paddingHorizontal: 14,
+                  color: t.txtHi, fontFamily: t.fonts.regular, fontSize: 14, marginBottom: 12,
+                }}
+              />
+            </View>
+            <ScrollView style={{ paddingHorizontal: 18 }} contentContainerStyle={{ paddingHorizontal: 18, gap: 8, paddingBottom: 12 }}>
+              {curList.map((c) => {
+                const active = currency === c.cur;
+                return (
+                  <Pressable
+                    key={c.cur}
+                    onPress={() => { setCurrency(c.cur); setCurOpen(false); }}
+                    style={({ pressed }) => ({
+                      flexDirection: "row", alignItems: "center", gap: 12,
+                      paddingVertical: 13, paddingHorizontal: 14,
+                      borderRadius: 12, borderWidth: 1,
+                      borderColor: active ? t.accent : t.hair,
+                      backgroundColor: active ? mix(t.accent, t.surface2, 0.12) : t.surface2,
+                      opacity: pressed ? 0.85 : 1,
+                    })}
+                  >
+                    <Text style={{ fontSize: 24 }}>{c.flag}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Txt size={14} weight="medium">{c.label}</Txt>
                       <Low size={12} style={{ marginTop: 2 }}>{c.cur}</Low>
                     </View>
                     {active ? <Icon name="check" size={18} color={t.accent} /> : <View style={{ width: 18 }} />}

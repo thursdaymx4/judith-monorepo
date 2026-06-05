@@ -185,6 +185,22 @@ export const MOM_ENDEARMENT: Record<string, string> = {
 
 export const DEFAULT_COUNTRY = COUNTRIES[0]!; // Philippines
 
+/**
+ * Unique currency symbols derived from COUNTRIES — first country per symbol
+ * wins the representative flag/label. Used by the currency picker in Settings.
+ */
+export const CURRENCIES: Array<{ cur: string; flag: string; label: string }> = (() => {
+  const seen = new Set<string>();
+  const result: Array<{ cur: string; flag: string; label: string }> = [];
+  for (const c of COUNTRIES) {
+    if (!seen.has(c.cur)) {
+      seen.add(c.cur);
+      result.push({ cur: c.cur, flag: c.flag, label: c.name });
+    }
+  }
+  return result;
+})();
+
 export function countryByCode(code: string): Country {
   return COUNTRIES.find((c) => c.code === code) ?? DEFAULT_COUNTRY;
 }

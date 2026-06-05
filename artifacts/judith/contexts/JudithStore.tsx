@@ -84,6 +84,8 @@ interface PersistShape {
   theme: ThemeName;
   accent: AccentId;
   countryCode: string;
+  /** Currency symbol used for all amount display (independent of countryCode — no conversion applied). */
+  currency: string;
   toggles: Toggles;
   /** Accessibility: disable non-essential animation (instant states). */
   reduceMotion: boolean;
@@ -109,6 +111,7 @@ const DEFAULTS: PersistShape = {
   theme: "dark",
   accent: "mint",
   countryCode: DEFAULT_COUNTRY.code,
+  currency: DEFAULT_COUNTRY.cur,
   toggles: { dueReminders: true, widget: true, watch: false, nudges: true, voiceReplies: true },
   reduceMotion: false,
   faceIdLock: false,
@@ -157,6 +160,8 @@ interface JudithStoreValue extends PersistShape {
   toggleTheme: () => void;
   setAccent: (a: AccentId) => void;
   setCountry: (code: string) => void;
+  /** Update the display currency symbol. No conversion is applied — amounts are unchanged. */
+  setCurrency: (sym: string) => void;
   setToggle: (key: keyof Toggles, value: boolean) => void;
   setReduceMotion: (v: boolean) => void;
   /* lifecycle */
@@ -250,7 +255,7 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       bills: state.bills,
       hydrated,
       country,
-      money: (n: number) => formatMoney(n, country.cur),
+      money: (n: number) => formatMoney(n, state.currency),
       toast,
       showToast,
       togglePaid: (id, period) => {
@@ -533,6 +538,7 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
         patch({ theme: state.theme === "dark" ? "light" : "dark" }),
       setAccent: (a) => patch({ accent: a }),
       setCountry: (code) => patch({ countryCode: code }),
+      setCurrency: (sym) => patch({ currency: sym }),
       setToggle: (key, v) =>
         patch({ toggles: { ...state.toggles, [key]: v } }),
       setReduceMotion: (v) => patch({ reduceMotion: v }),
