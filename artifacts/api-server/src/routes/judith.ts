@@ -256,6 +256,38 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     return `- ${b.provider ?? "Bill"} (${b.cat ?? "Other"})${bizTag}${cardTag}: ${curStr(cur, b.amount ?? 0)}, ${b.dueLabel ?? "—"}, ${when}, ${b.status ?? "unpaid"}.`;
   });
 
+  // ── Pre-computed income-remaining figures ──────────────────────────────
+  // The AI must read these; it must NEVER subtract totals from income itself.
+  const curMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const nextDate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+  const nextMonthKey = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}`;
+  const overdueAmt = due.filter((b) => (b.dueDays ?? 0) < 0).reduce((s, b) => s + (b.amount ?? 0), 0);
+
+  const incomeLines: string[] = [];
+  if (monthlyIncome != null && Number.isFinite(monthlyIncome) && monthlyIncome > 0) {
+    const curEntry = monthMap.get(curMonthKey);
+    const nxtEntry = monthMap.get(nextMonthKey);
+    const nxtBills = nxtEntry?.total ?? 0;
+    const nxtLabel = nextDate.toLocaleString("en-US", { month: "long", year: "numeric" });
+
+    if (curEntry) {
+      const leftThisMonth = monthlyIncome - curEntry.total;
+      incomeLines.push(
+        `This month: ${curStr(cur, monthlyIncome)} income − ${curStr(cur, curEntry.total)} bills = ${curStr(cur, leftThisMonth)} left${leftThisMonth < 0 ? " (bills exceed income this month)" : ""}.`,
+      );
+    }
+
+    const leftNextMonth = monthlyIncome - nxtBills;
+    incomeLines.push(
+      `Next month (${nxtLabel}, recurring bills only): ${curStr(cur, monthlyIncome)} income − ${curStr(cur, nxtBills)} projected bills = ${curStr(cur, leftNextMonth)} left.`,
+    );
+    if (overdueAmt > 0) {
+      incomeLines.push(
+        `Important: ${curStr(cur, overdueAmt)} in overdue bills from this month are still unpaid — those must also be settled and will reduce real cash available next month.`,
+      );
+    }
+  }
+
   const parts: string[] = [
     `Today is ${englishDate(today)} (${englishWeekday(today)}).`,
     ...(monthlyIncome != null && Number.isFinite(monthlyIncome) && monthlyIncome > 0
@@ -267,6 +299,14 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
       ? `Business bills still unpaid: ${bizUnpaid.length} bill${bizUnpaid.length === 1 ? "" : "s"} totalling ${curStr(cur, bizTotal)}.`
       : "Business bills still unpaid: none.",
   ];
+
+  if (incomeLines.length > 0) {
+    parts.push(
+      "",
+      "INCOME REMAINING (pre-computed — use these figures exactly, do NOT subtract totals from income yourself):",
+      ...incomeLines,
+    );
+  }
 
   if (viaCard.length > 0) {
     parts.push(
