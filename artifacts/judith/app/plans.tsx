@@ -238,6 +238,12 @@ export default function PlansModal() {
   const voiceActive = tier === "voice";
   const isFree = tier === "free";
 
+  // Prefer the store's localized price (e.g. "$4.99", "£4.99") so each region
+  // shows its real App Store / Play price. Fall back to the formatted default
+  // when packages haven't loaded (Expo Go / RevenueCat not configured).
+  const chatPrice = packages.chat?.product.priceString ?? money(99);
+  const voicePrice = packages.voice?.product.priceString ?? money(199);
+
   return (
     <ScrollView
       ref={scrollRef}
@@ -275,7 +281,7 @@ export default function PlansModal() {
             weight="semibold"
             style={{ textAlign: "center", lineHeight: 34, letterSpacing: -0.5 }}
           >
-            {money(99)}/month.{"\n"}Less than one late fee.
+            {chatPrice}/month.{"\n"}Less than one late fee.
           </Txt>
           <Low size={13} style={{ textAlign: "center", lineHeight: 20 }}>
             {locale.heroBody}
@@ -335,7 +341,7 @@ export default function PlansModal() {
         <MathRow
           label="Judith — all your bills, all month"
           sub="Every due date tracked, every bill reminded"
-          value={money(99)}
+          value={chatPrice}
           color={t.semantic.ok}
           large
         />
@@ -416,7 +422,7 @@ export default function PlansModal() {
                   <Txt size={17} weight="semibold">Chat Ask</Txt>
                   <View style={{ flexDirection: "row", alignItems: "baseline", gap: 4, marginTop: 4 }}>
                     <Mono size={26} weight="bold" color={chatActive && !voiceActive ? t.accent : t.txtHi}>
-                      {money(99)}
+                      {chatPrice}
                     </Mono>
                     <Low size={12}>/mo</Low>
                   </View>
@@ -436,7 +442,7 @@ export default function PlansModal() {
               </View>
               <CtaBtn
                 label={chatActive ? "Current plan" : "Get Chat Ask"}
-                sub={chatActive ? undefined : money(99) + "/month · cancel anytime"}
+                sub={chatActive ? undefined : chatPrice + "/month · cancel anytime"}
                 primary={false}
                 disabled={chatActive}
                 loading={buyingTier === "chat"}
@@ -468,7 +474,7 @@ export default function PlansModal() {
                   <View>
                     <Txt size={18} weight="semibold">Voice Ask</Txt>
                     <View style={{ flexDirection: "row", alignItems: "baseline", gap: 4, marginTop: 4 }}>
-                      <Mono size={28} weight="bold" color={t.accent}>{money(199)}</Mono>
+                      <Mono size={28} weight="bold" color={t.accent}>{voicePrice}</Mono>
                       <Low size={12}>/mo</Low>
                     </View>
                     <Low size={11} style={{ marginTop: 2 }}>Cancel anytime</Low>
@@ -488,7 +494,7 @@ export default function PlansModal() {
                 </View>
                 <CtaBtn
                   label={voiceActive ? "Current plan" : "Get Voice Ask"}
-                  sub={voiceActive ? undefined : money(199) + "/month · cancel anytime"}
+                  sub={voiceActive ? undefined : voicePrice + "/month · cancel anytime"}
                   primary={!voiceActive}
                   disabled={voiceActive}
                   loading={buyingTier === "voice"}

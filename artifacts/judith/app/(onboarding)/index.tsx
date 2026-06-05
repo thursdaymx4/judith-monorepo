@@ -46,6 +46,7 @@ import { useJudith } from "@/contexts/JudithStore";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useTheme } from "@/hooks/useTheme";
 import { haptics } from "@/lib/haptics";
+import { getTierPackages, type TierPackages } from "@/lib/purchases";
 import { fileToBase64, playBase64Mp3, stopCurrentAudio } from "@/lib/audio";
 import { transcribeOnboarding, synthOnboarding, fetchSampleOnboarding, parseBillOnboarding, parseSubscriptionScreenshot, askOnboarding, RateLimitError } from "@/lib/proxy";
 import type { Theme } from "@/constants/theme";
@@ -4167,6 +4168,19 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
   useOnbVoice(JUDITH_VOICE.paywall[persona][paywallIsFil ? 'fil' : 'en'], persona, language);
   const [pick, setPick] = useState<'chat' | 'voice'>('voice');
 
+  // Pull the store's localized prices (e.g. "$4.99", "£4.99") so every region
+  // shows its real App Store / Play price. Falls back to the formatted default
+  // when packages aren't available (Expo Go / RevenueCat not configured).
+  const [packages, setPackages] = useState<TierPackages>({ chat: null, voice: null });
+  useEffect(() => {
+    let alive = true;
+    getTierPackages().then((p) => { if (alive) setPackages(p); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  const chatPrice = packages.chat?.product.priceString ?? fmt(99);
+  const voicePrice = packages.voice?.product.priceString ?? fmt(199);
+  const priceFor = (id: 'chat' | 'voice') => (id === 'voice' ? voicePrice : chatPrice);
+
   const included: { icon: IconName; label: string }[] = [
     { icon: 'cal',   label: 'Bill tracking & due-date calendar' },
     { icon: 'bell',  label: 'Smart reminders before every due date' },
@@ -4213,7 +4227,7 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
 
         {/* math close */}
         <Kicker>The math</Kicker>
-        <Title style={{ lineHeight: 34, marginBottom: 14 }}>{cur}99/month.{"\n"}Less than one late fee.</Title>
+        <Title style={{ lineHeight: 34, marginBottom: 14 }}>{chatPrice}/month.{"\n"}Less than one late fee.</Title>
         <View style={{
           borderWidth: 1, borderColor: t.hair, borderRadius: 16,
           backgroundColor: t.surface1, overflow: 'hidden', marginBottom: 14,
@@ -4250,7 +4264,7 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
               <Txt size={14} weight='semibold' color={t.txtMid}>Judith — all your bills, all month</Txt>
               <Low size={11} style={{ marginTop: 1 }}>Every due date tracked, every bill reminded</Low>
             </View>
-            <Mono size={16} weight='bold' color={t.semantic.ok}>{cur}99</Mono>
+            <Mono size={16} weight='bold' color={t.semantic.ok}>{chatPrice}</Mono>
           </View>
           <View style={{ height: 1, backgroundColor: t.hair }} />
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 16 }}>
@@ -4325,7 +4339,7 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
                     <Low size={12} style={{ marginTop: 2 }}>{tier.sub}</Low>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
-                    <Mono size={18} weight='bold'>{cur}{tier.price}</Mono>
+                    <Mono size={18} weight='bold'>{priceFor(tier.id)}</Mono>
                     <Low size={10}>/mo</Low>
                   </View>
                 </View>
@@ -4343,7 +4357,7 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
       </Scroll>
 
       <CtaBar>
-        <Btn label={'Subscribe · ' + cur + sel.price + '/mo'} onPress={next} />
+        <Btn label={'Subscribe · ' + priceFor(sel.id) + '/mo'} onPress={next} />
         <Btn label='Start with 8 free asks' variant='ghost' onPress={next} />
       </CtaBar>
     </>
