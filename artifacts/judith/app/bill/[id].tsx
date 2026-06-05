@@ -329,6 +329,9 @@ export default function BillDetailModal() {
   // settles every charge on it at once).
   const isPaidForPeriod = (b: Bill, period: string) =>
     (b.paymentHistory ?? []).some((r) => r.period === period && r.paid >= r.totalDue);
+  // Two-decimal formatting for money INPUT fields only (on-screen display is whole-number).
+  const fmt2 = (n: number): string =>
+    n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const linkedUnpaid = linkedCharges.filter((b) => !isPaidForPeriod(b, viewedPeriod));
   const parentCard = bill.chargedToCard && bill.parentCardId
     ? bills.find((b) => b.id === bill.parentCardId)
@@ -660,7 +663,7 @@ export default function BillDetailModal() {
             variant="soft"
             onPress={() => {
               if (showInput) { setShowInput(false); setInput(""); }
-              else { setInput(bill.amountPaid ? String(bill.amountPaid) : ""); setShowInput(true); }
+              else { setInput(bill.amountPaid ? fmt2(bill.amountPaid) : ""); setShowInput(true); }
             }}
           />
         )}
@@ -669,7 +672,7 @@ export default function BillDetailModal() {
             label={statementIsToday ? "Update statement · today" : "Update statement amount"}
             variant="soft"
             onPress={() => {
-              setCCInput(String(bill.amount));
+              setCCInput(fmt2(bill.amount));
               setShowCCUpdate(true);
               setShowInput(false);
             }}
@@ -706,8 +709,12 @@ export default function BillDetailModal() {
             <TextInput
               value={ccInput}
               onChangeText={setCCInput}
+              onBlur={() => {
+                const n = parseFloat(ccInput.replace(/,/g, ""));
+                if (ccInput.trim() && Number.isFinite(n)) setCCInput(fmt2(n));
+              }}
               keyboardType="decimal-pad"
-              placeholder={bill.amount.toLocaleString()}
+              placeholder={fmt2(bill.amount)}
               placeholderTextColor={t.txtLow}
               autoFocus
               style={{ fontFamily: t.fonts.mono, fontSize: 24, color: t.txtHi, paddingVertical: 4, flex: 1 }}
@@ -741,8 +748,12 @@ export default function BillDetailModal() {
             <TextInput
               value={input}
               onChangeText={setInput}
+              onBlur={() => {
+                const n = parseFloat(input.replace(/,/g, ""));
+                if (input.trim() && Number.isFinite(n)) setInput(fmt2(n));
+              }}
               keyboardType="decimal-pad"
-              placeholder={Math.round(viewedOwed * 0.5).toLocaleString()}
+              placeholder={fmt2(viewedOwed * 0.5)}
               placeholderTextColor={t.txtLow}
               style={{ fontFamily: t.fonts.mono, fontSize: 24, color: t.txtHi, paddingVertical: 4, flex: 1 }}
             />

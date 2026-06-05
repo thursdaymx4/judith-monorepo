@@ -72,10 +72,7 @@ export function amountToWords(amount: number | null | undefined): string {
 /** On-screen peso display, e.g. "₱3,450". */
 export function pesoDisplay(amount: number | null | undefined): string {
   if (amount == null || Number.isNaN(amount)) return "₱—";
-  return `₱${amount.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  return `₱${Math.round(amount).toLocaleString("en-US")}`;
 }
 
 export function englishDate(d: Date): string {

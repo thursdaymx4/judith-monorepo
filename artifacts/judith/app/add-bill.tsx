@@ -13,6 +13,9 @@ import { haptics } from "@/lib/haptics";
 
 const CATEGORIES = Object.keys(PROVIDERS);
 const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+/** Two-decimal money formatting — used in input fields only (display is whole-number). */
+const to2dp = (n: number): string =>
+  n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function AddBillScreen() {
   const t = useTheme();
@@ -26,7 +29,7 @@ export default function AddBillScreen() {
 
   const [cat, setCat] = useState<string>(existing?.cat ?? "Electricity");
   const [provider, setProvider] = useState(existing?.provider ?? "");
-  const [amount, setAmount] = useState(existing?.amount ? String(existing.amount) : "");
+  const [amount, setAmount] = useState(existing?.amount ? to2dp(existing.amount) : "");
   const [dueDay, setDueDay] = useState(existing?.dueDate ? String(existing.dueDate) : "");
   const [dueMonth, setDueMonth] = useState(() => {
     if (existing?.frequency !== "annual" || !existing?.dueLabel) return new Date().getMonth() + 1;
@@ -365,9 +368,13 @@ export default function AddBillScreen() {
               <TextInput
                 value={amount}
                 onChangeText={(v) => { setAmount(v); clearErr(); }}
-                placeholder="0"
+                onBlur={() => {
+                  const n = Number(amount.replace(/[^0-9.]/g, ""));
+                  if (amount.trim() && Number.isFinite(n) && n > 0) setAmount(to2dp(n));
+                }}
+                placeholder="0.00"
                 placeholderTextColor={t.txtLow}
-                keyboardType="numeric"
+                keyboardType="decimal-pad"
                 style={{
                   flex: 1,
                   paddingVertical: 13,

@@ -1,22 +1,34 @@
 ---
 name: Judith money formatting
-description: How money is formatted app-wide and the TTS gotcha when adding decimals
+description: Money display is whole-number; 2 decimals only appear in money INPUT fields
 ---
 
 # Judith money formatting
 
-All on-screen money uses the pattern `000,000.00` (thousands separators + 2 decimals).
-The central formatter is `formatMoney` in `constants/data.ts`, surfaced everywhere via
-the store's `money()`. Sibling display formatters kept in lockstep: `pesoDisplay`
-(lib/tagalog.ts), `pesoStr` (lib/notifications.ts), `fmtFee` (constants/paywallLocale.ts),
-and onboarding's `fmtNum`.
+**Rule:** on-screen money DISPLAY is whole-number with thousands separators (e.g.
+`300,000`), NO decimals. Two decimals (`000,000.00`) appear ONLY inside money INPUT
+fields (add-bill amount, bill-detail payment + statement inputs), because users need
+to enter centavos there.
 
-**Why / gotcha:** onboarding has dynamic lines that are spoken via `synthOnboarding`
-(text-to-speech). If a money formatter that those spoken strings use emits `.00`, TTS
-reads "point zero zero". So onboarding keeps a separate `fmtSay` (rounded, no decimals)
-for the spoken summary/congrats lines, while `fmtNum` (display) carries the 2 decimals.
+**Why:** the user found `.00` on every viewed amount visually messy and explicitly
+asked to strip decimals from all display while keeping them for input.
 
-**How to apply:** before adding decimals to ANY shared money formatter, grep its callers
-for `synthOnboarding` / TTS paths and route those through a decimal-free helper. Also
-intentionally excluded from the 2-decimal rule: compact chart "k" abbreviations,
-amount-input placeholders, and the ask.tsx spoken fallback (conversational, rounded).
+**How to apply — display formatters (must stay whole-number):**
+- `formatMoney` (constants/data.ts) → `Math.round(n).toLocaleString("en-US")`; surfaced
+  everywhere via the store's `money()`.
+- `pesoDisplay` (lib/tagalog.ts) → conditional centavos only when the value actually has
+  them (`hasCentavos`), else no decimals.
+- `pesoStr` (lib/notifications.ts), `fmtFee` (constants/paywallLocale.ts), onboarding
+  `fmtNum` (app/(onboarding)/index.tsx) → all whole-number.
+
+**How to apply — input fields (2 decimals):** each money TextInput formats on blur via a
+local `to2dp`/`fmt2` helper (`toLocaleString("en-US",{minimumFractionDigits:2,
+maximumFractionDigits:2})`), seeds its initial/edit value formatted, and shows a `0.00`
+placeholder. Parsers strip commas (`replace(/,/g,"")` / `[^0-9.]`) so comma-formatted
+input round-trips safely. Onboarding amount inputs intentionally left unformatted (one-time
+flow; they already accept decimal entry).
+
+**TTS note:** onboarding spoken summary lines use `fmtNum`; since display is now
+decimal-free, no separate `fmtSay` helper is needed. If decimals are ever re-added to a
+shared formatter, route `synthOnboarding`/TTS callers through a rounded helper so TTS
+never reads "point zero zero".

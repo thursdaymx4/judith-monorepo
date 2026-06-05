@@ -54,7 +54,7 @@ export async function requestPermission(): Promise<boolean> {
 // ─── Notification copy ────────────────────────────────────────────────────────
 
 function pesoStr(amount: number): string {
-  return `₱${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `₱${Math.round(amount).toLocaleString("en-US")}`;
 }
 
 function reminderCopy(

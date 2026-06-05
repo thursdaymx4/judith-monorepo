@@ -1,7 +1,7 @@
 /**
  * Per-country paywall localisation: late-fee amounts, provider names, and
  * conversion copy. Amounts are in local-currency major units (integers).
- * Rendered in the UI via `fmtFee` as `${cur}${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`.
+ * Rendered in the UI as `${cur}${amount.toLocaleString("en")}`.
  *
  * Sources: bank/utility fee schedules, regulator disclosures, and provider
  * terms as of 2024–2025. Amounts are representative averages, not quotes.
@@ -455,5 +455,5 @@ export function getPaywallLocale(countryCode: string): PaywallLocale {
 
 /** Format a local fee amount for display in the math card. */
 export function fmtFee(cur: string, amount: number): string {
-  return cur + amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return cur + amount.toLocaleString("en");
 }
