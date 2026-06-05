@@ -150,6 +150,7 @@ const MANUAL_CATS: { cat: string; icon: string }[] = [
   { cat: "Internet", icon: "wifi" },
   { cat: "Mobile", icon: "smartphone" },
   { cat: "TV / Streaming", icon: "spark" },
+  { cat: "Web app", icon: "globe" },
   { cat: "Insurance", icon: "lock" },
   { cat: "Credit card", icon: "card" },
   { cat: "Personal loan", icon: "wallet" },

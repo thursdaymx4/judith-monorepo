@@ -235,6 +235,20 @@ export const PROVIDERS: Record<string, Provider[]> = {
     { name: "Medibank", color: "#E4002B", short: "MB" },
     { name: "Direct Line", color: "#CC0000", short: "DL" },
   ],
+  "Web app": [
+    { name: "Canva", color: "#00C4CC", short: "CV" },
+    { name: "Notion", color: "#3f3f3f", short: "N" },
+    { name: "ChatGPT", color: "#10A37F", short: "AI" },
+    { name: "Figma", color: "#F24E1E", short: "Fg" },
+    { name: "Slack", color: "#4A154B", short: "Sl" },
+    { name: "Zoom", color: "#2D8CFF", short: "Z" },
+    { name: "GitHub", color: "#24292F", short: "GH" },
+    { name: "Dropbox", color: "#0061FF", short: "Db" },
+    { name: "Adobe CC", color: "#FF0000", short: "Ad" },
+    { name: "Grammarly", color: "#15C39A", short: "Gr" },
+    { name: "Loom", color: "#625DF5", short: "Lo" },
+    { name: "Airtable", color: "#2D7FF9", short: "At" },
+  ],
   Custom: [],
 };
 
@@ -246,6 +260,7 @@ export const CAT_ICONS: Record<string, string> = {
   Landline: "phone",
   "Credit card": "card",
   Subscription: "spark",
+  "Web app": "globe",
   Insurance: "lock",
   Custom: "plus",
 };
