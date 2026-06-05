@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Chip, Low, Muted, Pill, SpeechBubble, Txt, mix } from "@/components/ui";
-import { makeBillFromAction, makeSubscriptionBill } from "@/constants/data";
+import { makeBillFromAction, makeSubscriptionBill, nextOccurrence } from "@/constants/data";
 import { getQuickAsks } from "@/constants/providers";
 import { getPersona } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
@@ -210,7 +210,11 @@ export default function AskModal() {
   const askBills = (): AskBill[] => {
     const today = new Date();
     return bills.map((b) => {
-      const daysAhead = Math.max(b.dueDays ?? 0, 0);
+      // Recompute the due date LIVE from the bill's day-of-month — the stored
+      // dueDays/dueLabel drift over time, so the calendar and Ask would otherwise
+      // disagree (e.g. a bill due today getting reported as next month).
+      const { dueDays, dueLabel } = nextOccurrence(b, today);
+      const daysAhead = Math.max(dueDays, 0);
       const dueDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysAhead);
       const dueMonth = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, "0")}`;
       const cardName = b.chargedToCard && b.parentCardId
@@ -220,8 +224,8 @@ export default function AskModal() {
         provider: b.provider,
         cat: b.cat,
         amount: b.amount,
-        dueDays: b.dueDays,
-        dueLabel: b.dueLabel,
+        dueDays,
+        dueLabel,
         status: b.status,
         dueMonth,
         isBusiness: b.isBusiness,
@@ -235,11 +239,13 @@ export default function AskModal() {
     if (!BILL_WORDS.test(q)) {
       return "That's outside my lane — I only handle your bills and due dates. Ask me anything about those and I'm all yours.";
     }
+    const now = new Date();
     const next = bills
       .filter((b) => b.status !== "paid")
-      .sort((a, b) => a.dueDays - b.dueDays)[0];
+      .map((b) => ({ b, occ: nextOccurrence(b, now) }))
+      .sort((a, b) => a.occ.dueDays - b.occ.dueDays)[0];
     return next
-      ? `Your next bill is ${next.provider} — ${"\u20B1"}${Math.round(next.amount).toLocaleString("en-US")}, due ${next.dueLabel}.`
+      ? `Your next bill is ${next.b.provider} — ${"\u20B1"}${Math.round(next.b.amount).toLocaleString("en-US")}, due ${next.occ.dueLabel}.`
       : "You're all caught up — nothing due right now.";
   };
 

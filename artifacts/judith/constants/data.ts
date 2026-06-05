@@ -410,6 +410,35 @@ function daysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
 }
 
+/**
+ * Live next-occurrence for a store Bill, computed fresh from its day-of-month
+ * (`dueDate`) — never the stored `dueDays`/`dueLabel`, which drift over time and
+ * are explicitly treated as stale by the store. Monthly bills roll to next month
+ * only once the due day has fully passed: a bill due *today* stays today (matches
+ * the calendar). Annual bills keep their stored dueDays, which already points at
+ * the real annual occurrence.
+ */
+export function nextOccurrence(
+  b: Pick<Bill, "dueDate" | "dueDays" | "dueLabel" | "frequency">,
+  today: Date = new Date(),
+): { dueDays: number; dueLabel: string } {
+  if (b.frequency === "annual") return { dueDays: b.dueDays, dueLabel: b.dueLabel };
+  const base = startOfDay(today);
+  const dayFor = (y: number, m: number) => Math.min(b.dueDate, daysInMonth(y, m));
+  let candidate = new Date(base.getFullYear(), base.getMonth(), dayFor(base.getFullYear(), base.getMonth()));
+  if (candidate < base) {
+    const y = base.getFullYear();
+    const m = base.getMonth() + 1;
+    candidate = new Date(y, m, dayFor(y, m));
+  }
+  const dueDays = Math.round((candidate.getTime() - base.getTime()) / 86_400_000);
+  const sameYear = candidate.getFullYear() === base.getFullYear();
+  const dueLabel = sameYear
+    ? `${MONTHS[candidate.getMonth()]} ${candidate.getDate()}`
+    : `${MONTHS[candidate.getMonth()]} ${candidate.getDate()}, ${candidate.getFullYear()}`;
+  return { dueDays, dueLabel };
+}
+
 /** A subscription detected from a screenshot, before it becomes a Bill. */
 export interface ScannedSubscription {
   provider: string;
@@ -472,7 +501,7 @@ export function makeBillFromAction(
   const day = Math.max(1, Math.min(31, Math.round(a.dueDay)));
   const dayFor = (y: number, m: number) => Math.min(day, daysInMonth(y, m));
   let candidate = new Date(base.getFullYear(), base.getMonth(), dayFor(base.getFullYear(), base.getMonth()));
-  if (candidate <= base) {
+  if (candidate < base) {
     const y = base.getFullYear();
     const m = base.getMonth() + 1;
     candidate = new Date(y, m, dayFor(y, m));
@@ -520,7 +549,7 @@ export function makeManualBill(
   const day = Math.max(1, Math.min(31, Math.round(a.dueDay)));
   const dayFor = (y: number, m: number) => Math.min(day, daysInMonth(y, m));
   let candidate = new Date(base.getFullYear(), base.getMonth(), dayFor(base.getFullYear(), base.getMonth()));
-  if (candidate <= base) {
+  if (candidate < base) {
     if (a.frequency === "annual") {
       const y = base.getFullYear() + 1;
       const m = base.getMonth();

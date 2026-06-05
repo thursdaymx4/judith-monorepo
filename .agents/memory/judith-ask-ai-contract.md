@@ -27,3 +27,15 @@ date makes "what's today" and any absolute-date answer drift over time.
 **Why:** a hardcoded `"Today is June 1, 2026."` was caught in review — it silently
 rots. **How to apply:** always pass `new Date()` and format with
 `englishDate`/`englishWeekday`.
+
+## Constraint 3 — recompute due dates live; stored dueDays/dueLabel are stale
+A store Bill's `dueDays`/`dueLabel` are snapshots the store NEVER refreshes (it only
+recomputes the natural *period* from `dueDate`). The Calendar recomputes due days
+live from `dueDate`; anything that reads stored `b.dueDays`/`b.dueLabel` will drift
+out of sync. **Why:** Ask once told a user a bill due *today* was due "next month"
+and "nothing this week" while the Calendar showed it due today — Ask was forwarding
+the stale snapshot. **How to apply:** compute due dates from `dueDate` via
+`nextOccurrence(bill, new Date())` in `constants/data.ts` (monthly: `candidate < base`
+so due-today stays today, clamp to days-in-month; annual: keep stored dueDays). All
+roll-forward date math (`makeBillFromAction`, `makeManualBill`, `computeNextDue`)
+must use `< base`, never `<= base`.
