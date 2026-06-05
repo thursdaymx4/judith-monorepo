@@ -1806,10 +1806,10 @@ function ScreenIntro({ ctx }: { ctx: Ctx }) {
         {/* 4-group roadmap */}
         {((): React.ReactNode => {
           const steps: { icon: IconName; label: string; sub: string; hint: string }[] = [
+            { icon: "card",  label: "Cards & loans", sub: "Credit cards, personal loans",  hint: "skip if none" },
             { icon: "home",  label: "Essentials",    sub: "Rent, power, water, internet",  hint: "~4 bills" },
             { icon: "spark", label: "Subscriptions", sub: "Phone, streaming, apps",        hint: "~3 bills" },
             { icon: "lock",  label: "Insurance",     sub: "Health, car, life cover",       hint: "skip if none" },
-            { icon: "card",  label: "Cards & loans", sub: "Credit cards, personal loans",  hint: "skip if none" },
           ];
           return (
             <View style={{ alignSelf: "stretch", marginTop: 22 }}>
