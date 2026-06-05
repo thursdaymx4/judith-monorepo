@@ -235,7 +235,11 @@ export default function HomeScreen() {
   // Money totals exclude bills auto-charged to a linked card — their cost is
   // already in the card's statement, so counting both would double-count. They
   // still appear in the timeline below, tagged "via card".
-  const payable = due.filter((b) => !isPaidViaCard(b));
+  // Base the headline "due this month" figures on the CURRENT calendar month
+  // (timelineBills), NOT every unpaid bill — otherwise annual bills due in a
+  // later month inflate the total and it stops matching the Calendar screen's
+  // "Due in <month>" figure for the same period.
+  const payable = timelineBills.filter((b) => !isPaidViaCard(b));
   const total = payable.reduce((s, b) => s + remaining(b), 0);
   const week = payable.filter((b) => b.dueDays >= 0 && b.dueDays <= 7);
   const weekSum = week.reduce((s, b) => s + remaining(b), 0);
@@ -276,12 +280,12 @@ export default function HomeScreen() {
         <JudithAvatar persona={persona} size={52} state="idle" />
         <SpeechBubble>
           <Txt size={14} weight="semibold" style={{ lineHeight: 17 }}>
-            {due.length > 0
-              ? `${due.length} ${due.length === 1 ? "bill" : "bills"} this month`
+            {timelineBills.length > 0
+              ? `${timelineBills.length} ${timelineBills.length === 1 ? "bill" : "bills"} this month`
               : "You’re all caught up"}
           </Txt>
           <Low size={12} style={{ marginTop: 2 }}>
-            {due.length > 0
+            {timelineBills.length > 0
               ? week.length > 0
                 ? `${week.length} due this week — I’ve got it`
                 : "nothing due this week"
@@ -424,7 +428,7 @@ export default function HomeScreen() {
             </Txt>
           </Pressable>
           <Pill onPress={() => router.push("/bills")} style={{ paddingVertical: 4, paddingHorizontal: 11 }}>
-            <Txt size={12} color={t.txtMid}>See all · {due.length}</Txt>
+            <Txt size={12} color={t.txtMid}>See all · {timelineBills.length}</Txt>
           </Pill>
         </View>
       </View>

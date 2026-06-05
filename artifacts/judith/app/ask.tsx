@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Chip, Low, Muted, Pill, SpeechBubble, Txt, mix } from "@/components/ui";
-import { makeBillFromAction, makeSubscriptionBill, currentCycleDue, nextOccurrence } from "@/constants/data";
+import { makeBillFromAction, makeSubscriptionBill, currentCycleDue, nextOccurrence, totalOwed } from "@/constants/data";
 import { getQuickAsks } from "@/constants/providers";
 import { getPersona } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
@@ -209,6 +209,7 @@ export default function AskModal() {
 
   const askBills = (): AskBill[] => {
     const today = new Date();
+    const periodKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
     return bills.map((b) => {
       // Recompute the due date LIVE from the bill's day-of-month, using the same
       // overdue-aware logic as the home screen (currentCycleDue). This keeps an
@@ -222,13 +223,25 @@ export default function AskModal() {
       const cardName = b.chargedToCard && b.parentCardId
         ? (bills.find((c) => c.id === b.parentCardId)?.provider ?? null)
         : null;
+      // Send the REMAINING balance for the current cycle (full statement minus
+      // anything already paid this period), and mark a bill fully paid THIS
+      // period as "paid". b.status alone is unreliable: after a payment it
+      // advances to the next cycle, so an already-paid bill would look unpaid and
+      // be re-counted at its full amount — that's what inflated Judith's totals
+      // above the home/calendar figures. Mirrors the home screen's `remaining()`.
+      const rec = (b.paymentHistory ?? []).find((r) => r.period === periodKey);
+      const paidThisPeriod = rec ? rec.paid : (b.amountPaid ?? 0);
+      const isPaidThisPeriod = (b.paymentHistory ?? []).some(
+        (r) => r.period === periodKey && r.paid >= r.totalDue,
+      );
+      const remaining = Math.max(0, totalOwed(b) - paidThisPeriod);
       return {
         provider: b.provider,
         cat: b.cat,
-        amount: b.amount,
+        amount: remaining,
         dueDays,
         dueLabel,
-        status: b.status,
+        status: isPaidThisPeriod ? "paid" : b.status,
         dueMonth,
         isBusiness: b.isBusiness,
         chargedToCard: b.chargedToCard,
