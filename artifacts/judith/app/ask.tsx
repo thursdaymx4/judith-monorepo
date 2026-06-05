@@ -210,7 +210,9 @@ export default function AskModal() {
   const askBills = (): AskBill[] => {
     const today = new Date();
     const periodKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
-    return bills.map((b) => {
+
+    // ── Current-cycle entries (overdue-aware, mirrors home screen) ────────
+    const current = bills.map((b) => {
       // Recompute the due date LIVE from the bill's day-of-month, using the same
       // overdue-aware logic as the home screen (currentCycleDue). This keeps an
       // overdue bill in the CURRENT month with a NEGATIVE offset instead of
@@ -248,6 +250,64 @@ export default function AskModal() {
         cardName,
       };
     });
+
+    // ── Next-month projections (estimated recurring cycle) ────────────────
+    // Project every monthly (non-annual) bill one calendar month forward so the
+    // AI's MONTHLY TOTALS section includes a July estimate. This mirrors the
+    // Calendar screen's viewedAmt logic for future months.
+    const nxYear = today.getMonth() === 11 ? today.getFullYear() + 1 : today.getFullYear();
+    const nxMonth = (today.getMonth() + 1) % 12; // 0-indexed
+    const nxKey = `${nxYear}-${String(nxMonth + 1).padStart(2, "0")}`;
+    const nxDaysInMonth = new Date(nxYear, nxMonth + 1, 0).getDate();
+    const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+    const projections: AskBill[] = bills
+      .filter((b) => {
+        if (b.frequency === "annual") return false; // annual bills don't recur monthly
+        // Skip if currentCycleDue already lands in next month (avoid duplicate)
+        const { dueDays } = currentCycleDue(b, today);
+        const dd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + dueDays);
+        return `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, "0")}` !== nxKey;
+      })
+      .map((b) => {
+        const dayInMonth = Math.min(b.dueDate, nxDaysInMonth);
+        const nxDue = new Date(nxYear, nxMonth, dayInMonth);
+        const dueDays = Math.round((nxDue.getTime() - today.getTime()) / 86_400_000);
+        const dueLabel = nxYear === today.getFullYear()
+          ? `${monthNames[nxMonth]} ${dayInMonth}`
+          : `${monthNames[nxMonth]} ${dayInMonth}, ${nxYear}`;
+
+        // Mirror calendar's viewedAmt for future months:
+        // if current cycle was fully paid → fresh amount; otherwise fresh + any carry.
+        const isPaidCurrent = (b.paymentHistory ?? []).some(
+          (r) => r.period === periodKey && r.paid >= r.totalDue,
+        );
+        const hasPartial = (b.amountPaid ?? 0) > 0;
+        const effectiveCarry = hasPartial
+          ? Math.max(0, totalOwed(b) - (b.amountPaid ?? 0))
+          : (b.carryOver ?? 0);
+        const amount = isPaidCurrent ? totalOwed(b) : totalOwed(b) + effectiveCarry;
+
+        const cardName = b.chargedToCard && b.parentCardId
+          ? (bills.find((c) => c.id === b.parentCardId)?.provider ?? null)
+          : null;
+
+        return {
+          provider: b.provider,
+          cat: b.cat,
+          amount,
+          dueDays,
+          dueLabel,
+          status: "upcoming",
+          dueMonth: nxKey,
+          isBusiness: b.isBusiness,
+          chargedToCard: b.chargedToCard,
+          cardName,
+          isProjection: true,
+        };
+      });
+
+    return [...current, ...projections];
   };
 
   const localFallback = (q: string): string => {

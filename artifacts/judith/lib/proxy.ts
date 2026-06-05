@@ -28,6 +28,12 @@ export interface AskBill {
   chargedToCard?: boolean;
   /** Name of the credit card this charge is auto-billed to, if known. */
   cardName?: string | null;
+  /**
+   * True for next-month projected entries — they represent a future recurring
+   * cycle that hasn't been billed yet. Server labels these as [ESTIMATED] in
+   * the per-bill list and "(estimated)" in the monthly totals.
+   */
+  isProjection?: boolean;
 }
 
 /** Returns Authorization header with the current Supabase session token. */

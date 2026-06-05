@@ -200,6 +200,8 @@ interface ClientBill {
   chargedToCard?: boolean | null;
   /** Name of the credit card this charge is auto-billed to, if known. */
   cardName?: string | null;
+  /** True for next-month projected entries — future estimates, not yet billed. */
+  isProjection?: boolean | null;
 }
 
 function curStr(cur: string, n: number): string {
@@ -217,11 +219,17 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
   const payable = bills.filter((b) => !isViaCard(b));
   const viaCard = bills.filter(isViaCard);
 
-  const due = payable.filter((b) => b.status !== "paid");
+  // Projections are future-month estimates — exclude from "due now" totals.
+  const due = payable.filter((b) => b.status !== "paid" && !b.isProjection);
   const total = due.reduce((s, b) => s + (b.amount ?? 0), 0);
   const dueThisWeek = due
     .filter((b) => (b.dueDays ?? 0) >= 0 && (b.dueDays ?? 0) <= 7)
     .reduce((s, b) => s + (b.amount ?? 0), 0);
+
+  // Month keys needed by both monthLines and the income-remaining section.
+  const curMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const nextDate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+  const nextMonthKey = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}`;
 
   // Per-month totals so the AI can answer "what's my total in July/August?"
   // accurately — payable bills only, so auto-charged card bills aren't double-counted.
@@ -237,9 +245,11 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     .map(([key, { total, count }]) => {
       const [yr, mo] = key.split("-").map(Number);
       const label = new Date(yr!, (mo ?? 1) - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" });
+      const isFuture = key > curMonthKey;
       const paidCount = payable.filter((b) => b.dueMonth === key && b.status === "paid").length;
       const unpaidCount = count - paidCount;
-      return `- ${label}: ${curStr(cur, total)} total (${count} bill${count === 1 ? "" : "s"}, ${paidCount} paid, ${unpaidCount} unpaid)`;
+      const estTag = isFuture ? " — ESTIMATED (recurring bills projected, not yet billed)" : "";
+      return `- ${label}: ${curStr(cur, total)} estimated total${estTag} (${count} bill${count === 1 ? "" : "s"}, ${paidCount} paid, ${unpaidCount} upcoming)`;
     });
 
   const bizUnpaid = payable.filter((b) => b.isBusiness && b.status !== "paid");
@@ -247,20 +257,19 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
 
   const lines = bills.map((b) => {
     const days = b.dueDays ?? 0;
-    const when =
-      days === 0 ? "due TODAY" : days < 0 ? `OVERDUE by ${Math.abs(days)} day(s)` : `due in ${days} day(s)`;
+    const when = b.isProjection
+      ? `due ~${b.dueLabel ?? "next month"} (estimated — not yet billed)`
+      : days === 0 ? "due TODAY" : days < 0 ? `OVERDUE by ${Math.abs(days)} day(s)` : `due in ${days} day(s)`;
     const bizTag = b.isBusiness ? " [BUSINESS]" : " [PERSONAL]";
     // Only tag charges that are actually excluded from the totals (resolved card
     // link). A dangling link is still counted, so tagging it would mislead.
     const cardTag = isViaCard(b) ? ` [AUTO-CHARGED to ${b.cardName}]` : "";
-    return `- ${b.provider ?? "Bill"} (${b.cat ?? "Other"})${bizTag}${cardTag}: ${curStr(cur, b.amount ?? 0)}, ${b.dueLabel ?? "—"}, ${when}, ${b.status ?? "unpaid"}.`;
+    const estTag = b.isProjection ? " [ESTIMATED NEXT MONTH]" : "";
+    return `- ${b.provider ?? "Bill"} (${b.cat ?? "Other"})${bizTag}${cardTag}${estTag}: ${curStr(cur, b.amount ?? 0)}, ${when}, ${b.status ?? "upcoming"}.`;
   });
 
   // ── Pre-computed income-remaining figures ──────────────────────────────
   // The AI must read these; it must NEVER subtract totals from income itself.
-  const curMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
-  const nextDate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-  const nextMonthKey = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}`;
   const overdueAmt = due.filter((b) => (b.dueDays ?? 0) < 0).reduce((s, b) => s + (b.amount ?? 0), 0);
 
   const incomeLines: string[] = [];
@@ -279,7 +288,7 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
 
     const leftNextMonth = monthlyIncome - nxtBills;
     incomeLines.push(
-      `Next month (${nxtLabel}, recurring bills only): ${curStr(cur, monthlyIncome)} income − ${curStr(cur, nxtBills)} projected bills = ${curStr(cur, leftNextMonth)} left.`,
+      `Next month (${nxtLabel}, ESTIMATED — recurring bills projected, not yet billed): ${curStr(cur, monthlyIncome)} income − ${curStr(cur, nxtBills)} estimated bills = ${curStr(cur, leftNextMonth)} estimated left.`,
     );
     if (overdueAmt > 0) {
       incomeLines.push(
