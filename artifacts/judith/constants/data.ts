@@ -53,6 +53,12 @@ export interface Bill {
   statementDay?: number;
   /** Closed billing cycles, most-recent-first. Capped at 24. */
   paymentHistory?: BillCycleRecord[];
+  /**
+   * ISO date (YYYY-MM-DD) the bill was first recorded.
+   * Bills must NOT appear in calendar months before this date.
+   * Absent on legacy / seed bills — those remain unrestricted.
+   */
+  createdAt?: string;
   /** True when this bill is a business/work expense (default: personal). */
   isBusiness?: boolean;
   /** True when this charge is auto-billed to a credit card the user also tracks. */
@@ -556,6 +562,7 @@ export function makeBillFromAction(
     status: "due",
     kind: "Fixed",
     frequency: "monthly",
+    createdAt: today.toISOString().slice(0, 10),
   };
 }
 
@@ -622,6 +629,7 @@ export function makeManualBill(
     ...(a.statementDay != null ? { statementDay: a.statementDay } : {}),
     ...(a.chargedToCard ? { chargedToCard: true } : {}),
     ...(a.parentCardId ? { parentCardId: a.parentCardId } : {}),
+    createdAt: base.toISOString().slice(0, 10),
   };
 }
 
@@ -653,5 +661,6 @@ export function makeSubscriptionBill(
     status: "due",
     kind: "Fixed",
     frequency: sub.frequency,
+    createdAt: today.toISOString().slice(0, 10),
   };
 }

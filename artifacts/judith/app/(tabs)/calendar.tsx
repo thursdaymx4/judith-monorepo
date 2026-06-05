@@ -262,17 +262,19 @@ export default function CalendarScreen() {
   };
 
   // Bills applicable to the viewed month.
-  // Monthly bills → always, as long as dueDate ≤ days in that month.
+  // Monthly bills → only from their creation month forward (no backfill).
   // Annual bills  → only in the month their next occurrence actually falls.
   const billsForMonth = bills.filter((b) => {
     if (b.dueDate > dim) return false; // e.g. Feb 30 doesn't exist
+    // Never show a bill in a month before it was first recorded.
+    if (b.createdAt && viewedPeriodKey < b.createdAt.slice(0, 7)) return false;
     if (b.frequency === "annual") {
       // Annual: include only when the real due date falls in the viewed month
       const nextDue = new Date(todayReal.getTime());
       nextDue.setDate(nextDue.getDate() + b.dueDays);
       return nextDue.getFullYear() === year && nextDue.getMonth() === monthIndex;
     }
-    return true; // monthly → every month
+    return true; // monthly → every month from creation month onward
   });
 
   // Unpaid bills in the viewed month — derived from paymentHistory so it

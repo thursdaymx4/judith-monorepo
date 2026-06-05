@@ -3477,6 +3477,7 @@ function onbBillToStoreBill(b: OnbBill): Bill {
     kind: b.kind,
     subtype: b.subtype as "Rent" | "Mortgage" | undefined,
     frequency: b.frequency,
+    createdAt: today.toISOString().slice(0, 10),
     ...(b.isBusiness ? { isBusiness: true } : {}),
     ...(b.chargedToCard ? { chargedToCard: true } : {}),
     ...(b.parentCardId ? { parentCardId: b.parentCardId } : {}),
