@@ -133,14 +133,17 @@ export default function HomeScreen() {
     .slice()
     .sort((a, b) => a.dueDays - b.dueDays);
 
+  // Only show bills that are overdue or due within the next 60 days in the timeline
+  const timelineBills = due.filter((b) => b.dueDays <= 60);
+
   // Build unique category list ordered by count (most-billed first)
   const catCounts: Record<string, number> = {};
-  due.forEach((b) => { catCounts[b.cat] = (catCounts[b.cat] ?? 0) + 1; });
+  timelineBills.forEach((b) => { catCounts[b.cat] = (catCounts[b.cat] ?? 0) + 1; });
   const cats = Object.keys(catCounts).sort((a, b) => catCounts[b]! - catCounts[a]!);
   const showFilters = cats.length > 1;
 
   // Apply active filter then chosen sort order
-  const visible = due
+  const visible = timelineBills
     .filter((b) => filterCat === null || b.cat === filterCat)
     .slice()
     .sort((a, b) => sortBy === "amount" ? totalOwed(b) - totalOwed(a) : a.dueDays - b.dueDays);
