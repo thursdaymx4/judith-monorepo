@@ -228,6 +228,8 @@ export default function HomeScreen() {
   const visible = visibleBase
     .slice()
     .sort((a, b) => sortBy === "amount" ? totalOwed(b) - totalOwed(a) : a.dueDays - b.dueDays);
+  // Total of the bills currently shown — surfaced as context text when a category filter is active.
+  const catTotal = visible.reduce((s, b) => s + totalOwed(b), 0);
   // Remaining balance per bill (full amount minus any payment already made this period)
   const remaining = (b: Bill) => Math.max(0, totalOwed(b) - amtPaidThisMonth(b));
   // Money totals exclude bills auto-charged to a linked card — their cost is
@@ -553,6 +555,15 @@ export default function HomeScreen() {
           );
         })}
       </View>
+
+      {filterCat !== null && !overdueOnly && visible.length > 0 && (
+        <View style={{ marginTop: 14, alignItems: "center" }}>
+          <Low size={12}>
+            {visible.length} {visible.length === 1 ? "bill" : "bills"} in {filterCat} ·{" "}
+            <Mono size={12} weight="bold" color={t.txtHi}>{money(catTotal)}</Mono>
+          </Low>
+        </View>
+      )}
 
     </Screen>
   );
