@@ -350,7 +350,7 @@ export default function HomeScreen() {
       {/* timeline */}
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4, marginBottom: showFilters ? 8 : 12 }}>
         <SectionLabel style={{ marginTop: 0, marginBottom: 0 }}>
-          {filterCat ?? "Your timeline"}
+          {filterCat ?? "Next 60 days"}
         </SectionLabel>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
           <Pressable
