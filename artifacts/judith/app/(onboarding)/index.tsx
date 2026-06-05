@@ -3672,16 +3672,26 @@ function ScreenSummary({ ctx }: { ctx: Ctx }) {
         <Mono size={40} weight="bold" style={{ letterSpacing: -0.8 }}>{cur}{fmtNum(total)}</Mono>
         <Low size={13} style={{ marginBottom: 6 }}>{T("perMonth")} · {data.length} {T("billsCount")}</Low>
 
-        <Card style={{ marginTop: 14 }}>
-          <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 10, height: 130, paddingTop: 10 }}>
-            {data.map((b, i) => (
-              <View key={i} style={{ flex: 1, alignItems: "center", justifyContent: "flex-end", gap: 7, height: "100%" }}>
-                <Mono size={9.5} weight="bold" color={t.txtMid}>{cur}{(b.amount / 1000).toFixed(b.amount % 1000 === 0 ? 0 : 1)}k</Mono>
-                <View style={{ width: "100%", height: `${Math.max(12, (b.amount / maxA) * 100)}%`, borderTopLeftRadius: 7, borderTopRightRadius: 7, borderBottomLeftRadius: 3, borderBottomRightRadius: 3, backgroundColor: b === nextDue ? t.semantic.near : t.accent }} />
-                <Low size={10}>{b.provider.split(" ")[0]}</Low>
-              </View>
-            ))}
-          </View>
+        <Card style={{ marginTop: 14, paddingHorizontal: 0 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, paddingVertical: 0 }}>
+            {(() => {
+              const n = data.length;
+              const colW = n <= 8 ? 44 : n <= 14 ? 36 : 28;
+              const showLabel = n <= 16;
+              const gap = 8;
+              return (
+                <View style={{ flexDirection: "row", alignItems: "flex-end", gap, height: 130, paddingTop: 10 }}>
+                  {data.map((b, i) => (
+                    <View key={i} style={{ width: colW, alignItems: "center", justifyContent: "flex-end", gap: showLabel ? 5 : 4, height: "100%" }}>
+                      <Mono size={showLabel ? 9 : 7.5} weight="bold" color={t.txtMid} numberOfLines={1}>{cur}{(b.amount / 1000).toFixed(b.amount % 1000 === 0 ? 0 : 1)}k</Mono>
+                      <View style={{ width: "100%", height: `${Math.max(12, (b.amount / maxA) * 100)}%`, borderTopLeftRadius: 7, borderTopRightRadius: 7, borderBottomLeftRadius: 3, borderBottomRightRadius: 3, backgroundColor: b === nextDue ? t.semantic.near : t.accent }} />
+                      {showLabel && <Low size={9} numberOfLines={1}>{b.provider.split(" ")[0]}</Low>}
+                    </View>
+                  ))}
+                </View>
+              );
+            })()}
+          </ScrollView>
         </Card>
 
         <View style={{ gap: 9, marginTop: 14 }}>
