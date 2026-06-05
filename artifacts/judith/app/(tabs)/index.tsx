@@ -444,6 +444,7 @@ export default function HomeScreen() {
               key={c}
               label={c}
               icon={(CAT_ICONS[c] ?? "spark") as IconName}
+              iconOnly
               selected={filterCat === c}
               onPress={() => { haptics.selection(); setFilterCat(filterCat === c ? null : c); }}
             />

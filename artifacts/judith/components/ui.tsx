@@ -271,38 +271,45 @@ export function Chip({
   selected,
   onPress,
   icon,
+  iconOnly,
   style,
 }: {
   label: string;
   selected?: boolean;
   onPress?: () => void;
   icon?: IconName;
+  iconOnly?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const t = useTheme();
+  const compact = iconOnly && !!icon;
   return (
     <Pressable
       onPress={onPress}
+      accessibilityLabel={label}
       style={({ pressed }) => [
         {
           flexDirection: "row",
           alignItems: "center",
-          gap: 6,
+          justifyContent: "center",
+          gap: compact ? 0 : 6,
           borderWidth: 1,
           borderColor: selected ? t.accent : t.hair,
           borderRadius: 22,
           paddingVertical: 9,
-          paddingHorizontal: 14,
+          paddingHorizontal: compact ? 12 : 14,
           backgroundColor: selected ? mix(t.accent, t.surface2, 0.16) : t.surface2,
         },
         pressed && { transform: [{ scale: 0.97 }] },
         style,
       ]}
     >
-      {icon && <Icon name={icon} size={13} color={selected ? t.txtHi : t.txtMid} />}
-      <Text style={{ fontFamily: t.fonts.regular, fontSize: 13, color: selected ? t.txtHi : t.txtMid }}>
-        {label}
-      </Text>
+      {icon && <Icon name={icon} size={compact ? 16 : 13} color={selected ? t.txtHi : t.txtMid} />}
+      {!compact && (
+        <Text style={{ fontFamily: t.fonts.regular, fontSize: 13, color: selected ? t.txtHi : t.txtMid }}>
+          {label}
+        </Text>
+      )}
     </Pressable>
   );
 }
