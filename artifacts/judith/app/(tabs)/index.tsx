@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, ScrollView, View } from "react-native";
+import { Defs, LinearGradient as SvgGradient, Path, Stop, Svg } from "react-native-svg";
 
 import { Icon, type IconName } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
@@ -24,6 +25,83 @@ import { useCountUp } from "@/hooks/useCountUp";
 import { haptics } from "@/lib/haptics";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useTheme } from "@/hooks/useTheme";
+
+const AnimPath = Animated.createAnimatedComponent(Path);
+
+/** Semicircular gauge showing paid-this-month progress. */
+function PaymentGauge({
+  pct, paidAmt, unpaidAmt, paidCount, unpaidCount, money, reduce,
+}: {
+  pct: number; paidAmt: number; unpaidAmt: number;
+  paidCount: number; unpaidCount: number;
+  money: (n: number) => string; reduce: boolean;
+}) {
+  const t = useTheme();
+  const r = 105;
+  const cx = 130;
+  const cy = 122;
+  const sw = 20;
+  const circumference = Math.PI * r;
+
+  const anim = useRef(new Animated.Value(reduce ? pct : 0)).current;
+  useEffect(() => {
+    if (reduce) { anim.setValue(pct); return; }
+    Animated.timing(anim, {
+      toValue: pct,
+      duration: 950,
+      easing: Easing.bezier(0.22, 1, 0.36, 1),
+      useNativeDriver: false,
+    }).start();
+  }, [pct, reduce]);
+
+  const dashOffset = anim.interpolate({
+    inputRange: [0, 100],
+    outputRange: [circumference, 0],
+  });
+
+  const arcD = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`;
+
+  return (
+    <Card style={{ marginBottom: 14, paddingTop: 10, paddingBottom: 14, paddingHorizontal: 15 }}>
+      <View style={{ alignItems: "center", marginBottom: 8 }}>
+        <View style={{ width: 260, height: 132 }}>
+          <Svg width={260} height={132} viewBox="0 0 260 132">
+            <Defs>
+              <SvgGradient id="pg" x1={cx - r} y1={cy} x2={cx + r} y2={cy} gradientUnits="userSpaceOnUse">
+                <Stop offset="0" stopColor={t.accent} stopOpacity="0.35" />
+                <Stop offset="1" stopColor={t.accent} stopOpacity="1" />
+              </SvgGradient>
+            </Defs>
+            <Path d={arcD} stroke={t.surface3} strokeWidth={sw} strokeLinecap="round" fill="none" />
+            <AnimPath
+              d={arcD}
+              stroke={"url(#pg)"}
+              strokeWidth={sw}
+              strokeLinecap="round"
+              fill="none"
+              strokeDasharray={`${circumference} ${circumference}`}
+              strokeDashoffset={dashOffset}
+            />
+          </Svg>
+          <View style={{ position: "absolute", bottom: 10, left: 0, right: 0, alignItems: "center" }}>
+            <Mono size={46} weight="bold">{pct}%</Mono>
+            <Low size={12} style={{ marginTop: 2 }}>Paid this month</Low>
+          </View>
+        </View>
+      </View>
+      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <Dot kind="ok" />
+          <Txt size={12}>{paidCount} paid · <Mono size={12}>{money(paidAmt)}</Mono></Txt>
+        </View>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.surface3 }} />
+          <Txt size={12}>{unpaidCount} unpaid · <Mono size={12}>{money(unpaidAmt)}</Mono></Txt>
+        </View>
+      </View>
+    </Card>
+  );
+}
 
 /** Timeline rail dot — pulses an expanding halo when the bill is urgent/overdue. */
 function PulseDot({ color, active, reduce }: { color: string; active: boolean; reduce: boolean }) {
@@ -107,6 +185,7 @@ export default function HomeScreen() {
   const reduce = useReducedMotion();
   const [sortBy, setSortBy] = useState<"dueDate" | "amount">("dueDate");
   const [filterCat, setFilterCat] = useState<string | null>(null);
+  const [timelineWindow, setTimelineWindow] = useState<30 | 60 | 90>(30);
 
   const todayDay = new Date().getDate();
   const _today = new Date();
@@ -133,8 +212,7 @@ export default function HomeScreen() {
     .slice()
     .sort((a, b) => a.dueDays - b.dueDays);
 
-  // Only show bills that are overdue or due within the next 60 days in the timeline
-  const timelineBills = due.filter((b) => b.dueDays <= 60);
+  const timelineBills = due.filter((b) => b.dueDays <= timelineWindow);
 
   // Build unique category list ordered by count (most-billed first)
   const catCounts: Record<string, number> = {};
@@ -178,20 +256,6 @@ export default function HomeScreen() {
   const grand = paidAmt + unpaidAmt;
   const pct = grand > 0 ? Math.round((paidAmt / grand) * 100) : 0;
 
-  const pctAnim = useRef(new Animated.Value(pct)).current;
-  useEffect(() => {
-    if (reduce) {
-      pctAnim.setValue(pct);
-      return;
-    }
-    Animated.timing(pctAnim, {
-      toValue: pct,
-      duration: 700,
-      easing: Easing.bezier(0.22, 1, 0.36, 1),
-      useNativeDriver: false,
-    }).start();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pct, reduce]);
 
   const totalA = useCountUp(total);
   const weekA = useCountUp(weekSum);
@@ -311,47 +375,33 @@ export default function HomeScreen() {
         </View>
       </Card>
 
-      {/* paid this month */}
-      <Card style={{ marginBottom: 14, paddingVertical: 14, paddingHorizontal: 15 }}>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 9 }}>
-          <Txt size={14} weight="semibold">
-            Paid this month
-          </Txt>
-          <Mono size={13} weight="bold" color={t.semantic.ok}>
-            {pct}%
-          </Mono>
-        </View>
-        <View style={{ height: 12, borderRadius: 7, backgroundColor: t.surface3, overflow: "hidden" }}>
-          <Animated.View
-            style={{
-              height: "100%",
-              borderRadius: 7,
-              backgroundColor: t.semantic.ok,
-              width: pctAnim.interpolate({ inputRange: [0, 100], outputRange: ["0%", "100%"] }),
-            }}
-          />
-        </View>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 9 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <Dot kind="ok" />
-            <Txt size={12}>
-              {paid.length} paid · <Mono size={12}>{money(paidAmt)}</Mono>
-            </Txt>
-          </View>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.surface3 }} />
-            <Txt size={12}>
-              {unpaid.length} unpaid · <Mono size={12}>{money(unpaidAmt)}</Mono>
-            </Txt>
-          </View>
-        </View>
-      </Card>
+      <PaymentGauge
+        pct={pct}
+        paidAmt={paidAmt}
+        unpaidAmt={unpaidAmt}
+        paidCount={paid.length}
+        unpaidCount={unpaid.length}
+        money={money}
+        reduce={reduce}
+      />
 
       {/* timeline */}
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4, marginBottom: showFilters ? 8 : 12 }}>
-        <SectionLabel style={{ marginTop: 0, marginBottom: 0 }}>
-          {filterCat ?? "Next 60 days"}
-        </SectionLabel>
+        {filterCat ? (
+          <SectionLabel style={{ marginTop: 0, marginBottom: 0 }}>{filterCat}</SectionLabel>
+        ) : (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: t.surface2, borderRadius: 22, borderWidth: 1, borderColor: t.hair, padding: 3 }}>
+            {([30, 60, 90] as const).map((d) => (
+              <Pressable
+                key={d}
+                onPress={() => { haptics.selection(); setTimelineWindow(d); }}
+                style={{ paddingHorizontal: 11, paddingVertical: 5, borderRadius: 18, backgroundColor: timelineWindow === d ? t.accent + "28" : "transparent" }}
+              >
+                <Txt size={12} weight="semibold" color={timelineWindow === d ? t.accent : t.txtLow}>{d}d</Txt>
+              </Pressable>
+            ))}
+          </View>
+        )}
         <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
           <Pressable
             onPress={() => { haptics.selection(); setSortBy((s) => s === "dueDate" ? "amount" : "dueDate"); }}
