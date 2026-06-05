@@ -297,14 +297,25 @@ export default function CalendarScreen() {
     (byDay[d] = byDay[d] || []).push(b);
   });
 
-  // Weekly bar chart
+  // Weekly bar chart — real calendar weeks (Sunday-start), matching the grid above.
+  // First week may be partial (day 1 → first Saturday); last week clamps to month end.
   const ranges: [number, number][] = [];
-  for (let s = 1; s <= dim; s += 7) ranges.push([s, Math.min(s + 6, dim)]);
+  for (let s = 1; s <= dim; ) {
+    const e = s === 1 ? 7 - firstDow : s + 6; // first week ends on the first Saturday
+    ranges.push([s, Math.min(e, dim)]);
+    s = Math.min(e, dim) + 1;
+  }
+  const weekIndexFor = (day: number) => {
+    const d = Math.min(Math.max(day, 1), dim);
+    for (let i = 0; i < ranges.length; i++) {
+      if (d >= ranges[i]![0] && d <= ranges[i]![1]) return i;
+    }
+    return ranges.length - 1;
+  };
   const weeks = ranges.map(() => 0);
   agendaForMonth.forEach((b) => {
     if (isPaidViaCard(b)) return; // cost is captured by the linked card's statement
-    const w = Math.min(ranges.length - 1, Math.floor((b.dueDate - 1) / 7));
-    weeks[w]! += viewedAmt(b);
+    weeks[weekIndexFor(b.dueDate)]! += viewedAmt(b);
   });
   const maxW = Math.max(1, ...weeks);
 
