@@ -15,19 +15,40 @@ export const FILIPINO_VOICE_IDS: Record<PersonaId, string> = {
   funny: "cvnP6nKXpiWGFASDWN3Y",
   mom: "gILcvhAz18uV9ARSsU4u",
   sarcastic: "RGymW84CSmfVugnA5tvA",
-  marites: "XB0fDUnXU5powFXDhCwa", // Charlotte — warm, expressive female; tsismosa Filipino energy
+  marites: "XB0fDUnXU5powFXDhCwa",
+};
+
+/**
+ * Philippine-English voice IDs — Filipino native-speaker voices used when
+ * the user is from the Philippines but has selected English as their language.
+ * ElevenLabs' multilingual model renders these with a natural Filipino-accented
+ * English when given English text, so no separate voice generation is needed.
+ */
+export const PHILIPPINE_ENGLISH_VOICE_IDS: Record<PersonaId, string> = {
+  professional: "n6WaB3rOlZSC9y8yEPEz",
+  funny: "cvnP6nKXpiWGFASDWN3Y",
+  mom: "gILcvhAz18uV9ARSsU4u",
+  sarcastic: "RGymW84CSmfVugnA5tvA",
+  marites: "XB0fDUnXU5powFXDhCwa",
 };
 
 /** Philippine language codes that should use Filipino native-speaker voices. */
 const FILIPINO_FAMILY = new Set(["fil", "ceb", "ilo", "hil"]);
 
+/** ISO-3166-1 alpha-2 codes we consider "Philippines". */
+const PHILIPPINES_CODES = new Set(["PH", "ph"]);
+
 /**
- * Returns the correct ElevenLabs voice ID for a persona + language combo.
- * All Philippine languages (Tagalog, Cebuano, Ilocano, Hiligaynon) get
- * Filipino native-speaker voices; everything else falls back to global defaults.
+ * Returns the correct ElevenLabs voice ID for a persona + language + country combo.
+ * - Philippine languages → Filipino native-speaker voices (Taglish output)
+ * - Philippines + English → Filipino-accented English voices
+ * - Everything else → standard default voices
  */
-export function getVoiceId(persona: PersonaId, language?: string): string {
+export function getVoiceId(persona: PersonaId, language?: string, countryCode?: string): string {
   if (language && FILIPINO_FAMILY.has(language)) return FILIPINO_VOICE_IDS[persona];
+  if (countryCode && PHILIPPINES_CODES.has(countryCode) && language && !FILIPINO_FAMILY.has(language)) {
+    return PHILIPPINE_ENGLISH_VOICE_IDS[persona];
+  }
   return DEFAULT_VOICE_IDS[persona];
 }
 
@@ -157,14 +178,33 @@ function languageInstruction(language?: string): string {
 - Use natural contractions and conversational rhythm appropriate for ${name}.`;
 }
 
-export function systemPrompt(persona: PersonaId, language?: string, countryName?: string, currency?: string): string {
+/**
+ * Returns an optional cultural-context block when the user is from the
+ * Philippines but has selected English as their preferred language.
+ * This preserves Philippine cultural warmth / local bank references while
+ * still enforcing English in LANGUAGE RULES below.
+ */
+function philippineEnglishContext(): string {
+  return `
+CULTURAL CONTEXT (Philippines — English preferred):
+The user is Filipino and prefers to speak in English. Lean into Philippine cultural context naturally:
+- Reference local institutions by name when relevant (BPI, UnionBank, BDO, GCash, Meralco, Globe, PLDT, etc.)
+- Use relational warmth appropriate for Filipino culture — this is family, not a client
+- Acknowledge that bills are in Philippine peso (₱) and dates follow the Philippine calendar
+- You may use culturally Filipino framing ("this month's due dates", "your BPI card") even in English
+- Do NOT slip into Tagalog or Taglish — the language is English, but the cultural heart is Filipino`.trim();
+}
+
+export function systemPrompt(persona: PersonaId, language?: string, countryName?: string, currency?: string, countryCode?: string): string {
   const location = countryName ?? "the Philippines";
   const cur = currency ?? "₱";
+  const lang = (language ?? "fil").toLowerCase();
+  const isPhilippineEnglish = countryCode && PHILIPPINES_CODES.has(countryCode) && !FILIPINO_FAMILY.has(lang) && !!language;
   return `You are Judith, a personal due-date assistant for users in ${location}.
 The user's currency is ${cur}. Always use ${cur} when quoting amounts — never use ₱ unless that is the user's currency.
 
 PERSONA: ${TONE[persona]}
-
+${isPhilippineEnglish ? "\n" + philippineEnglishContext() + "\n" : ""}
 ${languageInstruction(language)}
 
 ${SHARED_RULES}

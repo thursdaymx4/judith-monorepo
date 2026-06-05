@@ -285,7 +285,7 @@ export default function AskModal() {
       // Speak aloud only when the user hasn't muted replies (voice tier) — saves TTS cost and stays silent in public.
       // The mute only applies to the voice tier; other tiers (e.g. free with asks left) are unaffected.
       const wantVoice = canUseVoice() && (!voiceTier || speakAloud);
-      const { reply, audioBase64, action } = await askJudith(q, askBills(), persona, language, wantVoice, country.cur, country.name, monthlyIncome);
+      const { reply, audioBase64, action } = await askJudith(q, askBills(), persona, language, wantVoice, country.cur, country.name, monthlyIncome, country.code);
       const finalReply = reply?.trim() || localFallback(q);
       setMessages((m) => [...m, { role: "judith", text: finalReply }]);
       if (audioBase64) {

@@ -369,7 +369,7 @@ router.post("/ask", askLimiter, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
-    const { text, bills: bodyBills, persona: bodyPersona, localDate, language, includeVoice, currency, countryName, monthlyIncome } = req.body ?? {};
+    const { text, bills: bodyBills, persona: bodyPersona, localDate, language, includeVoice, currency, countryName, countryCode, monthlyIncome } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
       res.status(400).json({ error: "text is required" });
       return;
@@ -377,6 +377,7 @@ router.post("/ask", askLimiter, async (req, res) => {
     const today = parseLocalDate(localDate);
     const cur: string = typeof currency === "string" && currency.trim() ? currency.trim() : "₱";
     const country: string = typeof countryName === "string" && countryName.trim() ? countryName.trim() : "the Philippines";
+    const cCode: string | undefined = typeof countryCode === "string" && countryCode.trim() ? countryCode.trim() : undefined;
 
     // Bills MUST come from the client. Never fall back to loading another
     // user's data from Supabase — that would be a cross-user data leak.
@@ -386,7 +387,7 @@ router.post("/ask", askLimiter, async (req, res) => {
     }
 
     const persona: PersonaId = coercePersona(bodyPersona);
-    const voiceId: string = getVoiceId(persona, typeof language === "string" ? language : undefined);
+    const voiceId: string = getVoiceId(persona, typeof language === "string" ? language : undefined, cCode);
     const income: number | undefined = typeof monthlyIncome === "number" && monthlyIncome > 0 ? monthlyIncome : undefined;
     const context: string = buildClientContext(bodyBills as ClientBill[], today, cur, income);
 
@@ -394,7 +395,7 @@ router.post("/ask", askLimiter, async (req, res) => {
     const message = await anthropic.messages.create({
       model: ANTHROPIC_MODEL,
       max_tokens: 120,
-      system: `${systemPrompt(persona, typeof language === "string" ? language : undefined, country, cur)}\n\nBILL CONTEXT (the only source of truth):\n${context}`,
+      system: `${systemPrompt(persona, typeof language === "string" ? language : undefined, country, cur, cCode)}\n\nBILL CONTEXT (the only source of truth):\n${context}`,
       messages: [{ role: "user", content: text.trim() }],
     });
 
