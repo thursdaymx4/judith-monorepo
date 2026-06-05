@@ -186,6 +186,7 @@ export default function HomeScreen() {
   const [sortBy, setSortBy] = useState<"dueDate" | "amount">("dueDate");
   const [filterCat, setFilterCat] = useState<string | null>(null);
   const [timelineWindow, setTimelineWindow] = useState<30 | 60 | 90>(30);
+  const [overdueOnly, setOverdueOnly] = useState(false);
 
   const todayDay = new Date().getDate();
   const _today = new Date();
@@ -221,8 +222,10 @@ export default function HomeScreen() {
   const showFilters = cats.length > 1;
 
   // Apply active filter then chosen sort order
-  const visible = timelineBills
-    .filter((b) => filterCat === null || b.cat === filterCat)
+  const visibleBase = overdueOnly
+    ? overdue
+    : timelineBills.filter((b) => filterCat === null || b.cat === filterCat);
+  const visible = visibleBase
     .slice()
     .sort((a, b) => sortBy === "amount" ? totalOwed(b) - totalOwed(a) : a.dueDays - b.dueDays);
   // Remaining balance per bill (full amount minus any payment already made this period)
@@ -238,10 +241,12 @@ export default function HomeScreen() {
 
   const overdue = payable.filter((b) => b.dueDays < 0);
   const overdueTotal = overdue.reduce((s, b) => s + remaining(b), 0);
-  const openOverdue = () =>
-    overdue.length === 1
-      ? router.push(`/bill/${overdue[0]!.id}`)
-      : router.push("/bills");
+  const openOverdue = () => {
+    if (overdue.length === 1) { router.push(`/bill/${overdue[0]!.id}`); return; }
+    haptics.selection();
+    setFilterCat(null);
+    setOverdueOnly((v) => !v);
+  };
 
   // Paid-progress also tracks only bills you fund directly (excludes via-card).
   const payableAll = bills.filter((b) => !isPaidViaCard(b));
@@ -387,7 +392,16 @@ export default function HomeScreen() {
 
       {/* timeline */}
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4, marginBottom: showFilters ? 8 : 12 }}>
-        {filterCat ? (
+        {overdueOnly ? (
+          <Pressable
+            onPress={() => { haptics.selection(); setOverdueOnly(false); }}
+            style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 5, paddingHorizontal: 11, borderRadius: 18, borderWidth: 1, borderColor: t.semantic.overdue + "55", backgroundColor: t.semantic.overdue + "18" }}
+          >
+            <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: t.semantic.overdue }} />
+            <Txt size={12} weight="semibold" color={t.semantic.overdue}>Overdue</Txt>
+            <Icon name="close" size={11} color={t.semantic.overdue} />
+          </Pressable>
+        ) : filterCat ? (
           <SectionLabel style={{ marginTop: 0, marginBottom: 0 }}>{filterCat}</SectionLabel>
         ) : (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: t.surface2, borderRadius: 22, borderWidth: 1, borderColor: t.hair, padding: 3 }}>
@@ -423,7 +437,7 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {showFilters && (
+      {showFilters && !overdueOnly && (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
