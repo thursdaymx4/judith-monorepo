@@ -450,7 +450,6 @@ export default function HomeScreen() {
               key={c}
               label={c}
               icon={(CAT_ICONS[c] ?? "spark") as IconName}
-              iconOnly
               selected={filterCat === c}
               onPress={() => { haptics.selection(); setFilterCat(filterCat === c ? null : c); }}
             />
@@ -532,9 +531,16 @@ export default function HomeScreen() {
                             </View>
                           )}
                         </View>
-                        <Low size={12} style={{ marginTop: 2 }} color={isPaidViaCard(b) ? undefined : cls === "overdue" ? t.semantic.overdue : undefined}>
-                          {b.cat} · {dueShort(b.dueDays)}
-                        </Low>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                          <Icon
+                            name={(CAT_ICONS[b.cat] ?? "spark") as IconName}
+                            size={11}
+                            color={!isPaidViaCard(b) && cls === "overdue" ? t.semantic.overdue : t.txtLow}
+                          />
+                          <Low size={12} color={isPaidViaCard(b) ? undefined : cls === "overdue" ? t.semantic.overdue : undefined}>
+                            {dueShort(b.dueDays)}
+                          </Low>
+                        </View>
                       </View>
                       <Mono size={14} color={isPaidViaCard(b) ? t.txtLow : t.semantic[cls]}>
                         {money(owed)}
