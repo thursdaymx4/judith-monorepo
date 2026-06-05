@@ -382,13 +382,42 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
         ),
       saveBill: (bill) =>
         setState((s) => {
-          const exists = s.bills.some((b) => b.id === bill.id);
-          return {
-            ...s,
-            bills: exists
-              ? s.bills.map((b) => (b.id === bill.id ? bill : b))
-              : [...s.bills, bill],
-          };
+          const old = s.bills.find((b) => b.id === bill.id);
+          // Unlink detection: a charge that WAS auto-billed to a card is no
+          // longer linked to that same card (turned off, or moved to another
+          // card). Its amount lived inside the card's statement total, so the
+          // link removal must deduct it from that card — the now-standalone bill
+          // starts counting toward totals on its own, keeping the grand total
+          // consistent instead of double-counting (card still incl. it + the
+          // standalone bill).
+          const unlinkedCardId =
+            old &&
+            isPaidViaCard(old) &&
+            old.parentCardId &&
+            !(isPaidViaCard(bill) && bill.parentCardId === old.parentCardId)
+              ? old.parentCardId
+              : undefined;
+          const removedAmt = old?.amount ?? 0;
+
+          let bills = old
+            ? s.bills.map((b) => (b.id === bill.id ? bill : b))
+            : [...s.bills, bill];
+
+          if (unlinkedCardId) {
+            bills = bills.map((b) => {
+              if (b.id !== unlinkedCardId) return b;
+              const newAmount = Math.max(0, b.amount - removedAmt);
+              const newOwed = newAmount + (b.carryOver ?? 0);
+              // Keep amountPaid within the new (smaller) balance.
+              return {
+                ...b,
+                amount: newAmount,
+                amountPaid: Math.min(b.amountPaid ?? 0, newOwed),
+              };
+            });
+          }
+
+          return { ...s, bills };
         }),
       deleteBill: (id) =>
         setState((s) => ({

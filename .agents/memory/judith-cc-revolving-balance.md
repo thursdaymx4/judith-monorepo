@@ -48,6 +48,23 @@ card's CURRENT natural period — the card balance is a single scalar, so toggli
 a past/future linked charge must NOT move today's card outstanding. Cards never
 cascade onto other cards.
 
+**Unlinking deducts the charge from the card statement.** `JudithStore.saveBill`
+detects an unlink (old bill was `isPaidViaCard` with a `parentCardId`; new bill is
+no longer linked to that SAME card — covers toggling the link off OR moving to a
+different card) and deducts `old.amount` from the former parent card:
+`amount = max(0, card.amount − old.amount)`, then clamps `amountPaid ≤ new
+amount+carryOver`. The now-standalone bill starts counting toward totals on its
+own. **Why:** card.amount is treated as INCLUDING its linked charges (insights
+`net = card.amount − linkedByCard`; linked bills excluded from totals), so without
+the deduction unlinking double-counts (card still includes it + the standalone
+bill now counts). Net grand total is unchanged — the money moves from inside-card
+to standalone (user confirmed this is the desired behavior, NOT deleting the
+bill). Asymmetry note: linking a bill does NOT add to card.amount (pre-existing,
+left as-is per scope), so a link→unlink cycle on a card whose statement never
+included the charge will under-count that card — acceptable per current request.
+`deleteBill` clears child `parentCardId` directly (card gone), so no
+double-deduct.
+
 **Known limitation (intentionally out of scope):** `computeNaturalPeriod` still
 advances a fully-paid CC to next month once the due date passes, so the
 bill-detail *current* period can momentarily show the new (empty) cycle at full
