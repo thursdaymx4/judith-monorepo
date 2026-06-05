@@ -418,7 +418,7 @@ export function BillRow({
   const paid = bill.status === "paid";
   const partial = isPartialBill(bill as Parameters<typeof isPartialBill>[0]);
   const pct = partialPct(bill as Parameters<typeof partialPct>[0]);
-  const owed = totalOwed(bill);
+  const owed = Math.max(0, totalOwed(bill) - (bill.amountPaid ?? 0));
   return (
     <Pressable
       onPress={onPress}

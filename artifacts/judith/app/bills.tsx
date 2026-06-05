@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
 import { BillRow, Card, Chip, Low, Mono, Screen, SheetHeader } from "@/components/ui";
+import { totalOwed } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -22,17 +23,19 @@ export default function BillsModal() {
     .map((b) => b.provider);
   const provs = ["All", ...Array.from(new Set(provsForCat))];
 
+  const billRemaining = (b: (typeof bills)[0]) => Math.max(0, totalOwed(b) - (b.amountPaid ?? 0));
+
   let list = bills.filter(
     (b) => (cat === "All" || b.cat === cat) && (prov === "All" || b.provider === prov),
   );
   list = list.slice().sort((a, b) => {
-    if (sort === "amount") return b.amount - a.amount;
+    if (sort === "amount") return billRemaining(b) - billRemaining(a);
     if (sort === "name") return a.provider.localeCompare(b.provider);
     // due: unpaid first by days, paid last
     if ((a.status === "paid") !== (b.status === "paid")) return a.status === "paid" ? 1 : -1;
     return a.dueDays - b.dueDays;
   });
-  const total = list.filter((b) => b.status !== "paid").reduce((s, b) => s + b.amount, 0);
+  const total = list.filter((b) => b.status !== "paid").reduce((s, b) => s + billRemaining(b), 0);
   const sorts: [SortKey, string][] = [
     ["due", "Due date"],
     ["amount", "Amount"],
