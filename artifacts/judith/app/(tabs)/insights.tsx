@@ -305,7 +305,7 @@ export default function InsightsScreen() {
         paid += _amtPaid(b);
         considerBiggest(_remaining, b.provider, b.cat, b.id);
         // A card contributes only the part of its statement not explained by tracked charges.
-        const net = Math.max(0, _owed - (linkedByCard[b.id] ?? 0));
+        const net = Math.max(0, _remaining - (linkedByCard[b.id] ?? 0));
         addCat(b.cat, net);
         addProv(b.provider, net, b.cat, b.id);
       });

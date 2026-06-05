@@ -595,7 +595,7 @@ export default function BillDetailModal() {
         {/* Amount due — shown above the primary action button */}
         <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "center", gap: 6, paddingBottom: 4 }}>
           <Low size={12}>{paid ? "Paid" : overdue ? "Amount overdue" : isFuturePeriod ? "Amount due" : "Amount due"}</Low>
-          <Mono size={26} weight="bold" color={paid ? t.semantic.ok : t.semantic[viewedCls]}>{money(viewedOwed)}</Mono>
+          <Mono size={26} weight="bold" color={paid ? t.semantic.ok : t.semantic[viewedCls]}>{money(isCurrentPeriod && partial && !paid ? remaining : viewedOwed)}</Mono>
         </View>
         {/* A settled credit-card statement carries no balance into a future month,
             so there's nothing to pay ahead until the next statement arrives. */}
