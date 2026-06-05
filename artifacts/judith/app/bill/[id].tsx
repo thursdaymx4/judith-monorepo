@@ -765,25 +765,28 @@ export default function BillDetailModal() {
         <>
           <SectionLabel style={{ marginTop: 24 }}>Charges under this card</SectionLabel>
           <Card style={{ padding: 0, overflow: "hidden" }}>
-            {linkedCharges.map((c, i) => (
+            {linkedCharges.map((c, i) => {
+              const chargePaid = isPaidForPeriod(c, viewedPeriod);
+              return (
               <View key={c.id}>
                 {i > 0 && <View style={{ height: 1, backgroundColor: t.hair }} />}
                 <Pressable
                   onPress={() => router.push(`/bill/${c.id}`)}
                   style={({ pressed }) => [
-                    { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
-                    pressed && { opacity: 0.6 },
+                    { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, opacity: chargePaid ? 0.55 : 1 },
+                    pressed && { opacity: chargePaid ? 0.4 : 0.6 },
                   ]}
                 >
                   <ProviderLogo provider={c.provider} cat={c.cat} size={34} />
                   <View style={{ flex: 1, gap: 2 }}>
-                    <Txt size={14} weight="medium" numberOfLines={1}>{c.provider}</Txt>
+                    <Txt size={14} weight="medium" numberOfLines={1} style={chargePaid ? { textDecorationLine: "line-through" } : undefined}>{c.provider}</Txt>
                     <Low size={11} numberOfLines={1}>{c.cat}</Low>
                   </View>
-                  <Mono size={14} weight="medium" color={t.txtMid}>{money(c.amount)}</Mono>
+                  <Mono size={14} weight="medium" color={t.txtMid} style={chargePaid ? { textDecorationLine: "line-through" } : undefined}>{money(c.amount)}</Mono>
                 </Pressable>
               </View>
-            ))}
+              );
+            })}
             <View style={{ height: 1, backgroundColor: t.hair }} />
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 14 }}>
               <Low size={12}>
