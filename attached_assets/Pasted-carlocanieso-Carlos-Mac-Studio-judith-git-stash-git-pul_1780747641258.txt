@@ -1,0 +1,592 @@
+carlocanieso@Carlos-Mac-Studio judith % git stash
+git pull origin main
+git stash pop
+Saved working directory and index state WIP on main: deb9792 Fix onboarding voice playback by ensuring effect runs only once
+From https://github.com/thursdaymx4/judith-monorepo
+ * branch            main       -> FETCH_HEAD
+Updating deb9792..5aa46ae
+Fast-forward
+ .agents/memory/MEMORY.md                                       |   13 +
+ .agents/memory/judith-answer-sequencing.md                     |   30 +
+ .agents/memory/judith-apple-signin.md                          |   47 +
+ .agents/memory/judith-ask-ai-contract.md                       |   34 +
+ .agents/memory/judith-ask-metering.md                          |   15 +
+ .agents/memory/judith-ask-number-format.md                     |   47 +
+ .agents/memory/judith-ask-scoped-questions.md                  |   17 +
+ .agents/memory/judith-cc-revolving-balance.md                  |   72 ++
+ .agents/memory/judith-cross-screen-totals.md                   |   38 +
+ .agents/memory/judith-due-date.md                              |   59 +-
+ .agents/memory/judith-home-filters.md                          |   34 +
+ .agents/memory/judith-i18n-languages.md                        |   12 +
+ .agents/memory/judith-insights-business-split.md               |   35 +
+ .agents/memory/judith-legal-urls.md                            |   12 +
+ .agents/memory/judith-money-formatting.md                      |   34 +
+ .agents/memory/judith-overdue-enforcement.md                   |   41 +
+ .agents/memory/judith-supabase-url.md                          |   16 +-
+ .agents/memory/judith-tier-model.md                            |    7 +-
+ .agents/memory/judith-via-card-exclusion.md                    |  108 +++
+ .agents/memory/judith-watch-connectivity.md                    |   16 +-
+ .replit                                                        |    8 +
+ artifacts/api-server/src/lib/elevenlabs.ts                     |   26 +-
+ artifacts/api-server/src/lib/moderation.ts                     |   45 +
+ artifacts/api-server/src/lib/personas.ts                       |  201 +++-
+ artifacts/api-server/src/routes/judith.ts                      |  378 +++++++-
+ artifacts/judith-watch/JudithWatch/App/JudithWatchApp.swift    |   13 +-
+ artifacts/judith-watch/JudithWatch/Config/Config.swift         |   21 +-
+ artifacts/judith-watch/JudithWatch/Models/Bill.swift           |  153 +--
+ artifacts/judith-watch/JudithWatch/Models/BillStore.swift      |  171 +---
+ .../JudithWatch/Notifications/NotificationController.swift     |   33 +-
+ .../JudithWatch/Services/ConnectivityService.swift             |   83 +-
+ .../judith-watch/JudithWatch/Services/SpeechRecognizer.swift   |   91 ++
+ .../judith-watch/JudithWatch/Services/SupabaseClient.swift     |  100 +-
+ artifacts/judith-watch/JudithWatch/Views/AskView.swift         |  241 +++++
+ artifacts/judith-watch/JudithWatch/Views/AuthView.swift        |  122 +--
+ artifacts/judith-watch/JudithWatch/Views/BillDetailView.swift  |  113 +--
+ artifacts/judith-watch/JudithWatch/Views/BillRowView.swift     |   10 +-
+ artifacts/judith-watch/JudithWatch/Views/ContentView.swift     |   18 +-
+ artifacts/judith-watch/JudithWatch/Views/PaidConfirmView.swift |   18 +-
+ artifacts/judith-watch/JudithWatch/Views/UpNextView.swift      |   51 +-
+ artifacts/judith-watch/JudithWatchWidget/Provider.swift        |   85 +-
+ artifacts/judith-watch/JudithWatchWidget/SharedTypes.swift     |  110 +--
+ artifacts/judith-watch/JudithWatchWidget/WidgetViews.swift     |   25 +-
+ artifacts/judith/app.json                                      |    4 +-
+ artifacts/judith/app/(auth)/login.tsx                          |   28 +-
+ artifacts/judith/app/(onboarding)/index.tsx                    | 1337 +++++++++++++++++++++++---
+ artifacts/judith/app/(tabs)/calendar.tsx                       |  508 ++++++++--
+ artifacts/judith/app/(tabs)/index.tsx                          |  481 +++++++--
+ artifacts/judith/app/(tabs)/insights.tsx                       |  760 ++++++++++++---
+ artifacts/judith/app/(tabs)/settings.tsx                       |  546 ++++++++++-
+ artifacts/judith/app/account.tsx                               |  148 +++
+ artifacts/judith/app/add-bill.tsx                              |  629 +++++++++---
+ artifacts/judith/app/ask.tsx                                   |  683 ++++++++++---
+ artifacts/judith/app/bill/[id].tsx                             |  887 ++++++++++++++---
+ artifacts/judith/app/bills.tsx                                 |    7 +-
+ artifacts/judith/app/plans.tsx                                 |  630 +++++++-----
+ artifacts/judith/app/reminders.tsx                             |   28 +-
+ artifacts/judith/build.sh                                      |    4 +-
+ artifacts/judith/components/Icon.tsx                           |   27 +-
+ artifacts/judith/components/ui.tsx                             |   66 +-
+ artifacts/judith/constants/countries.ts                        |   16 +
+ artifacts/judith/constants/data.ts                             |  252 ++++-
+ artifacts/judith/constants/demoData.ts                         |  274 ++++++
+ artifacts/judith/constants/languages.ts                        |   90 +-
+ artifacts/judith/constants/legal.ts                            |   13 +
+ artifacts/judith/constants/paywallLocale.ts                    |  459 +++++++++
+ artifacts/judith/constants/providers.ts                        |  103 +-
+ artifacts/judith/constants/theme.ts                            |    2 +-
+ artifacts/judith/constants/voiceLines.ts                       |   16 +
+ artifacts/judith/contexts/AuthContext.tsx                      |   56 +-
+ artifacts/judith/contexts/JudithStore.tsx                      |  389 +++++++-
+ artifacts/judith/eas.json                                      |    4 +-
+ artifacts/judith/hooks/useTheme.ts                             |   10 +-
+ artifacts/judith/hooks/useWatchMessages.ts                     |  118 +++
+ artifacts/judith/hooks/useWatchSync.ts                         |   13 +-
+ artifacts/judith/lib/audio.ts                                  |    2 +-
+ artifacts/judith/lib/notifications.ts                          |   96 +-
+ artifacts/judith/lib/proxy.ts                                  |   67 +-
+ artifacts/judith/lib/tagalog.ts                                |    6 +-
+ artifacts/judith/lib/watch.ts                                  |  120 ++-
+ artifacts/judith/package.json                                  |    2 +
+ artifacts/privacy/src/App.tsx                                  |  210 +---
+ artifacts/privacy/src/components/legal.tsx                     |  167 ++++
+ artifacts/privacy/src/pages/PrivacyPolicy.tsx                  |  110 +++
+ artifacts/privacy/src/pages/TermsOfUse.tsx                     |  126 +++
+ .../1305fe5d-892e-422e-8b58-8f9be3cab450_1780569508697.jpeg    |  Bin 0 -> 64941 bytes
+ attached_assets/IMG_3939_1780549950943.png                     |  Bin 0 -> 185807 bytes
+ attached_assets/IMG_3940_1780549950943.png                     |  Bin 0 -> 305556 bytes
+ attached_assets/IMG_3942_1780553335774.png                     |  Bin 0 -> 330485 bytes
+ attached_assets/IMG_3943_1780553335774.png                     |  Bin 0 -> 330505 bytes
+ attached_assets/IMG_3945_1780556817401.png                     |  Bin 0 -> 352529 bytes
+ attached_assets/IMG_3946_1780556817401.png                     |  Bin 0 -> 486756 bytes
+ attached_assets/IMG_3947_1780556817401.png                     |  Bin 0 -> 513147 bytes
+ attached_assets/IMG_3948_1780556817401.png                     |  Bin 0 -> 498658 bytes
+ attached_assets/IMG_3949_1780556817401.png                     |  Bin 0 -> 503427 bytes
+ attached_assets/IMG_3950_1780556817401.png                     |  Bin 0 -> 444803 bytes
+ attached_assets/IMG_3951_1780556817401.png                     |  Bin 0 -> 401410 bytes
+ attached_assets/IMG_3953_1780560002716.png                     |  Bin 0 -> 253402 bytes
+ attached_assets/IMG_3955_1780557759747.png                     |  Bin 0 -> 188887 bytes
+ attached_assets/IMG_3956_1780557759747.png                     |  Bin 0 -> 360926 bytes
+ attached_assets/IMG_3957_1780558069840.png                     |  Bin 0 -> 211261 bytes
+ attached_assets/IMG_3958_1780558069840.png                     |  Bin 0 -> 257794 bytes
+ attached_assets/IMG_3966_1780559533731.png                     |  Bin 0 -> 127500 bytes
+ attached_assets/IMG_3967_1780559723404.png                     |  Bin 0 -> 273801 bytes
+ attached_assets/IMG_3968_1780560364093.png                     |  Bin 0 -> 189980 bytes
+ attached_assets/IMG_3969_1780560364093.png                     |  Bin 0 -> 363252 bytes
+ attached_assets/IMG_3973_1780563234765.png                     |  Bin 0 -> 346551 bytes
+ attached_assets/IMG_3974_1780563361023.png                     |  Bin 0 -> 211796 bytes
+ attached_assets/IMG_3980_1780570817200.PNG                     |  Bin 0 -> 206161 bytes
+ attached_assets/IMG_3982_1780578558011.png                     |  Bin 0 -> 343372 bytes
+ attached_assets/IMG_3983_1780579615498.png                     |  Bin 0 -> 205335 bytes
+ attached_assets/IMG_3984_1780579738900.png                     |  Bin 0 -> 155898 bytes
+ attached_assets/IMG_3985_1780579929737.png                     |  Bin 0 -> 213128 bytes
+ attached_assets/IMG_3986_1780580010134.png                     |  Bin 0 -> 177001 bytes
+ attached_assets/IMG_3988_1780580152589.png                     |  Bin 0 -> 209057 bytes
+ attached_assets/IMG_3990_1780580278426.png                     |  Bin 0 -> 194566 bytes
+ attached_assets/IMG_3992_1780580416170.png                     |  Bin 0 -> 383989 bytes
+ attached_assets/IMG_3992_1780580558793.png                     |  Bin 0 -> 383989 bytes
+ attached_assets/IMG_3994_1780580840142.jpeg                    |  Bin 0 -> 88041 bytes
+ attached_assets/IMG_3997_1780582132105.png                     |  Bin 0 -> 417272 bytes
+ attached_assets/IMG_3998_1780582218116.jpeg                    |  Bin 0 -> 68338 bytes
+ attached_assets/IMG_3999_1780582339524.jpeg                    |  Bin 0 -> 51678 bytes
+ attached_assets/IMG_4001_1780582747749.jpeg                    |  Bin 0 -> 52311 bytes
+ attached_assets/IMG_4002_1780582747749.jpeg                    |  Bin 0 -> 39011 bytes
+ attached_assets/IMG_4003_1780583433530.png                     |  Bin 0 -> 461984 bytes
+ attached_assets/IMG_4004_1780583557476.jpeg                    |  Bin 0 -> 120251 bytes
+ attached_assets/IMG_4005_1780583768884.png                     |  Bin 0 -> 180896 bytes
+ attached_assets/IMG_4006_1780583762181.png                     |  Bin 0 -> 357192 bytes
+ attached_assets/IMG_4007_1780583762181.png                     |  Bin 0 -> 353272 bytes
+ attached_assets/IMG_4008_1780583884971.png                     |  Bin 0 -> 246659 bytes
+ attached_assets/IMG_4009_1780584112080.png                     |  Bin 0 -> 203663 bytes
+ attached_assets/IMG_4010_1780584112080.png                     |  Bin 0 -> 225636 bytes
+ attached_assets/IMG_4011_1780584198501.png                     |  Bin 0 -> 227501 bytes
+ attached_assets/IMG_4012_1780584198501.png                     |  Bin 0 -> 222780 bytes
+ attached_assets/IMG_4016_1780584744495.png                     |  Bin 0 -> 153534 bytes
+ attached_assets/IMG_4017_1780584744495.png                     |  Bin 0 -> 321959 bytes
+ attached_assets/IMG_4018_1780594113981.PNG                     |  Bin 0 -> 261438 bytes
+ attached_assets/IMG_4019_1780594113981.PNG                     |  Bin 0 -> 948222 bytes
+ attached_assets/IMG_4022_1780584939188.png                     |  Bin 0 -> 166743 bytes
+ attached_assets/IMG_4023_1780584939188.png                     |  Bin 0 -> 321334 bytes
+ attached_assets/IMG_4045_1780626573809.png                     |  Bin 0 -> 603366 bytes
+ attached_assets/IMG_4045_1780627319340.png                     |  Bin 0 -> 603366 bytes
+ attached_assets/IMG_4046_1780628451136.png                     |  Bin 0 -> 403030 bytes
+ attached_assets/IMG_4047_1780630039319.png                     |  Bin 0 -> 1075786 bytes
+ attached_assets/IMG_4049_1780637346933.png                     |  Bin 0 -> 303310 bytes
+ attached_assets/IMG_4050_1780637512536.jpeg                    |  Bin 0 -> 95090 bytes
+ attached_assets/IMG_4050_1780642175251.jpeg                    |  Bin 0 -> 95090 bytes
+ attached_assets/IMG_4050_1780669169196.jpeg                    |  Bin 0 -> 95090 bytes
+ attached_assets/IMG_4051_1780669169196.png                     |  Bin 0 -> 605869 bytes
+ attached_assets/IMG_4052_1780642894754.png                     |  Bin 0 -> 316816 bytes
+ attached_assets/IMG_4052_1780669169196.png                     |  Bin 0 -> 316816 bytes
+ attached_assets/IMG_4053_1780642894754.png                     |  Bin 0 -> 171310 bytes
+ attached_assets/IMG_4053_1780644233461.png                     |  Bin 0 -> 171310 bytes
+ attached_assets/IMG_4053_1780669169196.png                     |  Bin 0 -> 171310 bytes
+ attached_assets/IMG_4054_1780669169196.png                     |  Bin 0 -> 166408 bytes
+ attached_assets/IMG_4055_1780644635008.png                     |  Bin 0 -> 266059 bytes
+ attached_assets/IMG_4055_1780669169196.png                     |  Bin 0 -> 266059 bytes
+ attached_assets/IMG_4056_1780669169196.jpeg                    |  Bin 0 -> 106358 bytes
+ attached_assets/IMG_4057_1780669169196.png                     |  Bin 0 -> 191554 bytes
+ attached_assets/IMG_4058_1780669169196.png                     |  Bin 0 -> 251710 bytes
+ attached_assets/IMG_4059_1780646781907.png                     |  Bin 0 -> 212831 bytes
+ attached_assets/IMG_4059_1780669169196.png                     |  Bin 0 -> 212831 bytes
+ attached_assets/IMG_4061_1780647078572.png                     |  Bin 0 -> 254026 bytes
+ attached_assets/IMG_4062_1780647195056.png                     |  Bin 0 -> 225902 bytes
+ attached_assets/IMG_4062_1780669169196.png                     |  Bin 0 -> 225902 bytes
+ attached_assets/IMG_4063_1780647593238.png                     |  Bin 0 -> 409100 bytes
+ attached_assets/IMG_4064_1780648279685.png                     |  Bin 0 -> 418925 bytes
+ attached_assets/IMG_4064_1780669169196.png                     |  Bin 0 -> 418925 bytes
+ attached_assets/IMG_4065_1780648478019.png                     |  Bin 0 -> 422374 bytes
+ attached_assets/IMG_4066_1780648523131.png                     |  Bin 0 -> 424275 bytes
+ attached_assets/IMG_4067_1780648677599.png                     |  Bin 0 -> 348218 bytes
+ attached_assets/IMG_4068_1780648852935.jpeg                    |  Bin 0 -> 89905 bytes
+ attached_assets/IMG_4070_1780649050115.png                     |  Bin 0 -> 345856 bytes
+ attached_assets/IMG_4071_1780660772868.PNG                     |  Bin 0 -> 178200 bytes
+ attached_assets/IMG_4071_2_1780663220079.PNG                   |  Bin 0 -> 178200 bytes
+ attached_assets/IMG_4072_1780660772867.PNG                     |  Bin 0 -> 418945 bytes
+ attached_assets/IMG_4072_2_1780663220079.PNG                   |  Bin 0 -> 418945 bytes
+ attached_assets/IMG_4074_1780668551616.png                     |  Bin 0 -> 253429 bytes
+ attached_assets/IMG_4075_1780668551616.png                     |  Bin 0 -> 192394 bytes
+ attached_assets/IMG_4076_1780668551616.png                     |  Bin 0 -> 467534 bytes
+ attached_assets/IMG_4081_1780663220078.PNG                     |  Bin 0 -> 201578 bytes
+ attached_assets/IMG_4082_1780663220078.PNG                     |  Bin 0 -> 351865 bytes
+ attached_assets/IMG_4083_1780663220078.PNG                     |  Bin 0 -> 370356 bytes
+ attached_assets/IMG_4084_1780667281664.png                     |  Bin 0 -> 315631 bytes
+ attached_assets/IMG_4089_1780668980324.png                     |  Bin 0 -> 441659 bytes
+ attached_assets/IMG_4091_1780669188988.png                     |  Bin 0 -> 417131 bytes
+ attached_assets/IMG_4092_1780669188988.png                     |  Bin 0 -> 258575 bytes
+ attached_assets/IMG_4093_1780669362474.jpeg                    |  Bin 0 -> 259545 bytes
+ attached_assets/IMG_4094_1780670204421.png                     |  Bin 0 -> 375662 bytes
+ attached_assets/IMG_4095_1780670204421.png                     |  Bin 0 -> 411957 bytes
+ attached_assets/IMG_4096_1780670450307.png                     |  Bin 0 -> 327451 bytes
+ attached_assets/IMG_4097_1780670450307.png                     |  Bin 0 -> 419494 bytes
+ attached_assets/IMG_4098_1780670450307.png                     |  Bin 0 -> 410365 bytes
+ attached_assets/IMG_4101_1780673436159.png                     |  Bin 0 -> 133705 bytes
+ attached_assets/IMG_4103_1780673720057.png                     |  Bin 0 -> 410306 bytes
+ attached_assets/IMG_4105_1780673958241.jpeg                    |  Bin 0 -> 90052 bytes
+ attached_assets/IMG_4106_1780673958241.png                     |  Bin 0 -> 338018 bytes
+ attached_assets/IMG_4107_1780674347554.png                     |  Bin 0 -> 439547 bytes
+ attached_assets/IMG_4108_1780674522266.jpeg                    |  Bin 0 -> 62264 bytes
+ attached_assets/IMG_4109_1780675274058.png                     |  Bin 0 -> 257565 bytes
+ attached_assets/IMG_4110_1780675274058.png                     |  Bin 0 -> 257564 bytes
+ attached_assets/IMG_4111_1780675274058.jpeg                    |  Bin 0 -> 193704 bytes
+ attached_assets/IMG_4116_1780676114747.png                     |  Bin 0 -> 193522 bytes
+ attached_assets/IMG_4117_1780676114747.jpeg                    |  Bin 0 -> 55209 bytes
+ attached_assets/IMG_4118_1780677255201.jpeg                    |  Bin 0 -> 186016 bytes
+ attached_assets/IMG_4119_1780677411576.jpeg                    |  Bin 0 -> 153405 bytes
+ attached_assets/IMG_4120_1780677411576.jpeg                    |  Bin 0 -> 135633 bytes
+ attached_assets/IMG_4121_1780677820298.png                     |  Bin 0 -> 208028 bytes
+ attached_assets/IMG_4122_1780677820299.png                     |  Bin 0 -> 364485 bytes
+ attached_assets/IMG_4128_1780708523101.PNG                     |  Bin 0 -> 172527 bytes
+ attached_assets/IMG_4129_1780708523101.PNG                     |  Bin 0 -> 319363 bytes
+ attached_assets/IMG_4132_1780710270941.png                     |  Bin 0 -> 225361 bytes
+ attached_assets/IMG_4134_1780710391918.png                     |  Bin 0 -> 269662 bytes
+ attached_assets/IMG_4135_1780710836540.jpeg                    |  Bin 0 -> 124125 bytes
+ attached_assets/IMG_4136_1780710836540.png                     |  Bin 0 -> 430518 bytes
+ attached_assets/IMG_4137_1780710912727.png                     |  Bin 0 -> 181328 bytes
+ attached_assets/IMG_4139_1780711015766.png                     |  Bin 0 -> 258869 bytes
+ attached_assets/IMG_4140_1780711015766.jpeg                    |  Bin 0 -> 75701 bytes
+ attached_assets/IMG_4141_1780711236824.png                     |  Bin 0 -> 244973 bytes
+ attached_assets/IMG_4143_1780712058364.jpeg                    |  Bin 0 -> 165703 bytes
+ attached_assets/IMG_4144_1780712058364.png                     |  Bin 0 -> 431898 bytes
+ attached_assets/IMG_4145_1780712784183.jpeg                    |  Bin 0 -> 125536 bytes
+ attached_assets/IMG_4146_1780712963412.jpeg                    |  Bin 0 -> 113756 bytes
+ attached_assets/IMG_4146_1780713374665.jpeg                    |  Bin 0 -> 113756 bytes
+ attached_assets/IMG_4148_1780715710021.png                     |  Bin 0 -> 362122 bytes
+ attached_assets/IMG_4149_1780716423822.png                     |  Bin 0 -> 240040 bytes
+ attached_assets/IMG_4150_1780716630793.jpeg                    |  Bin 0 -> 90330 bytes
+ attached_assets/IMG_4151_1780716630793.jpeg                    |  Bin 0 -> 117570 bytes
+ attached_assets/IMG_4152_1780717180636.png                     |  Bin 0 -> 286045 bytes
+ attached_assets/IMG_4153_1780717367700.png                     |  Bin 0 -> 289147 bytes
+ attached_assets/IMG_4154_1780719025092.jpeg                    |  Bin 0 -> 188226 bytes
+ attached_assets/IMG_4156_1780720236979.png                     |  Bin 0 -> 189269 bytes
+ attached_assets/IMG_4159_1780720699473.jpeg                    |  Bin 0 -> 55450 bytes
+ attached_assets/IMG_4160_1780720804244.png                     |  Bin 0 -> 443430 bytes
+ attached_assets/IMG_4161_1780720804244.png                     |  Bin 0 -> 492714 bytes
+ attached_assets/IMG_4162_1780720862963.png                     |  Bin 0 -> 278420 bytes
+ attached_assets/IMG_4164_1780720937522.png                     |  Bin 0 -> 854093 bytes
+ attached_assets/IMG_4165_1780721147755.jpeg                    |  Bin 0 -> 168572 bytes
+ attached_assets/IMG_4166_1780721932570.png                     |  Bin 0 -> 365343 bytes
+ attached_assets/IMG_4167_1780722148575.png                     |  Bin 0 -> 387548 bytes
+ attached_assets/IMG_4168_1780722148575.png                     |  Bin 0 -> 471186 bytes
+ attached_assets/IMG_4169_1780722454917.png                     |  Bin 0 -> 394889 bytes
+ attached_assets/IMG_4171_1780722528923.png                     |  Bin 0 -> 297201 bytes
+ attached_assets/IMG_4172_1780723331836.jpeg                    |  Bin 0 -> 239675 bytes
+ attached_assets/IMG_4172_1780723341919.jpeg                    |  Bin 0 -> 239675 bytes
+ attached_assets/IMG_4173_1780723331836.jpeg                    |  Bin 0 -> 263251 bytes
+ attached_assets/IMG_4173_1780723341919.jpeg                    |  Bin 0 -> 263251 bytes
+ attached_assets/IMG_4178_1780724444002.jpeg                    |  Bin 0 -> 152105 bytes
+ attached_assets/IMG_4179_1780724444002.jpeg                    |  Bin 0 -> 194137 bytes
+ attached_assets/IMG_4180_1780724528800.png                     |  Bin 0 -> 422844 bytes
+ attached_assets/IMG_4182_1780726087119.jpeg                    |  Bin 0 -> 103110 bytes
+ attached_assets/IMG_4183_1780726087119.jpeg                    |  Bin 0 -> 256504 bytes
+ attached_assets/IMG_4184_1780726177492.jpeg                    |  Bin 0 -> 133799 bytes
+ attached_assets/IMG_4184_1780726295252.jpeg                    |  Bin 0 -> 133799 bytes
+ attached_assets/IMG_4185_1780726177492.jpeg                    |  Bin 0 -> 191750 bytes
+ attached_assets/IMG_4185_1780726295252.jpeg                    |  Bin 0 -> 191750 bytes
+ attached_assets/IMG_4186_1780726555846.jpeg                    |  Bin 0 -> 120675 bytes
+ attached_assets/IMG_4187_1780726555846.jpeg                    |  Bin 0 -> 192552 bytes
+ attached_assets/IMG_4189_1780726836631.jpeg                    |  Bin 0 -> 138158 bytes
+ attached_assets/IMG_4190_1780726836631.png                     |  Bin 0 -> 445672 bytes
+ attached_assets/IMG_4191_1780726836631.jpeg                    |  Bin 0 -> 219928 bytes
+ attached_assets/IMG_4192_1780727156070.jpeg                    |  Bin 0 -> 163538 bytes
+ attached_assets/IMG_4193_1780727156070.png                     |  Bin 0 -> 425941 bytes
+ attached_assets/IMG_4194_1780727200400.jpeg                    |  Bin 0 -> 168259 bytes
+ attached_assets/IMG_4195_1780727200400.png                     |  Bin 0 -> 396939 bytes
+ attached_assets/IMG_4204_1780728042527.jpeg                    |  Bin 0 -> 206251 bytes
+ attached_assets/IMG_4205_1780728237443.jpeg                    |  Bin 0 -> 186512 bytes
+ attached_assets/IMG_4208_1780729066110.png                     |  Bin 0 -> 434000 bytes
+ attached_assets/IMG_4209_1780729179733.png                     |  Bin 0 -> 340451 bytes
+ attached_assets/IMG_4210_1780729879842.png                     |  Bin 0 -> 457958 bytes
+ attached_assets/IMG_4212_1780730301719.png                     |  Bin 0 -> 390936 bytes
+ attached_assets/IMG_4214_1780731092751.png                     |  Bin 0 -> 377052 bytes
+ attached_assets/IMG_4215_1780731206764.jpeg                    |  Bin 0 -> 162307 bytes
+ attached_assets/IMG_4216_1780731206764.png                     |  Bin 0 -> 450670 bytes
+ attached_assets/IMG_4217_1780732272358.png                     |  Bin 0 -> 192653 bytes
+ attached_assets/IMG_4218_1780732272358.jpeg                    |  Bin 0 -> 40763 bytes
+ attached_assets/IMG_4222_1780742564713.jpg                     |  Bin 0 -> 209851 bytes
+ attached_assets/IMG_4223_1780742564713.jpg                     |  Bin 0 -> 303147 bytes
+ attached_assets/IMG_4226_1780742564713.jpg                     |  Bin 0 -> 263580 bytes
+ attached_assets/IMG_4227_1780742564713.jpg                     |  Bin 0 -> 410501 bytes
+ attached_assets/IMG_4229_1780742564713.PNG                     |  Bin 0 -> 237048 bytes
+ .../Screenshot_2026-06-04_at_5.27.03_PM_1780565237546.png      |  Bin 0 -> 257449 bytes
+ .../Screenshot_2026-06-04_at_5.28.43_PM_1780565333376.png      |  Bin 0 -> 246385 bytes
+ .../Screenshot_2026-06-04_at_7.19.14_PM_1780571970463.png      |  Bin 0 -> 287276 bytes
+ .../Screenshot_2026-06-05_at_1.15.52_AM_1780593383649.png      |  Bin 0 -> 333029 bytes
+ .../Screenshot_2026-06-05_at_1.16.03_AM_1780593373849.png      |  Bin 0 -> 353573 bytes
+ .../Screenshot_2026-06-05_at_1.33.31_AM_1780594436619.png      |  Bin 0 -> 344383 bytes
+ .../Screenshot_2026-06-05_at_1.33.45_AM_1780594436618.png      |  Bin 0 -> 376557 bytes
+ .../Screenshot_2026-06-05_at_10.03.46_AM_1780625048715.png     |  Bin 0 -> 111175 bytes
+ .../Screenshot_2026-06-05_at_10.04.01_AM_1780625048715.png     |  Bin 0 -> 72659 bytes
+ .../Screenshot_2026-06-05_at_12.23.17_AM_1780590205317.png     |  Bin 0 -> 160148 bytes
+ .../Screenshot_2026-06-05_at_12.23.56_AM_1780590246503.png     |  Bin 0 -> 231309 bytes
+ .../Screenshot_2026-06-05_at_12.29.57_AM_1780590609013.png     |  Bin 0 -> 269115 bytes
+ .../Screenshot_2026-06-05_at_12.53.40_AM_1780592047235.png     |  Bin 0 -> 351797 bytes
+ .../Screenshot_2026-06-05_at_12.53.40_AM_1780593248481.png     |  Bin 0 -> 351797 bytes
+ .../Screenshot_2026-06-05_at_12.53.51_AM_1780592047234.png     |  Bin 0 -> 239955 bytes
+ .../Screenshot_2026-06-05_at_12.53.51_AM_1780593250359.png     |  Bin 0 -> 239955 bytes
+ .../Screenshot_2026-06-05_at_8.06.56_PM_1780661222762.png      |  Bin 0 -> 302035 bytes
+ .../Screenshot_2026-06-05_at_8.17.28_PM_1780661860463.png      |  Bin 0 -> 292350 bytes
+ .../Screenshot_2026-06-05_at_8.30.04_PM_1780662613845.png      |  Bin 0 -> 529442 bytes
+ .../Screenshot_2026-06-05_at_8.32.21_PM_2_1780662797308.png    |  Bin 0 -> 435513 bytes
+ .../Screenshot_2026-06-05_at_8.35.53_PM_1780663008241.png      |  Bin 0 -> 200429 bytes
+ .../Screenshot_2026-06-05_at_9.36.33_AM_1780623408003.png      |  Bin 0 -> 1055836 bytes
+ .../Screenshot_2026-06-05_at_9.45.26_AM_1780623940895.png      |  Bin 0 -> 312050 bytes
+ .../Screenshot_2026-06-05_at_9.47.42_AM_1780624087133.png      |  Bin 0 -> 124672 bytes
+ .../Screenshot_2026-06-05_at_9.50.27_AM_1780624238407.png      |  Bin 0 -> 197002 bytes
+ .../Screenshot_2026-06-05_at_9.50.32_AM_1780624238407.png      |  Bin 0 -> 134233 bytes
+ .../Screenshot_2026-06-06_at_6.33.43_PM_1780742564713.png      |  Bin 0 -> 280933 bytes
+ .../Screenshot_2026-06-06_at_6.39.18_PM_1780742564713.png      |  Bin 0 -> 426651 bytes
+ .../Screenshot_2026-06-06_at_6.39.59_PM_1780742564714.png      |  Bin 0 -> 298075 bytes
+ .../Screenshot_2026-06-06_at_6.40.51_PM_1780742564714.png      |  Bin 0 -> 405240 bytes
+ .../Screenshot_2026-06-06_at_9.04.15_AM_1780707891897.png      |  Bin 0 -> 256241 bytes
+ .../Screenshot_2026-06-06_at_9.06.44_AM_1780708019576.png      |  Bin 0 -> 199145 bytes
+ .../c60a9072-1f25-4855-9352-a695ed441892_1780569508697.jpeg    |  Bin 0 -> 42964 bytes
+ pnpm-lock.yaml                                                 |   31 +-
+ 315 files changed, 9972 insertions(+), 2356 deletions(-)
+ create mode 100644 .agents/memory/judith-answer-sequencing.md
+ create mode 100644 .agents/memory/judith-apple-signin.md
+ create mode 100644 .agents/memory/judith-ask-metering.md
+ create mode 100644 .agents/memory/judith-ask-number-format.md
+ create mode 100644 .agents/memory/judith-ask-scoped-questions.md
+ create mode 100644 .agents/memory/judith-cc-revolving-balance.md
+ create mode 100644 .agents/memory/judith-cross-screen-totals.md
+ create mode 100644 .agents/memory/judith-home-filters.md
+ create mode 100644 .agents/memory/judith-insights-business-split.md
+ create mode 100644 .agents/memory/judith-legal-urls.md
+ create mode 100644 .agents/memory/judith-money-formatting.md
+ create mode 100644 .agents/memory/judith-overdue-enforcement.md
+ create mode 100644 .agents/memory/judith-via-card-exclusion.md
+ create mode 100644 artifacts/api-server/src/lib/moderation.ts
+ create mode 100644 artifacts/judith-watch/JudithWatch/Services/SpeechRecognizer.swift
+ create mode 100644 artifacts/judith-watch/JudithWatch/Views/AskView.swift
+ create mode 100644 artifacts/judith/constants/demoData.ts
+ create mode 100644 artifacts/judith/constants/legal.ts
+ create mode 100644 artifacts/judith/constants/paywallLocale.ts
+ create mode 100644 artifacts/judith/hooks/useWatchMessages.ts
+ create mode 100644 artifacts/privacy/src/components/legal.tsx
+ create mode 100644 artifacts/privacy/src/pages/PrivacyPolicy.tsx
+ create mode 100644 artifacts/privacy/src/pages/TermsOfUse.tsx
+ create mode 100644 attached_assets/1305fe5d-892e-422e-8b58-8f9be3cab450_1780569508697.jpeg
+ create mode 100644 attached_assets/IMG_3939_1780549950943.png
+ create mode 100644 attached_assets/IMG_3940_1780549950943.png
+ create mode 100644 attached_assets/IMG_3942_1780553335774.png
+ create mode 100644 attached_assets/IMG_3943_1780553335774.png
+ create mode 100644 attached_assets/IMG_3945_1780556817401.png
+ create mode 100644 attached_assets/IMG_3946_1780556817401.png
+ create mode 100644 attached_assets/IMG_3947_1780556817401.png
+ create mode 100644 attached_assets/IMG_3948_1780556817401.png
+ create mode 100644 attached_assets/IMG_3949_1780556817401.png
+ create mode 100644 attached_assets/IMG_3950_1780556817401.png
+ create mode 100644 attached_assets/IMG_3951_1780556817401.png
+ create mode 100644 attached_assets/IMG_3953_1780560002716.png
+ create mode 100644 attached_assets/IMG_3955_1780557759747.png
+ create mode 100644 attached_assets/IMG_3956_1780557759747.png
+ create mode 100644 attached_assets/IMG_3957_1780558069840.png
+ create mode 100644 attached_assets/IMG_3958_1780558069840.png
+ create mode 100644 attached_assets/IMG_3966_1780559533731.png
+ create mode 100644 attached_assets/IMG_3967_1780559723404.png
+ create mode 100644 attached_assets/IMG_3968_1780560364093.png
+ create mode 100644 attached_assets/IMG_3969_1780560364093.png
+ create mode 100644 attached_assets/IMG_3973_1780563234765.png
+ create mode 100644 attached_assets/IMG_3974_1780563361023.png
+ create mode 100644 attached_assets/IMG_3980_1780570817200.PNG
+ create mode 100644 attached_assets/IMG_3982_1780578558011.png
+ create mode 100644 attached_assets/IMG_3983_1780579615498.png
+ create mode 100644 attached_assets/IMG_3984_1780579738900.png
+ create mode 100644 attached_assets/IMG_3985_1780579929737.png
+ create mode 100644 attached_assets/IMG_3986_1780580010134.png
+ create mode 100644 attached_assets/IMG_3988_1780580152589.png
+ create mode 100644 attached_assets/IMG_3990_1780580278426.png
+ create mode 100644 attached_assets/IMG_3992_1780580416170.png
+ create mode 100644 attached_assets/IMG_3992_1780580558793.png
+ create mode 100644 attached_assets/IMG_3994_1780580840142.jpeg
+ create mode 100644 attached_assets/IMG_3997_1780582132105.png
+ create mode 100644 attached_assets/IMG_3998_1780582218116.jpeg
+ create mode 100644 attached_assets/IMG_3999_1780582339524.jpeg
+ create mode 100644 attached_assets/IMG_4001_1780582747749.jpeg
+ create mode 100644 attached_assets/IMG_4002_1780582747749.jpeg
+ create mode 100644 attached_assets/IMG_4003_1780583433530.png
+ create mode 100644 attached_assets/IMG_4004_1780583557476.jpeg
+ create mode 100644 attached_assets/IMG_4005_1780583768884.png
+ create mode 100644 attached_assets/IMG_4006_1780583762181.png
+ create mode 100644 attached_assets/IMG_4007_1780583762181.png
+ create mode 100644 attached_assets/IMG_4008_1780583884971.png
+ create mode 100644 attached_assets/IMG_4009_1780584112080.png
+ create mode 100644 attached_assets/IMG_4010_1780584112080.png
+ create mode 100644 attached_assets/IMG_4011_1780584198501.png
+ create mode 100644 attached_assets/IMG_4012_1780584198501.png
+ create mode 100644 attached_assets/IMG_4016_1780584744495.png
+ create mode 100644 attached_assets/IMG_4017_1780584744495.png
+ create mode 100644 attached_assets/IMG_4018_1780594113981.PNG
+ create mode 100644 attached_assets/IMG_4019_1780594113981.PNG
+ create mode 100644 attached_assets/IMG_4022_1780584939188.png
+ create mode 100644 attached_assets/IMG_4023_1780584939188.png
+ create mode 100644 attached_assets/IMG_4045_1780626573809.png
+ create mode 100644 attached_assets/IMG_4045_1780627319340.png
+ create mode 100644 attached_assets/IMG_4046_1780628451136.png
+ create mode 100644 attached_assets/IMG_4047_1780630039319.png
+ create mode 100644 attached_assets/IMG_4049_1780637346933.png
+ create mode 100644 attached_assets/IMG_4050_1780637512536.jpeg
+ create mode 100644 attached_assets/IMG_4050_1780642175251.jpeg
+ create mode 100644 attached_assets/IMG_4050_1780669169196.jpeg
+ create mode 100644 attached_assets/IMG_4051_1780669169196.png
+ create mode 100644 attached_assets/IMG_4052_1780642894754.png
+ create mode 100644 attached_assets/IMG_4052_1780669169196.png
+ create mode 100644 attached_assets/IMG_4053_1780642894754.png
+ create mode 100644 attached_assets/IMG_4053_1780644233461.png
+ create mode 100644 attached_assets/IMG_4053_1780669169196.png
+ create mode 100644 attached_assets/IMG_4054_1780669169196.png
+ create mode 100644 attached_assets/IMG_4055_1780644635008.png
+ create mode 100644 attached_assets/IMG_4055_1780669169196.png
+ create mode 100644 attached_assets/IMG_4056_1780669169196.jpeg
+ create mode 100644 attached_assets/IMG_4057_1780669169196.png
+ create mode 100644 attached_assets/IMG_4058_1780669169196.png
+ create mode 100644 attached_assets/IMG_4059_1780646781907.png
+ create mode 100644 attached_assets/IMG_4059_1780669169196.png
+ create mode 100644 attached_assets/IMG_4061_1780647078572.png
+ create mode 100644 attached_assets/IMG_4062_1780647195056.png
+ create mode 100644 attached_assets/IMG_4062_1780669169196.png
+ create mode 100644 attached_assets/IMG_4063_1780647593238.png
+ create mode 100644 attached_assets/IMG_4064_1780648279685.png
+ create mode 100644 attached_assets/IMG_4064_1780669169196.png
+ create mode 100644 attached_assets/IMG_4065_1780648478019.png
+ create mode 100644 attached_assets/IMG_4066_1780648523131.png
+ create mode 100644 attached_assets/IMG_4067_1780648677599.png
+ create mode 100644 attached_assets/IMG_4068_1780648852935.jpeg
+ create mode 100644 attached_assets/IMG_4070_1780649050115.png
+ create mode 100644 attached_assets/IMG_4071_1780660772868.PNG
+ create mode 100644 attached_assets/IMG_4071_2_1780663220079.PNG
+ create mode 100644 attached_assets/IMG_4072_1780660772867.PNG
+ create mode 100644 attached_assets/IMG_4072_2_1780663220079.PNG
+ create mode 100644 attached_assets/IMG_4074_1780668551616.png
+ create mode 100644 attached_assets/IMG_4075_1780668551616.png
+ create mode 100644 attached_assets/IMG_4076_1780668551616.png
+ create mode 100644 attached_assets/IMG_4081_1780663220078.PNG
+ create mode 100644 attached_assets/IMG_4082_1780663220078.PNG
+ create mode 100644 attached_assets/IMG_4083_1780663220078.PNG
+ create mode 100644 attached_assets/IMG_4084_1780667281664.png
+ create mode 100644 attached_assets/IMG_4089_1780668980324.png
+ create mode 100644 attached_assets/IMG_4091_1780669188988.png
+ create mode 100644 attached_assets/IMG_4092_1780669188988.png
+ create mode 100644 attached_assets/IMG_4093_1780669362474.jpeg
+ create mode 100644 attached_assets/IMG_4094_1780670204421.png
+ create mode 100644 attached_assets/IMG_4095_1780670204421.png
+ create mode 100644 attached_assets/IMG_4096_1780670450307.png
+ create mode 100644 attached_assets/IMG_4097_1780670450307.png
+ create mode 100644 attached_assets/IMG_4098_1780670450307.png
+ create mode 100644 attached_assets/IMG_4101_1780673436159.png
+ create mode 100644 attached_assets/IMG_4103_1780673720057.png
+ create mode 100644 attached_assets/IMG_4105_1780673958241.jpeg
+ create mode 100644 attached_assets/IMG_4106_1780673958241.png
+ create mode 100644 attached_assets/IMG_4107_1780674347554.png
+ create mode 100644 attached_assets/IMG_4108_1780674522266.jpeg
+ create mode 100644 attached_assets/IMG_4109_1780675274058.png
+ create mode 100644 attached_assets/IMG_4110_1780675274058.png
+ create mode 100644 attached_assets/IMG_4111_1780675274058.jpeg
+ create mode 100644 attached_assets/IMG_4116_1780676114747.png
+ create mode 100644 attached_assets/IMG_4117_1780676114747.jpeg
+ create mode 100644 attached_assets/IMG_4118_1780677255201.jpeg
+ create mode 100644 attached_assets/IMG_4119_1780677411576.jpeg
+ create mode 100644 attached_assets/IMG_4120_1780677411576.jpeg
+ create mode 100644 attached_assets/IMG_4121_1780677820298.png
+ create mode 100644 attached_assets/IMG_4122_1780677820299.png
+ create mode 100644 attached_assets/IMG_4128_1780708523101.PNG
+ create mode 100644 attached_assets/IMG_4129_1780708523101.PNG
+ create mode 100644 attached_assets/IMG_4132_1780710270941.png
+ create mode 100644 attached_assets/IMG_4134_1780710391918.png
+ create mode 100644 attached_assets/IMG_4135_1780710836540.jpeg
+ create mode 100644 attached_assets/IMG_4136_1780710836540.png
+ create mode 100644 attached_assets/IMG_4137_1780710912727.png
+ create mode 100644 attached_assets/IMG_4139_1780711015766.png
+ create mode 100644 attached_assets/IMG_4140_1780711015766.jpeg
+ create mode 100644 attached_assets/IMG_4141_1780711236824.png
+ create mode 100644 attached_assets/IMG_4143_1780712058364.jpeg
+ create mode 100644 attached_assets/IMG_4144_1780712058364.png
+ create mode 100644 attached_assets/IMG_4145_1780712784183.jpeg
+ create mode 100644 attached_assets/IMG_4146_1780712963412.jpeg
+ create mode 100644 attached_assets/IMG_4146_1780713374665.jpeg
+ create mode 100644 attached_assets/IMG_4148_1780715710021.png
+ create mode 100644 attached_assets/IMG_4149_1780716423822.png
+ create mode 100644 attached_assets/IMG_4150_1780716630793.jpeg
+ create mode 100644 attached_assets/IMG_4151_1780716630793.jpeg
+ create mode 100644 attached_assets/IMG_4152_1780717180636.png
+ create mode 100644 attached_assets/IMG_4153_1780717367700.png
+ create mode 100644 attached_assets/IMG_4154_1780719025092.jpeg
+ create mode 100644 attached_assets/IMG_4156_1780720236979.png
+ create mode 100644 attached_assets/IMG_4159_1780720699473.jpeg
+ create mode 100644 attached_assets/IMG_4160_1780720804244.png
+ create mode 100644 attached_assets/IMG_4161_1780720804244.png
+ create mode 100644 attached_assets/IMG_4162_1780720862963.png
+ create mode 100644 attached_assets/IMG_4164_1780720937522.png
+ create mode 100644 attached_assets/IMG_4165_1780721147755.jpeg
+ create mode 100644 attached_assets/IMG_4166_1780721932570.png
+ create mode 100644 attached_assets/IMG_4167_1780722148575.png
+ create mode 100644 attached_assets/IMG_4168_1780722148575.png
+ create mode 100644 attached_assets/IMG_4169_1780722454917.png
+ create mode 100644 attached_assets/IMG_4171_1780722528923.png
+ create mode 100644 attached_assets/IMG_4172_1780723331836.jpeg
+ create mode 100644 attached_assets/IMG_4172_1780723341919.jpeg
+ create mode 100644 attached_assets/IMG_4173_1780723331836.jpeg
+ create mode 100644 attached_assets/IMG_4173_1780723341919.jpeg
+ create mode 100644 attached_assets/IMG_4178_1780724444002.jpeg
+ create mode 100644 attached_assets/IMG_4179_1780724444002.jpeg
+ create mode 100644 attached_assets/IMG_4180_1780724528800.png
+ create mode 100644 attached_assets/IMG_4182_1780726087119.jpeg
+ create mode 100644 attached_assets/IMG_4183_1780726087119.jpeg
+ create mode 100644 attached_assets/IMG_4184_1780726177492.jpeg
+ create mode 100644 attached_assets/IMG_4184_1780726295252.jpeg
+ create mode 100644 attached_assets/IMG_4185_1780726177492.jpeg
+ create mode 100644 attached_assets/IMG_4185_1780726295252.jpeg
+ create mode 100644 attached_assets/IMG_4186_1780726555846.jpeg
+ create mode 100644 attached_assets/IMG_4187_1780726555846.jpeg
+ create mode 100644 attached_assets/IMG_4189_1780726836631.jpeg
+ create mode 100644 attached_assets/IMG_4190_1780726836631.png
+ create mode 100644 attached_assets/IMG_4191_1780726836631.jpeg
+ create mode 100644 attached_assets/IMG_4192_1780727156070.jpeg
+ create mode 100644 attached_assets/IMG_4193_1780727156070.png
+ create mode 100644 attached_assets/IMG_4194_1780727200400.jpeg
+ create mode 100644 attached_assets/IMG_4195_1780727200400.png
+ create mode 100644 attached_assets/IMG_4204_1780728042527.jpeg
+ create mode 100644 attached_assets/IMG_4205_1780728237443.jpeg
+ create mode 100644 attached_assets/IMG_4208_1780729066110.png
+ create mode 100644 attached_assets/IMG_4209_1780729179733.png
+ create mode 100644 attached_assets/IMG_4210_1780729879842.png
+ create mode 100644 attached_assets/IMG_4212_1780730301719.png
+ create mode 100644 attached_assets/IMG_4214_1780731092751.png
+ create mode 100644 attached_assets/IMG_4215_1780731206764.jpeg
+ create mode 100644 attached_assets/IMG_4216_1780731206764.png
+ create mode 100644 attached_assets/IMG_4217_1780732272358.png
+ create mode 100644 attached_assets/IMG_4218_1780732272358.jpeg
+ create mode 100644 attached_assets/IMG_4222_1780742564713.jpg
+ create mode 100644 attached_assets/IMG_4223_1780742564713.jpg
+ create mode 100644 attached_assets/IMG_4226_1780742564713.jpg
+ create mode 100644 attached_assets/IMG_4227_1780742564713.jpg
+ create mode 100644 attached_assets/IMG_4229_1780742564713.PNG
+ create mode 100644 attached_assets/Screenshot_2026-06-04_at_5.27.03_PM_1780565237546.png
+ create mode 100644 attached_assets/Screenshot_2026-06-04_at_5.28.43_PM_1780565333376.png
+ create mode 100644 attached_assets/Screenshot_2026-06-04_at_7.19.14_PM_1780571970463.png
+ create mode 100644 attached_assets/Screenshot_2026-06-05_at_1.15.52_AM_1780593383649.png
+ create mode 100644 attached_assets/Screenshot_2026-06-05_at_1.16.03_AM_1780593373849.png
+ create mode 100644 attached_assets/Screenshot_2026-06-05_at_1.33.31_AM_1780594436619.png
+ create mode 100644 attached_assets/Screenshot_2026-06-05_at_1.33.45_AM_1780594436618.png
+ create mode 100644 attached_assets/Screenshot_2026-06-05_at_10.03.46_AM_1780625048715.png
+ create mode 100644 attached_assets/Screenshot_2026-06-05_at_10.04.01_AM_1780625048715.png
+ create mode 100644 attached_assets/Screenshot_2026-06-05_at_12.23.17_AM_1780590205317.png
+ create mode 100644 attached_assets/Screenshot_2026-06-05_at_12.23.56_AM_1780590246503.png
+ create mode 100644 attached_assets/Screenshot_2026-06-05_at_12.29.57_AM_1780590609013.png
+ create mode 100644 attached_assets/Screenshot_2026-06-05_at_12.53.40_AM_1780592047235.png
+ create mode 100644 attached_assets/Screenshot_2026-06-05_at_12.53.40_AM_1780593248481.png
+ create mode 100644 attached_assets/Screenshot_2026-06-05_at_12.53.51_AM_1780592047234.png
+ create mode 100644 attached_assets/Screenshot_2026-06-05_at_12.53.51_AM_1780593250359.png
+ create mode 100644 attached_assets/Screenshot_2026-06-05_at_8.06.56_PM_1780661222762.png
+ create mode 100644 attached_assets/Screenshot_2026-06-05_at_8.17.28_PM_1780661860463.png
+ create mode 100644 attached_assets/Screenshot_2026-06-05_at_8.30.04_PM_1780662613845.png
+ create mode 100644 attached_assets/Screenshot_2026-06-05_at_8.32.21_PM_2_1780662797308.png
+ create mode 100644 attached_assets/Screenshot_2026-06-05_at_8.35.53_PM_1780663008241.png
+ create mode 100644 attached_assets/Screenshot_2026-06-05_at_9.36.33_AM_1780623408003.png
+ create mode 100644 attached_assets/Screenshot_2026-06-05_at_9.45.26_AM_1780623940895.png
+ create mode 100644 attached_assets/Screenshot_2026-06-05_at_9.47.42_AM_1780624087133.png
+ create mode 100644 attached_assets/Screenshot_2026-06-05_at_9.50.27_AM_1780624238407.png
+ create mode 100644 attached_assets/Screenshot_2026-06-05_at_9.50.32_AM_1780624238407.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_6.33.43_PM_1780742564713.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_6.39.18_PM_1780742564713.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_6.39.59_PM_1780742564714.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_6.40.51_PM_1780742564714.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_9.04.15_AM_1780707891897.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_9.06.44_AM_1780708019576.png
+ create mode 100644 attached_assets/c60a9072-1f25-4855-9352-a695ed441892_1780569508697.jpeg
+Auto-merging artifacts/judith/app.json
+CONFLICT (content): Merge conflict in artifacts/judith/app.json
+On branch main
+Unmerged paths:
+  (use "git restore --staged <file>..." to unstage)
+  (use "git add <file>..." to mark resolution)
+	both modified:   app.json
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	../../.local-bin/
+	../../watch-app/
+
+no changes added to commit (use "git add" and/or "git commit -a")
+The stash entry is kept in case you need it again.
+carlocanieso@Carlos-Mac-Studio judith % 
