@@ -170,6 +170,8 @@ export default function AccountScreen() {
     showToast,
     monthlyIncome,
     setMonthlyIncome,
+    incomeByMonth,
+    setMonthIncome,
   } = useJudith();
 
   const email = user?.email ?? (guest ? "Guest account" : "—");
@@ -180,6 +182,18 @@ export default function AccountScreen() {
   const [editVal, setEditVal] = React.useState(name);
   const [incomeOpen, setIncomeOpen] = React.useState(false);
   const [incomeVal, setIncomeVal] = React.useState(monthlyIncome != null ? String(monthlyIncome) : "");
+  // Per-month income override values (local editing state, keyed by "YYYY-MM")
+  const [monthVals, setMonthVals] = React.useState<Record<string, string>>({});
+  // The 3 months shown in the income modal: this month + next 2
+  const incomeMonths = React.useMemo(() => {
+    const today = new Date();
+    return [0, 1, 2].map((offset) => {
+      const d = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = d.toLocaleString("en-US", { month: "long", year: "numeric" });
+      return { key, label };
+    });
+  }, []);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [deleteText, setDeleteText] = React.useState("");
   const canDelete = deleteText.trim().toLowerCase() === "delete";
@@ -203,17 +217,28 @@ export default function AccountScreen() {
 
   const openIncome = () => {
     setIncomeVal(monthlyIncome != null ? String(monthlyIncome) : "");
+    const initVals: Record<string, string> = {};
+    for (const { key } of incomeMonths) {
+      initVals[key] = incomeByMonth[key] != null ? String(incomeByMonth[key]) : "";
+    }
+    setMonthVals(initVals);
     setIncomeOpen(true);
   };
   const saveIncome = () => {
+    // Save default income
     const n = parseFloat(incomeVal.replace(/,/g, "").trim());
     if (Number.isFinite(n) && n > 0) {
       setMonthlyIncome(n);
-      showToast("Income updated ✓");
     } else if (incomeVal.trim() === "") {
       setMonthlyIncome(undefined);
-      showToast("Income cleared");
     }
+    // Save per-month overrides
+    for (const { key } of incomeMonths) {
+      const raw = (monthVals[key] ?? "").replace(/,/g, "").trim();
+      const mv = parseFloat(raw);
+      setMonthIncome(key, Number.isFinite(mv) && mv > 0 ? mv : undefined);
+    }
+    showToast("Income updated ✓");
     setIncomeOpen(false);
   };
 
@@ -376,8 +401,14 @@ export default function AccountScreen() {
         <Row
           first
           icon="wallet"
-          title="Monthly take-home income"
-          subtitle={monthlyIncome != null ? money(monthlyIncome) + " / month" : "Not set — Judith will ask if relevant"}
+          title="Monthly income"
+          subtitle={
+            Object.keys(incomeByMonth).length > 0
+              ? `Variable · default ${monthlyIncome != null ? money(monthlyIncome) : "not set"}`
+              : monthlyIncome != null
+                ? money(monthlyIncome) + " / month"
+                : "Not set — Judith will ask if relevant"
+          }
           onPress={openIncome}
         />
       </View>
@@ -538,33 +569,70 @@ export default function AccountScreen() {
       <Modal visible={incomeOpen} transparent animationType="fade" onRequestClose={() => setIncomeOpen(false)} statusBarTranslucent>
         <Pressable
           onPress={() => setIncomeOpen(false)}
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center", padding: 26 }}
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center", padding: 22 }}
         >
           <Pressable
             onPress={(e) => e.stopPropagation()}
             style={{ width: "100%", maxWidth: 380, borderRadius: 18, borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface2, padding: 22 }}
           >
             <Text style={{ fontFamily: t.fonts.semibold, fontSize: 19, color: t.txtHi, letterSpacing: -0.3, marginBottom: 4 }}>
-              Monthly take-home
+              Monthly income
             </Text>
-            <Text style={{ fontFamily: t.fonts.regular, fontSize: 13, color: t.txtMid, marginBottom: 14 }}>
-              Judith uses this to help you decide if it{"'"}s safe to spend. Leave blank to clear.
+            <Text style={{ fontFamily: t.fonts.regular, fontSize: 13, color: t.txtMid, marginBottom: 16 }}>
+              Judith uses this to answer budget questions. Set a default, then override any month where your income will differ.
             </Text>
-            <View style={{ flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: incomeVal.trim() ? t.accent : t.hair, backgroundColor: t.surface3, borderRadius: 11, paddingHorizontal: 14, paddingVertical: 12, gap: 6 }}>
-              <Text style={{ fontFamily: t.fonts.semibold, fontSize: 16, color: t.txtMid }}>{country.cur}</Text>
+
+            {/* Default income */}
+            <Text style={{ fontFamily: t.fonts.medium, fontSize: 11, color: t.txtMid, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>
+              Default (every month)
+            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: incomeVal.trim() ? t.accent : t.hair, backgroundColor: t.surface3, borderRadius: 11, paddingHorizontal: 14, paddingVertical: 12, gap: 6, marginBottom: 18 }}>
+              <Text style={{ fontFamily: t.fonts.semibold, fontSize: 15, color: t.txtMid }}>{country.cur}</Text>
               <TextInput
                 value={incomeVal}
                 onChangeText={setIncomeVal}
                 placeholder="e.g. 50,000"
                 placeholderTextColor={t.txtLow}
                 keyboardType="numeric"
-                autoFocus
                 returnKeyType="done"
                 onSubmitEditing={saveIncome}
-                style={{ flex: 1, fontFamily: t.fonts.mono, fontSize: 18, color: t.txtHi }}
+                style={{ flex: 1, fontFamily: t.fonts.mono, fontSize: 17, color: t.txtHi }}
               />
             </View>
-            <View style={{ flexDirection: "row", gap: 10, marginTop: 18 }}>
+
+            {/* Per-month overrides */}
+            <Text style={{ fontFamily: t.fonts.medium, fontSize: 11, color: t.txtMid, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>
+              Monthly overrides
+            </Text>
+            <View style={{ gap: 8, marginBottom: 18 }}>
+              {incomeMonths.map(({ key, label }) => (
+                <View key={key} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                  <Text style={{ fontFamily: t.fonts.regular, fontSize: 13, color: t.txtMid, width: 100 }} numberOfLines={1}>
+                    {label}
+                  </Text>
+                  <View style={{ flex: 1, flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: (monthVals[key] ?? "").trim() ? t.accent : t.hair, backgroundColor: t.surface3, borderRadius: 10, paddingHorizontal: 11, paddingVertical: 9, gap: 4 }}>
+                    <Text style={{ fontFamily: t.fonts.semibold, fontSize: 13, color: t.txtMid }}>{country.cur}</Text>
+                    <TextInput
+                      value={monthVals[key] ?? ""}
+                      onChangeText={(v) => setMonthVals((prev) => ({ ...prev, [key]: v }))}
+                      placeholder="uses default"
+                      placeholderTextColor={t.txtLow}
+                      keyboardType="numeric"
+                      returnKeyType="done"
+                      onSubmitEditing={saveIncome}
+                      style={{ flex: 1, fontFamily: t.fonts.mono, fontSize: 14, color: t.txtHi }}
+                    />
+                    {(monthVals[key] ?? "").trim().length > 0 && (
+                      <Pressable onPress={() => setMonthVals((prev) => ({ ...prev, [key]: "" }))} hitSlop={8}>
+                        <Text style={{ fontFamily: t.fonts.medium, fontSize: 12, color: t.txtLow }}>✕</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            <View style={{ flexDirection: "row", gap: 10 }}>
               <Pressable
                 onPress={() => setIncomeOpen(false)}
                 style={{ flex: 1, alignItems: "center", paddingVertical: 13, borderRadius: 11, borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface3 }}

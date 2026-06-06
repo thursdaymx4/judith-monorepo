@@ -133,6 +133,7 @@ export function askJudith(
   countryName?: string,
   monthlyIncome?: number,
   countryCode?: string,
+  incomeByMonth?: Record<string, number>,
 ): Promise<AskResult> {
   return postJson("/ask", {
     text,
@@ -145,6 +146,7 @@ export function askJudith(
     countryName,
     countryCode,
     monthlyIncome,
+    incomeByMonth,
   });
 }
 

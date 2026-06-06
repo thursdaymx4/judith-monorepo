@@ -105,6 +105,12 @@ interface PersistShape {
   guest: boolean;
   /** Estimated monthly take-home income (used by Judith to answer budget questions). */
   monthlyIncome?: number;
+  /**
+   * Per-month income overrides keyed by "YYYY-MM".
+   * When set for a month, that value takes priority over `monthlyIncome`.
+   * Useful for freelancers / commission-based earners whose income varies.
+   */
+  incomeByMonth: Record<string, number>;
   /** Persisted Ask Judith chat history (last 100 messages). */
   askHistory: AskMsg[];
 }
@@ -128,6 +134,7 @@ const DEFAULTS: PersistShape = {
   onbIdx: 0,
   guest: false,
   monthlyIncome: undefined,
+  incomeByMonth: {},
   askHistory: [],
 };
 
@@ -179,6 +186,8 @@ interface JudithStoreValue extends PersistShape {
   setOnbIdx: (i: number) => void;
   setGuest: (v: boolean) => void;
   setMonthlyIncome: (n: number | undefined) => void;
+  /** Set or clear the income for a specific month ("YYYY-MM"). Pass undefined to remove the override. */
+  setMonthIncome: (month: string, amount: number | undefined) => void;
   /** Replace the full Ask Judith chat history (capped at 100 messages). */
   setAskHistory: (msgs: AskMsg[]) => void;
   /** Clear the full Ask Judith chat history. */
@@ -560,6 +569,15 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       setOnbIdx: (i) => patch({ onbIdx: i }),
       setGuest: (v) => patch({ guest: v }),
       setMonthlyIncome: (n) => patch({ monthlyIncome: n }),
+      setMonthIncome: (month, amount) => {
+        const next = { ...state.incomeByMonth };
+        if (amount == null || !Number.isFinite(amount) || amount <= 0) {
+          delete next[month];
+        } else {
+          next[month] = amount;
+        }
+        patch({ incomeByMonth: next });
+      },
       setAskHistory: (msgs) => patch({ askHistory: msgs.slice(-100) }),
       clearAskHistory: () => patch({ askHistory: [] }),
       restart: () => {

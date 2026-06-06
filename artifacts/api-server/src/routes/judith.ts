@@ -208,7 +208,13 @@ function curStr(cur: string, n: number): string {
   return `${cur}${Math.round(n).toLocaleString("en-US")}`;
 }
 
-function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", monthlyIncome?: number): string {
+function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", monthlyIncome?: number, incomeByMonth?: Record<string, number>): string {
+  /** Effective income for a given month key — use override if set, otherwise the default. */
+  const incomeFor = (monthKey: string): number | undefined => {
+    const override = incomeByMonth?.[monthKey];
+    if (override != null && override > 0) return override;
+    return monthlyIncome != null && monthlyIncome > 0 ? monthlyIncome : undefined;
+  };
   // Card-linked charges are auto-paid via a credit card the user ALSO tracks as
   // its own bill, so the card's statement already covers that money. Summing both
   // double-counts. Exclude these from every money SUM (the card statement is the
@@ -273,23 +279,29 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
   const overdueAmt = due.filter((b) => (b.dueDays ?? 0) < 0).reduce((s, b) => s + (b.amount ?? 0), 0);
 
   const incomeLines: string[] = [];
-  if (monthlyIncome != null && Number.isFinite(monthlyIncome) && monthlyIncome > 0) {
+  const curIncome = incomeFor(curMonthKey);
+  const nxtIncome = incomeFor(nextMonthKey);
+  const hasAnyIncome = curIncome != null || nxtIncome != null;
+
+  if (hasAnyIncome) {
     const curEntry = monthMap.get(curMonthKey);
     const nxtEntry = monthMap.get(nextMonthKey);
     const nxtBills = nxtEntry?.total ?? 0;
     const nxtLabel = nextDate.toLocaleString("en-US", { month: "long", year: "numeric" });
 
-    if (curEntry) {
-      const leftThisMonth = monthlyIncome - curEntry.total;
+    if (curEntry && curIncome != null) {
+      const leftThisMonth = curIncome - curEntry.total;
       incomeLines.push(
-        `This month: ${curStr(cur, monthlyIncome)} income − ${curStr(cur, curEntry.total)} bills = ${curStr(cur, leftThisMonth)} left${leftThisMonth < 0 ? " (bills exceed income this month)" : ""}.`,
+        `This month: ${curStr(cur, curIncome)} income − ${curStr(cur, curEntry.total)} bills = ${curStr(cur, leftThisMonth)} left${leftThisMonth < 0 ? " (bills exceed income this month)" : ""}.`,
       );
     }
 
-    const leftNextMonth = monthlyIncome - nxtBills;
-    incomeLines.push(
-      `Next month (${nxtLabel}, ESTIMATED — recurring bills projected, not yet billed): ${curStr(cur, monthlyIncome)} income − ${curStr(cur, nxtBills)} estimated bills = ${curStr(cur, leftNextMonth)} estimated left.`,
-    );
+    if (nxtIncome != null) {
+      const leftNextMonth = nxtIncome - nxtBills;
+      incomeLines.push(
+        `Next month (${nxtLabel}, ESTIMATED — recurring bills projected, not yet billed): ${curStr(cur, nxtIncome)} income − ${curStr(cur, nxtBills)} estimated bills = ${curStr(cur, leftNextMonth)} estimated left.`,
+      );
+    }
     if (overdueAmt > 0) {
       incomeLines.push(
         `Important: ${curStr(cur, overdueAmt)} in overdue bills from this month are still unpaid — those must also be settled and will reduce real cash available next month.`,
@@ -297,11 +309,17 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     }
   }
 
+  // Describe income situation for AI context: variable vs fixed
+  const hasVariable = incomeByMonth != null && Object.keys(incomeByMonth).length > 0;
+  const incomeHeader = hasVariable
+    ? `User has VARIABLE monthly income. Default: ${monthlyIncome != null && monthlyIncome > 0 ? curStr(cur, monthlyIncome) : "not set"}/month. Overrides: ${Object.entries(incomeByMonth ?? {}).map(([k, v]) => `${k}: ${curStr(cur, v)}`).join(", ")}.`
+    : monthlyIncome != null && Number.isFinite(monthlyIncome) && monthlyIncome > 0
+      ? `User's estimated monthly take-home income: ${curStr(cur, monthlyIncome)}.`
+      : null;
+
   const parts: string[] = [
     `Today is ${englishDate(today)} (${englishWeekday(today)}).`,
-    ...(monthlyIncome != null && Number.isFinite(monthlyIncome) && monthlyIncome > 0
-      ? [`User's estimated monthly take-home income: ${curStr(cur, monthlyIncome)}.`]
-      : []),
+    ...(incomeHeader ? [incomeHeader] : []),
     `Total still due (unpaid): ${curStr(cur, total)}.`,
     `Total of bills due within 7 days: ${curStr(cur, dueThisWeek)}.`,
     bizUnpaid.length > 0
@@ -418,7 +436,7 @@ router.post("/ask", askLimiter, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
-    const { text, bills: bodyBills, persona: bodyPersona, localDate, language, includeVoice, currency, countryName, countryCode, monthlyIncome } = req.body ?? {};
+    const { text, bills: bodyBills, persona: bodyPersona, localDate, language, includeVoice, currency, countryName, countryCode, monthlyIncome, incomeByMonth } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
       res.status(400).json({ error: "text is required" });
       return;
@@ -438,7 +456,15 @@ router.post("/ask", askLimiter, async (req, res) => {
     const persona: PersonaId = coercePersona(bodyPersona);
     const voiceId: string = getVoiceId(persona, typeof language === "string" ? language : undefined, cCode);
     const income: number | undefined = typeof monthlyIncome === "number" && monthlyIncome > 0 ? monthlyIncome : undefined;
-    const context: string = buildClientContext(bodyBills as ClientBill[], today, cur, income);
+    const incomeMo: Record<string, number> | undefined =
+      incomeByMonth != null && typeof incomeByMonth === "object" && !Array.isArray(incomeByMonth)
+        ? Object.fromEntries(
+            Object.entries(incomeByMonth as Record<string, unknown>)
+              .filter(([, v]) => typeof v === "number" && (v as number) > 0)
+              .map(([k, v]) => [k, v as number]),
+          )
+        : undefined;
+    const context: string = buildClientContext(bodyBills as ClientBill[], today, cur, income, incomeMo);
 
     const anthropic = getAnthropic();
     const message = await anthropic.messages.create({

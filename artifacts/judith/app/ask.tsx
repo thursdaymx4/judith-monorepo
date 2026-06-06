@@ -67,7 +67,7 @@ export default function AskModal() {
   const t = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { bills, asksLeft, tier, persona, language, country, monthlyIncome, consumeAsk, canUseVoice, saveBill, showToast, toggles, setToggle, askHistory, setAskHistory, clearAskHistory, hydrated } = useJudith();
+  const { bills, asksLeft, tier, persona, language, country, monthlyIncome, incomeByMonth, consumeAsk, canUseVoice, saveBill, showToast, toggles, setToggle, askHistory, setAskHistory, clearAskHistory, hydrated } = useJudith();
   // Voice tier can mute spoken replies (e.g. in public) and get text-only answers.
   const speakAloud = toggles.voiceReplies;
   const voiceTier = tier === "voice";
@@ -398,7 +398,7 @@ export default function AskModal() {
       // Speak aloud only when the user hasn't muted replies (voice tier) — saves TTS cost and stays silent in public.
       // The mute only applies to the voice tier; other tiers (e.g. free with asks left) are unaffected.
       const wantVoice = canUseVoice() && (!voiceTier || speakAloud);
-      const { reply, audioBase64, action } = await askJudith(q, askBills(), persona, language, wantVoice, country.cur, country.name, monthlyIncome, country.code);
+      const { reply, audioBase64, action } = await askJudith(q, askBills(), persona, language, wantVoice, country.cur, country.name, monthlyIncome, country.code, Object.keys(incomeByMonth).length > 0 ? incomeByMonth : undefined);
       const finalReply = reply?.trim() || localFallback(q);
       appendAndPersist({ role: "judith", text: finalReply });
       if (audioBase64) {
