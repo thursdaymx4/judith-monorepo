@@ -21,7 +21,7 @@ import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { fileToBase64, playBase64Mp3 } from "@/lib/audio";
 import { type AddBillAction, type AskBill, askJudith, parseSubscriptionScreenshot, transcribe, RateLimitError } from "@/lib/proxy";
-import { sttHint } from "@/constants/languages";
+import { sttHint, isFilipino } from "@/constants/languages";
 
 /**
  * Returns true when the STT transcription is purely background-noise annotations
@@ -460,12 +460,19 @@ export default function AskModal() {
         showToast(`Added: ${bill.provider}`);
       }
     } catch (e) {
+      const isFil = isFilipino(language ?? "fil");
       if (e instanceof RateLimitError) {
         setRateLimitSecs(Math.min(e.retryAfter, 3600));
-        appendAndPersist({ role: "judith", text: `You're sending too fast — please wait ${e.retryAfter} second${e.retryAfter === 1 ? "" : "s"} before asking again.` });
+        appendAndPersist({ role: "judith", text: isFil
+          ? `Sandali lang — maghintay ka ng ${e.retryAfter} segundo bago magtanong ulit.`
+          : `You're sending too fast — please wait ${e.retryAfter} second${e.retryAfter === 1 ? "" : "s"} before asking again.`
+        });
       } else {
         await new Promise<void>((r) => setTimeout(r, 900));
-        appendAndPersist({ role: "judith", text: "Hindi ako makakonekta sa server — check your connection and try again." });
+        appendAndPersist({ role: "judith", text: isFil
+          ? "Hindi ako makakonekta sa server — check your connection and try again."
+          : "I can't connect to the server — check your connection and try again."
+        });
       }
     } finally {
       setBusy(false);
