@@ -267,6 +267,7 @@ export default function AskModal() {
         status: isPaidThisPeriod ? "paid" : b.status,
         dueMonth,
         isBusiness: b.isBusiness,
+        businessName: b.businessName,
         chargedToCard: b.chargedToCard,
         cardName,
       };
@@ -326,6 +327,7 @@ export default function AskModal() {
           status: "upcoming",
           dueMonth: nxKey,
           isBusiness: b.isBusiness,
+          businessName: b.businessName,
           chargedToCard: b.chargedToCard,
           cardName,
           isProjection: true,

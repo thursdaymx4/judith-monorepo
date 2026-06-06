@@ -61,6 +61,8 @@ export interface Bill {
   createdAt?: string;
   /** True when this bill is a business/work expense (default: personal). */
   isBusiness?: boolean;
+  /** Name of the business this bill belongs to (only meaningful when isBusiness is true). */
+  businessName?: string;
   /** True when this charge is auto-billed to a credit card the user also tracks. */
   chargedToCard?: boolean;
   /** The `id` of the linked credit-card bill that covers this charge. */
@@ -582,6 +584,7 @@ export function makeManualBill(
     kind?: "Fixed" | "Variable";
     house?: string;
     isBusiness?: boolean;
+    businessName?: string;
     reminderDays?: number;
     statementDay?: number;
     chargedToCard?: boolean;
@@ -625,6 +628,7 @@ export function makeManualBill(
     frequency: a.frequency ?? "monthly",
     ...(a.house ? { house: a.house } : {}),
     ...(a.isBusiness ? { isBusiness: true } : {}),
+    ...(a.isBusiness && a.businessName ? { businessName: a.businessName } : {}),
     ...(a.reminderDays != null ? { reminderDays: a.reminderDays } : {}),
     ...(a.statementDay != null ? { statementDay: a.statementDay } : {}),
     ...(a.chargedToCard ? { chargedToCard: true } : {}),

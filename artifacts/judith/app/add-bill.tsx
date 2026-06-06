@@ -40,6 +40,11 @@ export default function AddBillScreen() {
   const [kind, setKind] = useState<"Fixed" | "Variable">(existing?.kind ?? "Fixed");
   const [house, setHouse] = useState(existing?.house ?? "");
   const [isBusiness, setIsBusiness] = useState(existing?.isBusiness ?? false);
+  const [businessName, setBusinessName] = useState(existing?.businessName ?? "");
+  const existingBizNames = useMemo(
+    () => [...new Set(bills.filter((b) => b.isBusiness && b.businessName && b.id !== existing?.id).map((b) => b.businessName!))],
+    [bills, existing?.id],
+  );
   const [remDays, setRemDays] = useState(existing?.reminderDays ?? 3);
   const [statementDay, setStatementDay] = useState(existing?.statementDay ?? 5);
   const [chargedToCard, setChargedToCard] = useState(existing?.chargedToCard ?? false);
@@ -84,6 +89,7 @@ export default function AddBillScreen() {
       kind,
       house: house.trim() || undefined,
       isBusiness: isBusiness || undefined,
+      businessName: isBusiness ? businessName.trim() || undefined : undefined,
       reminderDays: remDays,
       statementDay: cat === "Credit card" ? statementDay : undefined,
       chargedToCard: canLinkCard && chargedToCard ? true : undefined,
@@ -477,6 +483,32 @@ export default function AddBillScreen() {
             ? "This is a work or business expense — you can filter it separately in Insights."
             : "This is a personal or household bill."}
         </Low>
+
+        {isBusiness && (
+          <View style={{ marginTop: 14 }}>
+            <FieldLabel text="Business name" opt />
+            <TextInput
+              value={businessName}
+              onChangeText={setBusinessName}
+              placeholder="e.g. Auto Tomato, Freelance Studio"
+              placeholderTextColor={t.txtLow}
+              style={inputStyle}
+              returnKeyType="done"
+            />
+            {existingBizNames.length > 0 && (
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+                {existingBizNames.map((name) => (
+                  <Chip
+                    key={name}
+                    label={name}
+                    selected={businessName === name}
+                    onPress={() => { haptics.selection(); setBusinessName(businessName === name ? "" : name); }}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        )}
 
         {/* auto-charged to a credit card */}
         {canLinkCard && (

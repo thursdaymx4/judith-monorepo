@@ -197,6 +197,8 @@ interface ClientBill {
   dueMonth?: string | null;
   /** True when this bill is tagged as a business/work expense. */
   isBusiness?: boolean | null;
+  /** Name of the business this bill belongs to (when isBusiness is true). */
+  businessName?: string | null;
   /** True when this charge is auto-billed to a credit card the user tracks. */
   chargedToCard?: boolean | null;
   /** Name of the credit card this charge is auto-billed to, if known. */
@@ -267,6 +269,16 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
   const bizViaCard = viaCard.filter((b) => b.isBusiness);
   const bizViaCardTotal = bizViaCard.reduce((s, b) => s + (b.amount ?? 0), 0);
 
+  // Per-business breakdown — group all business bills (payable + via-card) by name.
+  const bizNameMap = new Map<string, { payable: number; viaCard: number; providers: string[] }>();
+  for (const b of [...bizUnpaid, ...bizViaCard]) {
+    const key = b.businessName?.trim() || "(untagged)";
+    const entry = bizNameMap.get(key) ?? { payable: 0, viaCard: 0, providers: [] };
+    if (isViaCard(b)) { entry.viaCard += b.amount ?? 0; } else { entry.payable += b.amount ?? 0; }
+    entry.providers.push(b.provider ?? "Bill");
+    bizNameMap.set(key, entry);
+  }
+
   // Per-category totals including via-card (for "how much does X category cost me" answers).
   // Keyed by cat name; splits into payable and viaCard sub-totals.
   const catMap = new Map<string, { payable: number; viaCard: number; names: string[] }>();
@@ -287,7 +299,9 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     const when = b.isProjection
       ? `due ~${b.dueLabel ?? "next month"} (estimated — not yet billed)`
       : days === 0 ? "due TODAY" : days < 0 ? `OVERDUE by ${Math.abs(days)} day(s)` : `due in ${days} day(s)`;
-    const bizTag = b.isBusiness ? " [BUSINESS]" : " [PERSONAL]";
+    const bizTag = b.isBusiness
+      ? (b.businessName ? ` [BUSINESS: ${b.businessName}]` : " [BUSINESS]")
+      : " [PERSONAL]";
     // Only tag charges that are actually excluded from the totals (resolved card
     // link). A dangling link is still counted, so tagging it would mislead.
     const cardTag = isViaCard(b) ? ` [AUTO-CHARGED to ${b.cardName}]` : "";
@@ -361,6 +375,13 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
       : "Business bills auto-charged to cards: none.",
     (bizUnpaid.length > 0 || bizViaCard.length > 0)
       ? `Combined business total (informational — payable + auto-charged): ${curStr(cur, bizTotal + bizViaCardTotal)}.`
+      : "",
+    bizNameMap.size > 0
+      ? `Business breakdown by entity: ${[...bizNameMap.entries()].map(([name, { payable: p, viaCard: vc, providers }]) => {
+          const total = p + vc;
+          const detail = [p > 0 ? `${curStr(cur, p)} payable` : "", vc > 0 ? `${curStr(cur, vc)} via card` : ""].filter(Boolean).join(" + ");
+          return `"${name}" = ${curStr(cur, total)} (${detail}): ${providers.join(", ")}`;
+        }).join(" | ")}.`
       : "",
   ].filter(Boolean);
 

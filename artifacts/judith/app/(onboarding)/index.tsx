@@ -273,6 +273,7 @@ interface OnbBill {
   kind: "Fixed" | "Variable";
   frequency?: "monthly" | "annual";
   isBusiness?: boolean;
+  businessName?: string;
   subtype?: string;
   house?: string;
   chargedToCard?: boolean;
@@ -2255,7 +2256,12 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   } | null>(null);
   const [formCat, setFormCat] = useState<{ cat: string; icon: string } | null>(null);
   const [manualReturn, setManualReturn] = useState<VMode>("prompt");
-  const [form, setForm] = useState<{ provider: string; amount: string; due: string; kind: "Fixed" | "Variable"; frequency: "monthly" | "annual"; isBusiness: boolean; subtype?: string; house?: string; chargedToCard?: boolean; parentCardId?: string }>({ provider: "", amount: "", due: "", kind: "Fixed", frequency: "monthly", isBusiness: false, house: HOUSES[0] });
+  const [form, setForm] = useState<{ provider: string; amount: string; due: string; kind: "Fixed" | "Variable"; frequency: "monthly" | "annual"; isBusiness: boolean; businessName?: string; subtype?: string; house?: string; chargedToCard?: boolean; parentCardId?: string }>({ provider: "", amount: "", due: "", kind: "Fixed", frequency: "monthly", isBusiness: false, businessName: "", house: HOUSES[0] });
+  const existingBizNames = useMemo(() => {
+    const fromOnb = bills.filter((b) => b.isBusiness && b.businessName).map((b) => b.businessName!);
+    const fromStore = storeBills.filter((b) => b.isBusiness && b.businessName).map((b) => b.businessName!);
+    return [...new Set([...fromOnb, ...fromStore])];
+  }, [bills, storeBills]);
   const [phase, setPhase] = useState<"scripted" | "cards" | "loans">(() => skipCards ? "scripted" : "cards");
   const [breatherGroup, setBreatherGroup] = useState(0);
   const [cardN, setCardN] = useState(0);
@@ -2369,6 +2375,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       subtype: sample.subtype,
       house: HOUSES[0],
       ...(form.isBusiness ? { isBusiness: true } : {}),
+      ...(form.isBusiness && form.businessName ? { businessName: form.businessName } : {}),
       ...(linkCard ? { chargedToCard: true, parentCardId: form.parentCardId } : {}),
     };
     commitBill(b, advanceAfterItem);
@@ -2390,7 +2397,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const openForm = (c: { cat: string; icon: string }) => {
     const presets: Record<string, string> = { "Rent / Mortgage": "18000", Electricity: "3450", Water: "890", Internet: "1699", Mobile: "999", "TV / Streaming": "549", "Credit card": "5200" };
     setFormCat(c);
-    setForm({ provider: "", amount: presets[c.cat] || "", due: "", kind: kindFor(c.cat), frequency: "monthly", isBusiness: false, subtype: c.cat === "Rent / Mortgage" ? "Rent" : undefined, house: HOUSES[0], chargedToCard: false, parentCardId: undefined });
+    setForm({ provider: "", amount: presets[c.cat] || "", due: "", kind: kindFor(c.cat), frequency: "monthly", isBusiness: false, businessName: "", subtype: c.cat === "Rent / Mortgage" ? "Rent" : undefined, house: HOUSES[0], chargedToCard: false, parentCardId: undefined });
     setMode("manualForm");
   };
   const saveForm = () => {
@@ -2409,6 +2416,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       subtype: form.subtype,
       house: form.house,
       ...(form.isBusiness ? { isBusiness: true } : {}),
+      ...(form.isBusiness && form.businessName ? { businessName: form.businessName } : {}),
       ...(linkCard ? { chargedToCard: true, parentCardId: form.parentCardId } : {}),
     };
     const after = () => {
@@ -2630,7 +2638,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   useEffect(() => {
     if (phase === "scripted" && sample.cat === "Phone subscription") return;
     setFormCat({ cat: sample.cat, icon: sample.icon });
-    setForm({ provider: "", amount: "", due: "", kind: kindFor(sample.cat), frequency: "monthly", isBusiness: false, subtype: sample.cat === "Rent / Mortgage" ? "Rent" : undefined, house: HOUSES[0], chargedToCard: false, parentCardId: undefined });
+    setForm({ provider: "", amount: "", due: "", kind: kindFor(sample.cat), frequency: "monthly", isBusiness: false, businessName: "", subtype: sample.cat === "Rent / Mortgage" ? "Rent" : undefined, house: HOUSES[0], chargedToCard: false, parentCardId: undefined });
     setManualReturn("prompt");
     setFocusedField(null);
     setShowDayPicker(false);
@@ -2777,7 +2785,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       <Low size={12} style={{ marginBottom: 8 }}>Business expense?</Low>
       <View style={{ flexDirection: "row", gap: 8 }}>
         <Pressable
-          onPress={() => { haptics.selection(); setForm((f) => ({ ...f, isBusiness: false })); }}
+          onPress={() => { haptics.selection(); setForm((f) => ({ ...f, isBusiness: false, businessName: "" })); }}
           style={{ flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 22, paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1, borderColor: !form.isBusiness ? withAlpha(t.accent, 0.5) : t.hair, backgroundColor: !form.isBusiness ? mix(t.accent, t.surface2, 0.15) : t.surface2 }}
         >
           <Txt size={13} weight="medium" color={!form.isBusiness ? t.txtHi : t.txtMid}>Personal</Txt>
@@ -2789,6 +2797,32 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
           <Txt size={13} weight="medium" color={form.isBusiness ? t.txtHi : t.txtMid}>Business</Txt>
         </Pressable>
       </View>
+      {form.isBusiness && (
+        <View style={{ marginTop: 12 }}>
+          <Low size={12} style={{ marginBottom: 6 }}>Business name (optional)</Low>
+          <TextInput
+            value={form.businessName ?? ""}
+            onChangeText={(v) => setForm((f) => ({ ...f, businessName: v }))}
+            placeholder="e.g. Auto Tomato, Freelance Studio"
+            placeholderTextColor={t.txtLow}
+            style={{ backgroundColor: t.surface1, borderWidth: 1, borderColor: t.hair, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 13, color: t.txtHi, fontSize: 14, fontFamily: t.fonts.regular }}
+            returnKeyType="done"
+          />
+          {existingBizNames.length > 0 && (
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+              {existingBizNames.map((name) => (
+                <Pressable
+                  key={name}
+                  onPress={() => { haptics.selection(); setForm((f) => ({ ...f, businessName: f.businessName === name ? "" : name })); }}
+                  style={{ borderRadius: 22, paddingVertical: 6, paddingHorizontal: 12, borderWidth: 1, borderColor: form.businessName === name ? withAlpha(t.accent, 0.5) : t.hair, backgroundColor: form.businessName === name ? mix(t.accent, t.surface2, 0.15) : t.surface2 }}
+                >
+                  <Txt size={12} weight="medium" color={form.businessName === name ? t.txtHi : t.txtMid}>{name}</Txt>
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
     </View>
   );
 
@@ -3909,6 +3943,7 @@ function onbBillToStoreBill(b: OnbBill): Bill {
     frequency: b.frequency,
     createdAt: today.toISOString().slice(0, 10),
     ...(b.isBusiness ? { isBusiness: true } : {}),
+    ...(b.isBusiness && b.businessName ? { businessName: b.businessName } : {}),
     ...(b.chargedToCard ? { chargedToCard: true } : {}),
     ...(b.parentCardId ? { parentCardId: b.parentCardId } : {}),
   };
