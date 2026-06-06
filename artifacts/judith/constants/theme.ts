@@ -4,7 +4,7 @@
  * spec is precomputed to sRGB hex here.
  */
 
-export type ThemeName = "dark" | "light";
+export type ThemeName = "dark" | "light" | "system";
 export type AccentId = "mint" | "violet" | "blue";
 
 /** Brand accents — mint is the locked default. */

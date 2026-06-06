@@ -337,29 +337,32 @@ export default function SettingsScreen() {
 
       {/* appearance */}
       <SettingsLabel>Appearance</SettingsLabel>
-      <View style={{ flexDirection: "row", gap: 10 }}>
-        {(["dark", "light"] as const).map((mode) => {
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        {(["dark", "system", "light"] as const).map((mode) => {
           const on = theme === mode;
+          const iconName = mode === "dark" ? "moon" : mode === "light" ? "sun" : "smartphone";
+          const label = mode === "dark" ? "Dark" : mode === "light" ? "Light" : "System";
           return (
             <Pressable
               key={mode}
               onPress={() => setTheme(mode)}
               style={{
                 flex: 1,
-                flexDirection: "row",
+                flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 9,
-                padding: 16,
+                gap: 6,
+                paddingVertical: 14,
+                paddingHorizontal: 4,
                 borderRadius: t.radius.md,
                 borderWidth: 1,
                 borderColor: on ? t.accent : t.hair,
-                backgroundColor: t.surface2,
+                backgroundColor: on ? t.accent + "14" : t.surface2,
               }}
             >
-              <Icon name={mode === "dark" ? "moon" : "sun"} size={17} color={on ? t.txtHi : t.txtMid} />
-              <Text style={{ fontFamily: t.fonts.semibold, fontSize: 15, color: on ? t.txtHi : t.txtMid }}>
-                {mode === "dark" ? "Dark" : "Light"}
+              <Icon name={iconName} size={18} color={on ? t.accent : t.txtMid} />
+              <Text style={{ fontFamily: t.fonts.semibold, fontSize: 12, color: on ? t.accent : t.txtMid }}>
+                {label}
               </Text>
             </Pressable>
           );

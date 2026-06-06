@@ -123,7 +123,7 @@ const DEFAULTS: PersistShape = {
   persona: "pro",
   voiceId: "rachel",
   language: "en",
-  theme: "dark",
+  theme: "system",
   accent: "mint",
   countryCode: DEFAULT_COUNTRY.code,
   currency: DEFAULT_COUNTRY.cur,
