@@ -917,18 +917,23 @@ export default function AskModal() {
           <Icon name={scanBusy ? "spark" : "scan"} size={21} color={t.accent} />
         </Pressable>
         <TextInput
-          value={input}
-          onChangeText={setInput}
+          value={busy ? "" : input}
+          onChangeText={busy ? undefined : setInput}
           editable={!locked && !busy && rateLimitSecs <= 0}
-          placeholder={locked ? "Out of asks — upgrade to keep asking" : rateLimitSecs > 0 ? `Wait ${rateLimitSecs}s before asking again…` : "Type a question\u2026"}
-          placeholderTextColor={t.txtLow}
+          placeholder={
+            locked ? "Out of asks — upgrade to keep asking"
+            : busy ? "Judith is thinking\u2026"
+            : rateLimitSecs > 0 ? `Wait ${rateLimitSecs}s before asking again\u2026`
+            : "Type a question\u2026"
+          }
+          placeholderTextColor={busy ? t.accent : t.txtLow}
           onSubmitEditing={() => ask(input)}
           returnKeyType="send"
           style={{
             flex: 1,
-            backgroundColor: t.surface1,
+            backgroundColor: busy ? withAlpha(t.accent, 0.08) : t.surface1,
             borderWidth: 1,
-            borderColor: t.hair,
+            borderColor: busy ? withAlpha(t.accent, 0.4) : t.hair,
             borderRadius: 14,
             paddingVertical: 12,
             paddingHorizontal: 14,
