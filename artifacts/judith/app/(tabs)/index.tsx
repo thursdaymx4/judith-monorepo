@@ -186,6 +186,7 @@ export default function HomeScreen() {
   const [sortBy, setSortBy] = useState<"dueDate" | "amount">("dueDate");
   const [filterCats, setFilterCats] = useState<Set<string>>(new Set());
   const [showBizOnly, setShowBizOnly] = useState(false);
+  const [filterBiz, setFilterBiz] = useState<string | null>(null);
   const [overdueOnly, setOverdueOnly] = useState(false);
 
   const todayDay = new Date().getDate();
@@ -218,8 +219,23 @@ export default function HomeScreen() {
 
   // Business filter — scope timeline to isBusiness before building cats / visible.
   const hasBizBills = timelineBills.some((b) => b.isBusiness === true);
+  // Distinct named businesses across ALL bills — drives the per-business identifier
+  // on each row (only worth showing when the user juggles 2+ businesses).
+  const bizName = (b: Bill) => (b.businessName ?? "").trim();
+  const allBizNames = [...new Set(bills.filter((b) => b.isBusiness && bizName(b)).map(bizName))];
+  const hasMultipleBiz = allBizNames.length > 1;
+  // Businesses present in THIS month's timeline — drives the sub-filter chips.
+  const timelineBizNames = [
+    ...new Set(timelineBills.filter((b) => b.isBusiness && bizName(b)).map(bizName)),
+  ].sort((a, b) => a.localeCompare(b));
+  // Auto-heal a stale selection: if the chosen business no longer has bills this
+  // month (e.g. they were all paid) its chip disappears, so ignore the filter
+  // rather than silently showing an empty list with no way to clear it.
+  const effectiveBiz = filterBiz && timelineBizNames.includes(filterBiz) ? filterBiz : null;
   const filteredTimeline = showBizOnly
-    ? timelineBills.filter((b) => b.isBusiness === true)
+    ? timelineBills.filter(
+        (b) => b.isBusiness === true && (effectiveBiz === null || bizName(b) === effectiveBiz),
+      )
     : timelineBills;
 
   // Build unique category list ordered by count (most-billed first)
@@ -418,13 +434,13 @@ export default function HomeScreen() {
           </Pressable>
         ) : (
           <SectionLabel style={{ marginTop: 0, marginBottom: 0 }}>
-            {showBizOnly && filterCats.size === 0 ? "Business" : filterCats.size > 0 ? [...filterCats].join(", ") : "This month"}
+            {showBizOnly && filterCats.size === 0 ? (effectiveBiz ?? "Business") : filterCats.size > 0 ? [...filterCats].join(", ") : "This month"}
           </SectionLabel>
         )}
         <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
           {hasBizBills && (
             <Pressable
-              onPress={() => { haptics.selection(); setShowBizOnly((v) => !v); }}
+              onPress={() => { haptics.selection(); setShowBizOnly((v) => { if (v) setFilterBiz(null); return !v; }); }}
               style={{
                 flexDirection: "row", alignItems: "center", gap: 3,
                 paddingVertical: 4, paddingHorizontal: 9, borderRadius: 20, borderWidth: 1,
@@ -465,7 +481,7 @@ export default function HomeScreen() {
           <Chip
             label="All"
             selected={filterCats.size === 0 && !showBizOnly}
-            onPress={() => { haptics.selection(); setFilterCats(new Set()); setShowBizOnly(false); }}
+            onPress={() => { haptics.selection(); setFilterCats(new Set()); setShowBizOnly(false); setFilterBiz(null); }}
           />
           {cats.map((c) => (
             <Chip
@@ -481,6 +497,31 @@ export default function HomeScreen() {
                   return s;
                 });
               }}
+            />
+          ))}
+        </ScrollView>
+      )}
+
+      {/* Business sub-filter — only when BIZ is active and the user runs 2+ businesses */}
+      {showBizOnly && !overdueOnly && timelineBizNames.length > 1 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ marginBottom: 12, marginHorizontal: -4 }}
+          contentContainerStyle={{ paddingHorizontal: 4, gap: 6, flexDirection: "row" }}
+        >
+          <Chip
+            label="All businesses"
+            selected={effectiveBiz === null}
+            onPress={() => { haptics.selection(); setFilterBiz(null); }}
+          />
+          {timelineBizNames.map((name) => (
+            <Chip
+              key={name}
+              label={name}
+              icon="wallet"
+              selected={effectiveBiz === name}
+              onPress={() => { haptics.selection(); setFilterBiz((prev) => (prev === name ? null : name)); }}
             />
           ))}
         </ScrollView>
@@ -555,8 +596,10 @@ export default function HomeScreen() {
                             </View>
                           )}
                           {b.isBusiness && (
-                            <View style={{ backgroundColor: "#3b7aff22", borderWidth: 1, borderColor: "#3b7aff55", borderRadius: 5, paddingHorizontal: 5, paddingVertical: 1 }}>
-                              <Txt size={9.5} weight="medium" color="#6699ff" style={{ letterSpacing: 0.4 }}>BIZ</Txt>
+                            <View style={{ flexShrink: 1, backgroundColor: "#3b7aff22", borderWidth: 1, borderColor: "#3b7aff55", borderRadius: 5, paddingHorizontal: 5, paddingVertical: 1, maxWidth: 130 }}>
+                              <Txt size={9.5} weight="medium" color="#6699ff" numberOfLines={1} style={{ letterSpacing: 0.4 }}>
+                                {hasMultipleBiz && bizName(b) ? bizName(b) : "BIZ"}
+                              </Txt>
                             </View>
                           )}
                         </View>
