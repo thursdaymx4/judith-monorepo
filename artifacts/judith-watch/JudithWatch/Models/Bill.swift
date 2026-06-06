@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 // MARK: — WatchPayload (mirrors lib/watch.ts WatchPayload interface)
 // Decoded from the `judith_payload_v2` JSON string pushed by the phone app
