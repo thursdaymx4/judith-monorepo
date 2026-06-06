@@ -1,0 +1,100 @@
+carlocanieso@Carlos-Mac-Studio judith % git stash
+git pull origin main
+git stash drop
+Saved working directory and index state WIP on main: 67888d2 Update app to correctly display text colors and import necessary framework
+From https://github.com/thursdaymx4/judith-monorepo
+ * branch            main       -> FETCH_HEAD
+Updating 67888d2..7d4d8ea
+Fast-forward
+ .agents/agent_assets_metadata.toml                                                  |   7 +-
+ .agents/memory/MEMORY.md                                                            |   1 +
+ .agents/memory/judith-watch-embed.md                                                |  24 +++
+ artifacts/judith-watch/icons/AppIcon-1024.png                                       | Bin 0 -> 23126 bytes
+ artifacts/judith/app.json                                                           |  11 +-
+ artifacts/judith/contexts/JudithStore.tsx                                           |  45 ++++--
+ artifacts/judith/lib/icloud-backup.ts                                               | 114 ++++++++++++++
+ artifacts/judith/lib/watch.ts                                                       |   6 -
+ artifacts/judith/package.json                                                       |   2 +
+ artifacts/judith/targets/watchos/AskView.swift                                      | 194 +++++++++++++++++++++++
+ artifacts/judith/targets/watchos/AuthView.swift                                     |  52 +++++++
+ artifacts/judith/targets/watchos/Bill.swift                                         |  99 ++++++++++++
+ artifacts/judith/targets/watchos/BillDetailView.swift                               | 113 ++++++++++++++
+ artifacts/judith/targets/watchos/BillRowView.swift                                  |  44 ++++++
+ artifacts/judith/targets/watchos/BillStore.swift                                    |  72 +++++++++
+ artifacts/judith/targets/watchos/Config.swift                                       |  44 ++++++
+ artifacts/judith/targets/watchos/ConnectivityService.swift                          | 100 ++++++++++++
+ artifacts/judith/targets/watchos/ContentView.swift                                  |  23 +++
+ artifacts/judith/targets/watchos/Info.plist                                         |  32 ++++
+ artifacts/judith/targets/watchos/JudithWatchApp.swift                               |  50 ++++++
+ artifacts/judith/targets/watchos/NotificationController.swift                       | 121 +++++++++++++++
+ artifacts/judith/targets/watchos/PaidConfirmView.swift                              |  64 ++++++++
+ artifacts/judith/targets/watchos/SpeechRecognizer.swift                             |   9 ++
+ artifacts/judith/targets/watchos/SupabaseClient.swift                               |   6 +
+ artifacts/judith/targets/watchos/UpNextView.swift                                   |  73 +++++++++
+ artifacts/judith/targets/watchos/expo-target.config.js                              |  16 ++
+ ...Pasted-carlocanieso-Carlos-Mac-Studio-judith-monorepo-rsync-av_1780753706299.txt | 337 ++++++++++++++++++++++++++++++++++++++++
+ ...Pasted-import-WatchKit-import-SwiftUI-import-UserNotifications_1780751696319.txt | 121 +++++++++++++++
+ attached_assets/Screenshot_2026-06-06_at_10.13.55_PM_1780755243759.png              | Bin 0 -> 186071 bytes
+ attached_assets/Screenshot_2026-06-06_at_10.35.22_PM_1_1780756535413.png            | Bin 0 -> 654029 bytes
+ attached_assets/Screenshot_2026-06-06_at_9.22.00_PM_1780752134359.png               | Bin 0 -> 404089 bytes
+ attached_assets/Screenshot_2026-06-06_at_9.23.48_PM_1780752235415.png               | Bin 0 -> 262058 bytes
+ attached_assets/Screenshot_2026-06-06_at_9.24.14_PM_1780752260136.png               | Bin 0 -> 371767 bytes
+ attached_assets/Screenshot_2026-06-06_at_9.25.58_PM_1780752374895.png               | Bin 0 -> 166735 bytes
+ attached_assets/Screenshot_2026-06-06_at_9.26.03_PM_1780752374895.png               | Bin 0 -> 192552 bytes
+ attached_assets/Screenshot_2026-06-06_at_9.26.08_PM_1780752374895.png               | Bin 0 -> 203868 bytes
+ attached_assets/Screenshot_2026-06-06_at_9.27.11_PM_1780752448850.png               | Bin 0 -> 245792 bytes
+ attached_assets/Screenshot_2026-06-06_at_9.31.25_PM_1780752694947.png               | Bin 0 -> 476188 bytes
+ attached_assets/Screenshot_2026-06-06_at_9.37.08_PM_1780753069967.png               | Bin 0 -> 333793 bytes
+ attached_assets/Screenshot_2026-06-06_at_9.37.16_PM_1780753069967.png               | Bin 0 -> 481256 bytes
+ attached_assets/Screenshot_2026-06-06_at_9.39.25_PM_1780753169999.png               | Bin 0 -> 378407 bytes
+ attached_assets/Screenshot_2026-06-06_at_9.52.55_PM_1780753979673.png               | Bin 0 -> 296105 bytes
+ attached_assets/Screenshot_2026-06-06_at_9.55.47_PM_1780754153589.png               | Bin 0 -> 351782 bytes
+ attached_assets/Screenshot_2026-06-06_at_9.56.56_PM_1780754222422.png               | Bin 0 -> 478589 bytes
+ attached_assets/Screenshot_2026-06-07_at_12.04.54_AM_1780761919201.png              | Bin 0 -> 55113 bytes
+ attached_assets/Screenshot_2026-06-07_at_12.05.06_AM_1780761919201.png              | Bin 0 -> 98773 bytes
+ attached_assets/Screenshot_2026-06-07_at_12.07.00_AM_1780762026981.png              | Bin 0 -> 81172 bytes
+ pnpm-lock.yaml                                                                      | 193 +++++++++++++++++++++++
+ 48 files changed, 1948 insertions(+), 25 deletions(-)
+ create mode 100644 .agents/memory/judith-watch-embed.md
+ create mode 100644 artifacts/judith-watch/icons/AppIcon-1024.png
+ create mode 100644 artifacts/judith/lib/icloud-backup.ts
+ create mode 100644 artifacts/judith/targets/watchos/AskView.swift
+ create mode 100644 artifacts/judith/targets/watchos/AuthView.swift
+ create mode 100644 artifacts/judith/targets/watchos/Bill.swift
+ create mode 100644 artifacts/judith/targets/watchos/BillDetailView.swift
+ create mode 100644 artifacts/judith/targets/watchos/BillRowView.swift
+ create mode 100644 artifacts/judith/targets/watchos/BillStore.swift
+ create mode 100644 artifacts/judith/targets/watchos/Config.swift
+ create mode 100644 artifacts/judith/targets/watchos/ConnectivityService.swift
+ create mode 100644 artifacts/judith/targets/watchos/ContentView.swift
+ create mode 100644 artifacts/judith/targets/watchos/Info.plist
+ create mode 100644 artifacts/judith/targets/watchos/JudithWatchApp.swift
+ create mode 100644 artifacts/judith/targets/watchos/NotificationController.swift
+ create mode 100644 artifacts/judith/targets/watchos/PaidConfirmView.swift
+ create mode 100644 artifacts/judith/targets/watchos/SpeechRecognizer.swift
+ create mode 100644 artifacts/judith/targets/watchos/SupabaseClient.swift
+ create mode 100644 artifacts/judith/targets/watchos/UpNextView.swift
+ create mode 100644 artifacts/judith/targets/watchos/expo-target.config.js
+ create mode 100644 attached_assets/Pasted-carlocanieso-Carlos-Mac-Studio-judith-monorepo-rsync-av_1780753706299.txt
+ create mode 100644 attached_assets/Pasted-import-WatchKit-import-SwiftUI-import-UserNotifications_1780751696319.txt
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_10.13.55_PM_1780755243759.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_10.35.22_PM_1_1780756535413.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_9.22.00_PM_1780752134359.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_9.23.48_PM_1780752235415.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_9.24.14_PM_1780752260136.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_9.25.58_PM_1780752374895.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_9.26.03_PM_1780752374895.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_9.26.08_PM_1780752374895.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_9.27.11_PM_1780752448850.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_9.31.25_PM_1780752694947.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_9.37.08_PM_1780753069967.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_9.37.16_PM_1780753069967.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_9.39.25_PM_1780753169999.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_9.52.55_PM_1780753979673.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_9.55.47_PM_1780754153589.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_9.56.56_PM_1780754222422.png
+ create mode 100644 attached_assets/Screenshot_2026-06-07_at_12.04.54_AM_1780761919201.png
+ create mode 100644 attached_assets/Screenshot_2026-06-07_at_12.05.06_AM_1780761919201.png
+ create mode 100644 attached_assets/Screenshot_2026-06-07_at_12.07.00_AM_1780762026981.png
+Dropped refs/stash@{0} (9d4403849b4e003e6a2b8afbd312b34335a63c1d)
+carlocanieso@Carlos-Mac-Studio judith % 

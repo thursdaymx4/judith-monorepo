@@ -10,7 +10,7 @@
  * - Each backup is tagged with the Supabase userId so accounts never cross-pollute.
  */
 
-import { Platform } from "react-native";
+import { NativeModules, Platform } from "react-native";
 
 const BACKUP_FILENAME = "judith_backup_v1.json";
 
@@ -30,6 +30,9 @@ type CloudStoreModule = {
 let _cs: CloudStoreModule | null = null;
 function getCS(): CloudStoreModule | null {
   if (_cs) return _cs;
+  // Guard: if the native module isn't registered (Expo Go, Android),
+  // skip require() entirely — the package throws on import when unlinked.
+  if (!NativeModules.CloudStoreModule) return null;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     _cs = require("react-native-cloud-store") as CloudStoreModule;
