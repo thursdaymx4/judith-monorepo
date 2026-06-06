@@ -464,7 +464,8 @@ export default function AskModal() {
         setRateLimitSecs(Math.min(e.retryAfter, 3600));
         appendAndPersist({ role: "judith", text: `You're sending too fast — please wait ${e.retryAfter} second${e.retryAfter === 1 ? "" : "s"} before asking again.` });
       } else {
-        appendAndPersist({ role: "judith", text: await fallbackWithDelay(q) });
+        await new Promise<void>((r) => setTimeout(r, 900));
+        appendAndPersist({ role: "judith", text: "Hindi ako makakonekta sa server — check your connection and try again." });
       }
     } finally {
       setBusy(false);
