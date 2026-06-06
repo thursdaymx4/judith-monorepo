@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Chip, Low, Muted, Pill, SpeechBubble, Txt, mix } from "@/components/ui";
-import { makeBillFromAction, makeSubscriptionBill, currentCycleDue, nextOccurrence, totalOwed } from "@/constants/data";
+import { makeBillFromAction, makeSubscriptionBill, currentCycleDue, nextOccurrence, totalOwed, ccProjectedFuture } from "@/constants/data";
 import { getQuickAsks } from "@/constants/providers";
 import { getPersona } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
@@ -264,6 +264,7 @@ export default function AskModal() {
     const projections: AskBill[] = bills
       .filter((b) => {
         if (b.frequency === "annual") return false; // annual bills don't recur monthly
+        if (b.cat === "Credit card") return false;  // handled separately below
         // Skip if currentCycleDue already lands in next month (avoid duplicate)
         const { dueDays } = currentCycleDue(b, today);
         const dd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + dueDays);
@@ -277,8 +278,11 @@ export default function AskModal() {
           ? `${monthNames[nxMonth]} ${dayInMonth}`
           : `${monthNames[nxMonth]} ${dayInMonth}, ${nxYear}`;
 
-        // Mirror calendar's viewedAmt for future months:
-        // if current cycle was fully paid → fresh amount; otherwise fresh + any carry.
+        // Mirror calendar's viewedAmt for future months exactly:
+        // paid current cycle → fresh base amount (no carry-over)
+        // unpaid/partial    → base amount + effective carry
+        // Using b.amount (not totalOwed) as the base so stale carryOver
+        // from prior cycles doesn't inflate the next-month projection.
         const isPaidCurrent = (b.paymentHistory ?? []).some(
           (r) => r.period === periodKey && r.paid >= r.totalDue,
         );
@@ -286,7 +290,7 @@ export default function AskModal() {
         const effectiveCarry = hasPartial
           ? Math.max(0, totalOwed(b) - (b.amountPaid ?? 0))
           : (b.carryOver ?? 0);
-        const amount = isPaidCurrent ? totalOwed(b) : totalOwed(b) + effectiveCarry;
+        const amount = isPaidCurrent ? b.amount : b.amount + effectiveCarry;
 
         const cardName = b.chargedToCard && b.parentCardId
           ? (bills.find((c) => c.id === b.parentCardId)?.provider ?? null)
@@ -307,7 +311,35 @@ export default function AskModal() {
         };
       });
 
-    return [...current, ...projections];
+    // Credit-card next-month projections — use ccProjectedFuture (outstanding
+    // remainder + recurring charges re-billed onto the card), matching what
+    // the Calendar shows for future months. This avoids the regular formula
+    // which would just re-use the current statement amount verbatim.
+    const ccProjections: AskBill[] = bills
+      .filter((b) => b.cat === "Credit card")
+      .map((b) => {
+        const dayInMonth = Math.min(b.dueDate, nxDaysInMonth);
+        const nxDue = new Date(nxYear, nxMonth, dayInMonth);
+        const dueDays = Math.round((nxDue.getTime() - today.getTime()) / 86_400_000);
+        const dueLabel = nxYear === today.getFullYear()
+          ? `${monthNames[nxMonth]} ${dayInMonth}`
+          : `${monthNames[nxMonth]} ${dayInMonth}, ${nxYear}`;
+        return {
+          provider: b.provider,
+          cat: b.cat,
+          amount: ccProjectedFuture(b, bills, nxYear, nxMonth, today),
+          dueDays,
+          dueLabel,
+          status: "upcoming" as const,
+          dueMonth: nxKey,
+          isBusiness: b.isBusiness,
+          chargedToCard: false,
+          cardName: null,
+          isProjection: true,
+        };
+      });
+
+    return [...current, ...projections, ...ccProjections];
   };
 
   const localFallback = (q: string): string => {
