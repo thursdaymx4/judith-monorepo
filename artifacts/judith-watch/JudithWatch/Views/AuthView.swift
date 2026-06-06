@@ -24,11 +24,11 @@ struct AuthView: View {
 
             Text("Judith")
                 .font(.system(.headline, design: .rounded, weight: .bold))
-                .foregroundStyle(.txtHi)
+                .foregroundStyle(Color.txtHi)
 
             Text("Open Judith on your iPhone to sync\(String(repeating: ".", count: dotCount))")
                 .font(.system(.footnote, design: .rounded))
-                .foregroundStyle(.txtMid)
+                .foregroundStyle(Color.txtMid)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 8)
 
@@ -37,7 +37,7 @@ struct AuthView: View {
                     Circle().fill(Color.judithOK).frame(width: 6, height: 6)
                     Text("Phone connected")
                         .font(.system(.caption2, design: .rounded))
-                        .foregroundStyle(.judithOK)
+                        .foregroundStyle(Color.judithOK)
                 }
             }
 

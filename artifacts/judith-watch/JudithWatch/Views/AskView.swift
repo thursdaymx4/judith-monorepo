@@ -27,7 +27,7 @@ struct AskView: View {
 
                     Text("Ask Judith")
                         .font(.system(.headline, design: .rounded, weight: .bold))
-                        .foregroundStyle(.txtHi)
+                        .foregroundStyle(Color.txtHi)
 
                     TextField("What do you want to know?", text: $query, axis: .vertical)
                         .focused($fieldFocused)
@@ -36,7 +36,7 @@ struct AskView: View {
                         .background(Color.surface1)
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                         .font(.system(.footnote, design: .rounded))
-                        .foregroundStyle(.txtHi)
+                        .foregroundStyle(Color.txtHi)
 
                     Button {
                         submitQuery()
@@ -66,11 +66,11 @@ struct AskView: View {
                 case .asking:
                     Spacer(minLength: 24)
                     ProgressView()
-                        .tint(.judithAccent)
+                        .tint(Color.judithAccent)
                         .scaleEffect(1.4)
                     Text("Judith is thinking…")
                         .font(.system(.caption, design: .rounded))
-                        .foregroundStyle(.txtMid)
+                        .foregroundStyle(Color.txtMid)
                         .padding(.top, 8)
 
                 // ── Answered ──────────────────────────────────────────────
@@ -80,12 +80,12 @@ struct AskView: View {
                             judithAvatar.scaleEffect(0.6)
                             Text("Judith")
                                 .font(.system(.caption2, design: .rounded, weight: .semibold))
-                                .foregroundStyle(.judithAccent)
+                                .foregroundStyle(Color.judithAccent)
                         }
 
                         Text(reply)
                             .font(.system(.footnote, design: .rounded))
-                            .foregroundStyle(.txtHi)
+                            .foregroundStyle(Color.txtHi)
                             .fixedSize(horizontal: false, vertical: true)
 
                         HStack(spacing: 8) {
@@ -94,7 +94,7 @@ struct AskView: View {
                             } label: {
                                 Image(systemName: "speaker.wave.2.fill")
                                     .font(.system(.caption))
-                                    .foregroundStyle(.judithAccent)
+                                    .foregroundStyle(Color.judithAccent)
                             }
                             .buttonStyle(.plain)
 
@@ -105,7 +105,7 @@ struct AskView: View {
                                 viewState = .idle
                             }
                             .font(.system(.caption2, design: .rounded, weight: .semibold))
-                            .tint(.judithAccent)
+                            .tint(Color.judithAccent)
                         }
                         .padding(.top, 4)
                     }
@@ -116,10 +116,10 @@ struct AskView: View {
                     Spacer(minLength: 16)
                     Image(systemName: "exclamationmark.circle")
                         .font(.system(.title2))
-                        .foregroundStyle(.judithOverdue)
+                        .foregroundStyle(Color.judithOverdue)
                     Text(msg)
                         .font(.system(.caption2, design: .rounded))
-                        .foregroundStyle(.txtMid)
+                        .foregroundStyle(Color.txtMid)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 8)
                     Button("Try again") {
@@ -127,7 +127,7 @@ struct AskView: View {
                         viewState = .idle
                     }
                     .buttonStyle(.bordered)
-                    .tint(.judithAccent)
+                    .tint(Color.judithAccent)
                     .font(.system(.caption2, design: .rounded, weight: .semibold))
                 }
             }

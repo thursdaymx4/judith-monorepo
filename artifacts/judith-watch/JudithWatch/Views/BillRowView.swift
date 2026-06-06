@@ -15,7 +15,7 @@ struct BillRowView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(bill.provider)
                     .font(.system(.body, design: .rounded, weight: .medium))
-                    .foregroundStyle(.txtHi)
+                    .foregroundStyle(Color.txtHi)
                     .lineLimit(1)
 
                 Text(bill.dueLabelShort)
@@ -27,7 +27,7 @@ struct BillRowView: View {
 
             Text(bill.amountDisplay(currency: currency))
                 .font(.judithMono)
-                .foregroundStyle(.txtHi)
+                .foregroundStyle(Color.txtHi)
                 .lineLimit(1)
         }
         .padding(.vertical, 4)

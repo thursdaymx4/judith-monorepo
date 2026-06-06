@@ -22,18 +22,18 @@ struct PaidConfirmView: View {
                     .frame(width: 68, height: 68)
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 44))
-                    .foregroundStyle(.judithAccent)
+                    .foregroundStyle(Color.judithAccent)
             }
             .scaleEffect(scale)
             .opacity(opacity)
 
             Text("Marked paid")
                 .font(.system(.headline, design: .rounded, weight: .bold))
-                .foregroundStyle(.txtHi)
+                .foregroundStyle(Color.txtHi)
 
             Text("\(provider) · \(amountDisplay)")
                 .font(.system(.footnote, design: .rounded))
-                .foregroundStyle(.txtMid)
+                .foregroundStyle(Color.txtMid)
                 .multilineTextAlignment(.center)
 
             if streak > 1 {
@@ -41,7 +41,7 @@ struct PaidConfirmView: View {
                     Text("🔥")
                     Text("\(streak)-bill streak")
                         .font(.system(.caption, design: .rounded, weight: .semibold))
-                        .foregroundStyle(.judithAccent)
+                        .foregroundStyle(Color.judithAccent)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 5)

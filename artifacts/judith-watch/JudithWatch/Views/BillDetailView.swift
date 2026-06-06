@@ -28,7 +28,7 @@ struct BillDetailView: View {
                 // Provider name
                 Text(bill.provider)
                     .font(.system(.headline, design: .rounded, weight: .bold))
-                    .foregroundStyle(.txtHi)
+                    .foregroundStyle(Color.txtHi)
                     .multilineTextAlignment(.center)
                     .padding(.top, 8)
                     .padding(.horizontal, 4)
@@ -36,7 +36,7 @@ struct BillDetailView: View {
                 // Amount — big mono
                 Text(bill.amountDisplay(currency: currency))
                     .font(.system(size: 36, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.txtHi)
+                    .foregroundStyle(Color.txtHi)
                     .padding(.top, 6)
 
                 // Due label
@@ -77,7 +77,7 @@ struct BillDetailView: View {
                 if !connectivity.isPhoneReachable {
                     Text("Phone offline — will sync when reconnected")
                         .font(.system(.caption2))
-                        .foregroundStyle(.txtLow)
+                        .foregroundStyle(Color.txtLow)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 4)
                         .padding(.bottom, 8)

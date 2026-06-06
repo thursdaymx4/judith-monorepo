@@ -16,15 +16,15 @@ struct UpNextView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Up next")
                                 .font(.system(.headline, design: .rounded, weight: .bold))
-                                .foregroundStyle(.txtHi)
+                                .foregroundStyle(Color.txtHi)
                             Text("\(store.unpaidCount) unpaid")
                                 .font(.system(.caption2))
-                                .foregroundStyle(.txtMid)
+                                .foregroundStyle(Color.txtMid)
                         }
                         Spacer()
                         Text(store.payload?.totalOwedDisplay ?? "—")
                             .font(.judithMonoLarge)
-                            .foregroundStyle(.judithAccent)
+                            .foregroundStyle(Color.judithAccent)
                     }
                     .listRowBackground(Color.surface1)
                 }
@@ -33,7 +33,7 @@ struct UpNextView: View {
                     Section {
                         Text("All paid up 🎉")
                             .font(.system(.footnote))
-                            .foregroundStyle(.txtMid)
+                            .foregroundStyle(Color.txtMid)
                             .frame(maxWidth: .infinity, alignment: .center)
                             .listRowBackground(Color.clear)
                     }
