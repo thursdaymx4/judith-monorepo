@@ -17,9 +17,11 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.app.judith",
       "usesAppleSignIn": true,
+      "appleTeamId": "88JK8X8BT7",
       "entitlements": {
         "com.apple.developer.icloud-container-identifiers": ["iCloud.com.app.judith"],
-        "com.apple.developer.ubiquity-container-identifiers": ["iCloud.com.app.judith"]
+        "com.apple.developer.ubiquity-container-identifiers": ["iCloud.com.app.judith"],
+        "com.apple.security.application-groups": ["group.com.app.judith"]
       }
     },
     "android": {
@@ -44,7 +46,8 @@
           "microphonePermission": "Pinapayagan ang Judith na gamitin ang mikropono para marinig ang mga tanong mo."
         }
       ],
-      "expo-notifications"
+      "expo-notifications",
+      "@bacons/apple-targets"
     ],
     "experiments": {
       "typedRoutes": true,

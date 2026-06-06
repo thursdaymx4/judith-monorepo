@@ -105,12 +105,6 @@ export async function syncBillsToWatch(
   if (!WatchConnectivity) return;
 
   try {
-    const installed =
-      (await (WatchConnectivity.getIsWatchAppInstalled as
-        | (() => Promise<boolean>)
-        | undefined)?.()) ?? false;
-    if (!installed) return;
-
     const payload = buildPayload(bills, persona, currency);
     // JSON-stringify the payload so Swift's JSONDecoder can decode it cleanly.
     // transferUserInfo is queued and delivered even when the Watch app is in
