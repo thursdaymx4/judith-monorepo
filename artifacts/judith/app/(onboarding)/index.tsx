@@ -157,6 +157,38 @@ const MANUAL_CATS: { cat: string; icon: string }[] = [
   { cat: "Other", icon: "plus" },
 ];
 
+/** Bill categories shown on the bill-picker onboarding screen. */
+const ONBOARDING_BILL_CATS: { id: string; label: string; icon: string; group: number }[] = [
+  { id: "rent",          label: "Rent / Mortgage", icon: "home",       group: 0 },
+  { id: "electricity",   label: "Electricity",     icon: "zap",        group: 0 },
+  { id: "water",         label: "Water",           icon: "droplet",    group: 0 },
+  { id: "internet",      label: "Internet",        icon: "wifi",       group: 0 },
+  { id: "mobile",        label: "Mobile",          icon: "smartphone", group: 1 },
+  { id: "streaming",     label: "TV / Streaming",  icon: "spark",      group: 1 },
+  { id: "subscriptions", label: "Subscriptions",   icon: "globe",      group: 1 },
+  { id: "insurance",     label: "Insurance",       icon: "lock",       group: 2 },
+  { id: "creditcard",    label: "Credit card",     icon: "card",       group: 3 },
+  { id: "loan",          label: "Loans",           icon: "wallet",     group: 3 },
+];
+
+/**
+ * Maps a bill-picker category ID to the SAMPLES group number it belongs to.
+ * Groups 0–2 correspond to VGROUPS (essentials, subscriptions, insurance).
+ * Group 3 is handled by the cards/loans phase in ScreenVoiceAdd.
+ */
+const CAT_ID_TO_VGROUP: Record<string, number> = {
+  rent:          0,
+  electricity:   0,
+  water:         0,
+  internet:      0,
+  mobile:        1,
+  streaming:     1,
+  subscriptions: 1,
+  insurance:     2,
+  creditcard:    3,
+  loan:          3,
+};
+
 /* Voice lines live in constants/voiceLines.ts — edit them there. */
 
 /**
@@ -545,6 +577,9 @@ interface Ctx {
   bills: OnbBill[];
   addBill: (b: OnbBill) => void;
   next: () => void;
+  /** Category IDs selected on the bill-picker screen. Empty = show all. */
+  selectedCats: string[];
+  setSelectedCats: (cats: string[]) => void;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1956,11 +1991,143 @@ function ordinal(n: number): string {
   return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`;
 }
 
+/* ------------------------------------------------------------------ */
+/* Bill-picker screen                                                  */
+/* ------------------------------------------------------------------ */
+
+function ScreenBillPicker({ ctx }: { ctx: Ctx }) {
+  const { t, next, selectedCats, setSelectedCats } = ctx;
+  const [sel, setSel] = React.useState<Set<string>>(() => new Set(selectedCats));
+
+  const toggle = (id: string) => {
+    haptics.selection();
+    setSel((prev) => {
+      const s = new Set(prev);
+      if (s.has(id)) s.delete(id); else s.add(id);
+      return s;
+    });
+  };
+
+  const proceed = () => {
+    haptics.medium();
+    setSelectedCats([...sel]);
+    next();
+  };
+
+  type BillCat = { id: string; label: string; icon: string; group: number };
+  const pairs: [BillCat, BillCat | null][] = [];
+  for (let i = 0; i < ONBOARDING_BILL_CATS.length; i += 2) {
+    pairs.push([ONBOARDING_BILL_CATS[i]!, (ONBOARDING_BILL_CATS[i + 1] ?? null)]);
+  }
+
+  return (
+    <>
+      <Scroll>
+        <JudithLine style={{ marginBottom: 22 }}>
+          Tell me which bills you deal with — I'll tailor the setup just for you, and skip everything you don't have.
+        </JudithLine>
+
+        <Title style={{ marginBottom: 6 }}>Which bills do you have?</Title>
+        <Lede style={{ marginBottom: 22 }}>
+          {sel.size > 0
+            ? `${sel.size} selected — tap any to remove.`
+            : "Tap everything that applies to you."}
+        </Lede>
+
+        <View style={{ gap: 10 }}>
+          {pairs.map(([a, b], ri) => (
+            <View key={ri} style={{ flexDirection: "row", gap: 10 }}>
+              {([a, b] as (BillCat | null)[]).map((cat, ci) =>
+                cat ? (
+                  <Pressable
+                    key={cat.id}
+                    onPress={() => toggle(cat.id)}
+                    style={({ pressed }) => [
+                      {
+                        flex: 1,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 10,
+                        paddingVertical: 15,
+                        paddingHorizontal: 13,
+                        borderRadius: t.radius.md,
+                        borderWidth: 1,
+                        borderColor: sel.has(cat.id) ? withAlpha(t.accent, 0.65) : t.hair,
+                        backgroundColor: sel.has(cat.id) ? mix(t.accent, t.surface2, 0.14) : t.surface2,
+                      },
+                      pressed && { transform: [{ scale: 0.97 }] },
+                    ]}
+                  >
+                    <IcoBox
+                      name={cat.icon}
+                      color={sel.has(cat.id) ? t.accent : t.txtMid}
+                      size={32}
+                    />
+                    <Txt
+                      size={12}
+                      weight="medium"
+                      style={{ flex: 1, lineHeight: 16 }}
+                    >
+                      {cat.label}
+                    </Txt>
+                    <View
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: 10,
+                        borderWidth: 1.5,
+                        borderColor: sel.has(cat.id) ? t.accent : t.hair,
+                        backgroundColor: sel.has(cat.id) ? t.accent : "transparent",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {sel.has(cat.id) && (
+                        <Icon name="check" size={11} color={t.onAccent} />
+                      )}
+                    </View>
+                  </Pressable>
+                ) : (
+                  <View key={`empty-${ci}`} style={{ flex: 1 }} />
+                ),
+              )}
+            </View>
+          ))}
+        </View>
+
+        {sel.size === 0 && (
+          <Lede style={{ marginTop: 18, textAlign: "center", fontSize: 13 }}>
+            Nothing selected? No problem — I'll walk you through everything and you can skip what you don't need.
+          </Lede>
+        )}
+      </Scroll>
+
+      <CtaBar>
+        <Btn
+          label={sel.size > 0 ? `Continue with ${sel.size} selected →` : "Show me everything →"}
+          onPress={proceed}
+        />
+      </CtaBar>
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Voice bill-add screen                                               */
+/* ------------------------------------------------------------------ */
+
 function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
-  const SAMPLES        = getSamples(ctx.country.code);
+  const SAMPLES_ALL    = getSamples(ctx.country.code);
   const CARD_TEMPLATES = getCardTemplates(ctx.country.code);
   const LOAN_TEMPLATES = getLoanTemplates(ctx.country.code);
-  const { t, persona, bills, addBill, next, language } = ctx;
+  const { t, persona, bills, addBill, next, language, selectedCats } = ctx;
+  // Derive which VGROUPS to show based on bill-picker selection
+  const skipCards = selectedCats.length > 0 && !selectedCats.includes("creditcard");
+  const skipLoans = selectedCats.length > 0 && !selectedCats.includes("loan");
+  const hasGroup = (g: number) =>
+    selectedCats.length === 0 || selectedCats.some((id) => CAT_ID_TO_VGROUP[id] === g);
+  const SAMPLES = SAMPLES_ALL.filter((s) => hasGroup(s.group));
   const { saveBill, bills: storeBills } = useJudith();
   const cur = ctx.country.cur;
   const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
@@ -1987,7 +2154,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const [formCat, setFormCat] = useState<{ cat: string; icon: string } | null>(null);
   const [manualReturn, setManualReturn] = useState<VMode>("prompt");
   const [form, setForm] = useState<{ provider: string; amount: string; due: string; kind: "Fixed" | "Variable"; frequency: "monthly" | "annual"; isBusiness: boolean; subtype?: string; house?: string; chargedToCard?: boolean; parentCardId?: string }>({ provider: "", amount: "", due: "", kind: "Fixed", frequency: "monthly", isBusiness: false, house: HOUSES[0] });
-  const [phase, setPhase] = useState<"scripted" | "cards" | "loans">("cards");
+  const [phase, setPhase] = useState<"scripted" | "cards" | "loans">(() => skipCards ? "scripted" : "cards");
   const [breatherGroup, setBreatherGroup] = useState(0);
   const [cardN, setCardN] = useState(0);
   const [cardDone, setCardDone] = useState(0);
@@ -3353,7 +3520,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
           return (
             <>
               <Btn label={g.addLabel} icon="plus" variant="soft" onPress={() => { setManualReturn("breather"); setMode("manualCats"); }} />
-              <Btn label="Keep going →" onPress={() => { if (breatherGroup === 2) startLoans(); else setMode("prompt"); }} />
+              <Btn label="Keep going →" onPress={() => { if (breatherGroup === 2) { if (skipLoans) setMode("more"); else startLoans(); } else setMode("prompt"); }} />
             </>
           );
         })()}
@@ -4800,6 +4967,7 @@ const FLOW: { id: string; C: (p: { ctx: Ctx }) => React.ReactElement }[] = [
   { id: "problem", C: ScreenProblem },
   { id: "stakes", C: ScreenStakes },
   { id: "intro", C: ScreenIntro },
+  { id: "billpicker", C: ScreenBillPicker },
   { id: "voice", C: ScreenVoiceAdd },
   { id: "congrats", C: ScreenCongrats },
   { id: "personalizing", C: ScreenPersonalizing },
@@ -4811,7 +4979,7 @@ const FLOW: { id: string; C: (p: { ctx: Ctx }) => React.ReactElement }[] = [
   { id: "notifications", C: ScreenNotifications },
   { id: "askpaywall", C: ScreenAskPaywall },
 ];
-const SETUP = ["name", "country", "language", "persona", "problem", "stakes", "intro", "voice", "congrats", "summary"];
+const SETUP = ["name", "country", "language", "persona", "problem", "stakes", "intro", "billpicker", "voice", "congrats", "summary"];
 const NO_BACK = ["welcome", "personalizing"];
 const SKIPPABLE = ["country", "persona", "income", "notifications"];
 const SAVE_FROM = 0;
@@ -4837,6 +5005,7 @@ export default function OnboardingScreen() {
     onbIdx >= SAVE_FROM && onbIdx < FLOW.length ? onbIdx : 0,
   );
   const [bills, setBills] = useState<OnbBill[]>([]);
+  const [selectedCats, setSelectedCats] = useState<string[]>([]);
 
   // vIn: screen entrance — opacity 0→1 + translateY 8→0 (400ms, prototype vIn keyframe)
   const vInOpacity = useRef(new Animated.Value(0)).current;
@@ -4889,9 +5058,9 @@ export default function OnboardingScreen() {
   const addBill = (b: OnbBill) => setBills((arr) => [...arr, b]);
 
   const ctx = useMemo<Ctx>(
-    () => ({ t, persona, setPersona, country, setCountry, language, setLanguage, name, setName, bills, addBill, next }),
+    () => ({ t, persona, setPersona, country, setCountry, language, setLanguage, name, setName, bills, addBill, next, selectedCats, setSelectedCats }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [t, persona, language, country, name, bills, idx],
+    [t, persona, language, country, name, bills, idx, selectedCats],
   );
 
   const showProgress = SETUP.includes(screen.id);
