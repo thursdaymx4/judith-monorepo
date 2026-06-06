@@ -20,3 +20,4 @@
 - [Judith via-card exclusion](judith-via-card-exclusion.md) — charged-to-card bills excluded from money SUMS (home/calendar/insights/AI-Ask) but kept VISIBLE in lists + INCLUDED in notifications/mark-paid; isPaidViaCard needs parentCardId; dangling links keep counting.
 - [Judith Ask number format](judith-ask-number-format.md) — Ask replies render amounts as digits (₱438,835), never spelled-out words; prompt-side rule only; same string also feeds TTS.
 - [Judith cross-screen totals](judith-cross-screen-totals.md) — Home/Calendar/Ask share NO selector; reconcile into 2 buckets (this-month due vs all-unpaid), both via remaining+paymentHistory paid (never b.status).
+- [Judith overdue enforcement](judith-overdue-enforcement.md) — soft rule alone fails; requires BOTH ⚠️ OVERDUE ALERT context injection AND explicit forbidden-phrase list; confirmed correct response pattern included.
