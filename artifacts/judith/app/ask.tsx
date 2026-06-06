@@ -528,11 +528,16 @@ export default function AskModal() {
           if (db != null) ambientReadings.push(db);
           return;
         }
-        // First tick past settling — lock adaptive threshold (ambient + 5 dBFS)
+        // First tick past settling — lock adaptive threshold.
+        // Use the MEDIAN of ambient readings (not max) so that any speech that
+        // leaked into the settling window doesn't inflate the threshold and make
+        // the user's actual speech invisible to the VAD.
         if (!settlingComplete) {
           settlingComplete = true;
           if (ambientReadings.length > 0) {
-            adaptiveThreshold = Math.max(...ambientReadings) + 5;
+            const sorted = [...ambientReadings].sort((a, b) => a - b);
+            const median = sorted[Math.floor(sorted.length / 2)] ?? -50;
+            adaptiveThreshold = median + 8; // 8 dBFS above median ambient
           }
         }
         // Metering unavailable on this device — fall back to elapsed-time gate
@@ -558,7 +563,12 @@ export default function AskModal() {
         // Pre-speech silence — do nothing; let the user take their time to start
       }, 100);
     } catch (e) {
-      setErr(`Couldn't start recording: ${String((e as Error)?.message ?? e)}`);
+      const msg = String((e as Error)?.message ?? e);
+      if (msg.toLowerCase().includes("permission")) {
+        setErr("Microphone permission denied — allow it in your phone settings and try again.");
+      } else {
+        setErr("Microphone couldn't start — try again in a moment.");
+      }
     }
   };
 
@@ -566,31 +576,42 @@ export default function AskModal() {
     const hadSpeech = silenceRef.current.hasSpeech;
     clearVad();
     setRecording(false);
-    // VAD detected no real speech above threshold — stop recorder silently,
-    // do not transcribe or show an error.
+    // VAD detected no real speech above threshold — stop the recorder and
+    // tell the user clearly so they know to try again.
     if (!hadSpeech) {
       await recorder.stop().catch(() => {});
+      setErr("I didn't catch anything — tap the mic and speak clearly.");
       return;
     }
     setBusy(true);
     try {
       await recorder.stop();
       const uri = recorder.uri;
-      if (!uri) throw new Error("No audio captured");
+      if (!uri) throw new Error("no_audio");
       const base64 = await fileToBase64(uri);
       const { text } = await transcribe(base64, "audio/m4a", sttHint(language));
       setBusy(false);
       // Discard transcriptions that are only background-noise annotations
       // e.g. "(beep) (footsteps thudding)" → stripped → "" → noise
-      if (text?.trim() && !isNoiseTranscript(text)) await ask(text);
+      if (text?.trim() && !isNoiseTranscript(text)) {
+        await ask(text);
+      } else {
+        setErr("Couldn't make out what you said — try again in a quieter spot.");
+      }
     } catch (e) {
       setBusy(false);
       if (e instanceof RateLimitError) {
         setRateLimitSecs(Math.min(e.retryAfter, 3600));
-        setErr(`Sending too fast — wait ${e.retryAfter}s before trying again.`);
+        setErr(`You're going too fast — wait ${e.retryAfter} second${e.retryAfter === 1 ? "" : "s"} then try again.`);
       } else {
         const msg = String((e as Error)?.message ?? e);
-        setErr(msg.includes("401") ? "Session expired — close and reopen the app to sign back in." : `Couldn't transcribe that: ${msg}`);
+        if (msg.includes("401") || msg.includes("session")) {
+          setErr("Session expired — close and reopen the app to sign back in.");
+        } else if (msg === "no_audio") {
+          setErr("Nothing was recorded — make sure your microphone is working and try again.");
+        } else {
+          setErr("Couldn't process your voice — check your connection and try again.");
+        }
       }
     }
   };
