@@ -194,8 +194,13 @@ export default function HomeScreen() {
   const currentPeriodKey = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, "0")}`;
   // Use paymentHistory as source of truth — b.status advances to next month after paying,
   // so it cannot tell us whether THIS month's bill was paid.
-  const isPaidThisMonth = (b: Bill): boolean =>
-    (b.paymentHistory ?? []).some((r) => r.period === currentPeriodKey && r.paid >= r.totalDue);
+  const isPaidThisMonth = (b: Bill): boolean => {
+    if ((b.paymentHistory ?? []).some((r) => r.period === currentPeriodKey && r.paid >= r.totalDue)) return true;
+    // Fallback for bills marked paid via markPaid() before it wrote paymentHistory:
+    // if status="paid" and amountPaid covers the full balance, treat as paid this month
+    // so it doesn't leak into the timeline showing ₱0.
+    return b.status === "paid" && (b.amountPaid ?? 0) >= totalOwed(b);
+  };
   const amtPaidThisMonth = (b: Bill): number => {
     const rec = (b.paymentHistory ?? []).find((r) => r.period === currentPeriodKey);
     // Only count a history record as paid-toward-this-cycle when it's a SETTLED

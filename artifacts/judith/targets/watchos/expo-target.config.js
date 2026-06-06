@@ -3,6 +3,7 @@ module.exports = {
   type: "watch",
   name: "JudithWatch",
   bundleIdentifier: ".watchkitapp",
+  icon: "./AppIcon.png",
   frameworks: [
     "WatchConnectivity",
     "UserNotifications",

@@ -418,12 +418,39 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
           return { ...s, bills };
         });
       },
-      markPaid: (id) =>
-        mapBills((b) => {
-          if (b.id !== id) return b;
-          const owed = b.amount + (b.carryOver ?? 0);
-          return { ...b, status: "paid" as const, amountPaid: owed };
-        }),
+      markPaid: (id) => {
+        const today = new Date();
+        setState((s) => ({
+          ...s,
+          bills: s.bills.map((b) => {
+            if (b.id !== id) return b;
+            const owed = b.amount + (b.carryOver ?? 0);
+            const cp = computeNaturalPeriod(b, today);
+            const existing = b.paymentHistory ?? [];
+            if (existing.some((r) => r.period === cp && r.paid >= r.totalDue)) return b;
+            const [pYr, pMo] = cp.split("-").map(Number) as [number, number];
+            const dueDateForPeriod = new Date(pYr, pMo - 1, Math.min(b.dueDate ?? 1, _daysInMonth(pYr, pMo - 1)));
+            const record: BillCycleRecord = {
+              period: cp,
+              charged: b.amount,
+              carriedIn: b.carryOver ?? 0,
+              totalDue: owed,
+              paid: owed,
+              rolledOver: 0,
+              onTime: today <= dueDateForPeriod,
+            };
+            const paymentHistory = [record, ...existing.filter((r) => r.period !== cp)].slice(0, 24);
+            const newNaturalPeriod = computeNaturalPeriod({ dueDate: b.dueDate, paymentHistory }, today);
+            const isCurrentPaid = paymentHistory.some((r) => r.period === newNaturalPeriod && r.paid >= r.totalDue);
+            return {
+              ...b,
+              status: isCurrentPaid ? "paid" as const : "due" as const,
+              amountPaid: isCurrentPaid ? owed : 0,
+              paymentHistory,
+            };
+          }),
+        }));
+      },
       markUnpaid: (id) =>
         mapBills((b) => (b.id === id ? { ...b, status: "due" as const, amountPaid: 0 } : b)),
       snooze: (id, days) =>
