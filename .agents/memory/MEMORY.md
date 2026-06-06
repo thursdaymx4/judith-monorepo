@@ -23,5 +23,6 @@
 - [Judith overdue enforcement](judith-overdue-enforcement.md) — soft rule alone fails; requires BOTH ⚠️ OVERDUE ALERT context injection AND explicit forbidden-phrase list; confirmed correct response pattern included.
 - [Judith answer sequencing](judith-answer-sequencing.md) — direct answer to the question MUST be sentence 1; overdue/context goes sentence 2+; ANSWER SEQUENCING rule in SHARED_RULES takes priority over overdue rule.
 - [Judith ask metering](judith-ask-metering.md) — refund credits via functional setState (not stale patch); every ask entry point must gate on rateLimitSecs & refund unanswered (timeout/429) requests.
+- [Judith scoped questions](judith-ask-scoped-questions.md) — single category/business "how much for X" answers need explicit ₱0-payable cue + separate payable/via-card lists + anti-substitution rule, or model gap-fills from another group.
 - [Judith Home filters](judith-home-filters.md) — Home timeline filters compose category→biz→overdue; heal stale "pick-one" selections by deriving an effective value during render, never via useEffect.
 - [Judith Insights business split](judith-insights-business-split.md) — Personal-vs-Business + BY-BUSINESS share tagSplit (all-bills scope, matches Home biz total NOT tab grand total); color businesses by alphabetical name, not rank.

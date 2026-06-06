@@ -279,12 +279,27 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
   const bizViaCardTotal = bizViaCard.reduce((s, b) => s + (b.amount ?? 0), 0);
 
   // Per-business breakdown — group all business bills (payable + via-card) by name.
-  const bizNameMap = new Map<string, { payable: number; viaCard: number; providers: string[] }>();
+  // Keep payable vs via-card providers in SEPARATE lists (with amounts) so the AI
+  // can name exactly which bills a business must pay directly vs which are already
+  // auto-charged. Without this split the model "gap-fills" a business whose bills
+  // are all via-card (₱0 payable) by grabbing an unrelated payable bill from a
+  // DIFFERENT business (e.g. answering "Auto Tomato" with CCSC's Laundry).
+  const bizNameMap = new Map<string, {
+    payable: number;
+    viaCard: number;
+    payableItems: { name: string; amount: number }[];
+    viaCardItems: { name: string; amount: number; card: string | null }[];
+  }>();
   for (const b of [...bizUnpaid, ...bizViaCard]) {
     const key = b.businessName?.trim() || "(untagged)";
-    const entry = bizNameMap.get(key) ?? { payable: 0, viaCard: 0, providers: [] };
-    if (isViaCard(b)) { entry.viaCard += b.amount ?? 0; } else { entry.payable += b.amount ?? 0; }
-    entry.providers.push(b.provider ?? "Bill");
+    const entry = bizNameMap.get(key) ?? { payable: 0, viaCard: 0, payableItems: [], viaCardItems: [] };
+    if (isViaCard(b)) {
+      entry.viaCard += b.amount ?? 0;
+      entry.viaCardItems.push({ name: b.provider ?? "Bill", amount: b.amount ?? 0, card: b.cardName ?? null });
+    } else {
+      entry.payable += b.amount ?? 0;
+      entry.payableItems.push({ name: b.provider ?? "Bill", amount: b.amount ?? 0 });
+    }
     bizNameMap.set(key, entry);
   }
 
@@ -393,10 +408,11 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
       ? `Combined business total (informational — payable + auto-charged): ${curStr(cur, bizTotal + bizViaCardTotal)}.`
       : "",
     bizNameMap.size > 0
-      ? `Business breakdown by entity: ${[...bizNameMap.entries()].map(([name, { payable: p, viaCard: vc, providers }]) => {
+      ? `Business breakdown by entity: ${[...bizNameMap.entries()].map(([name, { payable: p, viaCard: vc, payableItems, viaCardItems }]) => {
           const total = p + vc;
-          const detail = [p > 0 ? `${curStr(cur, p)} payable` : "", vc > 0 ? `${curStr(cur, vc)} via card` : ""].filter(Boolean).join(" + ");
-          return `"${name}" = ${curStr(cur, total)} (${detail}): ${providers.join(", ")}`;
+          const payList = payableItems.length > 0 ? payableItems.map((i) => `${i.name} ${curStr(cur, i.amount)}`).join(", ") : "none";
+          const vcList = viaCardItems.length > 0 ? viaCardItems.map((i) => `${i.name} ${curStr(cur, i.amount)}${i.card ? ` via ${i.card}` : ""}`).join(", ") : "none";
+          return `"${name}" = ${curStr(cur, total)} total (${curStr(cur, p)} directly payable + ${curStr(cur, vc)} auto-charged to cards). Directly payable bills (nothing else belongs to "${name}"): ${payList}. Auto-charged bills: ${vcList}`;
         }).join(" | ")}.`
       : "",
   ].filter(Boolean);
@@ -441,6 +457,8 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     "",
     "SPENDING BY CATEGORY (includes auto-charged card bills — use for category/business cost questions). When asked about ONE category, answer with that category's total and ONLY the bills in its 'Complete list' — never add a bill listed under a different category, and if 'directly payable' is ₱0 then there is NO direct-pay bill to name:",
     catLines.join("\n"),
+    "",
+    "WHEN ASKED ABOUT ONE BUSINESS (e.g. \"how much do I still need to pay for <business>\"): use ONLY that exact entity's line in 'Business breakdown by entity' above. The amount they must pay SEPARATELY is that entity's 'directly payable' figure — name only the bills in its 'Directly payable bills' list; auto-charged bills are already covered by their card statements (mention them as such if relevant). NEVER name, count, or substitute a bill that belongs to a DIFFERENT business or category. If that entity's 'directly payable' is ₱0, there is NOTHING to pay separately — say so plainly (the auto-charged bills are settled via the cards); do NOT grab a payable bill from another business to fill the gap.",
     "",
     "BILLS ([BUSINESS]/[PERSONAL]; [AUTO-CHARGED to X] = auto-paid via that card, already counted inside its statement, NOT added to the payment totals):",
     lines.join("\n"),
