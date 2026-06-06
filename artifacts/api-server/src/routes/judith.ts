@@ -6,6 +6,7 @@ import {
 } from "../lib/supabaseAdmin";
 import { getAnthropic, ANTHROPIC_MODEL } from "../lib/anthropic";
 import { transcribe, synthesize, listVoices } from "../lib/elevenlabs";
+import { isSafeForTTS } from "../lib/moderation";
 import {
   DEFAULT_VOICE_IDS,
   getVoiceId,
@@ -496,11 +497,15 @@ router.post("/ask", askLimiter, async (req, res) => {
     let ttsChars = 0;
     if (includeVoice !== false) {
       try {
-        const audio = await synthesize(reply, voiceId, { live: true, speed: getSpeakingSpeed(persona) });
-        audioBase64 = audio.base64;
-        mime = audio.mime;
-        ttsOk = true;
-        ttsChars = reply.length;
+        if (await isSafeForTTS(reply)) {
+          const audio = await synthesize(reply, voiceId, { live: true, speed: getSpeakingSpeed(persona) });
+          audioBase64 = audio.base64;
+          mime = audio.mime;
+          ttsOk = true;
+          ttsChars = reply.length;
+        } else {
+          logger.warn("tts skipped — moderation flagged reply");
+        }
       } catch (ttsErr) {
         logger.error({ err: ttsErr }, "tts failed during ask");
       }
@@ -551,6 +556,11 @@ router.post("/tts", sttTtsLimiter, async (req, res) => {
         : persona
           ? getVoiceId(chosen, lang, cCode)
           : voiceId;
+    if (!(await isSafeForTTS(text.trim()))) {
+      logger.warn("tts request blocked — moderation flagged user-submitted text");
+      res.status(400).json({ error: "Content not suitable for speech synthesis" });
+      return;
+    }
     const audio = await synthesize(text.trim(), voice, { live: false, speed: getSpeakingSpeed(chosen) });
     res.json({ audioBase64: audio.base64, mime: audio.mime });
   } catch (err) {
@@ -633,9 +643,13 @@ router.post("/ask-onboarding", askOnboardingLimiter, async (req, res) => {
     let mime = "audio/mpeg";
     try {
       /* Onboarding = first impression — use high-quality non-live model (eleven_v3) */
-      const audio = await synthesize(reply, voiceId, { live: false, speed: getSpeakingSpeed(persona) });
-      audioBase64 = audio.base64;
-      mime = audio.mime;
+      if (await isSafeForTTS(reply)) {
+        const audio = await synthesize(reply, voiceId, { live: false, speed: getSpeakingSpeed(persona) });
+        audioBase64 = audio.base64;
+        mime = audio.mime;
+      } else {
+        logger.warn("tts skipped — moderation flagged onboarding reply");
+      }
     } catch (ttsErr) {
       logger.error({ err: ttsErr }, "tts failed during ask-onboarding");
     }
