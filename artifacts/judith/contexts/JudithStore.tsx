@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { loadFromICloud, saveToICloud } from "@/lib/icloud-backup";
 import React, {
   createContext,
   useCallback,
@@ -224,40 +225,52 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
     let active = true;
     setHydrated(false);
     setState(DEFAULTS);
+
+    function applyParsed(parsed: Partial<PersistShape>) {
+      if ((parsed.tier as string) === "plus") parsed.tier = "chat";
+      if ((parsed.tier as string) === "unlimited") parsed.tier = "voice";
+      setState({ ...DEFAULTS, ...parsed, toggles: { ...DEFAULTS.toggles, ...(parsed.toggles ?? {}) } });
+    }
+
     AsyncStorage.getItem(storageKey)
-      .then((raw) => {
+      .then(async (raw) => {
         if (!active) return;
         if (raw) {
-          try {
-            const parsed = JSON.parse(raw) as Partial<PersistShape>;
-            // Migrate legacy tier values to new model
-            if ((parsed.tier as string) === "plus") parsed.tier = "chat";
-            if ((parsed.tier as string) === "unlimited") parsed.tier = "voice";
-            // Deep-merge toggles so newly added keys (e.g. voiceReplies) fall back to defaults
-            setState({ ...DEFAULTS, ...parsed, toggles: { ...DEFAULTS.toggles, ...(parsed.toggles ?? {}) } });
-          } catch {
-            /* ignore corrupt */
-          }
+          try { applyParsed(JSON.parse(raw) as Partial<PersistShape>); } catch { /* ignore corrupt */ }
+          setHydrated(true);
+          return;
         }
-        setHydrated(true);
+        // Local storage empty — try restoring from iCloud (fresh install / new build).
+        if (user?.id) {
+          try {
+            const cloud = await loadFromICloud(user.id);
+            if (active && cloud) {
+              applyParsed(cloud as Partial<PersistShape>);
+            }
+          } catch { /* best-effort */ }
+        }
+        if (active) setHydrated(true);
       })
-      .catch(() => setHydrated(true));
+      .catch(() => { if (active) setHydrated(true); });
     return () => {
       active = false;
     };
-  }, [storageKey]);
+  }, [storageKey, user?.id]);
 
   // persist (debounced) — always write to the current user's key
   useEffect(() => {
     if (!hydrated) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      AsyncStorage.setItem(storageKey, JSON.stringify(state)).catch(() => {});
+      const json = JSON.stringify(state);
+      AsyncStorage.setItem(storageKey, json).catch(() => {});
+      // Mirror to iCloud so the backup survives reinstalls and device switches.
+      if (user?.id) saveToICloud(state, user.id).catch(() => {});
     }, 250);
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
-  }, [state, hydrated, storageKey]);
+  }, [state, hydrated, storageKey, user?.id]);
 
   const patch = useCallback((p: Partial<PersistShape>) => {
     setState((s) => ({ ...s, ...p }));

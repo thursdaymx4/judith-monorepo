@@ -16,7 +16,11 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.app.judith",
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "entitlements": {
+        "com.apple.developer.icloud-container-identifiers": ["iCloud.com.app.judith"],
+        "com.apple.developer.ubiquity-container-identifiers": ["iCloud.com.app.judith"]
+      }
     },
     "android": {
       "package": "com.judith.app"
