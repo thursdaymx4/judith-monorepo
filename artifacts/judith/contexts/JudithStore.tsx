@@ -128,7 +128,7 @@ const DEFAULTS: PersistShape = {
   accent: "mint",
   countryCode: DEFAULT_COUNTRY.code,
   currency: DEFAULT_COUNTRY.cur,
-  toggles: { dueReminders: true, widget: true, watch: false, nudges: true, voiceReplies: true },
+  toggles: { dueReminders: true, widget: true, watch: true, nudges: true, voiceReplies: true },
   reduceMotion: false,
   faceIdLock: false,
   onboarded: false,
