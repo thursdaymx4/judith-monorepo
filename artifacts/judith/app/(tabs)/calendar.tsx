@@ -1,23 +1,25 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { Modal, Pressable, View } from "react-native";
+import { Modal, Pressable, ScrollView, View } from "react-native";
 
-import { Icon } from "@/components/Icon";
+import { Icon, type IconName } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import {
   Card,
+  Chip,
   Dot,
   Low,
   mix,
   Mono,
+  Pill,
   ProviderLogo,
   Screen,
   SectionLabel,
   Txt,
   type Urgency,
 } from "@/components/ui";
-import { ccOutstanding, ccProjectedFuture, dueClass, dueShort, isPaidViaCard, totalOwed, type Bill } from "@/constants/data";
+import { CAT_ICONS, ccOutstanding, ccProjectedFuture, dueClass, dueShort, isPaidViaCard, totalOwed, type Bill } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { haptics } from "@/lib/haptics";
@@ -178,6 +180,9 @@ export default function CalendarScreen() {
   const { bills, persona, money, country } = useJudith();
   const [sel, setSel] = useState<number | null>(null);
   const [monthOffset, setMonthOffset] = useState(0);
+  const [sortBy, setSortBy] = useState<"dueDate" | "amount">("dueDate");
+  const [filterCats, setFilterCats] = useState<Set<string>>(new Set());
+  const [showBizOnly, setShowBizOnly] = useState(false);
 
   const todayReal = new Date();
   const viewDate = new Date(todayReal.getFullYear(), todayReal.getMonth() + monthOffset, 1);
@@ -190,8 +195,9 @@ export default function CalendarScreen() {
   const todayDate = isCurrentMonth ? todayReal.getDate() : null;
   const monthShort = MONTHS[monthIndex]!.slice(0, 3);
 
-  const prevMonth = () => { haptics.light(); setSel(null); setMonthOffset((o) => o - 1); };
-  const nextMonth = () => { haptics.light(); setSel(null); setMonthOffset((o) => o + 1); };
+  const resetFilters = () => { setFilterCats(new Set()); setShowBizOnly(false); setSortBy("dueDate"); };
+  const prevMonth = () => { haptics.light(); setSel(null); resetFilters(); setMonthOffset((o) => o - 1); };
+  const nextMonth = () => { haptics.light(); setSel(null); resetFilters(); setMonthOffset((o) => o + 1); };
 
   const viewedPeriodKey = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
   const openBill = (b: Bill) => router.push(`/bill/${b.id}?period=${viewedPeriodKey}`);
@@ -284,13 +290,29 @@ export default function CalendarScreen() {
   // Paid bills in the viewed month (current = paid this cycle; future = paid ahead)
   const agendaPaid = billsForMonth.filter((b) => isPaidInPeriod(b));
 
+  // ── Filter + sort (mirrors Home tab logic) ──────────────────────────
+  const hasBizBills = agendaForMonth.some((b) => b.isBusiness === true);
+  const filteredAgenda = showBizOnly
+    ? agendaForMonth.filter((b) => b.isBusiness === true)
+    : agendaForMonth;
+  const catCounts: Record<string, number> = {};
+  filteredAgenda.forEach((b) => { catCounts[b.cat] = (catCounts[b.cat] ?? 0) + 1; });
+  const cats = Object.keys(catCounts).sort((a, b) => catCounts[b]! - catCounts[a]!);
+  const showFilters = cats.length > 1 || hasBizBills;
+
   // Money totals exclude bills auto-charged to a linked card — their cost is
   // already in the card's statement (counting both would double-count). They
   // still appear in the agenda/day list, tagged "via card".
   const monthTotal = agendaForMonth
     .filter((b) => !isPaidViaCard(b))
     .reduce((s, b) => s + viewedAmt(b), 0);
-  const agenda = agendaForMonth.slice().sort((a, b) => a.dueDate - b.dueDate);
+  const visibleAgenda = filteredAgenda
+    .filter((b) => filterCats.size === 0 || filterCats.has(b.cat))
+    .slice()
+    .sort((a, b) => sortBy === "amount" ? viewedAmt(b) - viewedAmt(a) : a.dueDate - b.dueDate);
+  const visiblePaid = agendaPaid
+    .filter((b) => (!showBizOnly || b.isBusiness === true) && (filterCats.size === 0 || filterCats.has(b.cat)));
+  const agenda = visibleAgenda;
 
   // Calendar dot map keyed by day-of-month
   const byDay: ByDay = {};
@@ -403,11 +425,80 @@ export default function CalendarScreen() {
       </View>
 
       {/* agenda */}
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 18, marginBottom: 10 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 18, marginBottom: showFilters ? 8 : 10 }}>
         <SectionLabel style={{ marginTop: 0, marginBottom: 0 }}>
-          {isFutureMonth ? `Bills in ${MONTHS[monthIndex]}` : "Upcoming"}
+          {showBizOnly && filterCats.size === 0
+            ? "Business"
+            : filterCats.size > 0
+            ? [...filterCats].join(", ")
+            : isFutureMonth
+            ? `Bills in ${MONTHS[monthIndex]}`
+            : "Upcoming"}
         </SectionLabel>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+          {hasBizBills && (
+            <Pressable
+              onPress={() => { haptics.selection(); setShowBizOnly((v) => !v); setFilterCats(new Set()); }}
+              style={{
+                flexDirection: "row", alignItems: "center", gap: 3,
+                paddingVertical: 4, paddingHorizontal: 9, borderRadius: 20, borderWidth: 1,
+                borderColor: showBizOnly ? t.semantic.urgent : t.hair,
+                backgroundColor: showBizOnly ? t.semantic.urgent + "22" : "transparent",
+              }}
+            >
+              <Txt size={11} weight="semibold" color={showBizOnly ? t.semantic.urgent : t.txtMid}>BIZ</Txt>
+            </Pressable>
+          )}
+          <Pressable
+            onPress={() => { haptics.selection(); setSortBy((s) => s === "dueDate" ? "amount" : "dueDate"); }}
+            style={{
+              flexDirection: "row", alignItems: "center", gap: 4,
+              paddingVertical: 4, paddingHorizontal: 9, borderRadius: 20, borderWidth: 1,
+              borderColor: sortBy !== "dueDate" ? t.accent : t.hair,
+              backgroundColor: sortBy !== "dueDate" ? t.accent + "22" : "transparent",
+            }}
+          >
+            <Icon name="sliders" size={11} color={sortBy !== "dueDate" ? t.accent : t.txtMid} />
+            <Txt size={11} color={sortBy !== "dueDate" ? t.accent : t.txtMid}>
+              {sortBy === "amount" ? "Amount" : "Due date"}
+            </Txt>
+          </Pressable>
+          <Pill style={{ paddingVertical: 4, paddingHorizontal: 11 }}>
+            <Txt size={12} color={t.txtMid}>{agendaForMonth.length} bills</Txt>
+          </Pill>
+        </View>
       </View>
+
+      {showFilters && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ marginBottom: 10, marginHorizontal: -4 }}
+          contentContainerStyle={{ paddingHorizontal: 4, gap: 6, flexDirection: "row" }}
+        >
+          <Chip
+            label="All"
+            selected={filterCats.size === 0 && !showBizOnly}
+            onPress={() => { haptics.selection(); setFilterCats(new Set()); setShowBizOnly(false); }}
+          />
+          {cats.map((c) => (
+            <Chip
+              key={c}
+              label={c}
+              icon={(CAT_ICONS[c] ?? "spark") as IconName}
+              selected={filterCats.has(c)}
+              onPress={() => {
+                haptics.selection();
+                setFilterCats((prev) => {
+                  const s = new Set(prev);
+                  s.has(c) ? s.delete(c) : s.add(c);
+                  return s;
+                });
+              }}
+            />
+          ))}
+        </ScrollView>
+      )}
 
       {agenda.length === 0 ? (
         <Card style={{ alignItems: "center", paddingVertical: 26, paddingHorizontal: 16 }}>
@@ -468,11 +559,11 @@ export default function CalendarScreen() {
         </View>
       )}
 
-      {agendaPaid.length > 0 && (
+      {visiblePaid.length > 0 && (
         <View>
           <SectionLabel>{isFutureMonth ? `Paid ahead in ${MONTHS[monthIndex]}` : "Paid this month"}</SectionLabel>
           <View style={{ gap: 9 }}>
-            {agendaPaid.map((b) => (
+            {visiblePaid.map((b) => (
               <CalBillRow key={b.id} bill={b} onPress={() => openBill(b)} amtColor={t.txtLow} money={money} paid monthShort={monthShort}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
                   <Icon name="check" size={12} color={t.txtLow} />
