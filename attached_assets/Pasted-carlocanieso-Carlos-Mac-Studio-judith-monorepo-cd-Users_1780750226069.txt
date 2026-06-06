@@ -1,0 +1,65 @@
+carlocanieso@Carlos-Mac-Studio judith-monorepo % cd /Users/carlocanieso/Judith/judith-monorepo
+git pull origin main
+remote: Enumerating objects: 26, done.
+remote: Counting objects: 100% (26/26), done.
+remote: Compressing objects: 100% (9/9), done.
+remote: Total 19 (delta 10), reused 19 (delta 10), pack-reused 0 (from 0)
+Unpacking objects: 100% (19/19), 3.47 MiB | 2.76 MiB/s, done.
+From https://github.com/thursdaymx4/judith-monorepo
+ * branch            main       -> FETCH_HEAD
+   2f007ce..6a8e043  main       -> origin/main
+Updating 2f007ce..6a8e043
+Fast-forward
+ .../judith-watch/JudithWatchWidget/JudithWatchWidget.swift     |  16 ----
+ artifacts/judith-watch/JudithWatchWidget/WidgetViews.swift     |   3 +-
+ ...arlos-Mac-Studio-judith-Go-back-to-the-re_1780748946008.txt | 105 +++++++++++++++++++++++++++
+ .../Screenshot_2026-06-06_at_8.29.52_PM_1780749000918.png      | Bin 0 -> 753880 bytes
+ .../Screenshot_2026-06-06_at_8.31.05_PM_1780749071019.png      | Bin 0 -> 642769 bytes
+ .../Screenshot_2026-06-06_at_8.32.27_PM_1780749155400.png      | Bin 0 -> 582846 bytes
+ .../Screenshot_2026-06-06_at_8.33.13_PM_1780749199751.png      | Bin 0 -> 781014 bytes
+ .../Screenshot_2026-06-06_at_8.34.32_PM_1780749277716.png      | Bin 0 -> 486490 bytes
+ .../Screenshot_2026-06-06_at_8.35.46_PM_1780749356454.png      | Bin 0 -> 469975 bytes
+ .../Screenshot_2026-06-06_at_8.38.02_PM_1780749488055.png      | Bin 0 -> 110682 bytes
+ 10 files changed, 106 insertions(+), 18 deletions(-)
+ create mode 100644 attached_assets/Pasted-carlocanieso-Carlos-Mac-Studio-judith-Go-back-to-the-re_1780748946008.txt
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_8.29.52_PM_1780749000918.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_8.31.05_PM_1780749071019.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_8.32.27_PM_1780749155400.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_8.33.13_PM_1780749199751.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_8.34.32_PM_1780749277716.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_8.35.46_PM_1780749356454.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_8.38.02_PM_1780749488055.png
+carlocanieso@Carlos-Mac-Studio judith-monorepo % rsync -av --include="*/" --include="*.swift" --exclude="*" \
+  "/Users/carlocanieso/Judith/judith-monorepo/artifacts/judith-watch/JudithWatchWidget/" \
+  "/Users/carlocanieso/Judith/JudithWatch/JudithWatchWidget/"
+Transfer starting: 5 files
+./
+JudithWatchWidget.swift
+WidgetViews.swift
+
+sent 8499 bytes  received 70 bytes  7789999 bytes/sec
+total size is 14823  speedup is 1.73
+carlocanieso@Carlos-Mac-Studio judith-monorepo % cd /Users/carlocanieso/Judith/judith-monorepo && git pull origin main
+remote: Enumerating objects: 15, done.
+remote: Counting objects: 100% (15/15), done.
+remote: Compressing objects: 100% (3/3), done.
+remote: Total 9 (delta 6), reused 9 (delta 6), pack-reused 0 (from 0)
+Unpacking objects: 100% (9/9), 128.16 KiB | 709.00 KiB/s, done.
+From https://github.com/thursdaymx4/judith-monorepo
+ * branch            main       -> FETCH_HEAD
+   6a8e043..ee641d0  main       -> origin/main
+Updating 6a8e043..ee641d0
+error: Your local changes to the following files would be overwritten by merge:
+	artifacts/judith-watch/JudithWatchWidget/WidgetViews.swift
+Please commit your changes or stash them before you merge.
+Aborting
+carlocanieso@Carlos-Mac-Studio judith-monorepo % rsync -av --include="*/" --include="*.swift" --exclude="*" \
+  "/Users/carlocanieso/Judith/judith-monorepo/artifacts/judith-watch/JudithWatchWidget/" \
+  "/Users/carlocanieso/Judith/JudithWatch/JudithWatchWidget/"
+Transfer starting: 5 files
+./
+WidgetViews.swift
+
+sent 8422 bytes  received 48 bytes  7700000 bytes/sec
+total size is 15622  speedup is 1.84
+carlocanieso@Carlos-Mac-Studio judith-monorepo % 

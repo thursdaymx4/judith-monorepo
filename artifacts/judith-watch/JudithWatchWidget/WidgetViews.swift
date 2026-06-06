@@ -1,27 +1,6 @@
 import WidgetKit
 import SwiftUI
 
-// MARK: — Design tokens (self-contained; widget target has no shared Config)
-
-extension Color {
-    static let judithAccent  = Color(hex: "#29d5a5")
-    static let judithOK      = Color(hex: "#56d1a3")
-    static let judithNear    = Color(hex: "#f7b83d")
-    static let wTxtHi        = Color(hex: "#f3f5f8")
-    static let wTxtMid       = Color(hex: "#a7adba")
-    static let wTxtLow       = Color(hex: "#6a7180")
-
-    init(hex: String) {
-        let h = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: h).scanHexInt64(&int)
-        let r = Double((int >> 16) & 0xFF) / 255
-        let g = Double((int >> 8)  & 0xFF) / 255
-        let b = Double(int         & 0xFF) / 255
-        self.init(red: r, green: g, blue: b)
-    }
-}
-
 // MARK: — Complication views (watchOS 9+ accessor families)
 
 struct ComplicationViews: View {
@@ -67,7 +46,7 @@ private struct CircularView: View {
             if let bill = entry.nextBill {
                 Text(bill.provider)
                     .font(.system(.caption2, design: .rounded))
-                    .foregroundStyle(Color.wTxtMid)
+                    .foregroundStyle(Color.txtMid)
             }
         }
     }
@@ -105,11 +84,11 @@ private struct RectangularView: View {
                     .font(.system(size: 9, weight: .black, design: .rounded))
                     .foregroundStyle(Color.judithAccent)
                 Text("·")
-                    .foregroundStyle(Color.wTxtLow)
+                    .foregroundStyle(Color.txtLow)
                     .font(.system(size: 9))
                 Text("NEXT DUE")
                     .font(.system(size: 9, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Color.wTxtLow)
+                    .foregroundStyle(Color.txtLow)
                 Spacer()
                 if let bill = entry.nextBill {
                     Text(bill.dueLabelShort.uppercased())
@@ -122,7 +101,7 @@ private struct RectangularView: View {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text(bill.provider)
                         .font(.system(.body, design: .rounded, weight: .semibold))
-                        .foregroundStyle(Color.wTxtHi)
+                        .foregroundStyle(Color.txtHi)
                         .lineLimit(1)
                     Spacer()
                     Text(bill.amountDisplay(currency: entry.currency))
@@ -132,12 +111,12 @@ private struct RectangularView: View {
                 HStack(spacing: 2) {
                     Text("\(entry.unpaidCount) due")
                         .font(.system(.caption2, design: .rounded))
-                        .foregroundStyle(Color.wTxtMid)
+                        .foregroundStyle(Color.txtMid)
                     Text("·")
-                        .foregroundStyle(Color.wTxtLow)
+                        .foregroundStyle(Color.txtLow)
                     Text("\(entry.currency)\(String(format: "%.0f", entry.totalOwed))")
                         .font(.system(.caption2, design: .monospaced, weight: .medium))
-                        .foregroundStyle(Color.wTxtMid)
+                        .foregroundStyle(Color.txtMid)
                 }
             } else {
                 Text("No unpaid bills")
