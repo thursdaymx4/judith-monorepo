@@ -1,6 +1,6 @@
 ---
 name: Judith Ask reply number formatting
-description: Money amounts in Ask AI replies must be numeric digits, not spelled-out words.
+description: Money amounts in Ask AI replies must be numeric digits, not spelled-out words; negative amounts need special handling for TTS.
 ---
 
 # Ask reply number formatting (digits, not words)
@@ -22,3 +22,26 @@ the model mimicked — the bill data context was already digit-formatted.
 - The spelled-out-number examples in the onboarding bill-PARSE prompt are *user input*
   interpretation, not Judith output — leave them spelled out.
 - normalize.ts amountToWords/intToWords reintroduce spelled-out output; keep unused here.
+
+# Negative amounts (confirmed working — user-approved)
+
+**Problem:** The AI wrote `₱-1,000` (minus sign AFTER the symbol). ElevenLabs read this
+as *"P 1,000"* — silently dropped the sign, no "negative" spoken.
+
+**Two-layer fix (both required):**
+
+1. **System prompt rule (personas.ts NUMBER FORMATTING):** Tell the AI to write deficits
+   as `"negative ₱X,XXX"` — word "negative" BEFORE the currency symbol, not `₱-X,XXX`.
+   Example: `"negative ₱1,000"` not `"₱-1,000"`.
+
+2. **`prepareForTTS` (elevenlabs.ts) regex hardening:** Updated to catch all patterns:
+   - `₱-1,000`  → "negative one thousand pesos"
+   - `-₱1,000`  → "negative one thousand pesos"
+   - `₱1,000`   → "one thousand pesos" (unchanged)
+   Old regex `/₱\s?([\d,]+)/` only matched positive digits.
+
+**Why both layers:** Prompt rule prevents the bad form from being generated; regex is
+the safety net if any `₱-X` slips through (e.g. from context data, not AI output).
+
+**Confirmed correct response pattern (user-approved):**
+> "mga ₱-1,000 ka na!" → spoken as "negative one thousand pesos"
