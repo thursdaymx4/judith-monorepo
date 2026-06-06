@@ -17,6 +17,8 @@ import type { PersonaId } from "@/constants/personas";
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
   }),
@@ -74,12 +76,12 @@ function reminderCopy(
         title: `Heads up — ${bill.provider} 👀`,
         body: `${amt} due ${soon}. Let's not gift them late fees, okay?`,
       };
-    case "sarcastic":
+    case "sib":
       return {
         title: `${bill.provider} — you know what's coming.`,
         body: `${amt} due ${soon}. Pay it before I have to remind you twice.`,
       };
-    case "mom":
+    case "mama":
       return {
         title: `${bill.provider} is due ${soon}`,
         body: `${amt} na lang. Bayaran mo na para wala tayong problema, ha?`,
@@ -106,12 +108,12 @@ function nudgeCopy(persona: PersonaId, bill: Bill, cardName?: string): { title: 
         title: `${bill.provider} is due TODAY 🎯`,
         body: `${amt}. Pay it now so you can forget about it guilt-free.`,
       };
-    case "sarcastic":
+    case "sib":
       return {
         title: `${bill.provider}. Today. Pay it.`,
         body: `${amt}. You knew this was coming.`,
       };
-    case "mom":
+    case "mama":
       return {
         title: `Anak, ${bill.provider} is due today`,
         body: `${amt} lang naman. Huwag mo nang palawigin pa.`,
@@ -274,7 +276,7 @@ export async function syncNotifications(
       const cardName = isPaidViaCard(bill)
         ? bills.find((c) => c.id === bill.parentCardId)?.provider
         : undefined;
-      return scheduleBill(bill, persona, { ...opts, leadDays: 3, cardName });
+      return scheduleBill(bill, persona, { ...opts, leadDays: bill.reminderDays ?? 3, cardName });
     }),
   );
 }
