@@ -164,9 +164,10 @@ const ONBOARDING_BILL_CATS: { id: string; label: string; icon: string; group: nu
   { id: "water",         label: "Water",           icon: "droplet",    group: 0 },
   { id: "internet",      label: "Internet",        icon: "wifi",       group: 0 },
   { id: "mobile",        label: "Mobile",          icon: "smartphone", group: 1 },
-  { id: "streaming",     label: "TV / Streaming",  icon: "spark",      group: 1 },
-  { id: "subscriptions", label: "Subscriptions",   icon: "globe",      group: 1 },
-  { id: "insurance",     label: "Insurance",       icon: "lock",       group: 2 },
+  { id: "streaming",   label: "TV / Streaming",    icon: "spark",      group: 1 },
+  { id: "appsubs",     label: "App subscriptions", icon: "smartphone", group: 1 },
+  { id: "webapps",     label: "Web apps",          icon: "globe",      group: 1 },
+  { id: "insurance",   label: "Insurance",         icon: "lock",       group: 2 },
   { id: "creditcard",    label: "Credit card",     icon: "card",       group: 3 },
   { id: "loan",          label: "Loans",           icon: "wallet",     group: 3 },
 ];
@@ -183,7 +184,8 @@ const CAT_ID_TO_VGROUP: Record<string, number> = {
   internet:      0,
   mobile:        1,
   streaming:     1,
-  subscriptions: 1,
+  appsubs:       1,
+  webapps:       1,
   insurance:     2,
   creditcard:    3,
   loan:          3,
@@ -2114,6 +2116,106 @@ function ScreenBillPicker({ ctx }: { ctx: Ctx }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Subscription mockup — iOS-style list shown on phone-sub ask screen  */
+/* ------------------------------------------------------------------ */
+
+type SubsExample = {
+  name: string; plan: string; renewal: string;
+  priceStr: string; bgColor: string; letter: string;
+};
+
+function nextMonthlyRenewal(dayOfMonth: number): string {
+  const now = new Date();
+  const candidate = new Date(now.getFullYear(), now.getMonth(), dayOfMonth);
+  if (candidate <= now) candidate.setMonth(candidate.getMonth() + 1);
+  return candidate.toLocaleDateString("en-US", { day: "numeric", month: "long" });
+}
+
+function nextAnnualRenewal(month: number, day: number): string {
+  const now = new Date();
+  let year = now.getFullYear();
+  if (new Date(year, month - 1, day) <= now) year += 1;
+  return `${day} ${new Date(year, month - 1, 1).toLocaleDateString("en-US", { month: "long" })} ${year}`;
+}
+
+function getSubsExamples(code: string, cur: string): SubsExample[] {
+  const P: Record<string, [string, string, string]> = {
+    PH: ["549",     "129",    "999"],    MY: ["17.00",  "7.90",   "35.90"],
+    SG: ["14.98",   "9.90",   "4.98"],   ID: ["54,000", "54,990", "99,000"],
+    TH: ["279",     "59",     "999"],    VN: ["260,000","59,000", "99,000"],
+    JP: ["1,590",   "980",    "1,500"],  KR: ["17,000", "10,900", "14,900"],
+    IN: ["649",     "119",    "489"],    HK: ["118",    "68",     "88"],
+    TW: ["390",     "189",    "350"],    CN: ["30",     "11",     "25"],
+    US: ["22.99",   "11.99",  "24.99"],  CA: ["23.99",  "11.99",  "12.99"],
+    MX: ["169",     "99",     "189"],    BR: ["44.90",  "21.90",  "36.90"],
+    AR: ["2,999",   "1,499",  "2,499"],  GB: ["17.99",  "11.99",  "8.99"],
+    IE: ["17.99",   "11.99",  "8.99"],   AU: ["22.99",  "12.99",  "14.99"],
+    NZ: ["19.99",   "12.99",  "14.99"],  DE: ["17.99",  "10.99",  "9.99"],
+    FR: ["17.99",   "10.99",  "9.99"],   ES: ["17.99",  "9.99",   "9.99"],
+    IT: ["17.99",   "10.99",  "9.99"],   NL: ["17.99",  "10.99",  "9.99"],
+    SA: ["29.99",   "19.99",  "24.99"],  AE: ["29.99",  "19.99",  "24.99"],
+    ZA: ["199",     "89.99",  "149"],    NG: ["4,600",  "2,900",  "3,500"],
+    TR: ["149.99",  "69.99",  "99.99"],
+  };
+  const [p1, p2, p3] = P[code] ?? ["17.99", "10.99", "9.99"];
+  return [
+    { name: "Netflix",    plan: "Standard",       renewal: `Renews ${nextMonthlyRenewal(5)}`,    priceStr: `${cur}${p1}`, bgColor: "#E50914", letter: "N" },
+    { name: "Spotify",    plan: "Individual",     renewal: `Renews ${nextMonthlyRenewal(10)}`,   priceStr: `${cur}${p2}`, bgColor: "#1DB954", letter: "S" },
+    { name: "Vocabulary", plan: "Premium Annual", renewal: `Renews ${nextAnnualRenewal(5, 21)}`, priceStr: `${cur}${p3}`, bgColor: "#7C3AED", letter: "V" },
+  ];
+}
+
+function SubsMockup({ countryCode, cur }: { countryCode: string; cur: string }) {
+  const examples = getSubsExamples(countryCode, cur);
+  const scale = useRef(new Animated.Value(0.97)).current;
+  const opa   = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opa,   { toValue: 1, duration: 360, easing: Easing.bezier(0.2, 0.8, 0.2, 1), useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 1, duration: 360, easing: Easing.bezier(0.2, 0.8, 0.2, 1), useNativeDriver: true }),
+    ]).start();
+  }, []);
+  return (
+    <Animated.View style={{ opacity: opa, transform: [{ scale }] }}>
+      <View style={{ borderRadius: 14, overflow: "hidden", backgroundColor: "#F2F2F7", borderWidth: 0.5, borderColor: "rgba(0,0,0,0.13)" }}>
+        {/* iOS-style "Active" header */}
+        <View style={{ paddingHorizontal: 18, paddingTop: 11, paddingBottom: 5, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+          <Txt size={12} weight="semibold" style={{ color: "#6D6D72", textTransform: "uppercase", letterSpacing: 0.7 }}>Active</Txt>
+          <Txt size={12} weight="semibold" style={{ color: "#007AFF" }}>Sort ↑↓</Txt>
+        </View>
+        {/* White grouped list card */}
+        <View style={{ backgroundColor: "#FFFFFF", marginHorizontal: 12, marginBottom: 10, borderRadius: 10, overflow: "hidden" }}>
+          {examples.map((sub, i) => (
+            <View key={sub.name}>
+              {i > 0 && <View style={{ height: 0.5, backgroundColor: "rgba(0,0,0,0.1)", marginLeft: 68 }} />}
+              <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 11, paddingHorizontal: 13 }}>
+                <View style={{ width: 42, height: 42, borderRadius: 9, backgroundColor: sub.bgColor, alignItems: "center", justifyContent: "center" }}>
+                  <Txt size={18} weight="bold" style={{ color: "#FFFFFF" }}>{sub.letter}</Txt>
+                </View>
+                <View style={{ flex: 1, marginLeft: 11 }}>
+                  <Txt size={15} weight="semibold" style={{ color: "#000000", lineHeight: 20 }}>{sub.name}</Txt>
+                  <Txt size={12} style={{ color: "#8E8E93", lineHeight: 17 }}>{sub.plan}</Txt>
+                  <Txt size={12} style={{ color: "#8E8E93", lineHeight: 17 }}>{sub.renewal}</Txt>
+                </View>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+                  <Txt size={15} weight="semibold" style={{ color: "#000000" }}>{sub.priceStr}</Txt>
+                  <Icon name="chev" size={13} color="#C7C7CC" />
+                </View>
+              </View>
+            </View>
+          ))}
+        </View>
+        <View style={{ paddingHorizontal: 18, paddingBottom: 10 }}>
+          <Txt size={11} style={{ color: "#8E8E93", lineHeight: 15 }}>
+            Example only · Expired subscriptions are excluded automatically
+          </Txt>
+        </View>
+      </View>
+    </Animated.View>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Voice bill-add screen                                               */
 /* ------------------------------------------------------------------ */
 
@@ -2738,6 +2840,10 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
               <JudithAvatar persona={persona} size={44} state={mode === "listening" ? "listening" : "speaking"} />
               <JudithLine style={{ flex: 1 }}>{promptText}</JudithLine>
             </View>
+          )}
+          {/* iOS-style mockup — gives users a clear reference for what to screenshot */}
+          {mode === "prompt" && !done && isPhoneSub && screenshotStatus === "idle" && (
+            <SubsMockup countryCode={ctx.country.code} cur={cur} />
           )}
           {/* Inline form — shown directly in prompt for non-phone-sub items */}
           {mode === "prompt" && !done && !isPhoneSub && activeFormCat && (
@@ -3399,12 +3505,13 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                       <Icon name="camera" size={20} color={t.accent} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Txt size={15} weight="semibold">Upload a screenshot</Txt>
+                      <Txt size={15} weight="semibold">Upload your subscriptions screenshot</Txt>
                       <Low size={12}>
                         {Platform.OS === "ios"
                           ? "Settings → [Your Name] → Subscriptions"
                           : "Play Store → Profile → Payments & subscriptions"}
                       </Low>
+                      <Txt size={11} color={t.accent} style={{ marginTop: 3 }}>App Store & Play Store only · web apps are asked separately</Txt>
                     </View>
                     <Icon name="chevron" size={16} color={t.accent} />
                   </View>
