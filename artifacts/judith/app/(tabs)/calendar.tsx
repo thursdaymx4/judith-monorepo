@@ -183,6 +183,7 @@ export default function CalendarScreen() {
   const [sortBy, setSortBy] = useState<"dueDate" | "amount">("dueDate");
   const [filterCats, setFilterCats] = useState<Set<string>>(new Set());
   const [showBizOnly, setShowBizOnly] = useState(false);
+  const [filterBiz, setFilterBiz] = useState<string | null>(null);
 
   const todayReal = new Date();
   const viewDate = new Date(todayReal.getFullYear(), todayReal.getMonth() + monthOffset, 1);
@@ -195,7 +196,7 @@ export default function CalendarScreen() {
   const todayDate = isCurrentMonth ? todayReal.getDate() : null;
   const monthShort = MONTHS[monthIndex]!.slice(0, 3);
 
-  const resetFilters = () => { setFilterCats(new Set()); setShowBizOnly(false); setSortBy("dueDate"); };
+  const resetFilters = () => { setFilterCats(new Set()); setShowBizOnly(false); setFilterBiz(null); setSortBy("dueDate"); };
   const prevMonth = () => { haptics.light(); setSel(null); resetFilters(); setMonthOffset((o) => o - 1); };
   const nextMonth = () => { haptics.light(); setSel(null); resetFilters(); setMonthOffset((o) => o + 1); };
 
@@ -292,8 +293,18 @@ export default function CalendarScreen() {
 
   // ── Filter + sort (mirrors Home tab logic) ──────────────────────────
   const hasBizBills = agendaForMonth.some((b) => b.isBusiness === true);
+  const bizName = (b: Bill) => (b.businessName ?? "").trim();
+  // Distinct named businesses present in the viewed month — drives the sub-filter chips.
+  const monthBizNames = [
+    ...new Set(agendaForMonth.filter((b) => b.isBusiness && bizName(b)).map(bizName)),
+  ].sort((a, b) => a.localeCompare(b));
+  // Auto-heal a stale selection: if the chosen business has no bills in the viewed
+  // month, ignore the filter rather than showing an empty list with no way to clear it.
+  const effectiveBiz = filterBiz && monthBizNames.includes(filterBiz) ? filterBiz : null;
   const filteredAgenda = showBizOnly
-    ? agendaForMonth.filter((b) => b.isBusiness === true)
+    ? agendaForMonth.filter(
+        (b) => b.isBusiness === true && (effectiveBiz === null || bizName(b) === effectiveBiz),
+      )
     : agendaForMonth;
   const catCounts: Record<string, number> = {};
   filteredAgenda.forEach((b) => { catCounts[b.cat] = (catCounts[b.cat] ?? 0) + 1; });
@@ -311,8 +322,13 @@ export default function CalendarScreen() {
     .slice()
     .sort((a, b) => sortBy === "amount" ? viewedAmt(b) - viewedAmt(a) : a.dueDate - b.dueDate);
   const visiblePaid = agendaPaid
-    .filter((b) => (!showBizOnly || b.isBusiness === true) && (filterCats.size === 0 || filterCats.has(b.cat)));
+    .filter((b) => (!showBizOnly || (b.isBusiness === true && (effectiveBiz === null || bizName(b) === effectiveBiz))) && (filterCats.size === 0 || filterCats.has(b.cat)));
   const agenda = visibleAgenda;
+  // Total of the unpaid bills currently shown — surfaced as footer context when a filter
+  // is active. Excludes via-card bills (their cost is in the card's statement).
+  const visibleTotal = visibleAgenda
+    .filter((b) => !isPaidViaCard(b))
+    .reduce((s, b) => s + viewedAmt(b), 0);
 
   // Calendar dot map keyed by day-of-month
   const byDay: ByDay = {};
@@ -438,7 +454,7 @@ export default function CalendarScreen() {
         <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
           {hasBizBills && (
             <Pressable
-              onPress={() => { haptics.selection(); setShowBizOnly((v) => !v); setFilterCats(new Set()); }}
+              onPress={() => { haptics.selection(); setShowBizOnly((v) => { if (v) setFilterBiz(null); return !v; }); setFilterCats(new Set()); }}
               style={{
                 flexDirection: "row", alignItems: "center", gap: 3,
                 paddingVertical: 4, paddingHorizontal: 9, borderRadius: 20, borderWidth: 1,
@@ -479,7 +495,7 @@ export default function CalendarScreen() {
           <Chip
             label="All"
             selected={filterCats.size === 0 && !showBizOnly}
-            onPress={() => { haptics.selection(); setFilterCats(new Set()); setShowBizOnly(false); }}
+            onPress={() => { haptics.selection(); setFilterCats(new Set()); setShowBizOnly(false); setFilterBiz(null); }}
           />
           {cats.map((c) => (
             <Chip
@@ -495,6 +511,31 @@ export default function CalendarScreen() {
                   return s;
                 });
               }}
+            />
+          ))}
+        </ScrollView>
+      )}
+
+      {/* Business sub-filter — only when BIZ is active and 2+ businesses have bills this month */}
+      {showBizOnly && monthBizNames.length > 1 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ marginBottom: 10, marginHorizontal: -4 }}
+          contentContainerStyle={{ paddingHorizontal: 4, gap: 6, flexDirection: "row" }}
+        >
+          <Chip
+            label="All businesses"
+            selected={effectiveBiz === null}
+            onPress={() => { haptics.selection(); setFilterBiz(null); }}
+          />
+          {monthBizNames.map((name) => (
+            <Chip
+              key={name}
+              label={name}
+              icon="wallet"
+              selected={effectiveBiz === name}
+              onPress={() => { haptics.selection(); setFilterBiz((prev) => (prev === name ? null : name)); }}
             />
           ))}
         </ScrollView>
@@ -556,6 +597,18 @@ export default function CalendarScreen() {
               </CalBillRow>
             );
           })}
+        </View>
+      )}
+
+      {(filterCats.size > 0 || showBizOnly) && agenda.length > 0 && (
+        <View style={{ marginTop: 14, alignItems: "center" }}>
+          <Low size={12}>
+            {agenda.length}{" "}
+            {showBizOnly ? "business " : ""}
+            {agenda.length === 1 ? "bill" : "bills"}
+            {filterCats.size > 0 ? ` in ${[...filterCats].join(", ")}` : ""} ·{" "}
+            <Mono size={12} weight="bold" color={t.txtHi}>{money(visibleTotal)}</Mono>
+          </Low>
         </View>
       )}
 
@@ -693,6 +746,13 @@ function CalBillRow({
   const amt = displayAmt ?? bill.amount;
   const baseAmt = carryAmt && carryAmt > 0 ? amt - carryAmt : null;
   const cardName = bills.find((c) => c.id === bill.parentCardId)?.provider ?? "card";
+  // Per-row business identifier — only worth showing when the user juggles 2+ named
+  // businesses (otherwise the BIZ tag alone is enough).
+  const bizLabel = (bill.businessName ?? "").trim();
+  const namedBiz = new Set(
+    bills.filter((b) => b.isBusiness && (b.businessName ?? "").trim()).map((b) => (b.businessName ?? "").trim()),
+  );
+  const showBizName = !!bill.isBusiness && bizLabel.length > 0 && namedBiz.size > 1;
   return (
     <Pressable
       onPress={onPress}
@@ -721,7 +781,12 @@ function CalBillRow({
             </View>
           )}
         </View>
-        {children}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+          {children}
+          {showBizName && (
+            <Txt size={12} weight="medium" color="#6699ff" numberOfLines={1} style={{ flexShrink: 1 }}>· {bizLabel}</Txt>
+          )}
+        </View>
       </View>
       <View style={{ alignItems: "flex-end", gap: 3 }}>
         <Mono size={14} color={isPaidViaCard(bill) && !paid ? t.txtLow : amtColor} style={paid ? { textDecorationLine: "line-through" } : undefined}>{money(amt)}</Mono>

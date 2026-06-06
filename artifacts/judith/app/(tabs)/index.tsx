@@ -265,7 +265,9 @@ export default function HomeScreen() {
     .slice()
     .sort((a, b) => sortBy === "amount" ? totalOwed(b) - totalOwed(a) : a.dueDays - b.dueDays);
   // Total of the bills currently shown — surfaced as context text when a category filter is active.
-  const catTotal = visible.reduce((s, b) => s + remaining(b), 0);
+  // Excludes via-card bills (their cost is in the linked card's statement), matching every
+  // other money SUM in the app so the footer reconciles with the headline totals.
+  const catTotal = visible.filter((b) => !isPaidViaCard(b)).reduce((s, b) => s + remaining(b), 0);
 
   const total = payable.reduce((s, b) => s + remaining(b), 0);
   const week = payable.filter((b) => b.dueDays >= 0 && b.dueDays <= 7);
