@@ -23,3 +23,4 @@
 - [Judith overdue enforcement](judith-overdue-enforcement.md) — soft rule alone fails; requires BOTH ⚠️ OVERDUE ALERT context injection AND explicit forbidden-phrase list; confirmed correct response pattern included.
 - [Judith answer sequencing](judith-answer-sequencing.md) — direct answer to the question MUST be sentence 1; overdue/context goes sentence 2+; ANSWER SEQUENCING rule in SHARED_RULES takes priority over overdue rule.
 - [Judith Home filters](judith-home-filters.md) — Home timeline filters compose category→biz→overdue; heal stale "pick-one" selections by deriving an effective value during render, never via useEffect.
+- [Judith Insights business split](judith-insights-business-split.md) — Personal-vs-Business + BY-BUSINESS share tagSplit (all-bills scope, matches Home biz total NOT tab grand total); color businesses by alphabetical name, not rank.

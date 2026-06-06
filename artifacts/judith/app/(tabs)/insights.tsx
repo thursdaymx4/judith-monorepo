@@ -27,6 +27,9 @@ const MO = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","D
 /** Personal vs Business split colors — fixed palette, independent of brand accent. */
 const PERSONAL_COLOR = "#36acff";
 const BUSINESS_COLOR = "#b394ff";
+/** Per-business palette (violet family, kin to BUSINESS_COLOR) so each business
+ *  reads as "business" while staying distinguishable in the BY BUSINESS chart. */
+const BIZ_PALETTE = ["#b394ff", "#7c6cff", "#c879f0", "#9d7bff", "#d58cff", "#6f8cff", "#b06cff", "#e0a0ff"];
 
 function toPeriodStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -360,9 +363,14 @@ export default function InsightsScreen() {
       (tagF === "all" || (tagF === "business" ? b.isBusiness === true : !b.isBusiness))
     );
     let personal = 0, business = 0;
+    const bizMap: Record<string, number> = {};
     const add = (b: Bill, v: number) => {
       if (v <= 0) return;
-      if (b.isBusiness) business += v; else personal += v;
+      if (b.isBusiness) {
+        business += v;
+        const name = (b.businessName ?? "").trim() || "Other business";
+        bizMap[name] = (bizMap[name] ?? 0) + v;
+      } else personal += v;
     };
     if (!isHistorical) {
       const linkedByCard: Record<string, number> = {};
@@ -388,7 +396,18 @@ export default function InsightsScreen() {
         add(b, Math.max(0, totalDue - (linkedByCard[b.id] ?? 0)));
       });
     }
-    return { personal, business, total: personal + business };
+    // Color by NAME (stable alphabetical index) not rank, so a business keeps its
+    // color even when its spend rank shifts between periods/filters — otherwise
+    // two businesses swapping order would swap colors and defeat comparison.
+    const bizNamesAlpha = Object.keys(bizMap).sort((a, b) => a.localeCompare(b));
+    const businesses = Object.entries(bizMap)
+      .map(([name, value]) => ({
+        name,
+        value,
+        color: BIZ_PALETTE[bizNamesAlpha.indexOf(name) % BIZ_PALETTE.length]!,
+      }))
+      .sort((a, b) => b.value - a.value);
+    return { personal, business, total: personal + business, businesses };
   }, [hasBusiness, bills, houseF, tagF, isHistorical, activePeriods]);
 
   const billedTotalA = useCountUp(billedTotal);
@@ -664,6 +683,29 @@ export default function InsightsScreen() {
                       <Txt size={13} style={{ flex: 1 }}>{row.label}</Txt>
                       <Low size={11}>{Math.round((row.value / tagSplit.total) * 100)}%</Low>
                       <Mono size={12} weight="semibold" style={{ minWidth: 52, textAlign: "right" }}>{money(row.value)}</Mono>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </>
+          )}
+
+          {/* by business — break the business slice apart so 2+ businesses can be compared */}
+          {tagSplit && tagSplit.businesses.length > 1 && tagSplit.business > 0 && (
+            <>
+              <Txt style={sectionLabel}>BY BUSINESS</Txt>
+              <View style={[card, { flexDirection: "row", gap: 16, alignItems: "center" }]}>
+                <Pie
+                  slices={tagSplit.businesses.map(b => ({ value: b.value, color: b.color }))}
+                  size={120}
+                />
+                <View style={{ flex: 1, gap: 11 }}>
+                  {tagSplit.businesses.map(b => (
+                    <View key={b.name} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <View style={{ width: 9, height: 9, borderRadius: 4.5, backgroundColor: b.color, shadowColor: b.color, shadowOpacity: 0.9, shadowRadius: 4, shadowOffset: { width: 0, height: 0 } }} />
+                      <Txt size={13} style={{ flex: 1 }} numberOfLines={1}>{b.name}</Txt>
+                      <Low size={11}>{Math.round((b.value / tagSplit.business) * 100)}%</Low>
+                      <Mono size={12} weight="semibold" style={{ minWidth: 52, textAlign: "right" }}>{money(b.value)}</Mono>
                     </View>
                   ))}
                 </View>
