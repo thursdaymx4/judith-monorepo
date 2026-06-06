@@ -831,7 +831,8 @@ export default function AskModal() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 8, paddingHorizontal: 22, paddingVertical: 10 }}
+          style={{ flexGrow: 0, flexShrink: 0 }}
+          contentContainerStyle={{ gap: 8, paddingHorizontal: 22, paddingVertical: 8, alignItems: "center" }}
           keyboardShouldPersistTaps="handled"
         >
           {getQuickAsks(country.code).map((qa, i) => (
