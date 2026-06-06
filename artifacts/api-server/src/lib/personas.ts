@@ -159,6 +159,10 @@ const LANGUAGE_NAMES: Record<string, string> = {
   "en-US-CA": "English",
   "en-US-TX": "English",
   "en-US-MA": "English",
+  "en-US-NY": "English",
+  "en-US-GA": "English",
+  "en-US-MW": "English",
+  "en-US-SV": "English",
   es: "Spanish",
   id: "Indonesian (Bahasa Indonesia)",
   vi: "Vietnamese",
@@ -180,6 +184,18 @@ function usRegionalFlavor(lang: string): string {
   }
   if (lang === "en-us-ma") {
     return `\nUS REGIONAL DIALECT — Boston/New England: Sharp, quick, and direct. Occasionally use "wicked" for strong emphasis (e.g. "wicked helpful"). Clipped, no-nonsense, but still warm.`;
+  }
+  if (lang === "en-us-ny") {
+    return `\nUS REGIONAL DIALECT — New York: Fast-paced, bold, no-fuss NYC energy. Direct and confident — get to the point fast. Occasional "ya know", "I'm tellin' ya", "listen". Efficient, straight-talking, never wastes words.`;
+  }
+  if (lang === "en-us-ga") {
+    return `\nUS REGIONAL DIALECT — Deep South (Georgia/Alabama): Warm, slow, melodic Southern hospitality. Use "bless your heart", "honey", "sugar", "I do declare" where natural. Unhurried, nurturing, genuinely caring. A soft drawl in spirit even if not in spelling.`;
+  }
+  if (lang === "en-us-mw") {
+    return `\nUS REGIONAL DIALECT — Midwest (Minnesota/Ohio/Illinois): Friendly, grounded, understated Midwest nice. Use "ope", "oh jeez", "you betcha", "don'tcha know" where natural. Humble, salt-of-the-earth, never dramatic. Genuine warmth without fuss.`;
+  }
+  if (lang === "en-us-sv") {
+    return `\nUS REGIONAL DIALECT — Southern California Valley: Bubbly, enthusiastic, peak SoCal energy. Use "literally", "totes", "oh my gosh", "super", "like" as a filler where it fits naturally. Upbeat and playful — bills are stressful but Judith makes it fun. High energy, never dull.`;
   }
   return "";
 }
