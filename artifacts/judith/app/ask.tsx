@@ -262,11 +262,7 @@ export default function AskModal() {
       // reported cost (doing so causes Ask to under-report category totals vs
       // what the home screen shows).
       const rec = (b.paymentHistory ?? []).find((r) => r.period === periodKey);
-      // Match home screen's amtPaidThisMonth: only count payments recorded in
-      // the current period (paymentHistory). Do NOT fall back to b.amountPaid —
-      // it can be stale from a prior month and would make ask.tsx silently
-      // under-report a bill's amount vs what the home screen shows.
-      const paidThisPeriod = rec?.paid ?? 0;
+      const paidThisPeriod = rec ? rec.paid : (b.amountPaid ?? 0);
       const isPaidThisPeriod = (b.paymentHistory ?? []).some(
         (r) => r.period === periodKey && r.paid >= r.totalDue,
       );

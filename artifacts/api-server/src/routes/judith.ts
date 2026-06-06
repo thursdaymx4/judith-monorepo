@@ -298,6 +298,9 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
   // Scoped to this month (isThisMonth) so annual/future bills don't inflate
   // category totals beyond what the home screen shows.
   const catMap = new Map<string, { payable: number; viaCard: number; items: { name: string; amount: number }[] }>();
+  // DEBUG: log Web app bills to trace missing Base 44
+  const webAppBills = bills.filter((b) => b.cat === "Web app");
+  console.log("[catMap debug] Web app bills received:", JSON.stringify(webAppBills.map((b) => ({ provider: b.provider, amount: b.amount, status: b.status, isProjection: b.isProjection, dueDays: b.dueDays, chargedToCard: b.chargedToCard, cardName: b.cardName }))));
   for (const b of bills.filter((b) => isThisMonth(b) && b.status !== "paid")) {
     const cat = b.cat ?? "Other";
     const entry = catMap.get(cat) ?? { payable: 0, viaCard: 0, items: [] };
