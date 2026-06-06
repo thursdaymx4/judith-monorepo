@@ -1,6 +1,27 @@
 import WidgetKit
 import SwiftUI
 
+// MARK: — Design tokens (self-contained so widget target needs no shared Config)
+
+private extension Color {
+    static let judithAccent  = Color(hex: "#29d5a5")
+    static let judithOK      = Color(hex: "#56d1a3")
+    static let judithNear    = Color(hex: "#f7b83d")
+    static let txtHi         = Color(hex: "#f3f5f8")
+    static let txtMid        = Color(hex: "#a7adba")
+    static let txtLow        = Color(hex: "#6a7180")
+
+    init(hex: String) {
+        let h = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: h).scanHexInt64(&int)
+        let r = Double((int >> 16) & 0xFF) / 255
+        let g = Double((int >> 8)  & 0xFF) / 255
+        let b = Double(int         & 0xFF) / 255
+        self.init(red: r, green: g, blue: b)
+    }
+}
+
 // MARK: — Complication views (watchOS 9+ accessor families)
 
 struct ComplicationViews: View {
