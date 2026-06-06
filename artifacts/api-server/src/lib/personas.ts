@@ -1,12 +1,13 @@
 export type PersonaId = "professional" | "funny" | "sarcastic" | "mom" | "marites";
 
 // Judith is female, so every persona uses a distinct, tone-matched female voice.
+// DEFAULT = neutral American English — used for all non-Philippine countries/languages.
 export const DEFAULT_VOICE_IDS: Record<PersonaId, string> = {
   professional: "EXAVITQu4vr4xnSDxMaL", // Sarah — firm, direct, soft and calming
   funny: "NHRgOEwqx5WZNClv5sat", // Chelsea — conversational, bright
   sarcastic: "56AoDkrOh6qfVPDXZ7Pt", // Cassidy — crisp, direct, clear
-  mom: "P1hTNpVDMG973fukK9V2", // Ate Ada — warm, maternal, Filipino/Tagalog
-  marites: "XrExE9yKIg1WjnnlVkGX", // Matilda — warm, bubbly, enthusiastic female; tsismosa energy
+  mom: "oWAxZDx7w5VEj9dCyTzz", // Grace — warm, maternal, American English
+  marites: "XrExE9yKIg1WjnnlVkGX", // Matilda — warm, bubbly, enthusiastic female
 };
 
 /** Filipino/Taglish voice IDs — used when the user's language is "fil". */

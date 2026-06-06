@@ -154,11 +154,13 @@ export function synthesize(
   text: string,
   persona?: PersonaId,
   language?: string,
+  countryCode?: string,
 ): Promise<{ audioBase64: string; mime: string }> {
   return postJson("/tts", {
     text,
     persona: persona ? PERSONA_MAP[persona] : undefined,
     language,
+    countryCode,
   });
 }
 

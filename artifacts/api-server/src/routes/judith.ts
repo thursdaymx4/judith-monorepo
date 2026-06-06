@@ -536,7 +536,7 @@ router.post("/tts", sttTtsLimiter, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
-    const { text, persona, voiceId: bodyVoiceId, language } = req.body ?? {};
+    const { text, persona, voiceId: bodyVoiceId, language, countryCode } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
       res.status(400).json({ error: "text is required" });
       return;
@@ -544,11 +544,12 @@ router.post("/tts", sttTtsLimiter, async (req, res) => {
     const { voiceId, persona: profilePersona } = await loadUserData(user.id);
     const chosen = persona ? coercePersona(persona) : profilePersona;
     const lang = typeof language === "string" ? language : undefined;
+    const cCode = typeof countryCode === "string" && countryCode.trim() ? countryCode.trim() : undefined;
     const voice =
       typeof bodyVoiceId === "string" && bodyVoiceId
         ? bodyVoiceId
         : persona
-          ? getVoiceId(chosen, lang)
+          ? getVoiceId(chosen, lang, cCode)
           : voiceId;
     const audio = await synthesize(text.trim(), voice, { live: false, speed: getSpeakingSpeed(chosen) });
     res.json({ audioBase64: audio.base64, mime: audio.mime });
