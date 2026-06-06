@@ -80,11 +80,11 @@ struct NotificationView: View {
                 }
                 Text("Judith")
                     .font(.system(.caption, design: .rounded, weight: .semibold))
-                    .foregroundStyle(.txtHi)
+                    .foregroundStyle(Color.txtHi)
                 Spacer()
                 Text("now")
                     .font(.system(.caption2))
-                    .foregroundStyle(.txtLow)
+                    .foregroundStyle(Color.txtLow)
             }
             .padding(.horizontal, 12)
             .padding(.top, 10)
@@ -96,7 +96,7 @@ struct NotificationView: View {
                 VStack(spacing: 6) {
                     Text(b.provider)
                         .font(.system(.headline, design: .rounded, weight: .bold))
-                        .foregroundStyle(.txtHi)
+                        .foregroundStyle(Color.txtHi)
                         .multilineTextAlignment(.center)
 
                     Text(b.dueLabel.capitalized)
@@ -106,7 +106,7 @@ struct NotificationView: View {
                     if !b.amountDisplay.isEmpty {
                         Text(b.amountDisplay)
                             .font(.system(size: 28, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.txtHi)
+                            .foregroundStyle(Color.txtHi)
                             .padding(.top, 2)
                     }
                 }
