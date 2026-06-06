@@ -198,8 +198,14 @@ export default function HomeScreen() {
     (b.paymentHistory ?? []).some((r) => r.period === currentPeriodKey && r.paid >= r.totalDue);
   const amtPaidThisMonth = (b: Bill): number => {
     const rec = (b.paymentHistory ?? []).find((r) => r.period === currentPeriodKey);
-    if (rec) return rec.paid;
-    return b.amountPaid ?? 0; // in-progress partial (no history record yet)
+    // Only count a history record as paid-toward-this-cycle when it's a SETTLED
+    // record (paid >= totalDue). A partial or rolled-over record (paid < totalDue)
+    // belongs to a prior, closed balance — its unpaid remainder lives in carryOver,
+    // so treating its `paid` as money on the current cycle wrongly zeroes the row
+    // (home showed ₱0 while the bill detail still showed the full amount due).
+    // The live in-progress partial for an unsettled cycle lives in b.amountPaid.
+    if (rec && rec.paid >= rec.totalDue) return rec.paid;
+    return b.amountPaid ?? 0;
   };
   const ccStatementToday = bills.filter(
     (b) => b.cat === "Credit card" && b.statementDay === todayDay,

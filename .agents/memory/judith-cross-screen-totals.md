@@ -25,3 +25,14 @@ Ask report unpaid ≈ (real unpaid + already-paid-this-month).
 (it sends remaining-as-amount and a corrected paid status); the server's existing
 context-builder math then yields both buckets with no server change. Prefer adding a real
 shared helper over copying the filter/sum into a fourth place.
+
+**Paid-amount-toward-current-cycle invariant:** A `paymentHistory` record only counts as
+money paid on the current cycle when it is SETTLED (`paid >= totalDue`). A partial or
+rolled-over record (`paid < totalDue`) belongs to a closed balance whose unpaid remainder
+is carried into `carryOver`; the live in-progress partial for an open cycle lives in
+`bill.amountPaid`, never in a current-period history record (partials don't write records).
+**Why:** Home once subtracted any record's `paid` from `totalOwed`, so a rolled-over record
+whose `paid` exceeded the new (smaller) `totalOwed` collapsed the row to ₱0 while the bill
+detail still showed the full amount due. **How to apply:** the "amount paid this cycle"
+helper must gate on `paid >= totalDue` and otherwise use `amountPaid` — same rule the bill
+detail uses for its paid/remaining split.
