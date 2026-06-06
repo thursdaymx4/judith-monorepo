@@ -1,0 +1,34 @@
+carlocanieso@Carlos-Mac-Studio judith-monorepo % cd /Users/carlocanieso/Judith/judith-monorepo && git pull origin main
+remote: Enumerating objects: 21, done.
+remote: Counting objects: 100% (21/21), done.
+remote: Compressing objects: 100% (7/7), done.
+remote: Total 14 (delta 7), reused 14 (delta 7), pack-reused 0 (from 0)
+Unpacking objects: 100% (14/14), 1.68 MiB | 1.20 MiB/s, done.
+From https://github.com/thursdaymx4/judith-monorepo
+ * branch            main       -> FETCH_HEAD
+   7050906..54dd305  main       -> origin/main
+Updating 7050906..54dd305
+Fast-forward
+ artifacts/judith-watch/JudithWatch/Models/Bill.swift           |   1 +
+ ...it-import-SwiftUI-MARK-Complication-views_1780750604431.txt | 147 +++++++++++++++++++++++
+ ...it-import-SwiftUI-MARK-Design-tokens-self_1780750455471.txt | 167 +++++++++++++++++++++++++++
+ .../Screenshot_2026-06-06_at_8.53.50_PM_1780750461112.png      | Bin 0 -> 222875 bytes
+ .../Screenshot_2026-06-06_at_8.58.13_PM_1780750702292.png      | Bin 0 -> 913746 bytes
+ .../Screenshot_2026-06-06_at_8.58.42_PM_1780750728972.png      | Bin 0 -> 590084 bytes
+ .../Screenshot_2026-06-06_at_9.01.09_PM_1780750876862.png      | Bin 0 -> 113250 bytes
+ 7 files changed, 315 insertions(+)
+ create mode 100644 attached_assets/Pasted-import-WidgetKit-import-SwiftUI-MARK-Complication-views_1780750604431.txt
+ create mode 100644 attached_assets/Pasted-import-WidgetKit-import-SwiftUI-MARK-Design-tokens-self_1780750455471.txt
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_8.53.50_PM_1780750461112.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_8.58.13_PM_1780750702292.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_8.58.42_PM_1780750728972.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_9.01.09_PM_1780750876862.png
+carlocanieso@Carlos-Mac-Studio judith-monorepo % rsync -av --include="*/" --include="*.swift" --exclude="*" \
+  "/Users/carlocanieso/Judith/judith-monorepo/artifacts/judith-watch/JudithWatch/" \
+  "/Users/carlocanieso/Judith/JudithWatch/JudithWatch Watch App/JudithWatch/"
+Transfer starting: 22 files
+Models/
+Models/Bill.swift
+
+sent 3732 bytes  received 48 bytes  1799999 bytes/sec
+total size is 36236  speedup is 9.59
