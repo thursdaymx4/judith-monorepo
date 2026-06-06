@@ -261,12 +261,13 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
       return `- ${label}: ${curStr(cur, total)} estimated total${estTag} (${count} bill${count === 1 ? "" : "s"}, ${paidCount} paid, ${unpaidCount} upcoming)`;
     });
 
-  const bizUnpaid = payable.filter((b) => b.isBusiness && b.status !== "paid");
+  // Business totals — exclude projections to avoid double-counting recurring bills.
+  const bizUnpaid = payable.filter((b) => b.isBusiness && b.status !== "paid" && !b.isProjection);
   const bizTotal = bizUnpaid.reduce((s, b) => s + (b.amount ?? 0), 0);
 
   // Business bills that are auto-charged to a card — excluded from payment totals
   // but real spending; the user should know the full business cost when they ask.
-  const bizViaCard = viaCard.filter((b) => b.isBusiness);
+  const bizViaCard = viaCard.filter((b) => b.isBusiness && !b.isProjection);
   const bizViaCardTotal = bizViaCard.reduce((s, b) => s + (b.amount ?? 0), 0);
 
   // Per-business breakdown — group all business bills (payable + via-card) by name.
@@ -281,8 +282,10 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
 
   // Per-category totals including via-card (for "how much does X category cost me" answers).
   // Keyed by cat name; splits into payable and viaCard sub-totals.
+  // Projections (isProjection=true) are excluded — they are next-month estimates and must
+  // NOT be summed into the current-month category totals (would double-count every recurring bill).
   const catMap = new Map<string, { payable: number; viaCard: number; names: string[] }>();
-  for (const b of bills) {
+  for (const b of bills.filter((b) => !b.isProjection)) {
     const cat = b.cat ?? "Other";
     const entry = catMap.get(cat) ?? { payable: 0, viaCard: 0, names: [] };
     if (isViaCard(b)) {

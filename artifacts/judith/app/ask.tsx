@@ -29,6 +29,14 @@ import { sttHint, isFilipino } from "@/constants/languages";
  * like "(beep)", "(footsteps thudding)", "[laughter]", etc., then checks whether
  * any letter/digit characters remain. Discarding these prevents sending noise to Judith.
  */
+function withAlpha(hex: string, a: number): string {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
 function isNoiseTranscript(text: string): boolean {
   const stripped = text.replace(/\([^)]*\)|\[[^\]]*\]/g, "").trim();
   return (stripped.match(/[\p{L}\p{N}]/gu) ?? []).length < 2;
@@ -246,25 +254,29 @@ export default function AskModal() {
       const cardName = b.chargedToCard && b.parentCardId
         ? (bills.find((c) => c.id === b.parentCardId)?.provider ?? null)
         : null;
-      // Send the REMAINING balance for the current cycle (full statement minus
-      // anything already paid this period), and mark a bill fully paid THIS
-      // period as "paid". b.status alone is unreliable: after a payment it
-      // advances to the next cycle, so an already-paid bill would look unpaid and
-      // be re-counted at its full amount — that's what inflated Judith's totals
-      // above the home/calendar figures. Mirrors the home screen's `remaining()`.
+      // For PAYABLE bills: send the remaining balance (full amount minus what's
+      // already been paid this period). Mirrors the home screen's remaining().
+      // For VIA-CARD bills: always send the full cost — their payment flows
+      // through the parent CC statement, not as a direct payment on this bill,
+      // so amountPaid on the child bill is meaningless and must not reduce the
+      // reported cost (doing so causes Ask to under-report category totals vs
+      // what the home screen shows).
       const rec = (b.paymentHistory ?? []).find((r) => r.period === periodKey);
       const paidThisPeriod = rec ? rec.paid : (b.amountPaid ?? 0);
       const isPaidThisPeriod = (b.paymentHistory ?? []).some(
         (r) => r.period === periodKey && r.paid >= r.totalDue,
       );
-      const remaining = Math.max(0, totalOwed(b) - paidThisPeriod);
+      const isResolvedViaCard = !!cardName;
+      const amount = isResolvedViaCard
+        ? totalOwed(b)
+        : Math.max(0, totalOwed(b) - paidThisPeriod);
       return {
         provider: b.provider,
         cat: b.cat,
-        amount: remaining,
+        amount,
         dueDays,
         dueLabel,
-        status: isPaidThisPeriod ? "paid" : b.status,
+        status: isResolvedViaCard ? b.status : (isPaidThisPeriod ? "paid" : b.status),
         dueMonth,
         isBusiness: b.isBusiness,
         businessName: b.businessName,
