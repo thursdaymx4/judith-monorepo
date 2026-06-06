@@ -1,15 +1,14 @@
 import WidgetKit
 import SwiftUI
+// MARK: — Design tokens (self-contained so widget target needs no shared Config)
 
-// MARK: — Design tokens (self-contained; widget target has no shared Config)
-
-extension Color {
+private extension Color {
     static let judithAccent  = Color(hex: "#29d5a5")
     static let judithOK      = Color(hex: "#56d1a3")
     static let judithNear    = Color(hex: "#f7b83d")
-    static let wTxtHi        = Color(hex: "#f3f5f8")
-    static let wTxtMid       = Color(hex: "#a7adba")
-    static let wTxtLow       = Color(hex: "#6a7180")
+    static let txtHi         = Color(hex: "#f3f5f8")
+    static let txtMid        = Color(hex: "#a7adba")
+    static let txtLow        = Color(hex: "#6a7180")
 
     init(hex: String) {
         let h = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
@@ -21,7 +20,6 @@ extension Color {
         self.init(red: r, green: g, blue: b)
     }
 }
-
 // MARK: — Complication views (watchOS 9+ accessor families)
 
 struct ComplicationViews: View {
@@ -60,14 +58,14 @@ private struct CircularView: View {
             } else {
                 Image(systemName: "checkmark.circle")
                     .font(.system(.body, weight: .medium))
-                    .foregroundStyle(Color.judithAccent)
+                    .foregroundStyle(.judithAccent)
             }
         }
         .widgetLabel {
             if let bill = entry.nextBill {
                 Text(bill.provider)
                     .font(.system(.caption2, design: .rounded))
-                    .foregroundStyle(Color.wTxtMid)
+                    .foregroundStyle(.txtMid)
             }
         }
     }
@@ -82,7 +80,7 @@ private struct CornerView: View {
         ZStack {
             Image(systemName: "calendar.badge.exclamationmark")
                 .font(.system(.title3))
-                .foregroundStyle(Color.judithAccent)
+                .foregroundStyle(.judithAccent)
         }
         .widgetLabel {
             let count = entry.unpaidCount
@@ -103,13 +101,13 @@ private struct RectangularView: View {
             HStack(spacing: 4) {
                 Text("JUDITH")
                     .font(.system(size: 9, weight: .black, design: .rounded))
-                    .foregroundStyle(Color.judithAccent)
+                    .foregroundStyle(.judithAccent)
                 Text("·")
-                    .foregroundStyle(Color.wTxtLow)
+                    .foregroundStyle(.txtLow)
                     .font(.system(size: 9))
                 Text("NEXT DUE")
                     .font(.system(size: 9, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Color.wTxtLow)
+                    .foregroundStyle(.txtLow)
                 Spacer()
                 if let bill = entry.nextBill {
                     Text(bill.dueLabelShort.uppercased())
@@ -122,7 +120,7 @@ private struct RectangularView: View {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text(bill.provider)
                         .font(.system(.body, design: .rounded, weight: .semibold))
-                        .foregroundStyle(Color.wTxtHi)
+                        .foregroundStyle(.txtHi)
                         .lineLimit(1)
                     Spacer()
                     Text(bill.amountDisplay(currency: entry.currency))
@@ -132,17 +130,17 @@ private struct RectangularView: View {
                 HStack(spacing: 2) {
                     Text("\(entry.unpaidCount) due")
                         .font(.system(.caption2, design: .rounded))
-                        .foregroundStyle(Color.wTxtMid)
+                        .foregroundStyle(.txtMid)
                     Text("·")
-                        .foregroundStyle(Color.wTxtLow)
+                        .foregroundStyle(.txtLow)
                     Text("\(entry.currency)\(String(format: "%.0f", entry.totalOwed))")
                         .font(.system(.caption2, design: .monospaced, weight: .medium))
-                        .foregroundStyle(Color.wTxtMid)
+                        .foregroundStyle(.txtMid)
                 }
             } else {
                 Text("No unpaid bills")
                     .font(.system(.footnote, design: .rounded))
-                    .foregroundStyle(Color.judithAccent)
+                    .foregroundStyle(.judithAccent)
             }
         }
         .padding(4)
@@ -163,5 +161,62 @@ private struct InlineView: View {
         } else {
             Label("No bills due", systemImage: "checkmark.circle")
         }
+    }
+}
+
+// MARK: — Smart Stack: rises in stack as due date nears
+
+struct SmartStackView: View {
+    let entry: JudithEntry
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 4) {
+                Text("JUDITH")
+                    .font(.system(size: 10, weight: .black, design: .rounded))
+                    .foregroundStyle(.judithAccent)
+                Spacer()
+                if let bill = entry.nextBill {
+                    Circle()
+                        .fill(bill.urgency.color)
+                        .frame(width: 6, height: 6)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.top, 12)
+
+            Spacer()
+
+            if let bill = entry.nextBill {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(bill.provider)
+                        .font(.system(.headline, design: .rounded, weight: .bold))
+                        .foregroundStyle(.txtHi)
+                        .lineLimit(1)
+                    Text(bill.amountDisplay(currency: entry.currency))
+                        .font(.system(.title3, design: .monospaced, weight: .bold))
+                        .foregroundStyle(.txtHi)
+                    Text("due \(bill.dueLabelShort.lowercased()) · tap to pay")
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(bill.urgency.color)
+                }
+                .padding(.horizontal, 14)
+            } else {
+                VStack(alignment: .leading, spacing: 2) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.judithAccent)
+                        .font(.title3)
+                    Text("All paid up")
+                        .font(.system(.footnote, design: .rounded, weight: .semibold))
+                        .foregroundStyle(.txtHi)
+                }
+                .padding(.horizontal, 14)
+            }
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.black)
+        .containerBackground(Color.black, for: .widget)
     }
 }
