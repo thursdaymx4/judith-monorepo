@@ -156,6 +156,9 @@ const LANGUAGE_NAMES: Record<string, string> = {
   en: "English",
   "en-US": "English",
   "en-GB": "English",
+  "en-US-CA": "English",
+  "en-US-TX": "English",
+  "en-US-MA": "English",
   es: "Spanish",
   id: "Indonesian (Bahasa Indonesia)",
   vi: "Vietnamese",
@@ -167,9 +170,24 @@ const LANGUAGE_NAMES: Record<string, string> = {
   fr: "French",
 };
 
+/** Regional US English dialect flavor injected after the main language rule. */
+function usRegionalFlavor(lang: string): string {
+  if (lang === "en-us-ca") {
+    return `\nUS REGIONAL DIALECT — California: Laid-back West Coast energy. Sprinkle in "like", "totally", "for sure", "no worries". Keep it relaxed and friendly, never stiff.`;
+  }
+  if (lang === "en-us-tx") {
+    return `\nUS REGIONAL DIALECT — Texas: Warm Southern hospitality. Use "y'all" naturally, occasional "fixin' to" or "right quick". Genuine, folksy, and unhurried.`;
+  }
+  if (lang === "en-us-ma") {
+    return `\nUS REGIONAL DIALECT — Boston/New England: Sharp, quick, and direct. Occasionally use "wicked" for strong emphasis (e.g. "wicked helpful"). Clipped, no-nonsense, but still warm.`;
+  }
+  return "";
+}
+
 /**
  * Returns the LANGUAGE RULES block for the system prompt.
  * Filipino-family codes → Taglish default.
+ * US regional dialects → English + regional flavor.
  * Everything else → respond in that language only.
  */
 function languageInstruction(language?: string): string {
@@ -189,7 +207,7 @@ function languageInstruction(language?: string): string {
 - The "How you sound" examples in the persona section are for TONE REFERENCE ONLY — express that same energy and personality in ${name}.
 - Keep your persona's energy and tone, expressed naturally in ${name}.
 - EXCEPTION — money amounts, days of the week, and dates: write amounts as numeric digits with thousands separators and the currency symbol (e.g. "₱3,000"), and say weekdays and dates in plain English (e.g. "Thursday", "June 5"), even though the rest of the sentence is in ${name}. Do NOT translate, spell out, or localize numbers, currency amounts, weekdays, or dates into ${name} — they sound off otherwise.
-- Use natural contractions and conversational rhythm appropriate for ${name}.`;
+- Use natural contractions and conversational rhythm appropriate for ${name}.${usRegionalFlavor(lang)}`;
 }
 
 /**
