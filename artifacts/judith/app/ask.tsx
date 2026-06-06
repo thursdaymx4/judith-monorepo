@@ -126,6 +126,9 @@ export default function AskModal() {
   const [recording, setRecording] = useState(false);
   const [err, setErr] = useState("");
   const scrollRef = useRef<ScrollView>(null);
+  // Track whether we've done the initial jump-to-bottom on open; after that,
+  // scroll is driven by the per-message requestAnimationFrame calls below.
+  const hasInitialScrolled = useRef(false);
 
   const vadIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const silenceRef = useRef<{ timer: ReturnType<typeof setTimeout> | null; hasSpeech: boolean }>({ timer: null, hasSpeech: false });
@@ -792,6 +795,12 @@ export default function AskModal() {
             paddingHorizontal: 22,
             paddingVertical: 12,
             gap: 11,
+          }}
+          onContentSizeChange={() => {
+            if (!hasInitialScrolled.current) {
+              hasInitialScrolled.current = true;
+              scrollRef.current?.scrollToEnd({ animated: false });
+            }
           }}
         >
           {messages.map((m, i) =>
