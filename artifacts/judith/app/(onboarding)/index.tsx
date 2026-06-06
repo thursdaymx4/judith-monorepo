@@ -2242,7 +2242,6 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     if (silenceRef.current.timer !== null) { clearTimeout(silenceRef.current.timer); silenceRef.current.timer = null; }
   };
 
-  const [mode, setMode] = useState<VMode>("count");
   const [idx, setIdx] = useState(0);
   const [heardText, setHeardText] = useState("");
   const [err, setErr] = useState("");
@@ -2263,6 +2262,9 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     return [...new Set([...fromOnb, ...fromStore])];
   }, [bills, storeBills]);
   const [phase, setPhase] = useState<"scripted" | "cards" | "loans">(() => skipCards ? "scripted" : "cards");
+  // When starting in scripted phase (no cards/loans selected), begin at "prompt"
+  // so the first bill type is shown immediately. "count" is only for card/loan phases.
+  const [mode, setMode] = useState<VMode>(() => skipCards ? "prompt" : "count");
   const [breatherGroup, setBreatherGroup] = useState(0);
   const [cardN, setCardN] = useState(0);
   const [cardDone, setCardDone] = useState(0);

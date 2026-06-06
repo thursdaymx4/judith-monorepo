@@ -1,0 +1,40 @@
+Starting the submit process
+Downloading archive
+Preparing artifact
+Verifying archive
+Creating ascApiJsonKey.json file with ASC credentials
+Submitting iOS app to TestFlight...
+Submitting the app with fastlane pilot
+-------------------
+--- Step: pilot ---
+-------------------
+Creating authorization token for App Store Connect API
+Ready to upload new build to TestFlight (App: 6775909544)...
+Going to upload updated app to App Store Connect
+This might take a few minutes. Please don't interrupt the script.
+[altool] 2026-06-06 10:41:02.480 *** Error: Validation failed Missing Info.plist value. A value for the Info.plist key 'CFBundleIconName' is missing in the bundle 'com.app.judith.watchkitapp'. Apps built with iOS 11 or later SDK must supply app icons in an asset catalog and must also provide a value for this Info.plist key. For more information see http://help.apple.com/xcode/mac/current/#/dev10510b1f7. (ID: 73f91c3d-cbe9-43d7-b696-74dca1adc610) (409)
+[altool]  {
+[altool]     NSLocalizedDescription = "Validation failed";
+[altool]     NSLocalizedFailureReason = "Missing Info.plist value. A value for the Info.plist key 'CFBundleIconName' is missing in the bundle 'com.app.judith.watchkitapp'. Apps built with iOS 11 or later SDK must supply app icons in an asset catalog and must also provide a value for this Info.plist key. For more information see http://help.apple.com/xcode/mac/current/#/dev10510b1f7. (ID: 73f91c3d-cbe9-43d7-b696-74dca1adc610)";
+[altool]     NSUnderlyingError = "Error Domain=IrisAPI Code=-19241 \"Validation failed\" UserInfo={status=409, detail=Missing Info.plist value. A value for the Info.plist key 'CFBundleIconName' is missing in the bundle 'com.app.judith.watchkitapp'. Apps built with iOS 11 or later SDK must supply app icons in an asset catalog and must also provide a value for this Info.plist key. For more information see http://help.apple.com/xcode/mac/current/#/dev10510b1f7., id=73f91c3d-cbe9-43d7-b696-74dca1adc610, code=STATE_ERROR.VALIDATION_ERROR, title=Validation failed, NSLocalizedFailureReason=Missing Info.plist value. A value for the Info.plist key 'CFBundleIconName' is missing in the bundle 'com.app.judith.watchkitapp'. Apps built with iOS 11 or later SDK must supply app icons in an asset catalog and must also provide a value for this Info.plist key. For more information see http://help.apple.com/xcode/mac/current/#/dev10510b1f7., NSLocalizedDescription=Validation failed}";
+[altool]     "iris-code" = "STATE_ERROR.VALIDATION_ERROR";
+[altool] }
+Application Loader output above ^
+[ContentDelivery.Uploader.60000256C140] Validation failed (409) Missing Icons. No icons found for watch application 'Judith.app/Watch/JudithWatch.app'. Make sure that its Info.plist file includes entries for CFBundleIconFiles. (ID: 11918a94-fa99-41f9-8a69-991c1894407b)
+[ContentDelivery.Uploader.60000256C140] Validation failed (409) Missing Info.plist value. A value for the Info.plist key 'CFBundleIconName' is missing in the bundle 'com.app.judith.watchkitapp'. Apps built with iOS 11 or later SDK must supply app icons in an asset catalog and must also provide a value for this Info.plist key. For more information see http://help.apple.com/xcode/mac/current/#/dev10510b1f7. (ID: 73f91c3d-cbe9-43d7-b696-74dca1adc610)
+Error uploading '/var/folders/m1/8_w9962s3b79dqm00nnlm85m0000gn/T/267255e1-2fe6-44b4-b11f-2b808c3e58bf.ipa'.
+Validation failed Missing Icons. No icons found for watch application 'Judith.app/Watch/JudithWatch.app'. Make sure that its Info.plist file includes entries for CFBundleIconFiles. (ID: 11918a94-fa99-41f9-8a69-991c1894407b) (409)
+Validation failed Missing Info.plist value. A value for the Info.plist key 'CFBundleIconName' is missing in the bundle 'com.app.judith.watchkitapp'. Apps built with iOS 11 or later SDK must supply app icons in an asset catalog and must also provide a value for this Info.plist key. For more information see http://help.apple.com/xcode/mac/current/#/dev10510b1f7. (ID: 73f91c3d-cbe9-43d7-b696-74dca1adc610) (409)
+The call to the altool completed with a non-zero exit status: 1. This indicates a failure.
+Could not download/upload from App Store Connect!
+[!] Error uploading ipa file: 
+ [Application Loader Error Output]: [ContentDelivery.Uploader.60000256C140] Validation failed (409) Missing Icons. No icons found for watch application 'Judith.app/Watch/JudithWatch.app'. Make sure that its Info.plist file includes entries for CFBundleIconFiles. (ID: 11918a94-fa99-41f9-8a69-991c1894407b)
+[Application Loader Error Output]: [ContentDelivery.Uploader.60000256C140] Validation failed (409) Missing Info.plist value. A value for the Info.plist key 'CFBundleIconName' is missing in the bundle 'com.app.judith.watchkitapp'. Apps built with iOS 11 or later SDK must supply app icons in an asset catalog and must also provide a value for this Info.plist key. For more information see http://help.apple.com/xcode/mac/current/#/dev10510b1f7. (ID: 73f91c3d-cbe9-43d7-b696-74dca1adc610)
+[Application Loader Error Output]: Error uploading '/var/folders/m1/8_w9962s3b79dqm00nnlm85m0000gn/T/267255e1-2fe6-44b4-b11f-2b808c3e58bf.ipa'.
+[Application Loader Error Output]: Validation failed Missing Icons. No icons found for watch application 'Judith.app/Watch/JudithWatch.app'. Make sure that its Info.plist file includes entries for CFBundleIconFiles. (ID: 11918a94-fa99-41f9-8a69-991c1894407b) (409)
+[Application Loader Error Output]: Validation failed Missing Info.plist value. A value for the Info.plist key 'CFBundleIconName' is missing in the bundle 'com.app.judith.watchkitapp'. Apps built with iOS 11 or later SDK must supply app icons in an asset catalog and must also provide a value for this Info.plist key. For more information see http://help.apple.com/xcode/mac/current/#/dev10510b1f7. (ID: 73f91c3d-cbe9-43d7-b696-74dca1adc610) (409)
+[Application Loader Error Output]: The call to the altool completed with a non-zero exit status: 1. This indicates a failure.
+Fastlane pilot failed
+We couldn't figure out what went wrong. See logs to learn more.
+
+Failed to submit the app to the store
