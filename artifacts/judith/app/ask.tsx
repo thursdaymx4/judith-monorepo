@@ -67,7 +67,7 @@ export default function AskModal() {
   const t = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { bills, asksLeft, tier, persona, language, country, monthlyIncome, incomeByMonth, consumeAsk, canUseVoice, saveBill, showToast, toggles, setToggle, askHistory, setAskHistory, clearAskHistory, hydrated } = useJudith();
+  const { bills, asksLeft, tier, persona, language, country, currency, monthlyIncome, incomeByMonth, consumeAsk, canUseVoice, saveBill, showToast, toggles, setToggle, askHistory, setAskHistory, clearAskHistory, hydrated } = useJudith();
   // Voice tier can mute spoken replies (e.g. in public) and get text-only answers.
   const speakAloud = toggles.voiceReplies;
   const voiceTier = tier === "voice";
@@ -376,7 +376,7 @@ export default function AskModal() {
       const cards = unpaid.filter((b) => b.cat === "Credit card");
       if (cards.length === 0) return "No unpaid credit card bills right now.";
       const total = cards.reduce((s, b) => s + totalOwed(b), 0);
-      return `You have ${cards.length} credit card ${cards.length === 1 ? "bill" : "bills"} totaling ${country.cur}${Math.round(total).toLocaleString("en-US")} unpaid.`;
+      return `You have ${cards.length} credit card ${cards.length === 1 ? "bill" : "bills"} totaling ${currency}${Math.round(total).toLocaleString("en-US")} unpaid.`;
     }
 
     // Overdue query
@@ -384,7 +384,7 @@ export default function AskModal() {
       const overdue = unpaid.filter((b) => (currentCycleDue(b, now).dueDays) < 0);
       if (overdue.length === 0) return "No overdue bills — you're all caught up!";
       const total = overdue.reduce((s, b) => s + totalOwed(b), 0);
-      return `You have ${overdue.length} overdue ${overdue.length === 1 ? "bill" : "bills"} totaling ${country.cur}${Math.round(total).toLocaleString("en-US")}.`;
+      return `You have ${overdue.length} overdue ${overdue.length === 1 ? "bill" : "bills"} totaling ${currency}${Math.round(total).toLocaleString("en-US")}.`;
     }
 
     // This-week query
@@ -395,7 +395,7 @@ export default function AskModal() {
       });
       if (thisWeek.length === 0) return "Nothing new due this week.";
       const total = thisWeek.reduce((s, b) => s + totalOwed(b), 0);
-      return `${thisWeek.length} ${thisWeek.length === 1 ? "bill" : "bills"} due this week — ${country.cur}${Math.round(total).toLocaleString("en-US")} total.`;
+      return `${thisWeek.length} ${thisWeek.length === 1 ? "bill" : "bills"} due this week — ${currency}${Math.round(total).toLocaleString("en-US")} total.`;
     }
 
     // Monthly total query
@@ -406,7 +406,7 @@ export default function AskModal() {
       });
       if (monthBills.length === 0) return "No bills due this month.";
       const total = monthBills.reduce((s, b) => s + totalOwed(b), 0);
-      return `${monthBills.length} ${monthBills.length === 1 ? "bill" : "bills"} this month — ${country.cur}${Math.round(total).toLocaleString("en-US")} total.`;
+      return `${monthBills.length} ${monthBills.length === 1 ? "bill" : "bills"} this month — ${currency}${Math.round(total).toLocaleString("en-US")} total.`;
     }
 
     // Default: next upcoming bill
@@ -414,7 +414,7 @@ export default function AskModal() {
       .map((b) => ({ b, occ: nextOccurrence(b, now) }))
       .sort((a, b) => a.occ.dueDays - b.occ.dueDays)[0];
     return next
-      ? `Your next bill is ${next.b.provider} — ${country.cur}${Math.round(next.b.amount).toLocaleString("en-US")}, due ${next.occ.dueLabel}.`
+      ? `Your next bill is ${next.b.provider} — ${currency}${Math.round(next.b.amount).toLocaleString("en-US")}, due ${next.occ.dueLabel}.`
       : "You're all caught up — nothing due right now.";
   };
 
@@ -448,7 +448,7 @@ export default function AskModal() {
       // Speak aloud only when the user hasn't muted replies (voice tier) — saves TTS cost and stays silent in public.
       // The mute only applies to the voice tier; other tiers (e.g. free with asks left) are unaffected.
       const wantVoice = canUseVoice() && (!voiceTier || speakAloud);
-      const { reply, audioBase64, action } = await askJudith(q, askBills(), persona, language, wantVoice, country.cur, country.name, monthlyIncome, country.code, Object.keys(incomeByMonth).length > 0 ? incomeByMonth : undefined);
+      const { reply, audioBase64, action } = await askJudith(q, askBills(), persona, language, wantVoice, currency, country.name, monthlyIncome, country.code, Object.keys(incomeByMonth).length > 0 ? incomeByMonth : undefined);
       const finalReply = reply?.trim() || await fallbackWithDelay(q);
       appendAndPersist({ role: "judith", text: finalReply });
       if (audioBase64) {
