@@ -63,14 +63,39 @@ function throwIfRateLimited(res: Response) {
   }
 }
 
+/**
+ * Thrown when a request is aborted because it exceeded its timeout, so the UI
+ * can show a "took too long — tap to retry" message instead of hanging forever.
+ */
+export class TimeoutError extends Error {
+  constructor() {
+    super("request_timed_out");
+    this.name = "TimeoutError";
+  }
+}
 
-async function postJson<T>(path: string, body: unknown): Promise<T> {
+async function postJson<T>(path: string, body: unknown, timeoutMs?: number): Promise<T> {
   const headers = await authHeader();
-  const res = await fetch(`${BASE}${path}`, {
-    method: "POST",
-    headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  const controller = timeoutMs != null ? new AbortController() : null;
+  const timer =
+    controller != null ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller?.signal,
+    });
+  } catch (e) {
+    // An AbortError means our timeout fired; surface it as a typed TimeoutError.
+    if (controller?.signal.aborted || (e as Error)?.name === "AbortError") {
+      throw new TimeoutError();
+    }
+    throw e;
+  } finally {
+    if (timer != null) clearTimeout(timer);
+  }
   throwIfRateLimited(res);
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
@@ -147,7 +172,7 @@ export function askJudith(
     countryCode,
     monthlyIncome,
     incomeByMonth,
-  });
+  }, 45_000); // never let the chat hang forever — abort + surface a retry after 45s
 }
 
 export function synthesize(

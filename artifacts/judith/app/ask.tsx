@@ -20,7 +20,7 @@ import { getPersona } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { fileToBase64, playBase64Mp3 } from "@/lib/audio";
-import { type AddBillAction, type AskBill, askJudith, parseSubscriptionScreenshot, transcribe, RateLimitError } from "@/lib/proxy";
+import { type AddBillAction, type AskBill, askJudith, parseSubscriptionScreenshot, transcribe, RateLimitError, TimeoutError } from "@/lib/proxy";
 import { sttHint, isFilipino } from "@/constants/languages";
 
 /**
@@ -75,7 +75,7 @@ export default function AskModal() {
   const t = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { bills, asksLeft, tier, persona, language, country, currency, monthlyIncome, incomeByMonth, consumeAsk, canUseVoice, saveBill, showToast, toggles, setToggle, askHistory, setAskHistory, clearAskHistory, hydrated } = useJudith();
+  const { bills, asksLeft, tier, persona, language, country, currency, monthlyIncome, incomeByMonth, consumeAsk, addAsks, canUseVoice, saveBill, showToast, toggles, setToggle, askHistory, setAskHistory, clearAskHistory, hydrated } = useJudith();
   // Voice tier can mute spoken replies (e.g. in public) and get text-only answers.
   const speakAloud = toggles.voiceReplies;
   const voiceTier = tier === "voice";
@@ -125,6 +125,8 @@ export default function AskModal() {
   const [busy, setBusy] = useState(false);
   const [recording, setRecording] = useState(false);
   const [err, setErr] = useState("");
+  // The last question that failed (timeout / connection) — drives the Retry button.
+  const [lastFailedQ, setLastFailedQ] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   // Track whether we've done the initial jump-to-bottom on open; after that,
   // scroll is driven by the per-message requestAnimationFrame calls below.
@@ -457,11 +459,15 @@ export default function AskModal() {
       router.push("/plans");
       return;
     }
+    // Honor an active rate-limit cooldown for ALL entry points (Retry button and
+    // quick-ask chips included), not just the disabled text input / mic.
+    if (rateLimitSecs > 0) return;
     // 1-second minimum cooldown between successive asks (client-side guard)
     const now = Date.now();
     if (now - lastAskRef.current < 1000) return;
     lastAskRef.current = now;
     setErr("");
+    setLastFailedQ(null);
     setInput("");
     appendAndPersist({ role: "user", text: q });
     if (!isPaid) consumeAsk();
@@ -485,16 +491,27 @@ export default function AskModal() {
     } catch (e) {
       const isFil = isFilipino(language ?? "fil");
       if (e instanceof RateLimitError) {
+        // Server rejected before answering — refund the ask for free-tier users.
+        if (!isPaid) addAsks(1);
         setRateLimitSecs(Math.min(e.retryAfter, 3600));
         appendAndPersist({ role: "judith", text: isFil
           ? `Sandali lang — maghintay ka ng ${e.retryAfter} segundo bago magtanong ulit.`
           : `You're sending too fast — please wait ${e.retryAfter} second${e.retryAfter === 1 ? "" : "s"} before asking again.`
         });
       } else {
-        await new Promise<void>((r) => setTimeout(r, 900));
-        appendAndPersist({ role: "judith", text: isFil
-          ? "Hindi ako makakonekta sa server — check your connection and try again."
-          : "I can't connect to the server — check your connection and try again."
+        // Timeout or connection failure — refund the ask, remember the question so
+        // the user can retry with one tap, and never leave them stuck on "thinking…".
+        if (!isPaid) addAsks(1);
+        setLastFailedQ(q);
+        const timedOut = e instanceof TimeoutError;
+        await new Promise<void>((r) => setTimeout(r, 600));
+        appendAndPersist({ role: "judith", text: timedOut
+          ? (isFil
+            ? "Pasensya, ang tagal ng sagot — baka mahina ang connection. Pindutin ang Subukang muli sa baba."
+            : "Sorry, that took too long — your connection may be slow. Tap Retry below to try again.")
+          : (isFil
+            ? "Hindi ako makakonekta sa server — i-check ang connection mo, tapos pindutin ang Subukang muli."
+            : "I can't connect to the server — check your connection, then tap Retry below.")
         });
       }
     } finally {
@@ -880,6 +897,22 @@ export default function AskModal() {
                 <Low size={14}>{"Judith is thinking\u2026"}</Low>
               </SpeechBubble>
             </View>
+          )}
+          {lastFailedQ && !busy && (
+            <Pressable
+              onPress={() => { const q = lastFailedQ; setLastFailedQ(null); ask(q); }}
+              style={({ pressed }) => ({
+                flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 6,
+                marginLeft: 38, paddingVertical: 9, paddingHorizontal: 15, borderRadius: 18,
+                borderWidth: 1, borderColor: t.accent,
+                backgroundColor: pressed ? t.accent + "30" : t.accent + "18",
+              })}
+            >
+              <Icon name="refresh" size={14} color={t.accent} />
+              <Txt size={13.5} weight="semibold" color={t.accent}>
+                {isFilipino(language ?? "fil") ? "Subukang muli" : "Retry"}
+              </Txt>
+            </Pressable>
           )}
         </ScrollView>
       )}

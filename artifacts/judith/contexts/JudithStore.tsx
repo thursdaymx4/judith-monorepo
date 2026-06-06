@@ -550,7 +550,7 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
         return state.asksLeft > 0;
       },
       subscribe: (tier) => patch({ tier }),
-      addAsks: (n) => patch({ asksLeft: state.asksLeft + n }),
+      addAsks: (n) => setState((s) => ({ ...s, asksLeft: s.asksLeft + n })),
       setName: (name) => patch({ name: name.trim() }),
       setFaceIdLock: (v) => patch({ faceIdLock: v }),
       setPersona: (p) => patch({ persona: p }),
