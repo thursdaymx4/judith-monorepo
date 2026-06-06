@@ -3,18 +3,17 @@ import SwiftUI
 // MARK: — Single bill row for the Up Next list
 
 struct BillRowView: View {
-    let bill: Bill
+    let bill: UpcomingBill
+    let currency: String
 
     var body: some View {
         HStack(spacing: 10) {
-            // Urgency dot
             Circle()
                 .fill(bill.urgency.color)
                 .frame(width: 8, height: 8)
 
-            // Name + due label
             VStack(alignment: .leading, spacing: 2) {
-                Text(bill.displayName)
+                Text(bill.provider)
                     .font(.system(.body, design: .rounded, weight: .medium))
                     .foregroundStyle(.txtHi)
                     .lineLimit(1)
@@ -26,8 +25,7 @@ struct BillRowView: View {
 
             Spacer()
 
-            // Amount
-            Text(bill.amountDisplay)
+            Text(bill.amountDisplay(currency: currency))
                 .font(.judithMono)
                 .foregroundStyle(.txtHi)
                 .lineLimit(1)

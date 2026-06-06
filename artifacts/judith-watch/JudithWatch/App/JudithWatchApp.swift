@@ -4,7 +4,7 @@ import UserNotifications
 @main
 struct JudithWatchApp: App {
 
-    @StateObject private var store = BillStore()
+    @StateObject private var store        = WatchStore()
     @StateObject private var connectivity = ConnectivityService.shared
 
     init() {
@@ -18,18 +18,16 @@ struct JudithWatchApp: App {
                 .environmentObject(connectivity)
                 .onAppear {
                     ConnectivityService.shared.register(store: store)
-                    Task { await store.refresh() }
                 }
         }
 
-        // Long-look notification scene
         WKNotificationScene(controller: NotificationController.self,
                             category: "BILL_DUE")
     }
 
     private func requestNotificationPermission() {
         UNUserNotificationCenter.current().requestAuthorization(
-            options: [.alert, .sound, .badge, .criticalAlert]
+            options: [.alert, .sound, .badge]
         ) { _, _ in
             registerNotificationCategories()
         }
@@ -41,14 +39,9 @@ struct JudithWatchApp: App {
             title: "Mark paid",
             options: [.foreground]
         )
-        let remindTomorrow = UNNotificationAction(
-            identifier: "REMIND_TOMORROW",
-            title: "Remind tomorrow",
-            options: []
-        )
         let category = UNNotificationCategory(
             identifier: "BILL_DUE",
-            actions: [markPaid, remindTomorrow],
+            actions: [markPaid],
             intentIdentifiers: [],
             options: [.allowAnnouncement]
         )

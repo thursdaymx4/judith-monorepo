@@ -2,7 +2,7 @@ import WatchKit
 import SwiftUI
 import UserNotifications
 
-// MARK: — Screen 2: Long-look notification with inline Mark Paid / Remind Tomorrow
+// MARK: — Long-look notification with Mark Paid action
 
 class NotificationController: WKUserNotificationHostingController<NotificationView> {
 
@@ -14,11 +14,20 @@ class NotificationController: WKUserNotificationHostingController<NotificationVi
 
     override func didReceive(_ notification: UNNotification) {
         let info = notification.request.content.userInfo
+
+        // Read currency from the cached WatchPayload (App Group)
+        var currency = "$"
+        if let data = UserDefaults(suiteName: Config.appGroupID)?.data(forKey: Config.payloadCacheKey),
+           let payload = try? JSONDecoder().decode(WatchPayload.self, from: data) {
+            currency = payload.currency
+        }
+
         bill = NotificationBill(
-            id:       info["bill_id"]      as? String ?? "",
-            provider: info["provider"]     as? String ?? "Bill",
-            amount:   info["amount"]       as? Double,
-            daysUntil: info["days_until"]  as? Int ?? 0
+            id:        info["bill_id"]    as? String ?? "",
+            provider:  info["provider"]   as? String ?? "Bill",
+            amount:    info["amount"]     as? Double,
+            daysUntil: info["days_until"] as? Int ?? 0,
+            currency:  currency
         )
     }
 }
@@ -30,20 +39,22 @@ struct NotificationBill {
     let provider: String
     let amount: Double?
     let daysUntil: Int
+    let currency: String
 
     var amountDisplay: String {
         guard let a = amount else { return "" }
-        return "₱\(String(format: "%.0f", a))"
+        return "\(currency)\(String(format: "%.0f", a))"
     }
 
     var dueLabel: String {
         if daysUntil == 0 { return "due today" }
         if daysUntil == 1 { return "due tomorrow" }
+        if daysUntil < 0  { return "\(-daysUntil) day\((-daysUntil) == 1 ? "" : "s") overdue" }
         return "due in \(daysUntil) days"
     }
 
     var urgencyColor: Color {
-        if daysUntil < 0 { return .judithOverdue }
+        if daysUntil < 0  { return .judithOverdue }
         if daysUntil <= 3 { return .judithUrgent }
         return .judithNear
     }
@@ -56,7 +67,6 @@ struct NotificationView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header: Judith avatar + wordmark
             HStack(spacing: 8) {
                 ZStack {
                     Circle()
@@ -84,18 +94,15 @@ struct NotificationView: View {
 
             if let b = bill {
                 VStack(spacing: 6) {
-                    // Title
                     Text(b.provider)
                         .font(.system(.headline, design: .rounded, weight: .bold))
                         .foregroundStyle(.txtHi)
                         .multilineTextAlignment(.center)
 
-                    // Due label
                     Text(b.dueLabel.capitalized)
                         .font(.system(.caption, design: .rounded))
                         .foregroundStyle(b.urgencyColor)
 
-                    // Amount
                     if !b.amountDisplay.isEmpty {
                         Text(b.amountDisplay)
                             .font(.system(size: 28, weight: .bold, design: .monospaced))
@@ -106,11 +113,9 @@ struct NotificationView: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
             } else {
-                ProgressView()
-                    .padding()
+                ProgressView().padding()
             }
         }
         .background(Color.black)
-        // The system appends the UNNotificationAction buttons below this view
     }
 }

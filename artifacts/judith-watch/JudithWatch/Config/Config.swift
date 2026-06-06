@@ -1,21 +1,18 @@
 import SwiftUI
 
+// MARK: — App configuration
+
 enum Config {
-    // MARK: — Supabase (fill these in — same values as EXPO_PUBLIC_SUPABASE_URL/ANON_KEY)
-    static let supabaseURL    = "https://YOUR_PROJECT.supabase.co"
-    static let supabaseAnonKey = "YOUR_ANON_KEY"
+    // MARK: — App Group (must match the capability added in Xcode)
+    static let appGroupID        = "group.com.app.judith"
 
-    // MARK: — App Group (must match the capability you added in Xcode)
-    static let appGroupID = "group.com.app.judith"
-
-    // MARK: — UserDefaults keys (shared via App Group)
-    static let billsCacheKey        = "judith.bills_cache"
-    static let sessionTokenKey      = "judith.session_token"
-    static let pendingActionsKey    = "judith.pending_actions"
-    static let streakKey            = "judith.streak"
+    // MARK: — UserDefaults keys (shared via App Group with widget extension)
+    static let payloadCacheKey   = "judith.payload_v2"   // WatchPayload JSON
+    static let streakKey         = "judith.streak"
 }
 
 // MARK: — Design tokens (mirrors constants/theme.ts)
+
 extension Color {
     static let judithAccent  = Color(hex: "#29d5a5")
     static let judithOverdue = Color(hex: "#ea1d3b")
@@ -42,6 +39,6 @@ extension Color {
 }
 
 extension Font {
-    static let judithMono = Font.system(.body, design: .monospaced, weight: .semibold)
+    static let judithMono      = Font.system(.body,   design: .monospaced, weight: .semibold)
     static let judithMonoLarge = Font.system(.title2, design: .monospaced, weight: .bold)
 }

@@ -1,12 +1,11 @@
 import SwiftUI
 
-// MARK: — Screen 3: Up Next list (Digital Crown scrollable)
+// MARK: — Up Next list (Digital Crown scrollable)
 
 struct UpNextView: View {
-    @EnvironmentObject var store: BillStore
-    @State private var selectedBill: Bill? = nil
+    @EnvironmentObject var store: WatchStore
+    @State private var paidBill: UpcomingBill? = nil
     @State private var showPaidConfirm = false
-    @State private var paidBill: Bill? = nil
 
     var body: some View {
         NavigationStack {
@@ -18,31 +17,21 @@ struct UpNextView: View {
                             Text("Up next")
                                 .font(.system(.headline, design: .rounded, weight: .bold))
                                 .foregroundStyle(.txtHi)
-                            Text("Total due")
+                            Text("\(store.unpaidCount) unpaid")
                                 .font(.system(.caption2))
                                 .foregroundStyle(.txtMid)
                         }
                         Spacer()
-                        Text(store.monthTotalDisplay)
+                        Text(store.payload?.totalOwedDisplay ?? "—")
                             .font(.judithMonoLarge)
                             .foregroundStyle(.judithAccent)
                     }
                     .listRowBackground(Color.surface1)
                 }
 
-                // Bill rows
-                if store.isLoading && store.unpaidBills.isEmpty {
+                if store.upcomingBills.isEmpty {
                     Section {
-                        HStack {
-                            Spacer()
-                            ProgressView().tint(.judithAccent)
-                            Spacer()
-                        }
-                        .listRowBackground(Color.clear)
-                    }
-                } else if store.unpaidBills.isEmpty {
-                    Section {
-                        Text("No unpaid bills 🎉")
+                        Text("All paid up 🎉")
                             .font(.system(.footnote))
                             .foregroundStyle(.txtMid)
                             .frame(maxWidth: .infinity, alignment: .center)
@@ -50,9 +39,9 @@ struct UpNextView: View {
                     }
                 } else {
                     Section {
-                        ForEach(store.unpaidBills) { bill in
+                        ForEach(store.upcomingBills) { bill in
                             NavigationLink(value: bill) {
-                                BillRowView(bill: bill)
+                                BillRowView(bill: bill, currency: store.currency)
                             }
                             .listRowBackground(Color.surface1)
                         }
@@ -61,26 +50,24 @@ struct UpNextView: View {
             }
             .listStyle(.carousel)
             .background(Color.black)
-            .navigationDestination(for: Bill.self) { bill in
+            .navigationDestination(for: UpcomingBill.self) { bill in
                 BillDetailView(bill: bill,
+                               currency: store.currency,
+                               streak: store.streak,
                                onPaid: { paid in
-                                    paidBill = paid
-                                    showPaidConfirm = true
+                                   paidBill = paid
+                                   showPaidConfirm = true
                                })
             }
             .sheet(isPresented: $showPaidConfirm) {
                 if let bill = paidBill {
-                    PaidConfirmView(bill: bill, streak: store.streak)
+                    PaidConfirmView(
+                        provider: bill.provider,
+                        amountDisplay: bill.amountDisplay(currency: store.currency),
+                        streak: store.streak
+                    )
                 }
             }
-            .refreshable { await store.refresh() }
         }
-    }
-}
-
-private extension BillStore {
-    var monthTotalDisplay: String {
-        let t = monthTotal
-        return t == 0 ? "₱0" : "₱\(String(format: "%.0f", t))"
     }
 }

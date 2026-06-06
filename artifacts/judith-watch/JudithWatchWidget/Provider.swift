@@ -5,41 +5,41 @@ import SwiftUI
 
 struct JudithEntry: TimelineEntry {
     let date: Date
+    let currency: String
     let nextBill: CachedBill?
     let unpaidCount: Int
-    let monthTotal: Double
+    let totalOwed: Double
     let relevance: TimelineEntryRelevance?
 
     static let placeholder = JudithEntry(
         date: Date(),
-        nextBill: CachedBill(id: "1", provider: "Netflix", amount: 850, daysUntil: 3, urgencyRaw: 1),
+        currency: "$",
+        nextBill: CachedBill(provider: "Netflix", amount: 23, dueDays: 3, urgencyRaw: 1),
         unpaidCount: 4,
-        monthTotal: 3_200,
+        totalOwed: 3_200,
         relevance: nil
     )
 }
 
-// MARK: — Lightweight cached bill (read from App Group — no Supabase call in widget)
+// MARK: — Lightweight next-bill summary (read from App Group cache)
 
-struct CachedBill: Codable {
-    let id: String
+struct CachedBill {
     let provider: String
-    let amount: Double?
-    let daysUntil: Int
-    let urgencyRaw: Int            // Urgency.rawValue
+    let amount: Double
+    let dueDays: Int
+    let urgencyRaw: Int
 
     var urgency: Urgency { Urgency(rawValue: urgencyRaw) ?? .ok }
 
-    var amountDisplay: String {
-        guard let a = amount else { return "—" }
-        return "₱\(String(format: "%.0f", a))"
+    func amountDisplay(currency: String) -> String {
+        "\(currency)\(String(format: "%.0f", amount))"
     }
 
     var dueLabelShort: String {
-        if daysUntil == 0  { return "Today" }
-        if daysUntil < 0   { return "\(-daysUntil)d late" }
-        if daysUntil == 1  { return "Tomorrow" }
-        return "\(daysUntil)d"
+        if dueDays == 0 { return "Today" }
+        if dueDays < 0  { return "\(-dueDays)d late" }
+        if dueDays == 1 { return "Tomorrow" }
+        return "\(dueDays)d"
     }
 }
 
@@ -57,42 +57,35 @@ struct JudithProvider: TimelineProvider {
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<JudithEntry>) -> Void) {
         let entry = makeEntry()
-        // Refresh at midnight and any time the app group data changes
         let midnight = Calendar.current.startOfDay(for: Date().addingTimeInterval(86_400))
-        let timeline = Timeline(entries: [entry], policy: .after(midnight))
-        completion(timeline)
+        completion(Timeline(entries: [entry], policy: .after(midnight)))
     }
 
     // MARK: — Read from App Group cache (no networking in widget extension)
 
     private func makeEntry() -> JudithEntry {
         let defaults = UserDefaults(suiteName: Config.appGroupID)
-        var bills: [Bill] = []
-        if let data   = defaults?.data(forKey: Config.billsCacheKey),
-           let cached = try? JSONDecoder().decode([Bill].self, from: data) {
-            bills = cached
+        var payload: WatchPayload? = nil
+        if let data = defaults?.data(forKey: Config.payloadCacheKey) {
+            payload = try? JSONDecoder().decode(WatchPayload.self, from: data)
         }
 
-        let unpaid = bills
-            .filter { $0.isUnpaid }
-            .sorted {
-                if $0.urgency != $1.urgency { return $0.urgency < $1.urgency }
-                return ($0.daysUntil ?? 9999) < ($1.daysUntil ?? 9999)
-            }
+        let currency = payload?.currency ?? "$"
+        let unpaidCount = payload?.unpaidCount ?? 0
+        let totalOwed   = payload?.totalOwed ?? 0
 
-        let next = unpaid.first.map {
-            CachedBill(id: $0.id,
-                       provider: $0.displayName,
-                       amount: $0.amount,
-                       daysUntil: $0.daysUntil ?? 0,
-                       urgencyRaw: $0.urgency.rawValue)
-        }
+        let next: CachedBill? = {
+            guard let p = payload, !p.nextProvider.isEmpty else { return nil }
+            return CachedBill(
+                provider:    p.nextProvider,
+                amount:      p.nextAmount,
+                dueDays:     p.nextDueDays,
+                urgencyRaw:  urgencyRaw(dueDays: p.nextDueDays)
+            )
+        }()
 
-        let total = bills.filter { $0.isUnpaid }.compactMap { $0.amount }.reduce(0, +)
-
-        // Relevance: score climbs as due date approaches (0 = 7+ days out, 10 = today/overdue)
         let relevance: TimelineEntryRelevance? = next.map { b in
-            let d = max(b.daysUntil, 0)
+            let d = max(b.dueDays, 0)
             let score = Float(max(0, 10 - d))
             let duration: TimeInterval = d <= 1 ? 3_600 : 86_400
             return TimelineEntryRelevance(score: score, duration: duration)
@@ -100,10 +93,18 @@ struct JudithProvider: TimelineProvider {
 
         return JudithEntry(
             date: Date(),
+            currency: currency,
             nextBill: next,
-            unpaidCount: unpaid.count,
-            monthTotal: total,
+            unpaidCount: unpaidCount,
+            totalOwed: totalOwed,
             relevance: relevance
         )
+    }
+
+    private func urgencyRaw(dueDays: Int) -> Int {
+        if dueDays < 0  { return Urgency.overdue.rawValue }
+        if dueDays <= 3 { return Urgency.urgent.rawValue }
+        if dueDays <= 7 { return Urgency.near.rawValue }
+        return Urgency.ok.rawValue
     }
 }

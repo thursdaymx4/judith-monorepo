@@ -1,7 +1,7 @@
 import WidgetKit
 import SwiftUI
 
-// MARK: — Complication views (all watchOS 9+ accessor families)
+// MARK: — Complication views (watchOS 9+ accessor families)
 
 struct ComplicationViews: View {
     let entry: JudithEntry
@@ -26,13 +26,12 @@ private struct CircularView: View {
 
     var body: some View {
         ZStack {
-            // Gauge ring
             if let bill = entry.nextBill {
-                let d = Double(max(0, min(bill.daysUntil, 30)))
+                let d = Double(max(0, min(bill.dueDays, 30)))
                 Gauge(value: 1.0 - d / 30.0) {
                     EmptyView()
                 } currentValueLabel: {
-                    Text(bill.daysUntil <= 0 ? "!" : "\(bill.daysUntil)")
+                    Text(bill.dueDays <= 0 ? "!" : "\(bill.dueDays)")
                         .font(.system(.body, design: .monospaced, weight: .bold))
                         .foregroundStyle(bill.urgency.color)
                 }
@@ -74,14 +73,13 @@ private struct CornerView: View {
     }
 }
 
-// MARK: — Rectangular (Modular): large complication — NEXT DUE + count/total
+// MARK: — Rectangular: NEXT DUE + count/total
 
 private struct RectangularView: View {
     let entry: JudithEntry
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            // "JUDITH · NEXT DUE"
             HStack(spacing: 4) {
                 Text("JUDITH")
                     .font(.system(size: 9, weight: .black, design: .rounded))
@@ -101,25 +99,23 @@ private struct RectangularView: View {
             }
 
             if let bill = entry.nextBill {
-                // Provider + amount
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text(bill.provider)
                         .font(.system(.body, design: .rounded, weight: .semibold))
                         .foregroundStyle(.txtHi)
                         .lineLimit(1)
                     Spacer()
-                    Text(bill.amountDisplay)
+                    Text(bill.amountDisplay(currency: entry.currency))
                         .font(.system(.body, design: .monospaced, weight: .bold))
                         .foregroundStyle(bill.urgency.color)
                 }
-                // Count / total row
                 HStack(spacing: 2) {
                     Text("\(entry.unpaidCount) due")
                         .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(.txtMid)
                     Text("·")
                         .foregroundStyle(.txtLow)
-                    Text("₱\(String(format: "%.0f", entry.monthTotal))")
+                    Text("\(entry.currency)\(String(format: "%.0f", entry.totalOwed))")
                         .font(.system(.caption2, design: .monospaced, weight: .medium))
                         .foregroundStyle(.txtMid)
                 }
@@ -140,8 +136,10 @@ private struct InlineView: View {
 
     var body: some View {
         if let bill = entry.nextBill {
-            Label("\(bill.provider) · \(bill.amountDisplay) · \(bill.dueLabelShort)",
-                  systemImage: "calendar.badge.exclamationmark")
+            Label(
+                "\(bill.provider) · \(bill.amountDisplay(currency: entry.currency)) · \(bill.dueLabelShort)",
+                systemImage: "calendar.badge.exclamationmark"
+            )
         } else {
             Label("No bills due", systemImage: "checkmark.circle")
         }
@@ -155,7 +153,6 @@ struct SmartStackView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header
             HStack(spacing: 4) {
                 Text("JUDITH")
                     .font(.system(size: 10, weight: .black, design: .rounded))
@@ -178,7 +175,7 @@ struct SmartStackView: View {
                         .font(.system(.headline, design: .rounded, weight: .bold))
                         .foregroundStyle(.txtHi)
                         .lineLimit(1)
-                    Text(bill.amountDisplay)
+                    Text(bill.amountDisplay(currency: entry.currency))
                         .font(.system(.title3, design: .monospaced, weight: .bold))
                         .foregroundStyle(.txtHi)
                     Text("due \(bill.dueLabelShort.lowercased()) · tap to pay")

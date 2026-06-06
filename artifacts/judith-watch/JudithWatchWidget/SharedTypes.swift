@@ -1,19 +1,15 @@
 import SwiftUI
 import Foundation
 
-// MARK: — Types duplicated for the widget extension target
-// (Widget extensions are sandboxed — they can't import from the watch app target.
-//  Keep this file in sync with JudithWatch/Config/Config.swift and Models/Bill.swift.)
+// MARK: — Types shared by the widget extension
+// Widget extensions are sandboxed — they can't import from the Watch app target.
+// Keep in sync with JudithWatch/Config/Config.swift and Models/Bill.swift.
 
 // MARK: — Config
 
 enum Config {
-    static let supabaseURL     = "https://YOUR_PROJECT.supabase.co"
-    static let supabaseAnonKey = "YOUR_ANON_KEY"
     static let appGroupID      = "group.com.app.judith"
-    static let billsCacheKey   = "judith.bills_cache"
-    static let sessionTokenKey = "judith.session_token"
-    static let pendingActionsKey = "judith.pending_actions"
+    static let payloadCacheKey = "judith.payload_v2"
     static let streakKey       = "judith.streak"
 }
 
@@ -69,78 +65,48 @@ enum Urgency: Int, Comparable {
     }
 }
 
-// MARK: — Bill (minimal Codable — must match JudithWatch/Models/Bill.swift)
+// MARK: — WatchPayload (minimal Codable — must stay in sync with Models/Bill.swift)
 
-struct Bill: Codable, Identifiable {
+struct UpcomingBill: Codable, Identifiable {
     let id: String
-    let user_id: String
-    let name: String
-    let category: String
-    let provider: String?
-    let amount_type: String
-    let amount: Double?
-    let due_day: Int?
-    let due_date: String?
-    let cadence: String
-    var status: String
-    var snoozed_until: String?
-    let created_at: String
-
-    var displayName: String { provider ?? name }
-    var isUnpaid: Bool { status != "paid" }
-
-    var nextDue: Date? {
-        let cal = Calendar.current
-        if cadence == "one_time" {
-            return due_date.flatMap { parseDate($0) }
-        }
-        guard let day = due_day else { return nil }
-        let today = cal.startOfDay(for: Date())
-
-        func clampedDate(year: Int, month: Int) -> Date? {
-            var c = DateComponents(); c.year = year; c.month = month
-            guard let ref = cal.date(from: c),
-                  let range = cal.range(of: .day, in: .month, for: ref) else { return nil }
-            c.day = min(day, range.count)
-            return cal.date(from: c)
-        }
-
-        let y = cal.component(.year, from: today)
-        let m = cal.component(.month, from: today)
-        if let candidate = clampedDate(year: y, month: m), candidate >= today { return candidate }
-        return clampedDate(year: m == 12 ? y + 1 : y, month: m == 12 ? 1 : m + 1)
-    }
-
-    var daysUntil: Int? {
-        guard let due = nextDue else { return nil }
-        let cal = Calendar.current
-        return cal.dateComponents([.day],
-                                  from: cal.startOfDay(for: Date()),
-                                  to: cal.startOfDay(for: due)).day
-    }
+    let provider: String
+    let amount: Double
+    let dueDays: Int
+    let dueLabel: String
+    let isOverdue: Bool
 
     var urgency: Urgency {
-        if status == "paid" || status == "snoozed" { return .ok }
-        guard let d = daysUntil else { return .ok }
-        if d < 0 { return .overdue }
-        if d <= 3 { return .urgent }
-        if d <= 7 { return .near }
+        if dueDays < 0  { return .overdue }
+        if dueDays <= 3 { return .urgent }
+        if dueDays <= 7 { return .near }
         return .ok
     }
 
-    private func parseDate(_ s: String) -> Date? {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        f.locale = Locale(identifier: "en_US_POSIX")
-        return f.date(from: s)
+    func amountDisplay(currency: String) -> String {
+        "\(currency)\(String(format: "%.0f", amount))"
+    }
+
+    var dueLabelShort: String {
+        if dueDays == 0 { return "Today" }
+        if dueDays < 0  { return "\(-dueDays)d late" }
+        if dueDays == 1 { return "Tomorrow" }
+        return "\(dueDays)d"
     }
 }
 
-// MARK: — Pending action (offline queue, shared via App Group)
+struct WatchPayload: Codable {
+    let generatedAt: String
+    let currency: String
+    let totalOwed: Double
+    let unpaidCount: Int
+    let nextProvider: String
+    let nextAmount: Double
+    let nextDueDays: Int
+    let nextDueLabel: String
+    let persona: String
+    let upcomingBills: [UpcomingBill]
 
-struct PendingAction: Codable {
-    enum Kind: String, Codable { case markPaid, snooze }
-    let billId: String
-    let kind: Kind
-    let date: Date
+    var totalOwedDisplay: String {
+        "\(currency)\(String(format: "%.0f", totalOwed))"
+    }
 }

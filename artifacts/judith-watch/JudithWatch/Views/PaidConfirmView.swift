@@ -1,9 +1,10 @@
 import SwiftUI
 
-// MARK: — Screen 5: Paid confirmation (auto-dismisses after 2.5s)
+// MARK: — Paid confirmation (auto-dismisses after 2.5s)
 
 struct PaidConfirmView: View {
-    let bill: Bill
+    let provider: String
+    let amountDisplay: String
     let streak: Int
 
     @Environment(\.dismiss) private var dismiss
@@ -15,7 +16,6 @@ struct PaidConfirmView: View {
         VStack(spacing: 10) {
             Spacer()
 
-            // Mint checkmark
             ZStack {
                 Circle()
                     .fill(Color.judithAccent.opacity(0.15))
@@ -31,16 +31,15 @@ struct PaidConfirmView: View {
                 .font(.system(.headline, design: .rounded, weight: .bold))
                 .foregroundStyle(.txtHi)
 
-            Text("\(bill.displayName) · \(bill.amountDisplay)")
+            Text("\(provider) · \(amountDisplay)")
                 .font(.system(.footnote, design: .rounded))
                 .foregroundStyle(.txtMid)
                 .multilineTextAlignment(.center)
 
-            // Streak nudge
             if streak > 1 {
                 HStack(spacing: 4) {
                     Text("🔥")
-                    Text("\(streak)-mo streak")
+                    Text("\(streak)-bill streak")
                         .font(.system(.caption, design: .rounded, weight: .semibold))
                         .foregroundStyle(.judithAccent)
                 }
@@ -56,13 +55,10 @@ struct PaidConfirmView: View {
         .background(Color.black)
         .onAppear {
             withAnimation(.spring(response: 0.45, dampingFraction: 0.65)) {
-                scale = 1.0
+                scale   = 1.0
                 opacity = 1.0
             }
-            // Auto-dismiss
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-                dismiss()
-            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { dismiss() }
         }
     }
 }

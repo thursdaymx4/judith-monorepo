@@ -5,88 +5,121 @@
  * WatchConnectivity's transferUserInfo queue (persisted, delivered even when
  * the Watch app is not running).
  *
+ * The payload is JSON-stringified and sent under the `judith_payload_v2` key
+ * so the Swift side can decode it cleanly with JSONDecoder.
+ *
  * In Expo Go, react-native-watch-connectivity is replaced by a no-op stub
  * (see metro.config.js + lib/watch-stub.js), so this module is safe to import
- * anywhere. The actual sync only fires on a device with a compiled Watch app.
- *
- * Required for a full dev/prod build:
- *   1. Run `expo prebuild` to eject and generate ios/ directory.
- *   2. Add a WatchKit App target in Xcode using the Judith Watch extension.
- *   3. Implement the Watch UI (SwiftUI) that reads userInfo from WCSession.
+ * anywhere.
  */
 import { Platform } from "react-native";
-import { currentCycleDue, type Bill } from "@/constants/data";
+import { currentCycleDue, isPaidViaCard, type Bill } from "@/constants/data";
 import type { PersonaId } from "@/constants/personas";
 
-// Wrapped in try/catch: TurboModuleRegistry.getEnforcing("RNWatch") throws
-// synchronously in Expo Go (native module absent). A try/catch around require()
-// catches it safely; WatchConnectivity is null → all sync paths become no-ops.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 let WatchConnectivity: Record<string, unknown> | null = null;
 try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   WatchConnectivity = require("react-native-watch-connectivity");
 } catch {
   // Expo Go or simulator without the native Watch module — silent no-op
 }
 
+export { WatchConnectivity };
+
+// ─── Payload shape (mirrored in JudithWatch/Models/WatchPayload.swift) ────────
+
+export interface UpcomingBill {
+  id: string;
+  provider: string;
+  amount: number;
+  dueDays: number;
+  dueLabel: string;
+  isOverdue: boolean;
+}
+
 export interface WatchPayload {
-  /** ISO-8601 timestamp of when this payload was generated */
+  /** ISO-8601 timestamp */
   generatedAt: string;
-  /** Sum of all unpaid bill amounts */
+  /** Currency symbol — "$", "₱", "£", "€", etc. */
+  currency: string;
+  /** Sum of all unpaid bill amounts (via-card charges excluded) */
   totalOwed: number;
-  /** Number of unpaid bills */
+  /** Count of unpaid bills (via-card charges excluded) */
   unpaidCount: number;
-  /** Next due bill (or null if all paid) */
+  /** Next due bill (empty string if all paid) */
   nextProvider: string;
   nextAmount: number;
   nextDueDays: number;
   nextDueLabel: string;
-  /** Active persona ID (drives Watch face avatar / copy) */
+  /** Active persona ID */
   persona: PersonaId;
-  /** Bills due in ≤3 days — compact form for Watch list */
-  urgentBills: Array<{ id: string; provider: string; amount: number; dueDays: number }>;
+  /** All unpaid bills sorted by dueDays (via-card charges included for display) */
+  upcomingBills: UpcomingBill[];
 }
 
-function buildPayload(bills: Bill[], persona: PersonaId): WatchPayload {
-  // Stored dueDays/dueLabel are stale snapshots the store never refreshes;
-  // recompute live (signed, so overdue stays negative) to match the home screen.
-  const unpaid = bills
+// ─── Payload builder ──────────────────────────────────────────────────────────
+
+function buildPayload(bills: Bill[], persona: PersonaId, currency: string): WatchPayload {
+  const enriched = bills
     .filter((b) => b.status !== "paid")
     .map((b) => ({ b, occ: currentCycleDue(b) }))
     .sort((a, z) => a.occ.dueDays - z.occ.dueDays);
-  const next = unpaid[0];
+
+  const payable = enriched.filter(({ b }) => !isPaidViaCard(b, bills));
+
+  const next = enriched[0];
+
   return {
     generatedAt: new Date().toISOString(),
-    totalOwed: unpaid.reduce((s, x) => s + x.b.amount, 0),
-    unpaidCount: unpaid.length,
+    currency,
+    totalOwed: payable.reduce((s, x) => s + x.b.amount, 0),
+    unpaidCount: payable.length,
     nextProvider: next?.b.provider ?? "",
     nextAmount: next?.b.amount ?? 0,
     nextDueDays: next?.occ.dueDays ?? 0,
     nextDueLabel: next?.occ.dueLabel ?? "",
     persona,
-    urgentBills: unpaid
-      .filter((x) => x.occ.dueDays <= 3)
-      .map((x) => ({ id: x.b.id, provider: x.b.provider, amount: x.b.amount, dueDays: x.occ.dueDays })),
+    upcomingBills: enriched.map(({ b, occ }) => ({
+      id: b.id,
+      provider: b.provider,
+      amount: b.amount,
+      dueDays: occ.dueDays,
+      dueLabel: occ.dueLabel,
+      isOverdue: occ.dueDays < 0,
+    })),
   };
 }
+
+// ─── Push to Watch ─────────────────────────────────────────────────────────────
 
 /**
  * Push bill summary to a paired Apple Watch.
  * Safe to call on Android (no-ops) and in Expo Go (stub).
- * Only actually sends on a physical iOS device with a compiled Watch app.
  */
-export async function syncBillsToWatch(bills: Bill[], persona: PersonaId): Promise<void> {
+export async function syncBillsToWatch(
+  bills: Bill[],
+  persona: PersonaId,
+  currency: string,
+): Promise<void> {
   if (Platform.OS !== "ios") return;
   if (!WatchConnectivity) return;
 
   try {
-    const installed = await (WatchConnectivity.getIsWatchAppInstalled as (() => Promise<boolean>) | undefined)?.() ?? false;
+    const installed =
+      (await (WatchConnectivity.getIsWatchAppInstalled as
+        | (() => Promise<boolean>)
+        | undefined)?.()) ?? false;
     if (!installed) return;
 
-    const payload = buildPayload(bills, persona);
-    // transferUserInfo is queued and delivered reliably even when the Watch
-    // app is in the background. It does NOT require a live BLE connection.
-    await (WatchConnectivity.transferUserInfo as (p: WatchPayload) => Promise<void>)(payload);
+    const payload = buildPayload(bills, persona, currency);
+    // JSON-stringify the payload so Swift's JSONDecoder can decode it cleanly.
+    // transferUserInfo is queued and delivered even when the Watch app is in
+    // the background or temporarily disconnected.
+    await (
+      WatchConnectivity.transferUserInfo as (
+        p: Record<string, unknown>,
+      ) => Promise<void>
+    )({ judith_payload_v2: JSON.stringify(payload) });
   } catch {
     // No paired watch, Expo Go stub, or native module absent — silent no-op
   }
