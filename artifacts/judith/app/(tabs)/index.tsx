@@ -596,10 +596,8 @@ export default function HomeScreen() {
                             </View>
                           )}
                           {b.isBusiness && (
-                            <View style={{ flexShrink: 1, backgroundColor: "#3b7aff22", borderWidth: 1, borderColor: "#3b7aff55", borderRadius: 5, paddingHorizontal: 5, paddingVertical: 1, maxWidth: 130 }}>
-                              <Txt size={9.5} weight="medium" color="#6699ff" numberOfLines={1} style={{ letterSpacing: 0.4 }}>
-                                {hasMultipleBiz && bizName(b) ? bizName(b) : "BIZ"}
-                              </Txt>
+                            <View style={{ backgroundColor: "#3b7aff22", borderWidth: 1, borderColor: "#3b7aff55", borderRadius: 5, paddingHorizontal: 5, paddingVertical: 1 }}>
+                              <Txt size={9.5} weight="medium" color="#6699ff" style={{ letterSpacing: 0.4 }}>BIZ</Txt>
                             </View>
                           )}
                         </View>
@@ -612,6 +610,14 @@ export default function HomeScreen() {
                           <Low size={12} color={isPaidViaCard(b) ? undefined : cls === "overdue" ? t.semantic.overdue : undefined}>
                             {dueShort(b.dueDays)}
                           </Low>
+                          {hasMultipleBiz && bizName(b) && (
+                            <>
+                              <Low size={12} color={t.txtLow}>·</Low>
+                              <Txt size={12} weight="medium" color="#6699ff" numberOfLines={1} style={{ flexShrink: 1 }}>
+                                {bizName(b)}
+                              </Txt>
+                            </>
+                          )}
                         </View>
                       </View>
                       <Mono size={14} color={isPaidViaCard(b) ? t.txtLow : t.semantic[cls]}>
