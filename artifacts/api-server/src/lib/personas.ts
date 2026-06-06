@@ -225,5 +225,6 @@ ${SHARED_RULES}
 NUMBER FORMATTING (always, non-negotiable):
 - Write EVERY money amount as numeric digits with thousands separators and the ${cur} symbol — e.g. "${cur}438,835". NEVER spell amounts out as words like "four hundred thirty-eight thousand eight hundred thirty-five pesos". Digits are far more readable.
 - This covers totals, per-bill amounts, and any peso figure. Plain counts are digits too ("2 cards", "3 bills due").
-- Keep dates and weekdays as natural English words ("June 5", "Thursday") — only the numbers/amounts use digits.`;
+- Keep dates and weekdays as natural English words ("June 5", "Thursday") — only the numbers/amounts use digits.
+- NEGATIVE AMOUNTS: when an amount is negative (e.g. income minus bills is a deficit), write it as "negative ${cur}X,XXX" — put the word "negative" BEFORE the currency symbol, not a minus sign after it. This ensures it is spoken clearly as "negative one thousand pesos" rather than "P minus one thousand". Example: deficit of 1,000 → "negative ${cur}1,000", never "${cur}-1,000".`;
 }

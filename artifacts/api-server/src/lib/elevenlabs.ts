@@ -146,17 +146,27 @@ function intToWords(n: number): string {
  * ElevenLabs reads them naturally instead of digit-by-digit.
  *
  * Examples:
- *   "₱274,748"  →  "two hundred seventy-four thousand seven hundred forty-eight pesos"
- *   "₱25,000"   →  "twenty-five thousand pesos"
- *   "3 bills"   →  "3 bills"  (short counts left for ElevenLabs — it handles them fine)
+ *   "₱274,748"   →  "two hundred seventy-four thousand seven hundred forty-eight pesos"
+ *   "₱25,000"    →  "twenty-five thousand pesos"
+ *   "₱-1,000"    →  "negative one thousand pesos"
+ *   "-₱1,000"    →  "negative one thousand pesos"
+ *   "3 bills"    →  "3 bills"  (short counts left for ElevenLabs — it handles them fine)
  */
 function prepareForTTS(text: string): string {
-  // Replace ₱ amounts (with optional comma-grouping) → "X pesos"
-  return text.replace(/₱\s?([\d,]+)/g, (_match, digits: string) => {
+  // Handle "negative ₱X,XXX" or "-₱X,XXX" (minus before the symbol)
+  let result = text.replace(/-\s*₱\s*([\d,]+)/g, (_match, digits: string) => {
     const n = parseInt(digits.replace(/,/g, ""), 10);
     if (isNaN(n)) return _match;
-    return intToWords(n) + " pesos";
+    return "negative " + intToWords(n) + " pesos";
   });
+  // Handle "₱-X,XXX" (minus after the symbol) and plain "₱X,XXX"
+  result = result.replace(/₱\s?(-?)\s*([\d,]+)/g, (_match, sign: string, digits: string) => {
+    const n = parseInt(digits.replace(/,/g, ""), 10);
+    if (isNaN(n)) return _match;
+    const words = intToWords(n) + " pesos";
+    return sign === "-" ? "negative " + words : words;
+  });
+  return result;
 }
 
 export async function synthesize(
