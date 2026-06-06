@@ -317,7 +317,17 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
       ? `User's estimated monthly take-home income: ${curStr(cur, monthlyIncome)}.`
       : null;
 
+  // Build overdue summary for the prominent alert block at the top of context.
+  const overdueBills = due.filter((b) => (b.dueDays ?? 0) < 0);
+  const overdueCount = overdueBills.length;
+
   const parts: string[] = [
+    ...(overdueCount > 0
+      ? [
+          `⚠️ OVERDUE ALERT (read this FIRST, every time): ${overdueCount} bill${overdueCount === 1 ? " is" : "s are"} OVERDUE — ${curStr(cur, overdueAmt)} total unpaid past due. You MUST address this before answering anything else. No relief, safety, or positive framing is allowed while overdue bills exist. Forbidden phrases include: "Ligtas ka", "Wala naman", "Clear ka", "Pahinga muna", "nothing to worry about", "you're good", "haha", "hehe", or any equivalent in any language.`,
+          "",
+        ]
+      : []),
     `Today is ${englishDate(today)} (${englishWeekday(today)}).`,
     ...(incomeHeader ? [incomeHeader] : []),
     `Total still due (unpaid): ${curStr(cur, total)}.`,
