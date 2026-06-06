@@ -21,3 +21,4 @@
 - [Judith Ask number format](judith-ask-number-format.md) — Ask replies render amounts as digits (₱438,835), never spelled-out words; prompt-side rule only; same string also feeds TTS.
 - [Judith cross-screen totals](judith-cross-screen-totals.md) — Home/Calendar/Ask share NO selector; reconcile into 2 buckets (this-month due vs all-unpaid), both via remaining+paymentHistory paid (never b.status).
 - [Judith overdue enforcement](judith-overdue-enforcement.md) — soft rule alone fails; requires BOTH ⚠️ OVERDUE ALERT context injection AND explicit forbidden-phrase list; confirmed correct response pattern included.
+- [Judith answer sequencing](judith-answer-sequencing.md) — direct answer to the question MUST be sentence 1; overdue/context goes sentence 2+; ANSWER SEQUENCING rule in SHARED_RULES takes priority over overdue rule.
