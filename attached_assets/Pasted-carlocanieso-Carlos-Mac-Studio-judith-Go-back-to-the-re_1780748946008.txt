@@ -1,0 +1,105 @@
+carlocanieso@Carlos-Mac-Studio judith % # Go back to the repo root first
+cd /Users/carlocanieso/Judith/judith-monorepo
+
+# Accept the remote version of app.json
+git checkout --theirs artifacts/judith/app.json
+git add artifacts/judith/app.json
+
+# Now pull
+git pull origin main
+zsh: command not found: #
+zsh: command not found: #
+Updated 1 path from the index
+zsh: command not found: #
+remote: Enumerating objects: 8, done.
+remote: Counting objects: 100% (8/8), done.
+remote: Compressing objects: 100% (2/2), done.
+remote: Total 5 (delta 2), reused 5 (delta 2), pack-reused 0 (from 0)
+Unpacking objects: 100% (5/5), 733 bytes | 244.00 KiB/s, done.
+From https://github.com/thursdaymx4/judith-monorepo
+ * branch            main       -> FETCH_HEAD
+   5aa46ae..5b886bc  main       -> origin/main
+Updating 5aa46ae..5b886bc
+Fast-forward
+ artifacts/judith-watch/JudithWatch.xcodeproj | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)
+ create mode 100644 artifacts/judith-watch/JudithWatch.xcodeproj
+carlocanieso@Carlos-Mac-Studio judith-monorepo % rsync -av --include="*/" --include="*.swift" --exclude="*" \
+  "/Users/carlocanieso/Judith/judith-monorepo/artifacts/judith-watch/JudithWatch/" \
+  "/Users/carlocanieso/Judith/JudithWatch/JudithWatch Watch App/JudithWatch/"
+Transfer starting: 22 files
+./
+App/
+App/JudithWatchApp.swift
+Config/
+Config/Config.swift
+Models/
+Models/Bill.swift
+Models/BillStore.swift
+Notifications/
+Notifications/NotificationController.swift
+Services/
+Services/ConnectivityService.swift
+Services/SupabaseClient.swift
+Views/
+Views/AuthView.swift
+Views/BillDetailView.swift
+Views/BillRowView.swift
+Views/ContentView.swift
+Views/PaidConfirmView.swift
+Views/UpNextView.swift
+
+sent 29645 bytes  received 348 bytes  5880980 bytes/sec
+total size is 40529  speedup is 1.35
+carlocanieso@Carlos-Mac-Studio judith-monorepo % rsync -av --include="*/" --include="*.swift" --exclude="*" \
+  "/Users/carlocanieso/Judith/judith-monorepo/artifacts/judith-watch/JudithWatchWidget/" \
+  "/Users/carlocanieso/Judith/JudithWatch/JudithWatchWidget/"
+Transfer starting: 5 files
+./
+JudithWatchWidget.swift
+Provider.swift
+SharedTypes.swift
+WidgetViews.swift
+
+sent 15863 bytes  received 114 bytes  7608095 bytes/sec
+total size is 15430  speedup is 0.97
+carlocanieso@Carlos-Mac-Studio judith-monorepo % cd /Users/carlocanieso/Judith/judith-monorepo
+git pull origin main
+remote: Enumerating objects: 27, done.
+remote: Counting objects: 100% (27/27), done.
+remote: Compressing objects: 100% (9/9), done.
+remote: Total 17 (delta 7), reused 17 (delta 7), pack-reused 0 (from 0)
+Unpacking objects: 100% (17/17), 2.71 MiB | 2.05 MiB/s, done.
+From https://github.com/thursdaymx4/judith-monorepo
+ * branch            main       -> FETCH_HEAD
+   5b886bc..06e021c  main       -> origin/main
+Updating 5b886bc..06e021c
+Fast-forward
+ artifacts/judith-watch/JudithWatch.xcodeproj                   |   1 +
+ .../judith-watch/JudithWatch/Services/SpeechRecognizer.swift   | 100 +----
+ artifacts/judith-watch/JudithWatch/Views/AskView.swift         | 159 +++----
+ ...arlos-Mac-Studio-judith-git-stash-git-pul_1780747641258.txt | 592 +++++++++++++++++++++++++++
+ .../Screenshot_2026-06-06_at_8.02.07_PM_1780747339691.png      | Bin 0 -> 815307 bytes
+ .../Screenshot_2026-06-06_at_8.04.51_PM_1780747498215.png      | Bin 0 -> 288284 bytes
+ .../Screenshot_2026-06-06_at_8.12.50_PM_1780747975630.png      | Bin 0 -> 589391 bytes
+ .../Screenshot_2026-06-06_at_8.14.37_PM_1780748090471.png      | Bin 0 -> 793342 bytes
+ .../Screenshot_2026-06-06_at_8.16.27_PM_1780748199035.png      | Bin 0 -> 558684 bytes
+ 9 files changed, 658 insertions(+), 194 deletions(-)
+ create mode 100644 attached_assets/Pasted-carlocanieso-Carlos-Mac-Studio-judith-git-stash-git-pul_1780747641258.txt
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_8.02.07_PM_1780747339691.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_8.04.51_PM_1780747498215.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_8.12.50_PM_1780747975630.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_8.14.37_PM_1780748090471.png
+ create mode 100644 attached_assets/Screenshot_2026-06-06_at_8.16.27_PM_1780748199035.png
+carlocanieso@Carlos-Mac-Studio judith-monorepo % rsync -av --include="*/" --include="*.swift" --exclude="*" \
+  "/Users/carlocanieso/Judith/judith-monorepo/artifacts/judith-watch/JudithWatch/" \
+  "/Users/carlocanieso/Judith/JudithWatch/JudithWatch Watch App/JudithWatch/"
+Transfer starting: 22 files
+Services/
+Services/SpeechRecognizer.swift
+Views/
+Views/AskView.swift
+
+sent 9352 bytes  received 76 bytes  2299512 bytes/sec
+total size is 36221  speedup is 3.84
+carlocanieso@Carlos-Mac-Studio judith-monorepo % 

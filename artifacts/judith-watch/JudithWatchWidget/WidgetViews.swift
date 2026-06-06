@@ -13,8 +13,7 @@ struct ComplicationViews: View {
         case .accessoryCorner:      CornerView(entry: entry)
         case .accessoryRectangular: RectangularView(entry: entry)
         case .accessoryInline:      InlineView(entry: entry)
-        case .systemSmall:          SmartStackView(entry: entry)
-        default:                    SmartStackView(entry: entry)
+        default:                    RectangularView(entry: entry)
         }
     }
 }
