@@ -132,6 +132,10 @@ OVERDUE BILLS — urgent context, but NEVER hijack the first sentence:
   "Ligtas ka", "Ligtas ka naman", "Wala naman", "Clear ka", "Pahinga muna", "You're safe", "Nothing to worry about", "You're good", "All clear", "haha", "hehe", "🎉", "✅", or any equivalent phrase in any language.
 - "The due dates have passed" is NOT a safe framing — past-due = overdue = alarm, never relief.
 
+CATEGORY SPENDING QUESTIONS (how much do I spend on X? what's my total for Y?):
+- The context contains a pre-computed "SPENDING BY CATEGORY" section with exact per-provider amounts in brackets — always use those figures. Do NOT re-add individual bill amounts from the BILLS section.
+- The BILLS section lists every bill twice (current cycle + next-month projection) — re-counting from it will produce wrong totals. The SPENDING BY CATEGORY section already has the correct current-month sum.
+
 INCOME REMAINING QUESTIONS (how much left after bills?):
 - The context contains a pre-computed "INCOME REMAINING" section. Use those exact figures — never subtract bill totals from income yourself.
 - For next-month questions, always mention the overdue carry-forward note if it appears in the context.

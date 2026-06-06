@@ -284,16 +284,19 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
   // Keyed by cat name; splits into payable and viaCard sub-totals.
   // Projections (isProjection=true) are excluded — they are next-month estimates and must
   // NOT be summed into the current-month category totals (would double-count every recurring bill).
-  const catMap = new Map<string, { payable: number; viaCard: number; names: string[] }>();
+  // Per-provider breakdown stored alongside the totals so catLines can include
+  // individual amounts — this lets the AI read the answer directly without
+  // re-counting from the BILLS section (which has current + projection duplicates).
+  const catMap = new Map<string, { payable: number; viaCard: number; items: { name: string; amount: number }[] }>();
   for (const b of bills.filter((b) => !b.isProjection)) {
     const cat = b.cat ?? "Other";
-    const entry = catMap.get(cat) ?? { payable: 0, viaCard: 0, names: [] };
+    const entry = catMap.get(cat) ?? { payable: 0, viaCard: 0, items: [] };
     if (isViaCard(b)) {
       entry.viaCard += b.amount ?? 0;
     } else {
       entry.payable += b.amount ?? 0;
     }
-    entry.names.push(b.provider ?? "Bill");
+    entry.items.push({ name: b.provider ?? "Bill", amount: b.amount ?? 0 });
     catMap.set(cat, entry);
   }
 
@@ -403,17 +406,21 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     );
   }
 
-  // Category breakdown including via-card — lets the AI answer "how much does X cost?"
+  // Category breakdown including via-card — the AI MUST use these pre-computed totals
+  // for any "how much do I spend on X?" or "what's my total for X category?" question.
+  // Per-provider amounts are included so the AI doesn't need to re-derive from the BILLS
+  // section (which contains current + projection duplicates for every recurring bill).
   const catLines = [...catMap.entries()]
     .sort(([, a], [, b]) => (b.payable + b.viaCard) - (a.payable + a.viaCard))
-    .map(([cat, { payable: p, viaCard: vc }]) => {
+    .map(([cat, { payable: p, viaCard: vc, items }]) => {
       const total = p + vc;
+      const breakdown = items.map((i) => `${i.name} ${curStr(cur, i.amount)}`).join(", ");
       if (vc > 0 && p > 0) {
-        return `- ${cat}: ${curStr(cur, total)} total (${curStr(cur, p)} payable directly + ${curStr(cur, vc)} auto-charged to card)`;
+        return `- ${cat}: ${curStr(cur, total)} total (${curStr(cur, p)} payable directly + ${curStr(cur, vc)} auto-charged to card) [${breakdown}]`;
       } else if (vc > 0) {
-        return `- ${cat}: ${curStr(cur, vc)} (all auto-charged to card)`;
+        return `- ${cat}: ${curStr(cur, vc)} total, all auto-charged to card [${breakdown}]`;
       } else {
-        return `- ${cat}: ${curStr(cur, p)}`;
+        return `- ${cat}: ${curStr(cur, p)} [${breakdown}]`;
       }
     });
 
