@@ -298,7 +298,7 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
   // Scoped to this month (isThisMonth) so annual/future bills don't inflate
   // category totals beyond what the home screen shows.
   const catMap = new Map<string, { payable: number; viaCard: number; items: { name: string; amount: number }[] }>();
-  for (const b of bills.filter(isThisMonth)) {
+  for (const b of bills.filter((b) => isThisMonth(b) && b.status !== "paid")) {
     const cat = b.cat ?? "Other";
     const entry = catMap.get(cat) ?? { payable: 0, viaCard: 0, items: [] };
     if (isViaCard(b)) {
@@ -425,13 +425,10 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     .map(([cat, { payable: p, viaCard: vc, items }]) => {
       const total = p + vc;
       const breakdown = items.map((i) => `${i.name} ${curStr(cur, i.amount)}`).join(", ");
-      if (vc > 0 && p > 0) {
-        return `- ${cat}: ${curStr(cur, total)} total (${curStr(cur, p)} payable directly + ${curStr(cur, vc)} auto-charged to card) [${breakdown}]`;
-      } else if (vc > 0) {
-        return `- ${cat}: ${curStr(cur, vc)} total, all auto-charged to card [${breakdown}]`;
-      } else {
-        return `- ${cat}: ${curStr(cur, p)} [${breakdown}]`;
-      }
+      const vcNote = vc > 0 && p > 0
+        ? ` (${curStr(cur, p)} direct + ${curStr(cur, vc)} via card)`
+        : vc > 0 ? " (all via card)" : "";
+      return `- ${cat}: ${curStr(cur, total)} total${vcNote} [${breakdown}]`;
     });
 
   parts.push(
