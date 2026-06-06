@@ -262,6 +262,26 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
   const bizUnpaid = payable.filter((b) => b.isBusiness && b.status !== "paid");
   const bizTotal = bizUnpaid.reduce((s, b) => s + (b.amount ?? 0), 0);
 
+  // Business bills that are auto-charged to a card — excluded from payment totals
+  // but real spending; the user should know the full business cost when they ask.
+  const bizViaCard = viaCard.filter((b) => b.isBusiness);
+  const bizViaCardTotal = bizViaCard.reduce((s, b) => s + (b.amount ?? 0), 0);
+
+  // Per-category totals including via-card (for "how much does X category cost me" answers).
+  // Keyed by cat name; splits into payable and viaCard sub-totals.
+  const catMap = new Map<string, { payable: number; viaCard: number; names: string[] }>();
+  for (const b of bills) {
+    const cat = b.cat ?? "Other";
+    const entry = catMap.get(cat) ?? { payable: 0, viaCard: 0, names: [] };
+    if (isViaCard(b)) {
+      entry.viaCard += b.amount ?? 0;
+    } else {
+      entry.payable += b.amount ?? 0;
+    }
+    entry.names.push(b.provider ?? "Bill");
+    catMap.set(cat, entry);
+  }
+
   const lines = bills.map((b) => {
     const days = b.dueDays ?? 0;
     const when = b.isProjection
@@ -334,9 +354,15 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     `Total still due (unpaid): ${curStr(cur, total)}.`,
     `Total of bills due within 7 days: ${curStr(cur, dueThisWeek)}.`,
     bizUnpaid.length > 0
-      ? `Business bills still unpaid: ${bizUnpaid.length} bill${bizUnpaid.length === 1 ? "" : "s"} totalling ${curStr(cur, bizTotal)}.`
-      : "Business bills still unpaid: none.",
-  ];
+      ? `Business bills still unpaid (directly payable): ${bizUnpaid.length} bill${bizUnpaid.length === 1 ? "" : "s"} totalling ${curStr(cur, bizTotal)}.`
+      : "Business bills still unpaid (directly payable): none.",
+    bizViaCard.length > 0
+      ? `Business bills auto-charged to cards: ${bizViaCard.length} bill${bizViaCard.length === 1 ? "" : "s"} totalling ${curStr(cur, bizViaCardTotal)} (${bizViaCard.map((b) => b.provider).join(", ")}). These are already inside those card statements and must NOT be added to payment totals, but MUST be included when the user asks about their total business spending or business cost.`
+      : "Business bills auto-charged to cards: none.",
+    (bizUnpaid.length > 0 || bizViaCard.length > 0)
+      ? `Combined business total (informational — payable + auto-charged): ${curStr(cur, bizTotal + bizViaCardTotal)}.`
+      : "",
+  ].filter(Boolean);
 
   if (incomeLines.length > 0) {
     parts.push(
@@ -349,16 +375,33 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
   if (viaCard.length > 0) {
     parts.push(
       "",
-      `IMPORTANT — auto-charged bills: ${viaCard.length} bill${viaCard.length === 1 ? " is" : "s are"} automatically charged to a credit card the user ALSO tracks (tagged [AUTO-CHARGED to <card>] below). These are EXCLUDED from every total above on purpose — the card's own statement already includes that money, so adding them again would double-count. When asked about totals or what's due, use the totals as given. You may mention an auto-charged bill (e.g. "your Netflix hits your BPI card"), but never add its amount on top of the totals.`,
+      `IMPORTANT — auto-charged bills: ${viaCard.length} bill${viaCard.length === 1 ? " is" : "s are"} automatically charged to a credit card the user ALSO tracks (tagged [AUTO-CHARGED to <card>] below). TWO RULES: (1) NEVER add auto-charged amounts to "what's due / what do I owe" totals — the card statement already covers them. (2) ALWAYS include auto-charged amounts when the user asks about spending by category, by business tag, or "how much does X cost me" — these are real costs and the user deserves the full picture. State the card name so they know where the charge lands (e.g. "₱1,500 via BPI").`,
     );
   }
+
+  // Category breakdown including via-card — lets the AI answer "how much does X cost?"
+  const catLines = [...catMap.entries()]
+    .sort(([, a], [, b]) => (b.payable + b.viaCard) - (a.payable + a.viaCard))
+    .map(([cat, { payable: p, viaCard: vc }]) => {
+      const total = p + vc;
+      if (vc > 0 && p > 0) {
+        return `- ${cat}: ${curStr(cur, total)} total (${curStr(cur, p)} payable directly + ${curStr(cur, vc)} auto-charged to card)`;
+      } else if (vc > 0) {
+        return `- ${cat}: ${curStr(cur, vc)} (all auto-charged to card)`;
+      } else {
+        return `- ${cat}: ${curStr(cur, p)}`;
+      }
+    });
 
   parts.push(
     "",
     "MONTHLY TOTALS (payable bills only — excludes auto-charged card bills):",
     monthLines.join("\n"),
     "",
-    "BILLS ([BUSINESS]/[PERSONAL]; [AUTO-CHARGED to X] = auto-paid via that card, already counted inside its statement, NOT added to the totals):",
+    "SPENDING BY CATEGORY (includes auto-charged card bills — use for category/business cost questions):",
+    catLines.join("\n"),
+    "",
+    "BILLS ([BUSINESS]/[PERSONAL]; [AUTO-CHARGED to X] = auto-paid via that card, already counted inside its statement, NOT added to the payment totals):",
     lines.join("\n"),
   );
 
