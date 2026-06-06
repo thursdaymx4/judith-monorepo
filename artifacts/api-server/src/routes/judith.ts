@@ -425,10 +425,13 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     .map(([cat, { payable: p, viaCard: vc, items }]) => {
       const total = p + vc;
       const breakdown = items.map((i) => `${i.name} ${curStr(cur, i.amount)}`).join(", ");
-      const vcNote = vc > 0 && p > 0
-        ? ` (${curStr(cur, p)} direct + ${curStr(cur, vc)} via card)`
-        : vc > 0 ? " (all via card)" : "";
-      return `- ${cat}: ${curStr(cur, total)} total${vcNote} [${breakdown}]`;
+      // Always state the directly-payable amount explicitly — even when it's ₱0.
+      // Otherwise the model "fills the gap" for all-via-card categories by grabbing
+      // an unrelated payable bill from another category (e.g. Laundry → Web app).
+      const vcNote = vc > 0
+        ? ` (${curStr(cur, p)} directly payable + ${curStr(cur, vc)} auto-charged to cards)`
+        : "";
+      return `- ${cat}: ${curStr(cur, total)} total${vcNote}. Complete list of bills in this category (nothing else belongs here): ${breakdown}.`;
     });
 
   parts.push(
@@ -436,7 +439,7 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     "MONTHLY TOTALS (payable bills only — excludes auto-charged card bills):",
     monthLines.join("\n"),
     "",
-    "SPENDING BY CATEGORY (includes auto-charged card bills — use for category/business cost questions):",
+    "SPENDING BY CATEGORY (includes auto-charged card bills — use for category/business cost questions). When asked about ONE category, answer with that category's total and ONLY the bills in its 'Complete list' — never add a bill listed under a different category, and if 'directly payable' is ₱0 then there is NO direct-pay bill to name:",
     catLines.join("\n"),
     "",
     "BILLS ([BUSINESS]/[PERSONAL]; [AUTO-CHARGED to X] = auto-paid via that card, already counted inside its statement, NOT added to the payment totals):",
