@@ -86,14 +86,14 @@ function LockNotification({ bill }: { bill: Bill | null }) {
       }}
     >
       <LinearGradient
-        colors={["#0c0e13", "#16191f"]}
+        colors={[t.canvas, t.surface2] as [string, string]}
         start={{ x: 0, y: 0 }}
         end={{ x: 0.18, y: 1 }}
         style={{ padding: 16, paddingTop: 22, paddingBottom: 18 }}
       >
         {/* radial accent glow at top */}
         <LinearGradient
-          colors={[mix(t.accent, "#0c0e13", 0.16), "transparent"]}
+          colors={[mix(t.accent, t.canvas, 0.16), "transparent"]}
           start={{ x: 0.5, y: 0 }}
           end={{ x: 0.5, y: 1 }}
           style={{ position: "absolute", left: 0, right: 0, top: 0, height: 120 }}
@@ -104,7 +104,7 @@ function LockNotification({ bill }: { bill: Bill | null }) {
           <Text
             style={{
               fontFamily: t.fonts.mono,
-              color: "#fff",
+              color: t.txtHi,
               fontSize: 50,
               lineHeight: 50,
               letterSpacing: -1,
@@ -115,7 +115,7 @@ function LockNotification({ bill }: { bill: Bill | null }) {
           <Text
             style={{
               fontFamily: t.fonts.regular,
-              color: "rgba(255,255,255,0.8)",
+              color: t.txtMid,
               fontSize: 13,
               marginTop: 4,
             }}
@@ -129,9 +129,9 @@ function LockNotification({ bill }: { bill: Bill | null }) {
             borderRadius: 17,
             padding: 12,
             paddingHorizontal: 13,
-            backgroundColor: "rgba(255,255,255,0.12)",
+            backgroundColor: t.surface3,
             borderWidth: 1,
-            borderColor: "rgba(255,255,255,0.14)",
+            borderColor: t.hair,
           }}
         >
           <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 7 }}>
@@ -152,7 +152,7 @@ function LockNotification({ bill }: { bill: Bill | null }) {
                 fontFamily: t.fonts.bold,
                 fontSize: 11,
                 letterSpacing: 0.77,
-                color: "rgba(255,255,255,0.85)",
+                color: t.txtMid,
               }}
             >
               JUDITH
@@ -162,7 +162,7 @@ function LockNotification({ bill }: { bill: Bill | null }) {
                 marginLeft: "auto",
                 fontFamily: t.fonts.regular,
                 fontSize: 11,
-                color: "rgba(255,255,255,0.6)",
+                color: t.txtLow,
               }}
             >
               now
@@ -170,7 +170,7 @@ function LockNotification({ bill }: { bill: Bill | null }) {
           </View>
           <Text
             style={{
-              color: "#fff",
+              color: t.txtHi,
               fontFamily: t.fonts.semibold,
               fontSize: 15,
               lineHeight: 18.75,
@@ -180,7 +180,7 @@ function LockNotification({ bill }: { bill: Bill | null }) {
           </Text>
           <Text
             style={{
-              color: "rgba(255,255,255,0.82)",
+              color: t.txtMid,
               fontFamily: t.fonts.regular,
               fontSize: 13.5,
               lineHeight: 18.2,
@@ -228,14 +228,14 @@ function LockNotification({ bill }: { bill: Bill | null }) {
                     paddingHorizontal: 8,
                     borderRadius: 11,
                     borderWidth: 1,
-                    borderColor: "rgba(255,255,255,0.18)",
-                    backgroundColor: "rgba(255,255,255,0.1)",
+                    borderColor: t.hair2,
+                    backgroundColor: t.surface2,
                   },
                   pressed && { transform: [{ scale: 0.96 }] },
                 ]}
               >
-                <Icon name="snooze" size={15} color="#fff" />
-                <Text style={{ fontFamily: t.fonts.semibold, fontSize: 13, color: "#fff" }}>
+                <Icon name="snooze" size={15} color={t.txtMid} />
+                <Text style={{ fontFamily: t.fonts.semibold, fontSize: 13, color: t.txtMid }}>
                   Remind tomorrow
                 </Text>
               </Pressable>
