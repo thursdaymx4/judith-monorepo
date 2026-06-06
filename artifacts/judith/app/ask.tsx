@@ -684,26 +684,6 @@ export default function AskModal() {
               </View>
             </View>
           )}
-          {!locked && (
-            <View
-              style={{
-                flexDirection: "row",
-                flexWrap: "wrap",
-                gap: 8,
-                paddingHorizontal: 22,
-                paddingTop: 4,
-              }}
-            >
-              {getQuickAsks(country.code).map((qa, i) => (
-                <Chip
-                  key={i}
-                  label={qa}
-                  onPress={() => ask(qa)}
-                  style={{ opacity: busy ? 0.5 : 1 }}
-                />
-              ))}
-            </View>
-          )}
         </View>
       ) : (
         <ScrollView
@@ -793,6 +773,25 @@ export default function AskModal() {
               </SpeechBubble>
             </View>
           )}
+        </ScrollView>
+      )}
+
+      {/* quick-ask chips — always visible above the input bar */}
+      {!locked && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 8, paddingHorizontal: 22, paddingVertical: 10 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          {getQuickAsks(country.code).map((qa, i) => (
+            <Chip
+              key={i}
+              label={qa}
+              onPress={() => ask(qa)}
+              style={{ opacity: busy ? 0.5 : 1 }}
+            />
+          ))}
         </ScrollView>
       )}
 
