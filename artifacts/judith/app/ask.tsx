@@ -14,6 +14,7 @@ import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Chip, Low, Muted, Pill, SpeechBubble, Txt, mix } from "@/components/ui";
 import { makeBillFromAction, makeSubscriptionBill, currentCycleDue, nextOccurrence, totalOwed, ccProjectedFuture } from "@/constants/data";
+import type { AskMsg } from "@/contexts/JudithStore";
 import { getQuickAsks } from "@/constants/providers";
 import { getPersona } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
@@ -60,17 +61,13 @@ function scanDueLabel(nextDue: string | null, dueDay: number | null, frequency: 
 const BILL_WORDS =
   /bill|due|owe|owed|pay|paid|payment|total|month|week|today|tomorrow|balance|card|loan|rent|mortgage|electric|water|internet|mobile|subscription|netflix|spotify|meralco|when|how much|magkano|cost|charge|fee|money|budget|afford|salary|spend/i;
 
-interface Msg {
-  role: "user" | "judith";
-  text: string;
-  flagged?: boolean;
-}
+type Msg = AskMsg;
 
 export default function AskModal() {
   const t = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { bills, asksLeft, tier, persona, language, country, monthlyIncome, consumeAsk, canUseVoice, saveBill, showToast, toggles, setToggle } = useJudith();
+  const { bills, asksLeft, tier, persona, language, country, monthlyIncome, consumeAsk, canUseVoice, saveBill, showToast, toggles, setToggle, askHistory, setAskHistory, clearAskHistory, hydrated } = useJudith();
   // Voice tier can mute spoken replies (e.g. in public) and get text-only answers.
   const speakAloud = toggles.voiceReplies;
   const voiceTier = tier === "voice";
@@ -91,7 +88,31 @@ export default function AskModal() {
   const voiceLocked = !canUseVoice() && !locked;
   const lowAsks = !isPaid && asksLeft > 0 && asksLeft <= 3;
 
-  const [messages, setMessages] = useState<Msg[]>([]);
+  // Initialise from persisted history (store is usually hydrated before the modal opens).
+  const [messages, setMessages] = useState<Msg[]>(() => askHistory);
+  // Ref mirrors local state so appendAndPersist can read the latest value synchronously.
+  const messagesRef = useRef<Msg[]>(askHistory);
+  // Once the store finishes hydrating (edge case: modal opened before hydration), sync history.
+  const historyLoadedRef = useRef(hydrated);
+  useEffect(() => {
+    if (hydrated && !historyLoadedRef.current) {
+      historyLoadedRef.current = true;
+      if (askHistory.length > 0 && messagesRef.current.length === 0) {
+        messagesRef.current = askHistory;
+        setMessages(askHistory);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated]);
+
+  /** Append a message, update local state, and persist to the store. */
+  const appendAndPersist = (msg: Msg) => {
+    const next = [...messagesRef.current, msg].slice(-100);
+    messagesRef.current = next;
+    setMessages(next);
+    setAskHistory(next);
+  };
+
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -369,7 +390,7 @@ export default function AskModal() {
     lastAskRef.current = now;
     setErr("");
     setInput("");
-    setMessages((m) => [...m, { role: "user", text: q }]);
+    appendAndPersist({ role: "user", text: q });
     if (!isPaid) consumeAsk();
     setBusy(true);
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
@@ -379,7 +400,7 @@ export default function AskModal() {
       const wantVoice = canUseVoice() && (!voiceTier || speakAloud);
       const { reply, audioBase64, action } = await askJudith(q, askBills(), persona, language, wantVoice, country.cur, country.name, monthlyIncome, country.code);
       const finalReply = reply?.trim() || localFallback(q);
-      setMessages((m) => [...m, { role: "judith", text: finalReply }]);
+      appendAndPersist({ role: "judith", text: finalReply });
       if (audioBase64) {
         playBase64Mp3(audioBase64).catch(() => {});
       }
@@ -391,9 +412,9 @@ export default function AskModal() {
     } catch (e) {
       if (e instanceof RateLimitError) {
         setRateLimitSecs(Math.min(e.retryAfter, 3600));
-        setMessages((m) => [...m, { role: "judith", text: `You're sending too fast — please wait ${e.retryAfter} second${e.retryAfter === 1 ? "" : "s"} before asking again.` }]);
+        appendAndPersist({ role: "judith", text: `You're sending too fast — please wait ${e.retryAfter} second${e.retryAfter === 1 ? "" : "s"} before asking again.` });
       } else {
-        setMessages((m) => [...m, { role: "judith", text: localFallback(q) }]);
+        appendAndPersist({ role: "judith", text: localFallback(q) });
       }
     } finally {
       setBusy(false);
@@ -566,6 +587,20 @@ export default function AskModal() {
           <Txt size={22} weight="semibold">
             Ask Judith
           </Txt>
+          {messages.length > 0 && (
+            <Pressable
+              onPress={() => {
+                messagesRef.current = [];
+                setMessages([]);
+                clearAskHistory();
+              }}
+              hitSlop={10}
+              accessibilityLabel="Clear chat history"
+              style={{ paddingLeft: 2, paddingTop: 3 }}
+            >
+              <Txt size={12} color={t.txtMid}>Clear</Txt>
+            </Pressable>
+          )}
         </View>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           {voiceTier && (
@@ -709,17 +744,18 @@ export default function AskModal() {
                     <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 6 }}>
                       <Txt size={14.5} style={{ flex: 1 }}>{m.text}</Txt>
                       <Pressable
-                        onPress={() =>
-                          setMessages((prev) =>
-                            prev.map((msg, j) =>
-                              j === i ? { ...msg, flagged: !msg.flagged } : msg,
-                            ),
-                          )
-                        }
+                        onPress={() => {
+                          const next = messagesRef.current.map((msg, j) =>
+                            j === i ? { ...msg, flagged: !msg.flagged } : msg,
+                          );
+                          messagesRef.current = next;
+                          setMessages(next);
+                          setAskHistory(next);
+                        }}
                         hitSlop={10}
                         style={{ paddingTop: 1 }}
                       >
-                        <Txt size={13} color={m.flagged ? t.semantic.urgent : t.muted} style={{ opacity: m.flagged ? 1 : 0.35 }}>
+                        <Txt size={13} color={m.flagged ? t.semantic.urgent : t.txtMid} style={{ opacity: m.flagged ? 1 : 0.35 }}>
                           {"⚑"}
                         </Txt>
                       </Pressable>

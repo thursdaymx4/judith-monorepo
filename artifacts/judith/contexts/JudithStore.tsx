@@ -62,6 +62,13 @@ function computeNaturalPeriod(
 /** free = 8 trial asks; chat = unlimited text asks; voice = unlimited text + voice asks */
 export type AskTier = "free" | "chat" | "voice";
 
+/** A single message in the Ask Judith chat history. */
+export interface AskMsg {
+  role: "user" | "judith";
+  text: string;
+  flagged?: boolean;
+}
+
 export interface Toggles {
   dueReminders: boolean;
   widget: boolean;
@@ -98,6 +105,8 @@ interface PersistShape {
   guest: boolean;
   /** Estimated monthly take-home income (used by Judith to answer budget questions). */
   monthlyIncome?: number;
+  /** Persisted Ask Judith chat history (last 100 messages). */
+  askHistory: AskMsg[];
 }
 
 const DEFAULTS: PersistShape = {
@@ -119,6 +128,7 @@ const DEFAULTS: PersistShape = {
   onbIdx: 0,
   guest: false,
   monthlyIncome: undefined,
+  askHistory: [],
 };
 
 interface JudithStoreValue extends PersistShape {
@@ -169,6 +179,10 @@ interface JudithStoreValue extends PersistShape {
   setOnbIdx: (i: number) => void;
   setGuest: (v: boolean) => void;
   setMonthlyIncome: (n: number | undefined) => void;
+  /** Replace the full Ask Judith chat history (capped at 100 messages). */
+  setAskHistory: (msgs: AskMsg[]) => void;
+  /** Clear the full Ask Judith chat history. */
+  clearAskHistory: () => void;
   restart: () => void;
 }
 
@@ -546,6 +560,8 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       setOnbIdx: (i) => patch({ onbIdx: i }),
       setGuest: (v) => patch({ guest: v }),
       setMonthlyIncome: (n) => patch({ monthlyIncome: n }),
+      setAskHistory: (msgs) => patch({ askHistory: msgs.slice(-100) }),
+      clearAskHistory: () => patch({ askHistory: [] }),
       restart: () => {
         setState({ ...DEFAULTS });
         AsyncStorage.removeItem(storageKey).catch(() => {});
