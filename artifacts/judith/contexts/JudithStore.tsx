@@ -10,6 +10,7 @@ import React, {
 } from "react";
 
 import { formatMoney, isPaidViaCard, totalOwed, type Bill, type BillCycleRecord } from "@/constants/data";
+import { DEMO_PRESET } from "@/constants/demoData";
 import {
   countryByCode,
   DEFAULT_COUNTRY,
@@ -193,6 +194,7 @@ interface JudithStoreValue extends PersistShape {
   /** Clear the full Ask Judith chat history. */
   clearAskHistory: () => void;
   restart: () => void;
+  loadDemoData: () => void;
 }
 
 const JudithContext = createContext<JudithStoreValue | undefined>(undefined);
@@ -583,6 +585,9 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       restart: () => {
         setState({ ...DEFAULTS });
         AsyncStorage.removeItem(storageKey).catch(() => {});
+      },
+      loadDemoData: () => {
+        setState({ ...DEFAULTS, ...DEMO_PRESET });
       },
     };
   }, [state, hydrated, patch, mapBills, toast, showToast, storageKey]);

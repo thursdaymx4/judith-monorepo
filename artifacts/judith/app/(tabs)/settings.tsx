@@ -121,7 +121,7 @@ function SettingsLabel({ children }: { children: React.ReactNode }) {
 export default function SettingsScreen() {
   const t = useTheme();
   const router = useRouter();
-  const { persona, setPersona, language, setLanguage, toggles, setToggle, reduceMotion, setReduceMotion, asksLeft, tier, theme, setTheme, restart, money, bills, name, guest, country, setCountry, currency, setCurrency } =
+  const { persona, setPersona, language, setLanguage, toggles, setToggle, reduceMotion, setReduceMotion, asksLeft, tier, theme, setTheme, restart, loadDemoData, money, bills, name, guest, country, setCountry, currency, setCurrency } =
     useJudith();
   const { user } = useAuth();
   const email = user?.email ?? (guest ? "Guest account" : "—");
@@ -901,10 +901,39 @@ export default function SettingsScreen() {
         ))}
       </View>
 
+      {/* Load demo data — for screenshots / demos */}
+      <Pressable
+        onPress={() => {
+          loadDemoData();
+        }}
+        style={({ pressed }) => [
+          {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 13,
+            marginTop: 28,
+            paddingVertical: 14,
+            paddingHorizontal: 15,
+            borderWidth: 1,
+            borderColor: mix(t.accent, t.surface2, 0.4),
+            borderRadius: t.radius.md,
+            backgroundColor: mix(t.accent, t.surface2, 0.08),
+          },
+          pressed && { opacity: 0.7 },
+        ]}
+      >
+        <Icon name="spark" size={18} color={t.accent} />
+        <View style={{ flex: 1 }}>
+          <Txt size={15} weight="medium" color={t.accent}>Load demo data</Txt>
+          <Low size={12} style={{ marginTop: 1 }}>Fills the app with a US demo account for screenshots</Low>
+        </View>
+        <Icon name="chev" size={16} color={t.accent} />
+      </Pressable>
+
       <View style={{ alignItems: "center", marginTop: 22 }}>
-        <Low size={12}>Judith v1.0 · Made for the Philippines</Low>
+        <Low size={12}>Judith v1.0 · Available worldwide</Low>
         <Pressable onPress={() => setConfirmOpen(true)} style={{ marginTop: 6 }}>
-          <Low size={12}>Restart demo</Low>
+          <Low size={12}>Restart from scratch</Low>
         </Pressable>
       </View>
 
