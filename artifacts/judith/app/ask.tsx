@@ -276,7 +276,7 @@ export default function AskModal() {
         amount,
         dueDays,
         dueLabel,
-        status: isResolvedViaCard ? b.status : (isPaidThisPeriod ? "paid" : b.status),
+        status: isPaidThisPeriod ? "paid" : b.status,
         dueMonth,
         isBusiness: b.isBusiness,
         businessName: b.businessName,
@@ -284,6 +284,12 @@ export default function AskModal() {
         cardName,
       };
     });
+    // NOTE on status: we send "paid" whenever THIS period is settled
+    // (isPaidThisPeriod), for via-card bills too. The home screen excludes any
+    // bill where isPaidThisMonth() is true from its category totals; mirroring
+    // that here keeps Ask's category sums in lockstep with home. A paid via-card
+    // bill (e.g. an overdue subscription already settled) must NOT keep counting
+    // toward the category total just because it's charged to a card.
 
     // ── Next-month projections (estimated recurring cycle) ────────────────
     // Project every monthly (non-annual) bill one calendar month forward so the

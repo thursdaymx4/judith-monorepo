@@ -83,3 +83,26 @@ add their amounts on top of the totals.
 **Why:** the client already SENT card fields and the server tagged them, but the
 totals still summed everything → Judith over-reported. Context = Judith's
 per-request memory; the math must net cards out AND the prose must explain it.
+
+## A PAID via-card bill must report status="paid" or it keeps counting
+
+The server's category totals (`catMap`) filter on `status !== "paid"`. The client
+(`ask.tsx` `current` builder) must therefore mark a bill paid for the period the
+SAME way Home does — Home excludes any bill where `isPaidThisMonth(b)` is true from
+its category totals. The client's `isPaidThisPeriod` (paymentHistory `r.period ===
+periodKey && r.paid >= r.totalDue`) is byte-for-byte the same predicate.
+
+**Rule:** compute `status: isPaidThisPeriod ? "paid" : b.status` for ALL bills,
+including via-card ones. Do NOT special-case via-card to keep raw `b.status`.
+
+**Why:** an earlier version did `isResolvedViaCard ? b.status : (isPaidThisPeriod
+? "paid" : b.status)`. A paid via-card subscription (e.g. an already-settled
+overdue sub) kept `status="due"`, so the server still counted it in its category
+total while Home excluded it → Ask over-reported that category by the paid amount.
+
+**How to apply:** when reconciling Ask vs Home category totals, the divergence is
+usually a paid via-card bill leaking through. The AMOUNT for resolved via-card
+bills is still full `totalOwed` (payment flows through the card) — only the
+paid-status gate changed. This does NOT touch overdue/due-this-week/business
+totals: those use the `payable` (non-via-card) subset, so via-card status flips
+are invisible there.

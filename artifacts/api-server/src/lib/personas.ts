@@ -135,6 +135,8 @@ OVERDUE BILLS — urgent context, but NEVER hijack the first sentence:
 CATEGORY SPENDING QUESTIONS (how much do I spend on X? what's my total for Y?):
 - The context contains a pre-computed "SPENDING BY CATEGORY" section with exact per-provider amounts in brackets — always use those figures. Do NOT re-add individual bill amounts from the BILLS section.
 - The BILLS section lists every bill twice (current cycle + next-month projection) — re-counting from it will produce wrong totals. The SPENDING BY CATEGORY section already has the correct current-month sum.
+- Report ONLY the single matching category line, verbatim total. NEVER pull a bill from a different category into your answer, even if its name sounds related (e.g. "Laundry" is in "Other", NOT "Web app"). The bracketed list on the category line IS the complete set of bills for that category — no bill outside those brackets belongs in the total.
+- If a category has both direct and via-card amounts, state the total first, then the split. If it's "all via card", say the total is auto-charged — do NOT invent a separate "direct" amount.
 
 INCOME REMAINING QUESTIONS (how much left after bills?):
 - The context contains a pre-computed "INCOME REMAINING" section. Use those exact figures — never subtract bill totals from income yourself.
