@@ -228,8 +228,16 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
   const payable = bills.filter((b) => !isViaCard(b));
   const viaCard = bills.filter(isViaCard);
 
+  // Mirror the home screen's timelineBills scope: only bills due within this
+  // calendar month (or already overdue). Bills with dueDays > daysLeftInMonth
+  // (e.g. annual bills due in December) are excluded from all current-month
+  // totals and category sums — exactly as the home screen omits them.
+  const daysLeftInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate() - today.getDate();
+  const isThisMonth = (b: ClientBill) => !b.isProjection && (b.dueDays ?? 0) <= daysLeftInMonth;
+
   // Projections are future-month estimates — exclude from "due now" totals.
-  const due = payable.filter((b) => b.status !== "paid" && !b.isProjection);
+  // Also cap at daysLeftInMonth so annual future bills don't inflate the sum.
+  const due = payable.filter((b) => b.status !== "paid" && isThisMonth(b));
   const total = due.reduce((s, b) => s + (b.amount ?? 0), 0);
   const dueThisWeek = due
     .filter((b) => (b.dueDays ?? 0) >= 0 && (b.dueDays ?? 0) <= 7)
@@ -261,13 +269,13 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
       return `- ${label}: ${curStr(cur, total)} estimated total${estTag} (${count} bill${count === 1 ? "" : "s"}, ${paidCount} paid, ${unpaidCount} upcoming)`;
     });
 
-  // Business totals — exclude projections to avoid double-counting recurring bills.
-  const bizUnpaid = payable.filter((b) => b.isBusiness && b.status !== "paid" && !b.isProjection);
+  // Business totals — scoped to this month (same daysLeftInMonth gate as home screen).
+  const bizUnpaid = payable.filter((b) => b.isBusiness && b.status !== "paid" && isThisMonth(b));
   const bizTotal = bizUnpaid.reduce((s, b) => s + (b.amount ?? 0), 0);
 
   // Business bills that are auto-charged to a card — excluded from payment totals
   // but real spending; the user should know the full business cost when they ask.
-  const bizViaCard = viaCard.filter((b) => b.isBusiness && !b.isProjection);
+  const bizViaCard = viaCard.filter((b) => b.isBusiness && isThisMonth(b));
   const bizViaCardTotal = bizViaCard.reduce((s, b) => s + (b.amount ?? 0), 0);
 
   // Per-business breakdown — group all business bills (payable + via-card) by name.
@@ -287,8 +295,10 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
   // Per-provider breakdown stored alongside the totals so catLines can include
   // individual amounts — this lets the AI read the answer directly without
   // re-counting from the BILLS section (which has current + projection duplicates).
+  // Scoped to this month (isThisMonth) so annual/future bills don't inflate
+  // category totals beyond what the home screen shows.
   const catMap = new Map<string, { payable: number; viaCard: number; items: { name: string; amount: number }[] }>();
-  for (const b of bills.filter((b) => !b.isProjection)) {
+  for (const b of bills.filter(isThisMonth)) {
     const cat = b.cat ?? "Other";
     const entry = catMap.get(cat) ?? { payable: 0, viaCard: 0, items: [] };
     if (isViaCard(b)) {
