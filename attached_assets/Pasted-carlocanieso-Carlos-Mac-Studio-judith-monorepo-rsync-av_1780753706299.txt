@@ -1,0 +1,337 @@
+carlocanieso@Carlos-Mac-Studio judith-monorepo % rsync -av --include="*/" --include="*.swift" --exclude="*" \
+  "/Users/carlocanieso/Judith/judith-monorepo/artifacts/judith-watch/JudithWatch/" \
+  "/Users/carlocanieso/Judith/JudithWatch/JudithWatch Watch App/JudithWatch/"
+Transfer starting: 22 files
+Views/
+Views/AskView.swift
+Views/AuthView.swift
+Views/BillDetailView.swift
+Views/BillRowView.swift
+Views/PaidConfirmView.swift
+Views/UpNextView.swift
+
+sent 21071 bytes  received 158 bytes  5177804 bytes/sec
+total size is 36386  speedup is 1.71
+carlocanieso@Carlos-Mac-Studio judith-monorepo % xcrun devicectl list devices
+Name        Hostname                     Identifier                             State       Model                         
+---------   --------------------------   ------------------------------------   ---------   ------------------------------
+Erlyn Joy   Erlyn-Joy.coredevice.local   683281BE-E136-502A-8EB8-441244D91A64   connected   iPhone 15 Pro Max (iPhone16,2)
+carlocanieso@Carlos-Mac-Studio judith-monorepo % xcrun devicectl list devices
+Name        Hostname                     Identifier                             State       Model                         
+---------   --------------------------   ------------------------------------   ---------   ------------------------------
+Erlyn Joy   Erlyn-Joy.coredevice.local   683281BE-E136-502A-8EB8-441244D91A64   connected   iPhone 15 Pro Max (iPhone16,2)
+carlocanieso@Carlos-Mac-Studio judith-monorepo % xcrun devicectl list devices 2>&1
+Name        Hostname                     Identifier                             State       Model                         
+---------   --------------------------   ------------------------------------   ---------   ------------------------------
+Erlyn Joy   Erlyn-Joy.coredevice.local   683281BE-E136-502A-8EB8-441244D91A64   connected   iPhone 15 Pro Max (iPhone16,2)
+carlocanieso@Carlos-Mac-Studio judith-monorepo % xcrun xctrace list devices
+== Devices ==
+Carlo’s Mac Studio (CDAF855F-BCD2-5EF0-A61E-CB706AC2555D)
+Erlyn Joy (26.5) (00008130-000119AE2883401C)
+
+== Simulators ==
+Apple Watch SE 3 (40mm) Simulator (26.5) (6FF61D93-7723-4F1D-82D9-DCF86A635763)
+Apple Watch SE 3 (44mm) Simulator (26.5) (940B78C2-EE35-4543-9B82-4F62A4C77595)
+iPad (A16) Simulator (26.5) (DA647844-D02D-43BA-BC24-2AB93165ACFB)
+iPad Air 11-inch (M4) Simulator (26.5) (C5EB6683-2E0E-46EF-95D7-DB037F7A1F22)
+iPad Air 13-inch (M4) Simulator (26.5) (DCDB7376-212E-49BA-8629-AD40FD631BE7)
+iPad Pro 11-inch (M5) Simulator (26.5) (257D6B72-11CD-4E55-B5E3-3D05EDCE10C0)
+iPad Pro 13-inch (M5) Simulator (26.5) (95F2CB6C-C913-4DEA-945C-89AD1C89A1E4)
+iPad mini (A17 Pro) Simulator (26.5) (E5043AFF-360F-4F8A-BCCF-C997CAF85405)
+iPhone 17 Simulator (26.5) (753D5A36-DE35-4729-A79D-D8B0B3863AC5)
+iPhone 17 Simulator (26.5) + Apple Watch Ultra 3 (49mm) (26.5) (1BC4E0EF-445F-4AF1-8C9C-E680489EF28B)
+iPhone 17 Pro Simulator (26.5) (F683606A-1E29-422B-8140-593CC417B3B7)
+iPhone 17 Pro Max Simulator (26.5) (6ADBF0B4-3923-4BDA-9ECB-1043998B32CA)
+iPhone 17 Pro Max Simulator (26.5) + Apple Watch Series 11 (46mm) (26.5) (42813DEE-D6FB-472A-9867-389AE56B1CA1)
+iPhone 17e Simulator (26.5) (F4178AEC-ACD3-4492-8E8A-5C47B5FCB403)
+iPhone Air Simulator (26.5) (44FFA6D6-80BA-469D-8FE2-8CFFEF5E2ACF)
+iPhone Air Simulator (26.5) + Apple Watch Series 11 (42mm) (26.5) (5A4B666E-3E66-427D-A375-C88C5D4692A0)
+carlocanieso@Carlos-Mac-Studio judith-monorepo % ls ~/Library/MobileDevice/Devices/
+ls: /Users/carlocanieso/Library/MobileDevice/Devices/: No such file or directory
+carlocanieso@Carlos-Mac-Studio judith-monorepo % xcrun devicectl list devices --include-hidden 2>&1
+Error: Unknown option '--include-hidden'
+Usage: devicectl list devices [--filter <filter>] [--sort-by <sort-by>] [--columns <columns> ...] [--hide-default-columns] [--hide-headers] [--verbose] [--quiet] [--timeout <seconds>] [--json-output <path>] [--log-output <path>]
+  See 'devicectl list devices --help' for more information.
+carlocanieso@Carlos-Mac-Studio judith-monorepo % xcrun devicectl list pairedDevices 2>&1
+Error: Unexpected argument 'pairedDevices'
+Usage: devicectl list [--verbose] [--quiet] [--timeout <seconds>] [--json-output <path>] [--log-output <path>] <subcommand>
+  See 'devicectl list --help' for more information.
+carlocanieso@Carlos-Mac-Studio judith-monorepo % xcrun devicectl list devices --include-hidden 2>&1
+Error: Unknown option '--include-hidden'
+Usage: devicectl list devices [--filter <filter>] [--sort-by <sort-by>] [--columns <columns> ...] [--hide-default-columns] [--hide-headers] [--verbose] [--quiet] [--timeout <seconds>] [--json-output <path>] [--log-output <path>]
+  See 'devicectl list devices --help' for more information.
+carlocanieso@Carlos-Mac-Studio judith-monorepo % xcrun devicectl list pairedDevices 2>&1
+Error: Unexpected argument 'pairedDevices'
+Usage: devicectl list [--verbose] [--quiet] [--timeout <seconds>] [--json-output <path>] [--log-output <path>] <subcommand>
+  See 'devicectl list --help' for more information.
+carlocanieso@Carlos-Mac-Studio judith-monorepo % instruments -s devices 2>&1 | grep -i watch
+carlocanieso@Carlos-Mac-Studio judith-monorepo % xcrun devicectl list devices --verbose 2>&1
+Using verbose logging.
+  ▿ 1 element
+    ▿ iPhone 15 Pro Max - iPhone16,2 - D84AP - 683281BE-E136-502A-8EB8-441244D91A64
+      - identifier: 683281BE-E136-502A-8EB8-441244D91A64
+      - tags: 0 elements
+      ▿ hardwareProperties: CoreDeviceClientJSONSupport.DeviceResult.HardwareProperties
+        ▿ cpuType: Optional(CoreDeviceClientJSONSupport.DeviceResult.CPUInfo(type: 16777228, subType: 2, name: "arm64e"))
+          ▿ some: CoreDeviceClientJSONSupport.DeviceResult.CPUInfo
+            - type: 16777228
+            - subType: 2
+            - name: "arm64e"
+        ▿ deviceType: Optional("iPhone")
+          - some: "iPhone"
+        ▿ ecid: Optional(309710771404828)
+          - some: 309710771404828
+        ▿ hardwareModel: Optional("D84AP")
+          - some: "D84AP"
+        ▿ internalStorageCapacity: Optional(512000000000)
+          - some: 512000000000
+        ▿ isProductionFused: Optional(true)
+          - some: true
+        ▿ marketingName: Optional("iPhone 15 Pro Max")
+          - some: "iPhone 15 Pro Max"
+        ▿ platform: Optional("iOS")
+          - some: "iOS"
+        ▿ productType: Optional("iPhone16,2")
+          - some: "iPhone16,2"
+        ▿ reality: Optional(CoreDeviceClientJSONSupport.DeviceResult.DeviceReality.physical)
+          - some: CoreDeviceClientJSONSupport.DeviceResult.DeviceReality.physical
+        ▿ serialNumber: Optional("HJX2QWPYM3")
+          - some: "HJX2QWPYM3"
+        ▿ supportedCPUTypes: Optional([CoreDeviceClientJSONSupport.DeviceResult.CPUInfo(type: 16777228, subType: 2, name: "arm64e"), CoreDeviceClientJSONSupport.DeviceResult.CPUInfo(type: 16777228, subType: 0, name: "arm64")])
+          ▿ some: 2 elements
+            ▿ CoreDeviceClientJSONSupport.DeviceResult.CPUInfo
+              - type: 16777228
+              - subType: 2
+              - name: "arm64e"
+            ▿ CoreDeviceClientJSONSupport.DeviceResult.CPUInfo
+              - type: 16777228
+              - subType: 0
+              - name: "arm64"
+        ▿ supportedDeviceFamilies: Optional([1])
+          ▿ some: 1 element
+            - 1
+        ▿ thinningProductType: Optional("iPhone16,2")
+          - some: "iPhone16,2"
+        ▿ udid: Optional("00008130-000119AE2883401C")
+          - some: "00008130-000119AE2883401C"
+      ▿ deviceProperties: CoreDeviceClientJSONSupport.DeviceResult.DeviceProperties
+        ▿ bootState: Optional("booted")
+          - some: "booted"
+        - ddiServicesAvailable: true
+        ▿ developerModeStatus: Optional(CoreDeviceClientJSONSupport.DeviceResult.DeveloperModeStatus.enabled)
+          - some: CoreDeviceClientJSONSupport.DeviceResult.DeveloperModeStatus.enabled
+        ▿ hasInternalOSBuild: Optional(false)
+          - some: false
+        ▿ name: Optional("Erlyn Joy")
+          - some: "Erlyn Joy"
+        ▿ osBuildUpdate: Optional("23F77")
+          - some: "23F77"
+        ▿ osVersionNumber: Optional("26.5")
+          - some: "26.5"
+        - provider: nil
+        ▿ providerSpecificValues: Optional(["hasAMRestorableDeviceRef": "true"])
+          ▿ some: 1 key/value pair
+            ▿ (2 elements)
+              - key: "hasAMRestorableDeviceRef"
+              - value: "true"
+        ▿ rootFileSystemIsWritable: Optional(false)
+          - some: false
+        ▿ screenViewingURL: Optional(devices://device/open?id=683281BE-E136-502A-8EB8-441244D91A64)
+          ▿ some: devices://device/open?id=683281BE-E136-502A-8EB8-441244D91A64
+            ▿ _url: Foundation._SwiftURL #0
+              ▿ _parseInfo: Foundation.URLParseInfo #1
+                - urlString: "devices://device/open?id=683281BE-E136-502A-8EB8-441244D91A64"
+                ▿ schemeRange: Optional(Range(0[utf8]..<7[utf8]))
+                  ▿ some: Range(0[utf8]..<7[utf8])
+                    ▿ lowerBound: 0[utf8]
+                      - _rawBits: 4
+                    ▿ upperBound: 7[utf8]
+                      - _rawBits: 458756
+                - userRange: nil
+                - passwordRange: nil
+                ▿ hostRange: Optional(Range(10[utf8]..<16[utf8]))
+                  ▿ some: Range(10[utf8]..<16[utf8])
+                    ▿ lowerBound: 10[utf8]
+                      - _rawBits: 655364
+                    ▿ upperBound: 16[utf8]
+                      - _rawBits: 1048580
+                - portRange: nil
+                ▿ pathRange: Optional(Range(16[utf8]..<21[utf8]))
+                  ▿ some: Range(16[utf8]..<21[utf8])
+                    ▿ lowerBound: 16[utf8]
+                      - _rawBits: 1048580
+                    ▿ upperBound: 21[utf8]
+                      - _rawBits: 1376260
+                ▿ queryRange: Optional(Range(22[utf8]..<61[utf8]))
+                  ▿ some: Range(22[utf8]..<61[utf8])
+                    ▿ lowerBound: 22[utf8]
+                      - _rawBits: 1441796
+                    ▿ upperBound: 61[utf8]
+                      - _rawBits: 3997700
+                - fragmentRange: nil
+                - isIPLiteral: false
+                - didPercentEncodeHost: false
+                - pathHasFileID: false
+                ▿ encodedComponents: Foundation.URLParseInfo.EncodedComponentSet
+                  - rawValue: 0
+              - _baseURL: nil
+              ▿ _encoding: Unicode (UTF-8)
+                - rawValue: 4
+              - _isCanonicalFileURL: false
+              ▿ _resourceInfo: Foundation._SwiftURL.ResourceInfo #2
+                ▿ ref: Foundation.LockedState<Swift.Optional<Swift.AnyObject>>
+                  - _buffer: Foundation.LockedState<Swift.Optional<Swift.AnyObject>>.(unknown context at $182db5c98)._Buffer #3
+                    ▿ super: Swift.ManagedBuffer<Swift.Optional<Swift.AnyObject>, __C.os_unfair_lock_s>
+                      - header: nil
+              ▿ _nsurlLock: Foundation.LockedState<Swift.Optional<__C.NSURL>>
+                - _buffer: Foundation.LockedState<Swift.Optional<__C.NSURL>>.(unknown context at $182db5c98)._Buffer #4
+                  ▿ super: Swift.ManagedBuffer<Swift.Optional<__C.NSURL>, __C.os_unfair_lock_s>
+                    - header: nil
+        ▿ bootedFromSnapshot: Optional(true)
+          - some: true
+        ▿ bootedSnapshotName: Optional("com.apple.os.update-766F0D3E784E097A3BAF5B473BD509C0D4FAAF535D16B7CB9C7AAE34DC111BD3")
+          - some: "com.apple.os.update-766F0D3E784E097A3BAF5B473BD509C0D4FAAF535D16B7CB9C7AAE34DC111BD3"
+        - releaseType: nil
+        ▿ supportsCheckedAllocations: Optional(false)
+          - some: false
+      ▿ connectionProperties: CoreDeviceClientJSONSupport.DeviceResult.ConnectionProperties
+        ▿ authenticationType: Optional(CoreDeviceClientJSONSupport.DeviceResult.AuthenticationType.manualPairing)
+          - some: CoreDeviceClientJSONSupport.DeviceResult.AuthenticationType.manualPairing
+        - isMobileDeviceOnly: false
+        ▿ lastConnectionDate: Optional(2026-06-06 13:47:00 +0000)
+          ▿ some: 2026-06-06 13:47:00 +0000
+            - timeIntervalSinceReferenceDate: 802446420.0
+        ▿ localHostnames: Optional(["Erlyn-Joy.coredevice.local", "683281BE-E136-502A-8EB8-441244D91A64.coredevice.local", "00008130-000119AE2883401C.coredevice.local"])
+          ▿ some: 3 elements
+            - "Erlyn-Joy.coredevice.local"
+            - "683281BE-E136-502A-8EB8-441244D91A64.coredevice.local"
+            - "00008130-000119AE2883401C.coredevice.local"
+        ▿ potentialHostnames: Optional(["Erlyn-Joy.coredevice.local", "683281BE-E136-502A-8EB8-441244D91A64.coredevice.local", "00008130-000119AE2883401C.coredevice.local"])
+          ▿ some: 3 elements
+            - "Erlyn-Joy.coredevice.local"
+            - "683281BE-E136-502A-8EB8-441244D91A64.coredevice.local"
+            - "00008130-000119AE2883401C.coredevice.local"
+        ▿ pairingState: Optional(CoreDeviceClientJSONSupport.DeviceResult.PairingState.paired)
+          - some: CoreDeviceClientJSONSupport.DeviceResult.PairingState.paired
+        ▿ transportType: Optional(CoreDeviceClientJSONSupport.DeviceResult.TransportType.wired)
+          - some: CoreDeviceClientJSONSupport.DeviceResult.TransportType.wired
+        ▿ tunnelTransportProtocol: Optional(CoreDeviceClientJSONSupport.DeviceResult.TunnelTransportProtocol.tcp)
+          - some: CoreDeviceClientJSONSupport.DeviceResult.TunnelTransportProtocol.tcp
+        ▿ tunnelIPAddress: Optional("fd4f:f43b:5b0a::1")
+          - some: "fd4f:f43b:5b0a::1"
+        - tunnelState: CoreDeviceClientJSONSupport.DeviceResult.TunnelState.connected
+      ▿ capabilities: 36 elements
+        ▿ Acquire Usage Assertion (com.apple.coredevice.feature.acquireusageassertion)
+          - name: "Acquire Usage Assertion"
+          - featureIdentifier: "com.apple.coredevice.feature.acquireusageassertion"
+        ▿ Application Control (com.apple.coredevice.feature.applicationcontrol)
+          - name: "Application Control"
+          - featureIdentifier: "com.apple.coredevice.feature.applicationcontrol"
+        ▿ Capture Sysdiagnose (com.apple.coredevice.feature.capturesysdiagnose)
+          - name: "Capture Sysdiagnose"
+          - featureIdentifier: "com.apple.coredevice.feature.capturesysdiagnose"
+        ▿ Create Service Connection (com.apple.dt.serviceconnection.create)
+          - name: "Create Service Connection"
+          - featureIdentifier: "com.apple.dt.serviceconnection.create"
+        ▿ Create Service Socket (com.apple.dt.servicesocket.create)
+          - name: "Create Service Socket"
+          - featureIdentifier: "com.apple.dt.servicesocket.create"
+        ▿ Disable Developer Disk Image Services (com.apple.coredevice.feature.disableddiservices)
+          - name: "Disable Developer Disk Image Services"
+          - featureIdentifier: "com.apple.coredevice.feature.disableddiservices"
+        ▿ Disconnect from Device (com.apple.coredevice.feature.disconnectdevice)
+          - name: "Disconnect from Device"
+          - featureIdentifier: "com.apple.coredevice.feature.disconnectdevice"
+        ▿ Fetch Application Icons (com.apple.coredevice.feature.fetchappicons)
+          - name: "Fetch Application Icons"
+          - featureIdentifier: "com.apple.coredevice.feature.fetchappicons"
+        ▿ Fetch AuthListing Identifiers (com.apple.coredevice.feature.getauthlistingidentifiers)
+          - name: "Fetch AuthListing Identifiers"
+          - featureIdentifier: "com.apple.coredevice.feature.getauthlistingidentifiers"
+        ▿ Fetch Developer Disk Image Services Metadata (com.apple.coredevice.feature.fetchddimetadata)
+          - name: "Fetch Developer Disk Image Services Metadata"
+          - featureIdentifier: "com.apple.coredevice.feature.fetchddimetadata"
+        ▿ Fetch Extended Device Info (com.apple.coredevice.feature.getdeviceinfo)
+          - name: "Fetch Extended Device Info"
+          - featureIdentifier: "com.apple.coredevice.feature.getdeviceinfo"
+        ▿ Get Display Information (com.apple.coredevice.feature.getdisplayinfo)
+          - name: "Get Display Information"
+          - featureIdentifier: "com.apple.coredevice.feature.getdisplayinfo"
+        ▿ Get Lock State (com.apple.coredevice.feature.getlockstate)
+          - name: "Get Lock State"
+          - featureIdentifier: "com.apple.coredevice.feature.getlockstate"
+        ▿ Install Application (com.apple.coredevice.feature.installapp)
+          - name: "Install Application"
+          - featureIdentifier: "com.apple.coredevice.feature.installapp"
+        ▿ Install Root (com.apple.coredevice.feature.installroot)
+          - name: "Install Root"
+          - featureIdentifier: "com.apple.coredevice.feature.installroot"
+        ▿ Launch Application (com.apple.coredevice.feature.launchapplication)
+          - name: "Launch Application"
+          - featureIdentifier: "com.apple.coredevice.feature.launchapplication"
+        ▿ List Files (com.apple.coredevice.feature.listFiles)
+          - name: "List Files"
+          - featureIdentifier: "com.apple.coredevice.feature.listFiles"
+        ▿ List Roots (com.apple.coredevice.feature.listroots)
+          - name: "List Roots"
+          - featureIdentifier: "com.apple.coredevice.feature.listroots"
+        ▿ Modify Tags (com.apple.coredevice.feature.tags)
+          - name: "Modify Tags"
+          - featureIdentifier: "com.apple.coredevice.feature.tags"
+        ▿ Modify credentials for default users for a device (com.apple.coredevice.feature.default.user.credentials)
+          - name: "Modify credentials for default users for a device"
+          - featureIdentifier: "com.apple.coredevice.feature.default.user.credentials"
+        ▿ Monitor Process for Termination (com.apple.coredevice.feature.monitorprocesstermination)
+          - name: "Monitor Process for Termination"
+          - featureIdentifier: "com.apple.coredevice.feature.monitorprocesstermination"
+        ▿ Post Darwin Notification (com.apple.dt.customer.postdarwinnotification)
+          - name: "Post Darwin Notification"
+          - featureIdentifier: "com.apple.dt.customer.postdarwinnotification"
+        ▿ Process Control (com.apple.coredevice.feature.processcontrol)
+          - name: "Process Control"
+          - featureIdentifier: "com.apple.coredevice.feature.processcontrol"
+        ▿ Query MobileGestalt (com.apple.coredevice.feature.querymobilegestalt)
+          - name: "Query MobileGestalt"
+          - featureIdentifier: "com.apple.coredevice.feature.querymobilegestalt"
+        ▿ Reboot Device (com.apple.coredevice.feature.rebootdevice)
+          - name: "Reboot Device"
+          - featureIdentifier: "com.apple.coredevice.feature.rebootdevice"
+        ▿ Send Memory Warning to Process (com.apple.coredevice.feature.sendmemorywarningtoprocess)
+          - name: "Send Memory Warning to Process"
+          - featureIdentifier: "com.apple.coredevice.feature.sendmemorywarningtoprocess"
+        ▿ Send Signal to Process (com.apple.coredevice.feature.sendsignaltoprocess)
+          - name: "Send Signal to Process"
+          - featureIdentifier: "com.apple.coredevice.feature.sendsignaltoprocess"
+        ▿ Service Hub Profile (com.apple.dt.profile)
+          - name: "Service Hub Profile"
+          - featureIdentifier: "com.apple.dt.profile"
+        ▿ Spawn Executable (com.apple.coredevice.feature.spawnexecutable)
+          - name: "Spawn Executable"
+          - featureIdentifier: "com.apple.coredevice.feature.spawnexecutable"
+        ▿ Stream Application List (com.apple.coredevice.feature.streamapplist)
+          - name: "Stream Application List"
+          - featureIdentifier: "com.apple.coredevice.feature.streamapplist"
+        ▿ Stream Process List (com.apple.coredevice.feature.streamprocesslist)
+          - name: "Stream Process List"
+          - featureIdentifier: "com.apple.coredevice.feature.streamprocesslist"
+        ▿ Transfer Files (com.apple.coredevice.feature.transferFiles)
+          - name: "Transfer Files"
+          - featureIdentifier: "com.apple.coredevice.feature.transferFiles"
+        ▿ Uninstall Application (com.apple.coredevice.feature.uninstallapp)
+          - name: "Uninstall Application"
+          - featureIdentifier: "com.apple.coredevice.feature.uninstallapp"
+        ▿ Uninstall Root (com.apple.coredevice.feature.uninstallroot)
+          - name: "Uninstall Root"
+          - featureIdentifier: "com.apple.coredevice.feature.uninstallroot"
+        ▿ Unpair Device (com.apple.coredevice.feature.unpairdevice)
+          - name: "Unpair Device"
+          - featureIdentifier: "com.apple.coredevice.feature.unpairdevice"
+        ▿ View Device Screen (com.apple.coredevice.feature.viewdevicescreen)
+          - name: "View Device Screen"
+          - featureIdentifier: "com.apple.coredevice.feature.viewdevicescreen"
+      ▿ visibilityClass: Optional(CoreDeviceClientJSONSupport.DeviceResult.DeviceVisibilityClass.default)
+        - some: CoreDeviceClientJSONSupport.DeviceResult.DeviceVisibilityClass.default
+
+Command Completed, took 0.015 seconds
+
+carlocanieso@Carlos-Mac-Studio judith-monorepo % 

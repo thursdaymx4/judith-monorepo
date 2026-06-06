@@ -1,8 +1,13 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "qckHX2KXA9QRV0X6yj9qa"
 uri = "file://attached_assets/generated_images/judith_icon.png"
 type = "image"
 title = "generated_image"
+
+[[outputs]]
+id = "ibfjKF0YxVjEUd1dl2oLj"
+uri = "file://artifacts/judith-watch/icons/AppIcon-1024.png"
+type = "image"
+title = "Judith Watch App Icon (1024×1024)"
