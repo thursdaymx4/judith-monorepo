@@ -367,14 +367,64 @@ export default function AskModal() {
     if (!BILL_WORDS.test(q)) {
       return "That's outside my lane — I only handle your bills and due dates. Ask me anything about those and I'm all yours.";
     }
+    const lower = q.toLowerCase();
     const now = new Date();
-    const next = bills
-      .filter((b) => b.status !== "paid")
+    const unpaid = bills.filter((b) => b.status !== "paid");
+
+    // Credit-card total query
+    if (/credit.?card|credit card/i.test(lower) && /total|sum|how much|magkano|lahat/i.test(lower)) {
+      const cards = unpaid.filter((b) => b.cat === "Credit card");
+      if (cards.length === 0) return "No unpaid credit card bills right now.";
+      const total = cards.reduce((s, b) => s + totalOwed(b), 0);
+      return `You have ${cards.length} credit card ${cards.length === 1 ? "bill" : "bills"} totaling ${country.cur}${Math.round(total).toLocaleString("en-US")} unpaid.`;
+    }
+
+    // Overdue query
+    if (/overdue|late|past.?due/i.test(lower)) {
+      const overdue = unpaid.filter((b) => (currentCycleDue(b, now).dueDays) < 0);
+      if (overdue.length === 0) return "No overdue bills — you're all caught up!";
+      const total = overdue.reduce((s, b) => s + totalOwed(b), 0);
+      return `You have ${overdue.length} overdue ${overdue.length === 1 ? "bill" : "bills"} totaling ${country.cur}${Math.round(total).toLocaleString("en-US")}.`;
+    }
+
+    // This-week query
+    if (/this week|this 7 days|7 days/i.test(lower)) {
+      const thisWeek = unpaid.filter((b) => {
+        const d = currentCycleDue(b, now).dueDays;
+        return d >= 0 && d <= 7;
+      });
+      if (thisWeek.length === 0) return "Nothing new due this week.";
+      const total = thisWeek.reduce((s, b) => s + totalOwed(b), 0);
+      return `${thisWeek.length} ${thisWeek.length === 1 ? "bill" : "bills"} due this week — ${country.cur}${Math.round(total).toLocaleString("en-US")} total.`;
+    }
+
+    // Monthly total query
+    if (/total|this month|monthly|month/i.test(lower)) {
+      const monthBills = unpaid.filter((b) => {
+        const d = currentCycleDue(b, now).dueDays;
+        return d >= -31 && d <= 31;
+      });
+      if (monthBills.length === 0) return "No bills due this month.";
+      const total = monthBills.reduce((s, b) => s + totalOwed(b), 0);
+      return `${monthBills.length} ${monthBills.length === 1 ? "bill" : "bills"} this month — ${country.cur}${Math.round(total).toLocaleString("en-US")} total.`;
+    }
+
+    // Default: next upcoming bill
+    const next = unpaid
       .map((b) => ({ b, occ: nextOccurrence(b, now) }))
       .sort((a, b) => a.occ.dueDays - b.occ.dueDays)[0];
     return next
-      ? `Your next bill is ${next.b.provider} — ${"\u20B1"}${Math.round(next.b.amount).toLocaleString("en-US")}, due ${next.occ.dueLabel}.`
+      ? `Your next bill is ${next.b.provider} — ${country.cur}${Math.round(next.b.amount).toLocaleString("en-US")}, due ${next.occ.dueLabel}.`
       : "You're all caught up — nothing due right now.";
+  };
+
+  /** Show localFallback with a minimum thinking delay so it never feels instant. */
+  const fallbackWithDelay = async (q: string, minMs = 900): Promise<string> => {
+    const [answer] = await Promise.all([
+      Promise.resolve(localFallback(q)),
+      new Promise<void>((r) => setTimeout(r, minMs)),
+    ]);
+    return answer;
   };
 
   const ask = async (text: string) => {
@@ -399,7 +449,7 @@ export default function AskModal() {
       // The mute only applies to the voice tier; other tiers (e.g. free with asks left) are unaffected.
       const wantVoice = canUseVoice() && (!voiceTier || speakAloud);
       const { reply, audioBase64, action } = await askJudith(q, askBills(), persona, language, wantVoice, country.cur, country.name, monthlyIncome, country.code, Object.keys(incomeByMonth).length > 0 ? incomeByMonth : undefined);
-      const finalReply = reply?.trim() || localFallback(q);
+      const finalReply = reply?.trim() || await fallbackWithDelay(q);
       appendAndPersist({ role: "judith", text: finalReply });
       if (audioBase64) {
         playBase64Mp3(audioBase64).catch(() => {});
@@ -414,7 +464,7 @@ export default function AskModal() {
         setRateLimitSecs(Math.min(e.retryAfter, 3600));
         appendAndPersist({ role: "judith", text: `You're sending too fast — please wait ${e.retryAfter} second${e.retryAfter === 1 ? "" : "s"} before asking again.` });
       } else {
-        appendAndPersist({ role: "judith", text: localFallback(q) });
+        appendAndPersist({ role: "judith", text: await fallbackWithDelay(q) });
       }
     } finally {
       setBusy(false);
