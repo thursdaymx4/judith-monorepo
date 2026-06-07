@@ -15,7 +15,7 @@ struct UpNextView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Up next")
-                                .font(.system(.headline, design: .rounded, weight: .bold))
+                                .font(.system(.headline, weight: .bold, design: .rounded))
                                 .foregroundStyle(Color.txtHi)
                             Text("\(store.unpaidCount) unpaid")
                                 .font(.system(.caption2))

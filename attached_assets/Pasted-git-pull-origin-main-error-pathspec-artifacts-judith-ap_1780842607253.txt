@@ -1,0 +1,118 @@
+git pull origin main
+error: pathspec 'artifacts/judith/app.json' did not match any file(s) known to git
+From https://github.com/thursdaymx4/judith-monorepo
+ * branch            main       -> FETCH_HEAD
+Updating 146ce38..3a05448
+error: Your local changes to the following files would be overwritten by merge:
+	artifacts/judith/app.json
+Please commit your changes or stash them before you merge.
+Aborting
+carlocanieso@Carlos-Mac-Studio judith % git checkout -- app.json
+git pull origin main
+From https://github.com/thursdaymx4/judith-monorepo
+ * branch            main       -> FETCH_HEAD
+Updating 146ce38..3a05448
+Fast-forward
+ .agents/memory/MEMORY.md                           |    2 +
+ .agents/memory/judith-revenuecat-seed.md           |   25 +
+ .agents/memory/judith-tts-currency.md              |   31 +
+ .replit                                            |    1 +
+ artifacts/api-server/src/lib/elevenlabs.ts         |  107 +-
+ artifacts/api-server/src/lib/personas.ts           |   21 +-
+ artifacts/api-server/src/routes/judith.ts          |    2 +-
+ artifacts/judith/app.json                          |    2 +-
+ artifacts/judith/app/(onboarding)/index.tsx        |    3 +-
+ artifacts/judith/app/(tabs)/index.tsx              |    5 +-
+ artifacts/judith/app/(tabs)/insights.tsx           |    5 +-
+ artifacts/judith/app/(tabs)/settings.tsx           |   59 +-
+ artifacts/judith/app/_layout.tsx                   |   25 +-
+ artifacts/judith/app/add-bill.tsx                  |   10 +-
+ artifacts/judith/app/bills.tsx                     |    5 +-
+ artifacts/judith/app/plans.tsx                     |  111 +-
+ artifacts/judith/constants/categoryLocale.ts       |  293 ++++
+ artifacts/judith/constants/data.ts                 |   13 +
+ artifacts/judith/constants/demoAccounts.ts         | 1473 ++++++++++++++++++++
+ artifacts/judith/contexts/JudithStore.tsx          |    7 +
+ artifacts/judith/lib/SubscriptionProvider.tsx      |   43 +
+ artifacts/judith/lib/purchases.ts                  |   27 +-
+ artifacts/judith/lib/watch.ts                      |    9 +
+ artifacts/judith/targets/watchos/AppIcon.png       |  Bin 23126 -> 1109080 bytes
+ artifacts/judith/targets/watchos/AskView.swift     |   15 +-
+ artifacts/judith/targets/watchos/Bill.swift        |   20 +-
+ artifacts/judith/targets/watchos/BillStore.swift   |    6 +
+ artifacts/judith/targets/watchos/ContentView.swift |    2 +
+ artifacts/judith/targets/watchos/FaceView.swift    |  107 ++
+ artifacts/judith/targets/watchos/JudithAvatar.png  |  Bin 0 -> 1109080 bytes
+ .../targets/watchos/JudithComplicationBundle.swift |  237 ++++
+ .../judith/targets/watchos/JudithWatchApp.swift    |    4 +-
+ artifacts/judith/targets/widget/AppIcon.png        |  Bin 0 -> 1109080 bytes
+ artifacts/judith/targets/widget/JudithAvatar.png   |  Bin 0 -> 1109080 bytes
+ artifacts/judith/targets/widget/SharedTypes.swift  |    4 +
+ artifacts/judith/targets/widget/WidgetViews.swift  |  330 +++--
+ .../judith/targets/widget/expo-target.config.js    |    1 +
+ artifacts/privacy/public/opengraph.jpg             |  Bin 75458 -> 70166 bytes
+ attached_assets/IMG_4247_1780806611415.JPG         |  Bin 0 -> 1751267 bytes
+ attached_assets/IMG_4248_1780806611415.JPG         |  Bin 0 -> 1263384 bytes
+ attached_assets/IMG_4251_1780806907292.PNG         |  Bin 0 -> 346186 bytes
+ attached_assets/IMG_4252_1780806907292.PNG         |  Bin 0 -> 276307 bytes
+ attached_assets/IMG_4259_1780817036662.jpeg        |  Bin 0 -> 64634 bytes
+ ...hot_2026-06-07_at_12.29.45_PM_1780806615120.png |  Bin 0 -> 526947 bytes
+ ...shot_2026-06-07_at_8.32.42_PM_1780835569164.png |  Bin 0 -> 70669 bytes
+ ...shot_2026-06-07_at_8.36.36_PM_1780835807766.png |  Bin 0 -> 37276 bytes
+ ...shot_2026-06-07_at_8.36.36_PM_1780836746619.png |  Bin 0 -> 37276 bytes
+ ...shot_2026-06-07_at_8.40.30_PM_1780836038971.png |  Bin 0 -> 212613 bytes
+ ...shot_2026-06-07_at_8.43.10_PM_1780836195563.png |  Bin 0 -> 113561 bytes
+ ...shot_2026-06-07_at_8.52.05_PM_1780836734560.png |  Bin 0 -> 113436 bytes
+ ...ot_2026-06-07_at_9.00.55_PM_1_1780837272151.png |  Bin 0 -> 184625 bytes
+ ...shot_2026-06-07_at_9.04.14_PM_1780837460089.png |  Bin 0 -> 256349 bytes
+ ...shot_2026-06-07_at_9.09.04_PM_1780837751661.png |  Bin 0 -> 348816 bytes
+ ...shot_2026-06-07_at_9.12.24_PM_1780837960414.png |  Bin 0 -> 282973 bytes
+ ...shot_2026-06-07_at_9.12.34_PM_1780837960414.png |  Bin 0 -> 201749 bytes
+ ...shot_2026-06-07_at_9.25.35_PM_1780838745518.png |  Bin 0 -> 651140 bytes
+ ...shot_2026-06-07_at_9.33.10_PM_1780839195721.png |  Bin 0 -> 163675 bytes
+ ...shot_2026-06-07_at_9.50.24_PM_1780840229834.png |  Bin 0 -> 445314 bytes
+ ...shot_2026-06-07_at_9.50.56_PM_1780840263753.png |  Bin 0 -> 416301 bytes
+ attached_assets/avatar_1780831090329.svg           |    1 +
+ .../judith-498713-28c57cb6a87b_1780839177585.json  |   13 +
+ package.json                                       |    4 +
+ pnpm-lock.yaml                                     |   21 +
+ scripts/package.json                               |    1 +
+ scripts/src/revenueCatClient.ts                    |   36 +
+ scripts/src/seedRevenueCat.ts                      |  406 ++++++
+ 66 files changed, 3296 insertions(+), 191 deletions(-)
+ create mode 100644 .agents/memory/judith-revenuecat-seed.md
+ create mode 100644 .agents/memory/judith-tts-currency.md
+ create mode 100644 artifacts/judith/constants/categoryLocale.ts
+ create mode 100644 artifacts/judith/constants/demoAccounts.ts
+ create mode 100644 artifacts/judith/lib/SubscriptionProvider.tsx
+ create mode 100644 artifacts/judith/targets/watchos/FaceView.swift
+ create mode 100644 artifacts/judith/targets/watchos/JudithAvatar.png
+ create mode 100644 artifacts/judith/targets/watchos/JudithComplicationBundle.swift
+ create mode 100644 artifacts/judith/targets/widget/AppIcon.png
+ create mode 100644 artifacts/judith/targets/widget/JudithAvatar.png
+ create mode 100644 attached_assets/IMG_4247_1780806611415.JPG
+ create mode 100644 attached_assets/IMG_4248_1780806611415.JPG
+ create mode 100644 attached_assets/IMG_4251_1780806907292.PNG
+ create mode 100644 attached_assets/IMG_4252_1780806907292.PNG
+ create mode 100644 attached_assets/IMG_4259_1780817036662.jpeg
+ create mode 100644 attached_assets/Screenshot_2026-06-07_at_12.29.45_PM_1780806615120.png
+ create mode 100644 attached_assets/Screenshot_2026-06-07_at_8.32.42_PM_1780835569164.png
+ create mode 100644 attached_assets/Screenshot_2026-06-07_at_8.36.36_PM_1780835807766.png
+ create mode 100644 attached_assets/Screenshot_2026-06-07_at_8.36.36_PM_1780836746619.png
+ create mode 100644 attached_assets/Screenshot_2026-06-07_at_8.40.30_PM_1780836038971.png
+ create mode 100644 attached_assets/Screenshot_2026-06-07_at_8.43.10_PM_1780836195563.png
+ create mode 100644 attached_assets/Screenshot_2026-06-07_at_8.52.05_PM_1780836734560.png
+ create mode 100644 attached_assets/Screenshot_2026-06-07_at_9.00.55_PM_1_1780837272151.png
+ create mode 100644 attached_assets/Screenshot_2026-06-07_at_9.04.14_PM_1780837460089.png
+ create mode 100644 attached_assets/Screenshot_2026-06-07_at_9.09.04_PM_1780837751661.png
+ create mode 100644 attached_assets/Screenshot_2026-06-07_at_9.12.24_PM_1780837960414.png
+ create mode 100644 attached_assets/Screenshot_2026-06-07_at_9.12.34_PM_1780837960414.png
+ create mode 100644 attached_assets/Screenshot_2026-06-07_at_9.25.35_PM_1780838745518.png
+ create mode 100644 attached_assets/Screenshot_2026-06-07_at_9.33.10_PM_1780839195721.png
+ create mode 100644 attached_assets/Screenshot_2026-06-07_at_9.50.24_PM_1780840229834.png
+ create mode 100644 attached_assets/Screenshot_2026-06-07_at_9.50.56_PM_1780840263753.png
+ create mode 100644 attached_assets/avatar_1780831090329.svg
+ create mode 100644 attached_assets/judith-498713-28c57cb6a87b_1780839177585.json
+ create mode 100644 scripts/src/revenueCatClient.ts
+ create mode 100644 scripts/src/seedRevenueCat.ts
+carlocanieso@Carlos-Mac-Studio judith % 

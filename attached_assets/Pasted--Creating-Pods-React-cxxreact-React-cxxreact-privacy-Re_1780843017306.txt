@@ -1,0 +1,51 @@
+› Creating  Pods/React-cxxreact-React-cxxreact_privacy » React-cxxreact_privacy.bundle
+› Preparing Pods/RNSVG-RNSVGFilters » ResourceBundle-RNSVGFilters-RNSVG-Info.plist
+› Copying   ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Judith/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/RNSVGFilters.bundle/RNSVGCompositeXor.iphoneos.metallib ➜ ../../../Users/expo/workingdir/build/node_modules/.pnpm/react-native-svg@15.12.1_react-native@0.81.5_@babel+core@7.29.0_
+› Copying   ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Judith/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/RNSVGFilters.bundle/RNSVGArithmeticFilter.iphoneos.metallib ➜ ../../../Users/expo/workingdir/build/node_modules/.pnpm/react-native-svg@15.12.1_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/react-native-svg/apple/Filters/MetalCI/RNSVGArithmeticFilter.iphoneos.metallib
+› Creating  Pods/React-Core-React-Core_privacy » React-Core_privacy.bundle
+› Preparing Pods/RNCAsyncStorage-RNCAsyncStorage_resources » ResourceBundle-RNCAsyncStorage_resources-RNCAsyncStorage-Info.plist
+› Copying   ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Judith/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/RNCAsyncStorage_resources.bundle/PrivacyInfo.xcprivacy ➜ ../../../Users/expo/workingdir/build/node_modules/.pnpm/@react-native-async-storage+async-storage@2.2.0_react-native@0.81.5_@babel+core@7.29.0__088e8303e028f6e6ca5c16cc3d46621a/node_modules/@react-native-async-storage/async-storage/ios/PrivacyInfo.xcprivacy
+› Creating  Pods/RNSVG-RNSVGFilters » RNSVGFilters.bundle
+› Preparing react-native-purchases Pods/PurchasesHybridCommon-PurchasesHybridCommon » ResourceBundle-PurchasesHybridCommon-PurchasesHybridCommon-Info.plist
+› Copying   react-native-purchases ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Judith/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/PurchasesHybridCommon.bundle/PrivacyInfo.xcprivacy ➜ ../../../Users/expo/workingdir/build/artifacts/judith/ios/Pods/PurchasesHybridCommon/ios/PurchasesHybridCommon/PurchasesHybridCommon/PrivacyInfo.xcprivacy
+› Creating  Pods/RNCAsyncStorage-RNCAsyncStorage_resources » RNCAsyncStorage_resources.bundle
+› Executing react-native Pods/ReactNativeDependencies » [CP] Copy XCFrameworks
+› Creating  react-native-purchases Pods/PurchasesHybridCommon-PurchasesHybridCommon » PurchasesHybridCommon.bundle
+› Copying   ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Judith/IntermediateBuildFilesPath/UninstalledProducts/watchos/JudithWatch.app/PrivacyInfo.xcprivacy ➜ ../../../Users/expo/workingdir/build/artifacts/judith/ios/Judith/PrivacyInfo.xcprivacy
+
+❌  (targets/widget/WidgetViews.swift:101:66)
+
+   99 |                 if entry.unpaidCount == 0 {
+  100 |                     Text("Nothing due")
+> 101 |                         .font(.system(size: 9, design: .rounded, weight: .medium))
+      |                                                                  ^ argument 'weight' must precede argument 'design'
+  102 |                         .foregroundStyle(Color.judithAccent.opacity(0.7))
+  103 |                 } else {
+  104 |                     Text("\(entry.unpaidCount) due")
+    Run script build phase '[CP-User] [Hermes] Replace Hermes for the right configuration, if needed' will be run during every build because it does not specify any outputs. To address this issue, either add output dependencies to the script phase, or configure it to run in every build by unchecking "Based on dependency analysis" in the script phase. (in target 'hermes-engine' from project 'Pods')
+▸ ** ARCHIVE FAILED **
+▸ The following build commands failed:
+▸ 	SwiftCompile normal arm64 Compiling\ JudithWidget.swift,\ Provider.swift,\ SharedTypes.swift,\ WidgetViews.swift,\ GeneratedAssetSymbols.swift /Users/expo/workingdir/build/artifacts/judith/targets/widget/JudithWidget.swift /Users/expo/workingdir/build/artifacts/judith/targets/widget/Provider.swift /Users/expo/workingdir/build/artifacts/judith/targets/widget/SharedTypes.swift /Users/expo/workingdir/build/artifacts/judith/targets/widget/WidgetViews.swift /Users/expo/workingdir/build/artifacts/judith/ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Judith/IntermediateBuildFilesPath/Judith.build/Release-iphoneos/JudithWidget.build/DerivedSources/GeneratedAssetSymbols.swift (in target 'JudithWidget' from project 'Judith')
+▸ 	CompileSwift normal arm64 (in target 'JudithWidget' from project 'Judith')
+▸ 	Archiving workspace Judith with scheme Judith
+▸ (3 failures)
+Exit status: 65
++---------------------------------------+
+|           Build environment           |
++-------------+-------------------------+
+| xcode_path  | /Applications/Xcode.app |
+| gym_version | 2.228.0                 |
+| sdk         | iPhoneOS26.0.sdk        |
++-------------+-------------------------+
+Looks like fastlane ran into a build/archive error with your project
+It's hard to tell what's causing the error, so we wrote some guides on how
+to troubleshoot build and signing issues: https://docs.fastlane.tools/codesigning/getting-started/
+Before submitting an issue on GitHub, please follow the guide above and make
+sure your project is set up correctly.
+fastlane uses `xcodebuild` commands to generate your binary, you can see the
+the full commands printed out in yellow in the above log.
+Make sure to inspect the output above, as usually you'll find more error information there
+[!] Error building the application - see the log above
+Error: The "Run fastlane" step failed because of an error in the Xcode build process. We automatically detected following errors in your Xcode build logs:
+- argument 'weight' must precede argument 'design'
+Refer to "Xcode Logs" below for additional, more detailed logs.

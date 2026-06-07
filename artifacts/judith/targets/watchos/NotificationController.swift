@@ -79,7 +79,7 @@ struct NotificationView: View {
                         .foregroundStyle(.white)
                 }
                 Text("Judith")
-                    .font(.system(.caption, design: .rounded, weight: .semibold))
+                    .font(.system(.caption, weight: .semibold, design: .rounded))
                     .foregroundStyle(Color.txtHi)
                 Spacer()
                 Text("now")
@@ -95,7 +95,7 @@ struct NotificationView: View {
             if let b = bill {
                 VStack(spacing: 6) {
                     Text(b.provider)
-                        .font(.system(.headline, design: .rounded, weight: .bold))
+                        .font(.system(.headline, weight: .bold, design: .rounded))
                         .foregroundStyle(Color.txtHi)
                         .multilineTextAlignment(.center)
 

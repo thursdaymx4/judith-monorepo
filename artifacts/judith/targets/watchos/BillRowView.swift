@@ -14,7 +14,7 @@ struct BillRowView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(bill.provider)
-                    .font(.system(.body, design: .rounded, weight: .medium))
+                    .font(.system(.body, weight: .medium, design: .rounded))
                     .foregroundStyle(Color.txtHi)
                     .lineLimit(1)
 

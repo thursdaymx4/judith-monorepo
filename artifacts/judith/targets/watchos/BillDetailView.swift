@@ -27,7 +27,7 @@ struct BillDetailView: View {
 
                 // Provider name
                 Text(bill.provider)
-                    .font(.system(.headline, design: .rounded, weight: .bold))
+                    .font(.system(.headline, weight: .bold, design: .rounded))
                     .foregroundStyle(Color.txtHi)
                     .multilineTextAlignment(.center)
                     .padding(.top, 8)
@@ -60,7 +60,7 @@ struct BillDetailView: View {
                             Image(systemName: "checkmark.circle.fill")
                         }
                         Text(marking ? "Marking…" : "Mark paid")
-                            .font(.system(.body, design: .rounded, weight: .semibold))
+                            .font(.system(.body, weight: .semibold, design: .rounded))
                     }
                     .foregroundStyle(.black)
                     .frame(maxWidth: .infinity)

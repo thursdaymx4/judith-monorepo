@@ -24,7 +24,7 @@ struct AuthView: View {
             }
 
             Text("Judith")
-                .font(.system(.headline, design: .rounded, weight: .bold))
+                .font(.system(.headline, weight: .bold, design: .rounded))
                 .foregroundStyle(Color.txtHi)
 
             Text("Open Judith on your iPhone to sync\(String(repeating: ".", count: dotCount))")
