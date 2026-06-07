@@ -27,7 +27,7 @@ struct BillDetailView: View {
 
                 // Provider name
                 Text(bill.provider)
-                    .font(.system(.headline, design: .rounded).weight(.bold))
+                    .font(.system(Font.TextStyle.headline, design: .rounded).weight(.bold))
                     .foregroundStyle(Color.txtHi)
                     .multilineTextAlignment(.center)
                     .padding(.top, 8)
@@ -41,7 +41,7 @@ struct BillDetailView: View {
 
                 // Due label
                 Text(dueSubtitle)
-                    .font(.system(.footnote, design: .rounded))
+                    .font(.system(Font.TextStyle.footnote, design: .rounded))
                     .foregroundStyle(bill.urgency.color)
                     .padding(.top, 4)
 
@@ -60,7 +60,7 @@ struct BillDetailView: View {
                             Image(systemName: "checkmark.circle.fill")
                         }
                         Text(marking ? "Marking…" : "Mark paid")
-                            .font(.system(.body, design: .rounded).weight(.semibold))
+                            .font(.system(Font.TextStyle.body, design: .rounded).weight(.semibold))
                     }
                     .foregroundStyle(.black)
                     .frame(maxWidth: .infinity)
@@ -76,7 +76,7 @@ struct BillDetailView: View {
                 // Phone reachability hint
                 if !connectivity.isPhoneReachable {
                     Text("Phone offline — will sync when reconnected")
-                        .font(.system(.caption2))
+                        .font(.caption2)
                         .foregroundStyle(Color.txtLow)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 4)

@@ -28,11 +28,11 @@ struct PaidConfirmView: View {
             .opacity(opacity)
 
             Text("Marked paid")
-                .font(.system(.headline, design: .rounded).weight(.bold))
+                .font(.system(Font.TextStyle.headline, design: .rounded).weight(.bold))
                 .foregroundStyle(Color.txtHi)
 
             Text("\(provider) · \(amountDisplay)")
-                .font(.system(.footnote, design: .rounded))
+                .font(.system(Font.TextStyle.footnote, design: .rounded))
                 .foregroundStyle(Color.txtMid)
                 .multilineTextAlignment(.center)
 
@@ -40,7 +40,7 @@ struct PaidConfirmView: View {
                 HStack(spacing: 4) {
                     Text("🔥")
                     Text("\(streak)-bill streak")
-                        .font(.system(.caption, design: .rounded).weight(.semibold))
+                        .font(.system(Font.TextStyle.caption, design: .rounded).weight(.semibold))
                         .foregroundStyle(Color.judithAccent)
                 }
                 .padding(.horizontal, 12)

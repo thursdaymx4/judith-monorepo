@@ -1,0 +1,47 @@
+carlocanieso@Carlos-Mac-Studio judith % git pull origin main
+remote: Enumerating objects: 94, done.
+remote: Counting objects: 100% (94/94), done.
+remote: Compressing objects: 100% (21/21), done.
+remote: Total 68 (delta 46), reused 68 (delta 46), pack-reused 0 (from 0)
+Unpacking objects: 100% (68/68), 948.88 KiB | 1.96 MiB/s, done.
+From https://github.com/thursdaymx4/judith-monorepo
+ * branch            main       -> FETCH_HEAD
+   082b50f..20249e2  main       -> origin/main
+Updating 082b50f..20249e2
+Fast-forward
+ .agents/memory/MEMORY.md                           |    2 +
+ .agents/memory/judith-persona-sample-lines.md      |   12 +
+ .agents/memory/replit-gcs-sidecar.md               |   44 +
+ .replit                                            |   20 +
+ artifacts/api-server/build-pregen.mjs              |   37 +
+ .../api-server/dist-pregen/pregen-onb-voice.mjs    | 1051 +++++++++++++++++++
+ .../dist-pregen/pregen-onb-voice.mjs.map           |    7 +
+ artifacts/api-server/package.json                  |    6 +-
+ artifacts/api-server/scripts/pregen-onb-voice.ts   |  617 +++++++++++
+ artifacts/api-server/src/lib/audioCache.ts         |  105 ++
+ artifacts/api-server/src/routes/judith.ts          | 1072 +++++++++++++++++++-
+ artifacts/judith/targets/watchos/AskView.swift     |   10 +-
+ artifacts/judith/targets/watchos/AuthView.swift    |    4 +-
+ .../judith/targets/watchos/BillDetailView.swift    |    8 +-
+ artifacts/judith/targets/watchos/BillRowView.swift |    2 +-
+ artifacts/judith/targets/watchos/Config.swift      |    4 +-
+ artifacts/judith/targets/watchos/FaceView.swift    |   10 +-
+ .../targets/watchos/JudithComplicationBundle.swift |    6 +-
+ .../targets/watchos/NotificationController.swift   |    8 +-
+ .../judith/targets/watchos/PaidConfirmView.swift   |    4 +-
+ artifacts/judith/targets/watchos/UpNextView.swift  |    2 +-
+ attached_assets/IMG_4265_1780844761953.PNG         |  Bin 0 -> 311584 bytes
+ attached_assets/IMG_4266_1780844761953.PNG         |  Bin 0 -> 415034 bytes
+ ...hot_2026-06-07_at_11.31.26_PM_1780846294277.png |  Bin 0 -> 201395 bytes
+ pnpm-lock.yaml                                     |  511 ++++++++++
+ 25 files changed, 3508 insertions(+), 34 deletions(-)
+ create mode 100644 .agents/memory/judith-persona-sample-lines.md
+ create mode 100644 .agents/memory/replit-gcs-sidecar.md
+ create mode 100644 artifacts/api-server/build-pregen.mjs
+ create mode 100644 artifacts/api-server/dist-pregen/pregen-onb-voice.mjs
+ create mode 100644 artifacts/api-server/dist-pregen/pregen-onb-voice.mjs.map
+ create mode 100644 artifacts/api-server/scripts/pregen-onb-voice.ts
+ create mode 100644 artifacts/api-server/src/lib/audioCache.ts
+ create mode 100644 attached_assets/IMG_4265_1780844761953.PNG
+ create mode 100644 attached_assets/IMG_4266_1780844761953.PNG
+ create mode 100644 attached_assets/Screenshot_2026-06-07_at_11.31.26_PM_1780846294277.png

@@ -117,7 +117,7 @@ private struct CornerView: View {
             Circle().fill(urgencyColor.opacity(0.18))
             Image(systemName: entry.unpaidCount == 0
                   ? "checkmark.circle.fill" : "creditcard.fill")
-                .font(.system(.body, weight: .semibold))
+                .font(.system(Font.TextStyle.body, weight: .semibold))
                 .foregroundStyle(urgencyColor)
         }
         .widgetLabel {
@@ -153,7 +153,7 @@ private struct RectangularView: View {
             Text(entry.unpaidCount == 0
                  ? "All paid up!"
                  : "\(entry.currency)\(String(format: "%.0f", entry.totalOwed)) due")
-                .font(.system(.callout, design: .monospaced).weight(.bold))
+                .font(.system(Font.TextStyle.callout, design: .monospaced).weight(.bold))
                 .foregroundStyle(entry.unpaidCount == 0 ? Color.judithAccent : .primary)
                 .lineLimit(1)
 
