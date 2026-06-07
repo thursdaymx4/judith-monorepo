@@ -86,7 +86,7 @@ private struct CircularView: View {
                     EmptyView()
                 } currentValueLabel: {
                     Text("\(entry.paidCount)/\(entry.totalCount)")
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .font(.system(size: 11, design: .monospaced, weight: .bold))
                 }
                 .gaugeStyle(.accessoryCircular)
                 .tint(Color.judithAccent)
@@ -117,7 +117,7 @@ private struct CornerView: View {
             Circle().fill(urgencyColor.opacity(0.18))
             Image(systemName: entry.unpaidCount == 0
                   ? "checkmark.circle.fill" : "creditcard.fill")
-                .font(.system(style: .body, weight: .semibold))
+                .font(.system(.body, weight: .semibold))
                 .foregroundStyle(urgencyColor)
         }
         .widgetLabel {
@@ -142,7 +142,7 @@ private struct RectangularView: View {
         VStack(alignment: .leading, spacing: 3) {
             HStack {
                 Text("JUDITH")
-                    .font(.system(size: 8, weight: .black, design: .rounded))
+                    .font(.system(size: 8, design: .rounded, weight: .black))
                     .foregroundStyle(Color.judithAccent)
                 Spacer()
                 Text("\(entry.paidCount)/\(entry.totalCount) paid")
@@ -153,7 +153,7 @@ private struct RectangularView: View {
             Text(entry.unpaidCount == 0
                  ? "All paid up!"
                  : "\(entry.currency)\(String(format: "%.0f", entry.totalOwed)) due")
-                .font(.system(style: .callout, weight: .bold, design: .monospaced))
+                .font(.system(.callout, design: .monospaced, weight: .bold))
                 .foregroundStyle(entry.unpaidCount == 0 ? Color.judithAccent : .primary)
                 .lineLimit(1)
 

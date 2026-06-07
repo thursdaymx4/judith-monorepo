@@ -37,7 +37,7 @@ struct FaceView: View {
                     if store.totalCount > 0 {
                         VStack(spacing: 1) {
                             Text("\(store.paidCount)")
-                                .font(.system(size: 28, weight: .black, design: .rounded))
+                                .font(.system(size: 28, design: .rounded, weight: .black))
                                 .foregroundStyle(Color.txtHi)
                             Text("of \(store.totalCount)")
                                 .font(.system(size: 10, design: .rounded))
@@ -45,7 +45,7 @@ struct FaceView: View {
                         }
                     } else {
                         Image(systemName: "creditcard.fill")
-                            .font(.system(style: .title3))
+                            .font(.system(.title3))
                             .foregroundStyle(Color.judithAccent)
                     }
                 }
@@ -58,7 +58,7 @@ struct FaceView: View {
                         .foregroundStyle(Color.judithAccent)
                 } else if store.totalCount > 0 {
                     Label("All paid up!", systemImage: "checkmark.seal.fill")
-                        .font(.system(style: .footnote, weight: .semibold, design: .rounded))
+                        .font(.system(.footnote, design: .rounded, weight: .semibold))
                         .foregroundStyle(Color.judithAccent)
                 }
 
@@ -69,12 +69,12 @@ struct FaceView: View {
                             .fill(next.urgency.color)
                             .frame(width: 5, height: 5)
                         Text(next.provider)
-                            .font(.system(style: .caption, weight: .medium, design: .rounded))
+                            .font(.system(.caption, design: .rounded, weight: .medium))
                             .foregroundStyle(Color.txtHi)
                             .lineLimit(1)
                         Spacer()
                         Text(next.dueLabelShort)
-                            .font(.system(style: .caption2, weight: .semibold, design: .monospaced))
+                            .font(.system(.caption2, design: .monospaced, weight: .semibold))
                             .foregroundStyle(next.urgency.color)
                     }
                     .padding(.horizontal, 10)
@@ -89,7 +89,7 @@ struct FaceView: View {
                         Text("🔥")
                             .font(.system(size: 11))
                         Text("\(store.streak) paid streak")
-                            .font(.system(style: .caption2, weight: .semibold, design: .rounded))
+                            .font(.system(.caption2, design: .rounded, weight: .semibold))
                             .foregroundStyle(Color.judithAccent)
                     }
                     .padding(.horizontal, 9)

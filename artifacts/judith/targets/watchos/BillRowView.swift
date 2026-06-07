@@ -14,12 +14,12 @@ struct BillRowView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(bill.provider)
-                    .font(.system(style: .body, weight: .medium, design: .rounded))
+                    .font(.system(.body, design: .rounded, weight: .medium))
                     .foregroundStyle(Color.txtHi)
                     .lineLimit(1)
 
                 Text(bill.dueLabelShort)
-                    .font(.system(style: .caption2, design: .rounded))
+                    .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(dueLabelColor)
             }
 

@@ -19,16 +19,16 @@ struct AuthView: View {
                         startPoint: .topLeading, endPoint: .bottomTrailing))
                     .frame(width: 52, height: 52)
                 Text("J")
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .font(.system(size: 24, design: .rounded, weight: .bold))
                     .foregroundStyle(.white)
             }
 
             Text("Judith")
-                .font(.system(style: .headline, weight: .bold, design: .rounded))
+                .font(.system(.headline, design: .rounded, weight: .bold))
                 .foregroundStyle(Color.txtHi)
 
             Text("Open Judith on your iPhone to sync\(String(repeating: ".", count: dotCount))")
-                .font(.system(style: .footnote, design: .rounded))
+                .font(.system(.footnote, design: .rounded))
                 .foregroundStyle(Color.txtMid)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 8)
@@ -37,7 +37,7 @@ struct AuthView: View {
                 HStack(spacing: 4) {
                     Circle().fill(Color.judithOK).frame(width: 6, height: 6)
                     Text("Phone connected")
-                        .font(.system(style: .caption2, design: .rounded))
+                        .font(.system(.caption2, design: .rounded))
                         .foregroundStyle(Color.judithOK)
                 }
             }

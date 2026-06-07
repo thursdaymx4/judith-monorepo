@@ -15,10 +15,10 @@ struct UpNextView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Up next")
-                                .font(.system(style: .headline, weight: .bold, design: .rounded))
+                                .font(.system(.headline, design: .rounded, weight: .bold))
                                 .foregroundStyle(Color.txtHi)
                             Text("\(store.unpaidCount) unpaid")
-                                .font(.system(style: .caption2))
+                                .font(.system(.caption2))
                                 .foregroundStyle(Color.txtMid)
                         }
                         Spacer()
@@ -32,7 +32,7 @@ struct UpNextView: View {
                 if store.upcomingBills.isEmpty {
                     Section {
                         Text("All paid up 🎉")
-                            .font(.system(style: .footnote))
+                            .font(.system(.footnote))
                             .foregroundStyle(Color.txtMid)
                             .frame(maxWidth: .infinity, alignment: .center)
                             .listRowBackground(Color.clear)

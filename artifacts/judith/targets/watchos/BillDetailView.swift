@@ -27,7 +27,7 @@ struct BillDetailView: View {
 
                 // Provider name
                 Text(bill.provider)
-                    .font(.system(style: .headline, weight: .bold, design: .rounded))
+                    .font(.system(.headline, design: .rounded, weight: .bold))
                     .foregroundStyle(Color.txtHi)
                     .multilineTextAlignment(.center)
                     .padding(.top, 8)
@@ -35,13 +35,13 @@ struct BillDetailView: View {
 
                 // Amount — big mono
                 Text(bill.amountDisplay(currency: currency))
-                    .font(.system(size: 36, weight: .bold, design: .monospaced))
+                    .font(.system(size: 36, design: .monospaced, weight: .bold))
                     .foregroundStyle(Color.txtHi)
                     .padding(.top, 6)
 
                 // Due label
                 Text(dueSubtitle)
-                    .font(.system(style: .footnote, design: .rounded))
+                    .font(.system(.footnote, design: .rounded))
                     .foregroundStyle(bill.urgency.color)
                     .padding(.top, 4)
 
@@ -60,7 +60,7 @@ struct BillDetailView: View {
                             Image(systemName: "checkmark.circle.fill")
                         }
                         Text(marking ? "Marking…" : "Mark paid")
-                            .font(.system(style: .body, weight: .semibold, design: .rounded))
+                            .font(.system(.body, design: .rounded, weight: .semibold))
                     }
                     .foregroundStyle(.black)
                     .frame(maxWidth: .infinity)
@@ -76,7 +76,7 @@ struct BillDetailView: View {
                 // Phone reachability hint
                 if !connectivity.isPhoneReachable {
                     Text("Phone offline — will sync when reconnected")
-                        .font(.system(style: .caption2))
+                        .font(.system(.caption2))
                         .foregroundStyle(Color.txtLow)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 4)
@@ -103,7 +103,7 @@ private struct UrgencyBadge: View {
     let urgency: Urgency
     var body: some View {
         Text(urgency.label)
-            .font(.system(size: 9, weight: .semibold, design: .rounded))
+            .font(.system(size: 9, design: .rounded, weight: .semibold))
             .foregroundStyle(.black)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)

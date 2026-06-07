@@ -75,15 +75,15 @@ struct NotificationView: View {
                             startPoint: .topLeading, endPoint: .bottomTrailing))
                         .frame(width: 24, height: 24)
                     Text("J")
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .font(.system(size: 13, design: .rounded, weight: .bold))
                         .foregroundStyle(.white)
                 }
                 Text("Judith")
-                    .font(.system(style: .caption, weight: .semibold, design: .rounded))
+                    .font(.system(.caption, design: .rounded, weight: .semibold))
                     .foregroundStyle(Color.txtHi)
                 Spacer()
                 Text("now")
-                    .font(.system(style: .caption2))
+                    .font(.system(.caption2))
                     .foregroundStyle(Color.txtLow)
             }
             .padding(.horizontal, 12)
@@ -95,17 +95,17 @@ struct NotificationView: View {
             if let b = bill {
                 VStack(spacing: 6) {
                     Text(b.provider)
-                        .font(.system(style: .headline, weight: .bold, design: .rounded))
+                        .font(.system(.headline, design: .rounded, weight: .bold))
                         .foregroundStyle(Color.txtHi)
                         .multilineTextAlignment(.center)
 
                     Text(b.dueLabel.capitalized)
-                        .font(.system(style: .caption, design: .rounded))
+                        .font(.system(.caption, design: .rounded))
                         .foregroundStyle(b.urgencyColor)
 
                     if !b.amountDisplay.isEmpty {
                         Text(b.amountDisplay)
-                            .font(.system(size: 28, weight: .bold, design: .monospaced))
+                            .font(.system(size: 28, design: .monospaced, weight: .bold))
                             .foregroundStyle(Color.txtHi)
                             .padding(.top, 2)
                     }
