@@ -28,8 +28,8 @@ import { useBiometricLock } from "@/hooks/useBiometricLock";
 import { useNotificationSync } from "@/hooks/useNotificationSync";
 import { useWatchSync } from "@/hooks/useWatchSync";
 import { useTheme } from "@/hooks/useTheme";
-import { configurePurchases, identifyUser, resetUser, getActiveTier, CHAT_ENTITLEMENT_ID, VOICE_ENTITLEMENT_ID, isPurchasesConfigured } from "@/lib/purchases";
-import Purchases, { type CustomerInfo } from "react-native-purchases";
+import { configurePurchases, identifyUser, resetUser, getActiveTier } from "@/lib/purchases";
+import { SubscriptionProvider } from "@/lib/SubscriptionProvider";
 
 SplashScreen.preventAutoHideAsync();
 
