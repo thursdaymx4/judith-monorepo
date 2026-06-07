@@ -403,6 +403,21 @@ export function formatMoney(n: number, symbol = "₱"): string {
   return symbol + Math.round(n).toLocaleString("en-US");
 }
 
+/**
+ * Format a currency string as the user types — adds thousands commas to the
+ * integer part while preserving a decimal suffix in-progress.
+ * Strips any existing non-numeric chars first so it's safe to call on every
+ * onChangeText event. Existing parseFloat callers strip commas via
+ * replace(/,/g,"") so nothing downstream needs to change.
+ */
+export function fmtCurrency(v: string): string {
+  const clean = v.replace(/[^0-9.]/g, "");
+  const dotIdx = clean.indexOf(".");
+  const intPart = dotIdx >= 0 ? clean.slice(0, dotIdx) : clean;
+  const decPart = dotIdx >= 0 ? clean.slice(dotIdx) : "";
+  return intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + decPart;
+}
+
 /** Default ₱ formatter (prototype `peso`). */
 export const peso = (n: number): string => formatMoney(n);
 

@@ -5,6 +5,7 @@ import { ActivityIndicator, Modal, Pressable, Share, Text, TextInput, View } fro
 import { Icon, type IconName } from "@/components/Icon";
 import { Dot, Low, Mono, Screen, SheetHeader, Txt, mix } from "@/components/ui";
 import { useAuth } from "@/contexts/AuthContext";
+import { fmtCurrency } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
 import { verifyBiometricsNow } from "@/hooks/useBiometricLock";
 import { useTheme } from "@/hooks/useTheme";
@@ -181,7 +182,7 @@ export default function AccountScreen() {
   const [editOpen, setEditOpen] = React.useState(false);
   const [editVal, setEditVal] = React.useState(name);
   const [incomeOpen, setIncomeOpen] = React.useState(false);
-  const [incomeVal, setIncomeVal] = React.useState(monthlyIncome != null ? String(monthlyIncome) : "");
+  const [incomeVal, setIncomeVal] = React.useState(monthlyIncome != null ? fmtCurrency(String(monthlyIncome)) : "");
   // Per-month income override values (local editing state, keyed by "YYYY-MM")
   const [monthVals, setMonthVals] = React.useState<Record<string, string>>({});
   // The 3 months shown in the income modal: this month + next 2
@@ -216,10 +217,10 @@ export default function AccountScreen() {
   };
 
   const openIncome = () => {
-    setIncomeVal(monthlyIncome != null ? String(monthlyIncome) : "");
+    setIncomeVal(monthlyIncome != null ? fmtCurrency(String(monthlyIncome)) : "");
     const initVals: Record<string, string> = {};
     for (const { key } of incomeMonths) {
-      initVals[key] = incomeByMonth[key] != null ? String(incomeByMonth[key]) : "";
+      initVals[key] = incomeByMonth[key] != null ? fmtCurrency(String(incomeByMonth[key])) : "";
     }
     setMonthVals(initVals);
     setIncomeOpen(true);
@@ -590,7 +591,7 @@ export default function AccountScreen() {
               <Text style={{ fontFamily: t.fonts.semibold, fontSize: 15, color: t.txtMid }}>{country.cur}</Text>
               <TextInput
                 value={incomeVal}
-                onChangeText={setIncomeVal}
+                onChangeText={(v) => setIncomeVal(fmtCurrency(v))}
                 placeholder="e.g. 50,000"
                 placeholderTextColor={t.txtLow}
                 keyboardType="numeric"
@@ -614,7 +615,7 @@ export default function AccountScreen() {
                     <Text style={{ fontFamily: t.fonts.semibold, fontSize: 13, color: t.txtMid }}>{country.cur}</Text>
                     <TextInput
                       value={monthVals[key] ?? ""}
-                      onChangeText={(v) => setMonthVals((prev) => ({ ...prev, [key]: v }))}
+                      onChangeText={(v) => setMonthVals((prev) => ({ ...prev, [key]: fmtCurrency(v) }))}
                       placeholder="uses default"
                       placeholderTextColor={t.txtLow}
                       keyboardType="numeric"

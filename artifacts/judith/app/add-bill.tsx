@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon } from "@/components/Icon";
 import { Btn, Chip, Low, Mono, ProviderLogo, RoundBtn, SectionLabel, Txt } from "@/components/ui";
-import { CAT_ICONS, PROVIDERS, findDuplicate, makeManualBill } from "@/constants/data";
+import { CAT_ICONS, PROVIDERS, findDuplicate, fmtCurrency, makeManualBill } from "@/constants/data";
 import { getProviders, getProviderPlaceholder } from "@/constants/providers";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
@@ -373,10 +373,10 @@ export default function AddBillScreen() {
               <Mono size={18} color={t.txtMid}>{country.cur}</Mono>
               <TextInput
                 value={amount}
-                onChangeText={(v) => { setAmount(v); clearErr(); }}
+                onChangeText={(v) => { setAmount(fmtCurrency(v)); clearErr(); }}
                 onBlur={() => {
                   const n = Number(amount.replace(/[^0-9.]/g, ""));
-                  if (amount.trim() && Number.isFinite(n) && n > 0) setAmount(to2dp(n));
+                  if (amount.trim() && Number.isFinite(n) && n > 0) setAmount(fmtCurrency(to2dp(n)));
                 }}
                 placeholder="0.00"
                 placeholderTextColor={t.txtLow}

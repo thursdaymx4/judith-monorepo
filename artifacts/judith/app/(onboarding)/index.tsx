@@ -31,7 +31,7 @@ import {
   countryFood,
   type Country,
 } from "@/constants/countries";
-import { HOUSES, findDuplicate, type Bill } from "@/constants/data";
+import { HOUSES, findDuplicate, fmtCurrency, type Bill } from "@/constants/data";
 import {
   getSamples, getCardTemplates, getLoanTemplates,
   getDLocal, getProviderPlaceholder, getQuickAsks,
@@ -2920,7 +2920,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                   <Txt size={13} color={t.txtLow} style={{ marginLeft: 10, width: 62 }}>Amount</Txt>
                   <TextInput
                     value={form.amount}
-                    onChangeText={(v) => setForm((f) => ({ ...f, amount: v.replace(/[^0-9.]/g, "") }))}
+                    onChangeText={(v) => setForm((f) => ({ ...f, amount: fmtCurrency(v) }))}
                     onFocus={() => { setFocusedField("amount"); haptics.selection(); }}
                     onBlur={() => setFocusedField(null)}
                     placeholder="0"
@@ -3011,7 +3011,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                         <Mono size={13} color={t.accent}>{cur}</Mono>
                         <TextInput
                           value={sub.amount}
-                          onChangeText={(v) => setDraftSubs((ds) => ds.map((d, j) => j === i ? { ...d, amount: v } : d))}
+                          onChangeText={(v) => setDraftSubs((ds) => ds.map((d, j) => j === i ? { ...d, amount: fmtCurrency(v) } : d))}
                           keyboardType="numeric"
                           style={{ color: t.txtHi, fontSize: 14, minWidth: 60 }}
                           placeholder="0"
@@ -3233,7 +3233,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                   <FieldLabel>Amount</FieldLabel>
                   <Input
                     value={parsedEdits.amount}
-                    onChangeText={(v) => setParsedEdits({ ...parsedEdits, amount: v.replace(/[^0-9.]/g, "") })}
+                    onChangeText={(v) => setParsedEdits({ ...parsedEdits, amount: fmtCurrency(v) })}
                     placeholder={cur + " 0"}
                     keyboardType="numeric"
                     mono
@@ -3446,7 +3446,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                   <FieldLabel>Amount</FieldLabel>
                   <Input
                     value={form.amount}
-                    onChangeText={(v) => setForm({ ...form, amount: v.replace(/[^0-9.]/g, "") })}
+                    onChangeText={(v) => setForm({ ...form, amount: fmtCurrency(v) })}
                     placeholder={cur + " 0"}
                     keyboardType="numeric"
                     mono
@@ -4670,7 +4670,7 @@ function ScreenFeature3({ ctx }: { ctx: Ctx }) {
 function ScreenMonthlyIncome({ ctx }: { ctx: Ctx }) {
   const { t, persona, next, country } = ctx;
   const { setMonthlyIncome, monthlyIncome } = useJudith();
-  const [val, setVal] = useState(monthlyIncome != null ? String(monthlyIncome) : "");
+  const [val, setVal] = useState(monthlyIncome != null ? fmtCurrency(String(monthlyIncome)) : "");
 
   const save = () => {
     const n = parseFloat(val.replace(/,/g, "").trim());
@@ -4721,7 +4721,7 @@ function ScreenMonthlyIncome({ ctx }: { ctx: Ctx }) {
             placeholderTextColor={t.txtLow}
             keyboardType="numeric"
             value={val}
-            onChangeText={setVal}
+            onChangeText={(v) => setVal(fmtCurrency(v))}
             returnKeyType="done"
             onSubmitEditing={save}
             autoFocus

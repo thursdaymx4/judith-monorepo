@@ -7,6 +7,7 @@ import { JudithAvatar } from "@/components/JudithAvatar";
 import { Btn, Card, Low, Mono, ProviderLogo, Screen, SectionLabel, SheetHeader, Txt } from "@/components/ui";
 import {
   ccProjectedFuture,
+  fmtCurrency,
   isPartialBill,
   partialPct,
   totalOwed,
@@ -711,10 +712,10 @@ export default function BillDetailModal() {
             <Mono size={24} weight="bold" color={t.txtHi} style={{ marginRight: 3 }}>{country.cur}</Mono>
             <TextInput
               value={ccInput}
-              onChangeText={setCCInput}
+              onChangeText={(v) => setCCInput(fmtCurrency(v))}
               onBlur={() => {
                 const n = parseFloat(ccInput.replace(/,/g, ""));
-                if (ccInput.trim() && Number.isFinite(n)) setCCInput(fmt2(n));
+                if (ccInput.trim() && Number.isFinite(n)) setCCInput(fmtCurrency(fmt2(n)));
               }}
               keyboardType="decimal-pad"
               placeholder={fmt2(bill.amount)}
@@ -750,10 +751,10 @@ export default function BillDetailModal() {
             <Mono size={24} weight="bold" color={t.txtHi} style={{ marginRight: 3 }}>{country.cur}</Mono>
             <TextInput
               value={input}
-              onChangeText={setInput}
+              onChangeText={(v) => setInput(fmtCurrency(v))}
               onBlur={() => {
                 const n = parseFloat(input.replace(/,/g, ""));
-                if (input.trim() && Number.isFinite(n)) setInput(fmt2(n));
+                if (input.trim() && Number.isFinite(n)) setInput(fmtCurrency(fmt2(n)));
               }}
               keyboardType="decimal-pad"
               returnKeyType="done"
