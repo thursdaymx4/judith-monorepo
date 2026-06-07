@@ -734,7 +734,7 @@ router.post("/tts", sttTtsLimiter, async (req, res) => {
 });
 
 // GET /api/judith/sample?persona=  -> { text, audioBase64, mime }
-const SAMPLE_LINES: Record<PersonaId, string> = {
+const SAMPLE_LINES_FIL: Record<PersonaId, string> = {
   professional:
     "Si Judith 'to. Bantayan ko ang lahat ng due dates mo — wala kang mapapala sa late fees, so ayusin natin 'yan.",
   funny:
@@ -746,6 +746,27 @@ const SAMPLE_LINES: Record<PersonaId, string> = {
   marites:
     "Besh, chismis muna! Si Judith 'to — at alam ko na lahat ng bills mo! Grabe, 'di ba? Wala kang makakalimutan, promise. Mag-update ka ha!",
 };
+
+const SAMPLE_LINES_EN: Record<PersonaId, string> = {
+  professional:
+    "I'm Judith — your due date assistant. I track every bill so you're never hit with a late fee again.",
+  funny:
+    "Hi! I'm Judith — basically your most financially responsible friend. You're welcome, by the way.",
+  sarcastic:
+    "Judith here. I remind you about your bills. Because apparently that's something someone has to do.",
+  mom:
+    "Hi there — I'm Judith. I'll keep an eye on all your bills for you. Don't worry, I've got everything covered.",
+  marites:
+    "Oh my gosh, hi! It's Judith! I literally know everything about your bills — and trust me, we need to talk!",
+};
+
+const FILIPINO_LANG_CODES = new Set(["fil", "ceb", "ilo", "hil"]);
+
+function getSampleText(persona: PersonaId, language?: string): string {
+  return language && FILIPINO_LANG_CODES.has(language)
+    ? SAMPLE_LINES_FIL[persona]
+    : SAMPLE_LINES_EN[persona];
+}
 
 // GET /api/judith/voices -> { voices: [{ id, name, category }] }
 router.get("/voices", sampleVoicesLimiter, async (req, res) => {
@@ -766,7 +787,7 @@ router.get("/sample", sampleVoicesLimiter, async (req, res) => {
     if (!user) return;
     const persona = coercePersona(req.query["persona"]);
     const language = typeof req.query["language"] === "string" ? req.query["language"] : undefined;
-    const text = SAMPLE_LINES[persona];
+    const text = getSampleText(persona, language);
     const audio = await synthesize(text, getVoiceId(persona, language), { live: false, speed: getSpeakingSpeed(persona) });
     res.json({ text, audioBase64: audio.base64, mime: audio.mime });
   } catch (err) {
@@ -1016,7 +1037,7 @@ router.get("/sample-onboarding", sampleOnboardingLimiter, async (req, res) => {
   try {
     const persona = coercePersona(req.query["persona"]);
     const language = typeof req.query["language"] === "string" ? req.query["language"] : undefined;
-    const text = SAMPLE_LINES[persona];
+    const text = getSampleText(persona, language);
     const audio = await synthesize(text, getVoiceId(persona, language), { live: true, speed: getSpeakingSpeed(persona) });
     res.json({ text, audioBase64: audio.base64, mime: audio.mime });
   } catch (err) {
