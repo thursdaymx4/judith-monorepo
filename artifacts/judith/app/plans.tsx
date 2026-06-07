@@ -270,8 +270,8 @@ export default function PlansModal() {
   // Prefer the store's localized price (e.g. "$4.99", "£4.99") so each region
   // shows its real App Store / Play price. Fall back to the formatted default
   // when packages haven't loaded (Expo Go / RevenueCat not configured).
-  const chatPrice = packages.chat?.product.priceString ?? money(99);
-  const voicePrice = packages.voice?.product.priceString ?? money(199);
+  const chatPrice = loadingPkgs ? "…" : (packages.chat?.product.priceString ?? money(99));
+  const voicePrice = loadingPkgs ? "…" : (packages.voice?.product.priceString ?? money(199));
 
   return (
     <>

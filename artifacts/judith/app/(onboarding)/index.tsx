@@ -381,10 +381,12 @@ function JudithLine({
   children,
   hint,
   style,
+  compact,
 }: {
   children: React.ReactNode;
   hint?: boolean;
   style?: ViewStyle;
+  compact?: boolean;
 }) {
   const t = useTheme();
   return (
@@ -398,20 +400,20 @@ function JudithLine({
           borderColor: hint ? t.hair2 : withAlpha(t.accent, 0.3),
           borderRadius: 18,
           borderBottomLeftRadius: 5,
-          paddingVertical: 12,
-          paddingHorizontal: 15,
+          paddingVertical: compact ? 8 : 12,
+          paddingHorizontal: compact ? 12 : 15,
         },
         style,
       ]}
     >
-      <Txt size={15} color={hint ? t.txtLow : t.txtHi} style={{ lineHeight: 20 }}>
+      <Txt size={compact ? 13 : 15} color={hint ? t.txtLow : t.txtHi} style={{ lineHeight: compact ? 18 : 20 }}>
         {children}
       </Txt>
     </View>
   );
 }
 
-function Transcript({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
+function Transcript({ children, style, compact }: { children: React.ReactNode; style?: ViewStyle; compact?: boolean }) {
   const t = useTheme();
   return (
     <View
@@ -424,13 +426,13 @@ function Transcript({ children, style }: { children: React.ReactNode; style?: Vi
           borderColor: t.hair,
           borderRadius: 18,
           borderBottomRightRadius: 5,
-          paddingVertical: 12,
-          paddingHorizontal: 15,
+          paddingVertical: compact ? 8 : 12,
+          paddingHorizontal: compact ? 12 : 15,
         },
         style,
       ]}
     >
-      <Txt size={15} style={{ lineHeight: 20 }}>
+      <Txt size={compact ? 13 : 15} style={{ lineHeight: compact ? 18 : 20 }}>
         {children}
       </Txt>
     </View>
@@ -4406,10 +4408,10 @@ function FeatureShell({
                   <JudithAvatar persona={persona} size={88} state="speaking" mood={mood} />
                 </View>
                 <Animated.View style={{ alignSelf: "flex-end", opacity: tOpacity, transform: [{ translateY: tY }, { scale: tScale }] }}>
-                  <Transcript>{q}</Transcript>
+                  <Transcript compact>{q}</Transcript>
                 </Animated.View>
                 <Animated.View style={{ opacity: rOpacity, transform: [{ translateY: rY }, { scale: rScale }] }}>
-                  <JudithLine>{a}</JudithLine>
+                  <JudithLine compact>{a}</JudithLine>
                 </Animated.View>
               </View>
             </Animated.View>
@@ -4440,10 +4442,10 @@ function FeatureShell({
                 </View>
               </View>
               <Animated.View style={{ alignSelf: "flex-end", opacity: tOpacity, transform: [{ translateY: tY }, { scale: tScale }] }}>
-                <Transcript>{q}</Transcript>
+                <Transcript compact>{q}</Transcript>
               </Animated.View>
               <Animated.View style={{ opacity: rOpacity, transform: [{ translateY: rY }, { scale: rScale }] }}>
-                <JudithLine>{a}</JudithLine>
+                <JudithLine compact>{a}</JudithLine>
               </Animated.View>
             </View>
           ) : (
@@ -5025,13 +5027,17 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
   // shows its real App Store / Play price. Falls back to the formatted default
   // when packages aren't available (Expo Go / RevenueCat not configured).
   const [packages, setPackages] = useState<TierPackages>({ chat: null, voice: null });
+  const [loadingPkgs, setLoadingPkgs] = useState(true);
   useEffect(() => {
     let alive = true;
-    getTierPackages().then((p) => { if (alive) setPackages(p); }).catch(() => {});
+    getTierPackages()
+      .then((p) => { if (alive) setPackages(p); })
+      .catch(() => {})
+      .finally(() => { if (alive) setLoadingPkgs(false); });
     return () => { alive = false; };
   }, []);
-  const chatPrice = packages.chat?.product.priceString ?? fmt(99);
-  const voicePrice = packages.voice?.product.priceString ?? fmt(199);
+  const chatPrice = loadingPkgs ? "…" : (packages.chat?.product.priceString ?? fmt(99));
+  const voicePrice = loadingPkgs ? "…" : (packages.voice?.product.priceString ?? fmt(199));
   const priceFor = (id: 'chat' | 'voice') => (id === 'voice' ? voicePrice : chatPrice);
 
   const included: { icon: IconName; label: string }[] = [
@@ -5307,11 +5313,11 @@ const FLOW: { id: string; C: (p: { ctx: Ctx }) => React.ReactElement }[] = [
   { id: "congrats", C: ScreenCongrats },
   { id: "personalizing", C: ScreenPersonalizing },
   { id: "summary", C: ScreenSummary },
+  { id: "income", C: ScreenMonthlyIncome },
+  { id: "paycycle", C: ScreenPayCycle },
   { id: "feature1", C: ScreenFeature1 },
   { id: "feature2", C: ScreenFeature2 },
   { id: "feature3", C: ScreenFeature3 },
-  { id: "income", C: ScreenMonthlyIncome },
-  { id: "paycycle", C: ScreenPayCycle },
   { id: "notifications", C: ScreenNotifications },
   { id: "askpaywall", C: ScreenAskPaywall },
 ];
