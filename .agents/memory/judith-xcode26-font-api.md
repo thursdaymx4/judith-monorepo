@@ -1,43 +1,51 @@
 ---
-name: Judith Xcode 26 Font API changes
-description: Which Font.system overloads were removed in iPhoneOS26.0.sdk and the working replacements for Watch vs widget targets.
+name: Judith Xcode 26 font API changes
+description: Which Font APIs were removed in iPhoneOS26.0.sdk and the only universally-working replacement for the widget target.
 ---
 
-## What broke in Xcode 26 (iPhoneOS26.0.sdk)
+## What is removed in Xcode 26 (iPhoneOS26.0.sdk — widget target)
 
-All of these `Font.system` overloads that take a `Font.TextStyle` as first arg were removed:
 - `Font.system(_ style: Font.TextStyle)` — gone
-- `Font.system(_ style: Font.TextStyle, design: Font.Design?)` — gone (iOS widget target only; still works in watchOS SDK)
-- `Font.system(_ style: Font.TextStyle, weight: Font.Weight, design: Font.Design)` — gone from both
-- `Font.design(_ design: Font.Design) -> Font` instance method — gone from iOS 26
+- `Font.system(_ style: Font.TextStyle, design: Font.Design?)` — gone
+- `Font.system(_ style: Font.TextStyle, weight: Font.Weight, design: Font.Design)` — gone
+- `Font.design(_ design: Font.Design) -> Font` instance method — gone
+- `.fontDesign()` view modifier — requires iOS 16.1, widget deployment target is below that → availability error
 
-**Why:** Apple reorganized the Font API in iOS/watchOS 26. The only `Font.system` overload remaining requires explicit `size: CGFloat`.
+## What STILL WORKS everywhere (iOS 13+, Xcode 26)
 
-## Working replacements
+```swift
+Font.system(size: CGFloat, weight: Font.Weight, design: Font.Design)
+```
 
-### watchOS target (watchOS SDK — less strict)
+This is the ONLY safe approach for the widget target. Use hardcoded Apple DT point sizes:
+
+| TextStyle  | Size |
+|------------|------|
+| caption2   | 11   |
+| caption    | 12   |
+| footnote   | 13   |
+| callout    | 16   |
+| body       | 17   |
+| title3     | 20   |
+| title2     | 22   |
+| title      | 28   |
+| largeTitle | 34   |
+
+Example:
+```swift
+// Instead of .font(.caption.weight(.semibold).design(.rounded))
+// or .font(.caption).fontWeight(.semibold).fontDesign(.rounded)
+.font(.system(size: 12, weight: .semibold, design: .rounded))
+```
+
+## watchOS target (different SDK — more permissive)
+
 `Font.system(Font.TextStyle.xxx, design: .rounded)` with explicit type still works.
 Chained `.weight()` on Font still works.
-
-```swift
-// Watch files — OK
-.font(.system(Font.TextStyle.headline, design: .rounded).weight(.bold))
-```
-
-### iOS widget target (iPhoneOS26.0.sdk — strictest)
-Must use view-level modifiers `.fontDesign()` and `.fontWeight()` (iOS 16+):
-
-```swift
-// Widget files — correct approach
-Text(...)
-    .font(.caption)           // predefined Font constant, no Font.system needed
-    .fontWeight(.semibold)    // View modifier, not Font method
-    .fontDesign(.rounded)     // View modifier, not Font method
-```
-
-`Font.system(size: CGFloat, weight:, design:)` with explicit CGFloat size still works in both targets.
+Do NOT use the 3-arg form `Font.system(style:weight:design:)`.
 
 ## How to apply
-- Any Swift file in `targets/widget/` that styled fonts via `Font.system(.textStyle, ...)`: use view modifiers.
-- Any Swift file in `targets/watchos/` that styled fonts: `Font.system(Font.TextStyle.xxx, design:)` is OK, but avoid the 3-arg form with `weight:`.
-- The `Config.swift` font constants use `Font.system(Font.TextStyle.body, design: .monospaced).weight(.semibold)` — this compiles fine for watchOS.
+- **Widget target** (`targets/widget/`): Use ONLY `Font.system(size: N, weight:, design:)`. No Font instance methods, no `.fontDesign()`, no `.fontWeight()` view modifiers.
+- **Watch target** (`targets/watchos/`): `Font.system(Font.TextStyle.xxx, design:).weight(.xxx)` is fine.
+
+**Why:** Apple reorganized/removed the style-based Font.system overloads in iOS 26 SDK. The size-based overload is the stable API that has existed since iOS 13 and survives.

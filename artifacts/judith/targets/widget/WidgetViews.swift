@@ -1,6 +1,9 @@
 import WidgetKit
 import SwiftUI
 
+// Standard Apple Dynamic Type point sizes used throughout this file:
+// caption2=11, caption=12, footnote=13, callout=16, body=17, title3=20, title2=22
+
 // MARK: — Top-level dispatcher
 
 struct JudithWidgetView: View {
@@ -60,18 +63,14 @@ private struct SmallView: View {
 
                 // Provider
                 Text(bill.provider)
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .fontDesign(.rounded)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
                     .foregroundStyle(Color.txtMid)
                     .lineLimit(1)
                     .padding(.bottom, 1)
 
                 // Amount — hero number
                 Text(bill.amountDisplay(currency: entry.currency))
-                    .font(.title2)
-                    .fontWeight(.black)
-                    .fontDesign(.monospaced)
+                    .font(.system(size: 22, weight: .black, design: .monospaced))
                     .foregroundStyle(bill.urgency.color)
                     .minimumScaleFactor(0.55)
                     .lineLimit(1)
@@ -91,9 +90,7 @@ private struct SmallView: View {
                             .foregroundStyle(Color.judithAccent)
                     }
                     Text("All paid!")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .fontDesign(.rounded)
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
                         .foregroundStyle(Color.judithAccent)
                 }
             }
@@ -220,9 +217,7 @@ private struct LargeView: View {
                         }
                         Spacer()
                         Text("\(entry.currency)\(String(format: "%.0f", entry.totalOwed))")
-                            .font(.title3)
-                            .fontWeight(.black)
-                            .fontDesign(.monospaced)
+                            .font(.system(size: 20, weight: .black, design: .monospaced))
                             .foregroundStyle(Color.txtHi)
                     }
                 }
@@ -242,9 +237,7 @@ private struct LockCircularCurrentValue: View {
     let bill: UpcomingBill
     var body: some View {
         Text(bill.dueDays <= 0 ? "!" : "\(bill.dueDays)")
-            .font(.body)
-            .fontWeight(.bold)
-            .fontDesign(.monospaced)
+            .font(.system(size: 17, weight: .bold, design: .monospaced))
             .foregroundStyle(bill.urgency.color)
     }
 }
@@ -336,17 +329,13 @@ private struct LockRectangularView: View {
                     }
 
                     Text(bill.provider)
-                        .font(.footnote)
-                        .fontWeight(.bold)
-                        .fontDesign(.rounded)
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
 
                     HStack(spacing: 3) {
                         Text(bill.amountDisplay(currency: entry.currency))
-                            .font(.callout)
-                            .fontWeight(.black)
-                            .fontDesign(.monospaced)
+                            .font(.system(size: 16, weight: .black, design: .monospaced))
                             .foregroundStyle(bill.urgency.color)
                         Spacer()
                         Text("\(entry.unpaidCount) due")
@@ -355,9 +344,7 @@ private struct LockRectangularView: View {
                     }
                 } else {
                     Text("All bills paid!")
-                        .font(.footnote)
-                        .fontWeight(.bold)
-                        .fontDesign(.rounded)
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundStyle(Color.judithAccent)
                     Text("You're on top of it.")
                         .font(.system(size: 9, design: .rounded))
@@ -406,18 +393,14 @@ private struct BillRow: View {
                 .padding(.trailing, 8)
 
             Text(bill.provider)
-                .font(.caption)
-                .fontWeight(.semibold)
-                .fontDesign(.rounded)
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .foregroundStyle(Color.txtHi)
                 .lineLimit(1)
 
             Spacer(minLength: 4)
 
             Text(bill.amountDisplay(currency: currency))
-                .font(.caption)
-                .fontWeight(.bold)
-                .fontDesign(.monospaced)
+                .font(.system(size: 12, weight: .bold, design: .monospaced))
                 .foregroundStyle(Color.txtHi)
                 .lineLimit(1)
 
@@ -491,13 +474,10 @@ private struct AllPaidView: View {
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text("All bills paid!")
-                    .font(.callout)
-                    .fontWeight(.bold)
-                    .fontDesign(.rounded)
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundStyle(Color.judithAccent)
                 Text("Nothing due right now.")
-                    .font(.caption2)
-                    .fontDesign(.rounded)
+                    .font(.system(size: 11, design: .rounded))
                     .foregroundStyle(Color.txtLow)
             }
         }
