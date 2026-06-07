@@ -140,16 +140,11 @@ struct AskView: View {
     // MARK: — Sub-views
 
     private var judithAvatar: some View {
-        ZStack {
-            Circle()
-                .fill(LinearGradient(
-                    colors: [Color(hex: "#959af4"), Color(hex: "#433a85")],
-                    startPoint: .topLeading, endPoint: .bottomTrailing))
-                .frame(width: 40, height: 40)
-            Text("J")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-        }
+        Image("JudithAvatar")
+            .resizable()
+            .scaledToFill()
+            .frame(width: 40, height: 40)
+            .clipShape(Circle())
     }
 
     // MARK: — Actions

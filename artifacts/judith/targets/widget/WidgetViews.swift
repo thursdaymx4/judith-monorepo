@@ -21,23 +21,17 @@ struct JudithWidgetView: View {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MARK: — Judith brand avatar (gradient purple J bubble)
+// MARK: — Judith brand avatar (circular crop of JudithAvatar.png)
 // ─────────────────────────────────────────────────────────────────────────────
 
 private struct JudithAvatar: View {
     var size: CGFloat = 24
     var body: some View {
-        ZStack {
-            Circle()
-                .fill(LinearGradient(
-                    colors: [Color(hex: "#959af4"), Color(hex: "#3d3378")],
-                    startPoint: .topLeading, endPoint: .bottomTrailing
-                ))
-            Text("J")
-                .font(.system(size: size * 0.52, weight: .black, design: .rounded))
-                .foregroundStyle(.white)
-        }
-        .frame(width: size, height: size)
+        Image("JudithAvatar")
+            .resizable()
+            .scaledToFill()
+            .frame(width: size, height: size)
+            .clipShape(Circle())
     }
 }
 
