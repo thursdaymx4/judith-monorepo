@@ -1,6 +1,12 @@
 /**
  * Handles messages sent FROM the Apple Watch TO the phone.
  *
+ * Two delivery channels are handled:
+ *   1. sendMessage  (watch→phone when phone is reachable/foreground)
+ *      — arrives via addMessageListener; replyHandler available
+ *   2. transferUserInfo (watch→phone background fallback)
+ *      — arrives via watchEvents 'user-info'; no reply needed
+ *
  * Supported actions:
  *   {action: "ask",      query: string}   → calls /ask API, replies {answer}
  *   {action: "markPaid", billId: string}  → marks bill paid in local store
@@ -65,6 +71,7 @@ export function useWatchMessages() {
   useEffect(() => {
     if (!WatchConnectivity) return;
 
+    // ── Channel 1: sendMessage (phone foregrounded / reachable) ──────────────
     const addMessageListener = WatchConnectivity.addMessageListener as
       | ((
           cb: (
@@ -74,45 +81,76 @@ export function useWatchMessages() {
         ) => { remove?: () => void })
       | undefined;
 
-    if (!addMessageListener) return;
+    let messageSub: { remove?: () => void } | undefined;
 
-    const subscription = addMessageListener(async (message, reply) => {
-      const action = message.action as string | undefined;
+    if (addMessageListener) {
+      messageSub = addMessageListener(async (message, reply) => {
+        const action = message.action as string | undefined;
 
-      if (action === "ask") {
-        const query = (message.query as string | undefined) ?? "";
-        try {
-          const currentBills = billsRef.current;
-          const askBills = currentBills.map((b) => billToAskBill(b, currentBills));
-          const result = await askJudith(
-            query,
-            askBills,
-            personaRef.current,
-            "en",
-            false,
-            currencyRef.current,
-            countryRef.current?.name,
-            monthlyIncomeRef.current,
-            countryRef.current?.code,
-            incomeByMonthRef.current,
-          );
-          reply({ answer: result.reply });
-        } catch {
-          reply({ error: "Judith couldn't respond right now." });
+        if (action === "ask") {
+          const query = (message.query as string | undefined) ?? "";
+          try {
+            const currentBills = billsRef.current;
+            const askBills = currentBills.map((b) => billToAskBill(b, currentBills));
+            const result = await askJudith(
+              query,
+              askBills,
+              personaRef.current,
+              "en",
+              false,
+              currencyRef.current,
+              countryRef.current?.name,
+              monthlyIncomeRef.current,
+              countryRef.current?.code,
+              incomeByMonthRef.current,
+            );
+            reply({ answer: result.reply });
+          } catch {
+            reply({ error: "Judith couldn't respond right now." });
+          }
         }
-      }
 
-      if (action === "markPaid") {
-        const billId = message.billId as string | undefined;
-        if (billId) {
-          markPaidRef.current(billId);
+        if (action === "markPaid") {
+          const billId = message.billId as string | undefined;
+          if (billId) markPaidRef.current(billId);
+          reply({ ok: true });
         }
-        reply({ ok: true });
+      });
+    }
+
+    // ── Channel 2: transferUserInfo (phone was backgrounded/locked) ──────────
+    // Watch sends markPaid via transferUserInfo when sendMessage fails because
+    // the phone is not reachable. No reply handler available here.
+    const events = (
+      WatchConnectivity as {
+        watchEvents?: {
+          on: (
+            event: string,
+            cb: (...args: unknown[]) => void,
+          ) => { remove?: () => void };
+        };
       }
-    });
+    ).watchEvents;
+
+    let userInfoSub: { remove?: () => void } | undefined;
+
+    if (events?.on) {
+      userInfoSub = events.on("user-info", (...args: unknown[]) => {
+        const payloads = args[0];
+        const items: unknown[] = Array.isArray(payloads) ? payloads : [payloads];
+        for (const item of items) {
+          if (!item || typeof item !== "object") continue;
+          const p = item as Record<string, unknown>;
+          if (p.action === "markPaid" && typeof p.billId === "string") {
+            markPaidRef.current(p.billId);
+          }
+        }
+      });
+    }
 
     return () => {
-      subscription?.remove?.();
+      messageSub?.remove?.();
+      userInfoSub?.remove?.();
     };
   }, []); // subscribe once — reads latest values via refs
 }

@@ -106,13 +106,14 @@ export async function syncBillsToWatch(
 
   try {
     const payload = buildPayload(bills, persona, currency);
-    // JSON-stringify the payload so Swift's JSONDecoder can decode it cleanly.
-    // transferUserInfo is queued and delivered even when the Watch app is in
-    // the background or temporarily disconnected.
-    await (
-      WatchConnectivity.transferUserInfo as (
+    // updateApplicationContext replaces the previous value in-place — much
+    // faster than transferUserInfo (which queues and delivers sequentially).
+    // The watch receives it via didReceiveApplicationContext instantly when
+    // reachable, or on next activation otherwise.
+    (
+      WatchConnectivity.updateApplicationContext as (
         p: Record<string, unknown>,
-      ) => Promise<void>
+      ) => void
     )({ judith_payload_v2: JSON.stringify(payload) });
   } catch {
     // No paired watch, Expo Go stub, or native module absent — silent no-op

@@ -53,14 +53,6 @@ struct AskView: View {
                     }
                     .background(Color.judithAccent)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .onTapGesture {
-                        if query.trimmingCharacters(in: .whitespaces).isEmpty {
-                            fieldFocused = true
-                        } else {
-                            submitQuery()
-                        }
-                    }
-                    .simultaneousGesture(TapGesture())
 
                 // ── Asking ────────────────────────────────────────────────
                 case .asking:
