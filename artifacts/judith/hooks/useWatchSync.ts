@@ -16,11 +16,11 @@ export function useWatchSync() {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!toggles.watch) return;
-
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
-      syncBillsToWatch(bills, persona, currency).catch(() => {});
+      // Widget always syncs regardless of Watch toggle.
+      // Watch connectivity only fires when toggles.watch is true.
+      syncBillsToWatch(bills, persona, currency, toggles.watch).catch(() => {});
     }, 500);
 
     return () => {

@@ -103,13 +103,18 @@ function buildPayload(bills: Bill[], persona: PersonaId, currency: string): Watc
 // ─── Push to Watch ─────────────────────────────────────────────────────────────
 
 /**
- * Push bill summary to a paired Apple Watch.
+ * Push bill summary to the widget and optionally to a paired Apple Watch.
+ *
+ * @param watchEnabled - When false, only the widget is updated (Watch sync
+ *   is skipped). Always pass `toggles.watch` from the store.
+ *
  * Safe to call on Android (no-ops) and in Expo Go (stub).
  */
 export async function syncBillsToWatch(
   bills: Bill[],
   persona: PersonaId,
   currency: string,
+  watchEnabled = true,
 ): Promise<void> {
   if (Platform.OS !== "ios") return;
 
@@ -117,15 +122,15 @@ export async function syncBillsToWatch(
   const payloadJson = JSON.stringify(payload);
 
   // ── iOS widget extension ─────────────────────────────────────────────────
-  // Writes directly to the App Group UserDefaults so the homescreen and
-  // lockscreen widgets refresh immediately — works even without a paired Watch.
+  // Always write to the App Group so homescreen / lockscreen widgets refresh.
+  // This is independent of whether a Watch is paired or the Watch toggle is on.
   writeWidgetPayload(payloadJson);
 
   // ── Apple Watch app ───────────────────────────────────────────────────────
   // updateApplicationContext replaces the previous value in-place; the Watch
   // receives it via didReceiveApplicationContext instantly when reachable, or
   // on next activation otherwise.
-  if (!WatchConnectivity) return;
+  if (!watchEnabled || !WatchConnectivity) return;
   try {
     (
       WatchConnectivity.updateApplicationContext as (
