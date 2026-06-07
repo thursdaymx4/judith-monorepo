@@ -155,35 +155,92 @@ function intToWords(n: number): string {
 const FILIPINO_TTS_LANGS = new Set(["fil", "ceb", "ilo", "hil"]);
 
 /**
- * Converts ₱ amounts to spoken English words so ElevenLabs reads them naturally.
- * Only applied for Filipino/Taglish output — for other languages (Japanese, Spanish,
- * etc.) we leave amounts as digits so the multilingual model can handle them in
- * context without inserting English words into the middle of another language.
+ * Normalises currency amounts in text so ElevenLabs speaks them naturally.
+ *
+ * Problem: symbols like "A$", "CA$", "£", "¥", "﷼" are read letter-by-letter
+ * ("A dollar one thousand…") instead of as the currency name.
+ *
+ * Fix applied for ALL languages:
+ *   "A$1,380"   →  "1,380 Australian dollars"
+ *   "CA$2,680"  →  "2,680 Canadian dollars"
+ *   "£1,895"    →  "1,895 pounds"
+ *   "¥98,000"   →  "98,000 yen"
+ *   "﷼5,800"    →  "5,800 riyals"
+ *
+ * For Filipino/English, ₱ is additionally converted to full spoken words via
+ * intToWords so it sounds natural in Taglish speech:
+ *   "₱3,000"    →  "three thousand pesos"
+ *
+ * For all other languages, ₱ (and $ alone) become "X pesos" / "X dollars"
+ * in digit form — natural enough without injecting English word-spellings.
  */
+
+/** Longest symbols must come first so "CA$" matches before "$". */
+const CURRENCY_SPOKEN: Array<[string, string]> = [
+  ["CA$",  "Canadian dollars"],
+  ["A$",   "Australian dollars"],
+  ["NZ$",  "New Zealand dollars"],
+  ["HK$",  "Hong Kong dollars"],
+  ["S$",   "Singapore dollars"],
+  ["US$",  "dollars"],
+  ["£",    "pounds"],
+  ["€",    "euros"],
+  ["¥",    "yen"],
+  ["₩",    "won"],
+  ["₹",    "rupees"],
+  ["﷼",    "riyals"],
+  ["฿",    "baht"],
+  ["₫",    "dong"],
+];
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function prepareForTTS(text: string, language?: string): string {
   const lang = (language ?? "fil").toLowerCase();
   const isFilipino = FILIPINO_TTS_LANGS.has(lang) || lang === "fil" || !language ||
     lang.startsWith("en");
 
-  if (!isFilipino) {
-    // Non-Filipino/English: leave amounts as-is. ElevenLabs multilingual model
-    // handles digit sequences natively in the target language.
-    return text;
+  let result = text;
+
+  // ── Step 1: normalize all non-peso currency symbols for every language ──
+  // Single pass per symbol — handles "negative A$1,380", "-A$1,380",
+  // "A$-1,380", and plain "A$1,380" in one regex.
+  for (const [sym, spoken] of CURRENCY_SPOKEN) {
+    const esc = escapeRegex(sym);
+    result = result.replace(
+      new RegExp(`(-|negative\\s+)?${esc}\\s?(-?)\\s?([\\d,]+)`, "gi"),
+      (_m, negPrefix: string | undefined, negSuffix: string | undefined, digits: string) => {
+        const isNeg = !!(negPrefix?.trim() || negSuffix);
+        return isNeg ? `negative ${digits} ${spoken}` : `${digits} ${spoken}`;
+      },
+    );
   }
 
-  // Handle "negative ₱X,XXX" or "-₱X,XXX" (minus before the symbol)
-  let result = text.replace(/-\s*₱\s*([\d,]+)/g, (_match, digits: string) => {
-    const n = parseInt(digits.replace(/,/g, ""), 10);
-    if (isNaN(n)) return _match;
-    return "negative " + intToWords(n) + " pesos";
-  });
-  // Handle "₱-X,XXX" (minus after the symbol) and plain "₱X,XXX"
-  result = result.replace(/₱\s?(-?)\s*([\d,]+)/g, (_match, sign: string, digits: string) => {
-    const n = parseInt(digits.replace(/,/g, ""), 10);
-    if (isNaN(n)) return _match;
-    const words = intToWords(n) + " pesos";
-    return sign === "-" ? "negative " + words : words;
-  });
+  // ── Step 2: ₱ → spoken pesos ─────────────────────────────────────────────
+  if (isFilipino) {
+    // Full word-spelling for Taglish — sounds most natural in Filipino speech
+    result = result.replace(/-\s*₱\s*([\d,]+)/g, (_m, digits: string) => {
+      const n = parseInt(digits.replace(/,/g, ""), 10);
+      return isNaN(n) ? _m : "negative " + intToWords(n) + " pesos";
+    });
+    result = result.replace(/₱\s?(-?)\s*([\d,]+)/g, (_m, sign: string, digits: string) => {
+      const n = parseInt(digits.replace(/,/g, ""), 10);
+      if (isNaN(n)) return _m;
+      const words = intToWords(n) + " pesos";
+      return sign === "-" ? "negative " + words : words;
+    });
+  } else {
+    // Other languages: digit form is fine ("3,000 pesos" reads naturally)
+    result = result.replace(/-\s*₱\s*([\d,]+)/g, (_m, digits: string) =>
+      `negative ${digits} pesos`,
+    );
+    result = result.replace(/₱\s?(-?)\s*([\d,]+)/g, (_m, sign: string, digits: string) =>
+      sign === "-" ? `negative ${digits} pesos` : `${digits} pesos`,
+    );
+  }
+
   return result;
 }
 
