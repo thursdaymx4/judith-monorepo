@@ -662,7 +662,7 @@ router.post("/ask", askLimiter, async (req, res) => {
     if (includeVoice !== false) {
       try {
         if (await isSafeForTTS(reply)) {
-          const audio = await synthesize(reply, voiceId, { live: true, speed: getSpeakingSpeed(persona) });
+          const audio = await synthesize(reply, voiceId, { live: true, speed: getSpeakingSpeed(persona), language: typeof language === "string" ? language : undefined });
           audioBase64 = audio.base64;
           mime = audio.mime;
           ttsOk = true;

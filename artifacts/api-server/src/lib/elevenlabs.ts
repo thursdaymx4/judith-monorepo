@@ -152,7 +152,25 @@ function intToWords(n: number): string {
  *   "-₱1,000"    →  "negative one thousand pesos"
  *   "3 bills"    →  "3 bills"  (short counts left for ElevenLabs — it handles them fine)
  */
-function prepareForTTS(text: string): string {
+const FILIPINO_TTS_LANGS = new Set(["fil", "ceb", "ilo", "hil"]);
+
+/**
+ * Converts ₱ amounts to spoken English words so ElevenLabs reads them naturally.
+ * Only applied for Filipino/Taglish output — for other languages (Japanese, Spanish,
+ * etc.) we leave amounts as digits so the multilingual model can handle them in
+ * context without inserting English words into the middle of another language.
+ */
+function prepareForTTS(text: string, language?: string): string {
+  const lang = (language ?? "fil").toLowerCase();
+  const isFilipino = FILIPINO_TTS_LANGS.has(lang) || lang === "fil" || !language ||
+    lang.startsWith("en");
+
+  if (!isFilipino) {
+    // Non-Filipino/English: leave amounts as-is. ElevenLabs multilingual model
+    // handles digit sequences natively in the target language.
+    return text;
+  }
+
   // Handle "negative ₱X,XXX" or "-₱X,XXX" (minus before the symbol)
   let result = text.replace(/-\s*₱\s*([\d,]+)/g, (_match, digits: string) => {
     const n = parseInt(digits.replace(/,/g, ""), 10);
@@ -172,7 +190,7 @@ function prepareForTTS(text: string): string {
 export async function synthesize(
   text: string,
   voiceId: string,
-  opts?: { live?: boolean; speed?: number },
+  opts?: { live?: boolean; speed?: number; language?: string },
 ): Promise<{ base64: string; mime: string }> {
   const live = opts?.live ?? true;
   const preferred = live
@@ -184,7 +202,7 @@ export async function synthesize(
   // Slightly slower than default (1.0) — more conversational, easier to follow.
   // Callers can override per-persona (e.g. Marites speaks faster).
   const speed = opts?.speed ?? 0.92;
-  const ttsText = prepareForTTS(text);
+  const ttsText = prepareForTTS(text, opts?.language);
   let lastErr = "";
 
   for (const model_id of models) {
