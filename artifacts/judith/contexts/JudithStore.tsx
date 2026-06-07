@@ -12,6 +12,7 @@ import React, {
 
 import { formatMoney, isPaidViaCard, totalOwed, type Bill, type BillCycleRecord } from "@/constants/data";
 import { DEMO_PRESET } from "@/constants/demoData";
+import { DEMO_ACCOUNTS } from "@/constants/demoAccounts";
 import {
   countryByCode,
   DEFAULT_COUNTRY,
@@ -212,6 +213,7 @@ interface JudithStoreValue extends PersistShape {
   clearAskHistory: () => void;
   restart: () => void;
   loadDemoData: () => void;
+  loadDemoAccount: (code: string) => void;
 }
 
 const JudithContext = createContext<JudithStoreValue | undefined>(undefined);
@@ -650,6 +652,11 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       },
       loadDemoData: () => {
         setState({ ...DEFAULTS, ...DEMO_PRESET });
+      },
+      loadDemoAccount: (code: string) => {
+        const acct = DEMO_ACCOUNTS.find((a) => a.code === code);
+        const preset = acct?.preset ?? DEMO_ACCOUNTS[DEMO_ACCOUNTS.length - 1]!.preset;
+        setState({ ...DEFAULTS, ...preset } as PersistShape);
       },
     };
   }, [state, hydrated, patch, mapBills, toast, showToast, storageKey]);

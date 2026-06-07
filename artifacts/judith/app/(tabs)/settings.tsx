@@ -14,6 +14,7 @@ import { useJudith, type Toggles } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { requestPermission } from "@/lib/notifications";
 import { PRIVACY_URL, TERMS_URL, openLegal } from "@/constants/legal";
+import { DEMO_ACCOUNTS } from "@/constants/demoAccounts";
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -121,7 +122,7 @@ function SettingsLabel({ children }: { children: React.ReactNode }) {
 export default function SettingsScreen() {
   const t = useTheme();
   const router = useRouter();
-  const { persona, setPersona, language, setLanguage, toggles, setToggle, reduceMotion, setReduceMotion, asksLeft, tier, theme, setTheme, restart, loadDemoData, money, bills, name, guest, country, setCountry, currency, setCurrency } =
+  const { persona, setPersona, language, setLanguage, toggles, setToggle, reduceMotion, setReduceMotion, asksLeft, tier, theme, setTheme, restart, loadDemoData, loadDemoAccount, money, bills, name, guest, country, setCountry, currency, setCurrency } =
     useJudith();
   const { user } = useAuth();
   const email = user?.email ?? (guest ? "Guest account" : "—");
@@ -131,6 +132,8 @@ export default function SettingsScreen() {
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [confirmText, setConfirmText] = React.useState("");
   const canRestart = confirmText.trim().toLowerCase() === "restart";
+
+  const [demoPickerOpen, setDemoPickerOpen] = React.useState(false);
 
   const [langOpen, setLangOpen] = React.useState(false);
   const [langQ, setLangQ] = React.useState("");
@@ -901,11 +904,9 @@ export default function SettingsScreen() {
         ))}
       </View>
 
-      {/* Load demo data — for screenshots / demos */}
+      {/* Load demo account — country picker */}
       <Pressable
-        onPress={() => {
-          loadDemoData();
-        }}
+        onPress={() => setDemoPickerOpen(true)}
         style={({ pressed }) => [
           {
             flexDirection: "row",
@@ -924,11 +925,55 @@ export default function SettingsScreen() {
       >
         <Icon name="spark" size={18} color={t.accent} />
         <View style={{ flex: 1 }}>
-          <Txt size={15} weight="medium" color={t.accent}>Load demo data</Txt>
-          <Low size={12} style={{ marginTop: 1 }}>Fills the app with a US demo account for screenshots</Low>
+          <Txt size={15} weight="medium" color={t.accent}>Load demo account</Txt>
+          <Low size={12} style={{ marginTop: 1 }}>Try the app pre-filled with bills for any country</Low>
         </View>
         <Icon name="chev" size={16} color={t.accent} />
       </Pressable>
+
+      <Modal visible={demoPickerOpen} transparent animationType="slide" onRequestClose={() => setDemoPickerOpen(false)}>
+        <Pressable onPress={() => setDemoPickerOpen(false)} style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}>
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={{ backgroundColor: t.surface1, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingBottom: 40 }}
+          >
+            <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 14 }}>
+              <Txt size={18} weight="semibold" style={{ marginBottom: 4 }}>Load demo account</Txt>
+              <Low size={13}>Replaces all current data with a pre-filled account</Low>
+            </View>
+            <ScrollView style={{ maxHeight: 440 }} contentContainerStyle={{ paddingHorizontal: 18, gap: 10, paddingBottom: 8 }}>
+              {DEMO_ACCOUNTS.map((acct) => (
+                <Pressable
+                  key={acct.code}
+                  onPress={() => {
+                    loadDemoAccount(acct.code);
+                    setDemoPickerOpen(false);
+                  }}
+                  style={({ pressed }) => ({
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 14,
+                    paddingVertical: 14,
+                    paddingHorizontal: 16,
+                    borderRadius: 14,
+                    borderWidth: 1,
+                    borderColor: t.hair,
+                    backgroundColor: t.surface2,
+                    opacity: pressed ? 0.75 : 1,
+                  })}
+                >
+                  <Text style={{ fontSize: 28 }}>{acct.flag}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Txt size={15} weight="medium">{acct.label}</Txt>
+                    <Low size={12} style={{ marginTop: 2 }}>{acct.subtitle}</Low>
+                  </View>
+                  <Icon name="chev" size={16} color={t.txtLow} />
+                </Pressable>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <View style={{ alignItems: "center", marginTop: 22 }}>
         <Low size={12}>Judith v1.0 · Available worldwide</Low>
