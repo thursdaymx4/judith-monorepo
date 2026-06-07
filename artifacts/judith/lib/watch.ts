@@ -66,7 +66,7 @@ function buildPayload(bills: Bill[], persona: PersonaId, currency: string): Watc
     .map((b) => ({ b, occ: currentCycleDue(b) }))
     .sort((a, z) => a.occ.dueDays - z.occ.dueDays);
 
-  const payable = enriched.filter(({ b }) => !isPaidViaCard(b, bills));
+  const payable = enriched.filter(({ b }) => !isPaidViaCard(b));
 
   const next = enriched[0];
 

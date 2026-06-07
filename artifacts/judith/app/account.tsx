@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import React from "react";
-import { ActivityIndicator, Modal, Pressable, Share, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Modal, Pressable, Share, Text, TextInput, View } from "react-native";
 
 import { Icon, type IconName } from "@/components/Icon";
 import { Dot, Low, Mono, Screen, SheetHeader, Txt, mix } from "@/components/ui";
@@ -173,6 +173,8 @@ export default function AccountScreen() {
     setMonthlyIncome,
     incomeByMonth,
     setMonthIncome,
+    payCycle,
+    setPayCycle,
   } = useJudith();
 
   const email = user?.email ?? (guest ? "Guest account" : "—");
@@ -411,6 +413,27 @@ export default function AccountScreen() {
                 : "Not set — Judith will ask if relevant"
           }
           onPress={openIncome}
+        />
+        <Row
+          icon="cal"
+          title="Pay cycle"
+          subtitle={
+            payCycle === "semi-monthly" ? "Twice a month"
+            : payCycle === "weekly" ? "Every week"
+            : "Once a month"
+          }
+          onPress={() => {
+            Alert.alert(
+              "Pay cycle",
+              "How often do you get paid?",
+              [
+                { text: "Once a month",  onPress: () => setPayCycle("monthly") },
+                { text: "Twice a month", onPress: () => setPayCycle("semi-monthly") },
+                { text: "Every week",    onPress: () => setPayCycle("weekly") },
+                { text: "Cancel", style: "cancel" },
+              ],
+            );
+          }}
         />
       </View>
 

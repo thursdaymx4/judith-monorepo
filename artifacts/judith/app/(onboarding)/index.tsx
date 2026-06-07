@@ -4737,7 +4737,102 @@ function ScreenMonthlyIncome({ ctx }: { ctx: Ctx }) {
 }
 
 /* ================================================================== */
-/* 17. Notifications                                                   */
+/* 17. Pay cycle                                                       */
+/* ================================================================== */
+
+type PayCycle = "monthly" | "semi-monthly" | "weekly";
+
+const PAY_CYCLES: { value: PayCycle; label: string; sub: string }[] = [
+  { value: "monthly",      label: "Once a month",    sub: "e.g. end-of-month salary" },
+  { value: "semi-monthly", label: "Twice a month",   sub: "e.g. 15th and 30th" },
+  { value: "weekly",       label: "Every week",      sub: "weekly payroll" },
+];
+
+function ScreenPayCycle({ ctx }: { ctx: Ctx }) {
+  const { t, persona, next } = ctx;
+  const { payCycle, setPayCycle } = useJudith();
+  const [selected, setSelected] = useState<PayCycle>(payCycle ?? "monthly");
+
+  const save = () => {
+    setPayCycle(selected);
+    next();
+  };
+
+  return (
+    <>
+      <Scroll center>
+        <JudithAvatar persona={persona} size={76} state="speaking" />
+        <Kicker style={{ marginTop: 18, textAlign: "center" }}>One more thing</Kicker>
+        <Title style={{ maxWidth: 300, textAlign: "center" }}>
+          How often do you get paid?
+        </Title>
+        <Lede style={{ textAlign: "center", maxWidth: 280 }}>
+          I{"'"}ll use this to answer questions like {'"'}do I have enough before my next payday?{'"'}
+        </Lede>
+        <View style={{ marginTop: 24, alignSelf: "stretch", gap: 10 }}>
+          {PAY_CYCLES.map(({ value, label, sub }) => {
+            const active = selected === value;
+            return (
+              <Pressable
+                key={value}
+                onPress={() => setSelected(value)}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  borderWidth: 1.5,
+                  borderColor: active ? t.accent : t.hair,
+                  borderRadius: 14,
+                  backgroundColor: active ? t.accent + "18" : t.surface2,
+                  paddingHorizontal: 18,
+                  paddingVertical: 16,
+                  gap: 14,
+                }}
+              >
+                <View
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: 11,
+                    borderWidth: 2,
+                    borderColor: active ? t.accent : t.txtLow,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {active && (
+                    <View
+                      style={{
+                        width: 11,
+                        height: 11,
+                        borderRadius: 6,
+                        backgroundColor: t.accent,
+                      }}
+                    />
+                  )}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Txt size={16} weight="semibold" color={active ? t.accent : t.txtHi}>
+                    {label}
+                  </Txt>
+                  <Txt size={13} color={t.txtLow} style={{ marginTop: 2 }}>
+                    {sub}
+                  </Txt>
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+      </Scroll>
+      <CtaBar>
+        <Btn label="Save & continue" onPress={save} />
+        <Btn label="Skip for now" variant="ghost" onPress={next} />
+      </CtaBar>
+    </>
+  );
+}
+
+/* ================================================================== */
+/* 18. Notifications                                                   */
 /* ================================================================== */
 
 function ScreenNotifications({ ctx }: { ctx: Ctx }) {
@@ -5120,12 +5215,13 @@ const FLOW: { id: string; C: (p: { ctx: Ctx }) => React.ReactElement }[] = [
   { id: "feature2", C: ScreenFeature2 },
   { id: "feature3", C: ScreenFeature3 },
   { id: "income", C: ScreenMonthlyIncome },
+  { id: "paycycle", C: ScreenPayCycle },
   { id: "notifications", C: ScreenNotifications },
   { id: "askpaywall", C: ScreenAskPaywall },
 ];
 const SETUP = ["name", "country", "language", "persona", "problem", "stakes", "intro", "billpicker", "voice", "congrats", "summary"];
 const NO_BACK = ["welcome", "personalizing"];
-const SKIPPABLE = ["country", "persona", "income", "notifications"];
+const SKIPPABLE = ["country", "persona", "income", "paycycle", "notifications"];
 const SAVE_FROM = 0;
 
 export default function OnboardingScreen() {

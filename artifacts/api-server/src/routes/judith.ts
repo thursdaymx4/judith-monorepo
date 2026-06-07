@@ -211,7 +211,7 @@ function curStr(cur: string, n: number): string {
   return `${cur}${Math.round(n).toLocaleString("en-US")}`;
 }
 
-function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", monthlyIncome?: number, incomeByMonth?: Record<string, number>): string {
+function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", monthlyIncome?: number, incomeByMonth?: Record<string, number>, payCycle?: string): string {
   /** Effective income for a given month key — use override if set, otherwise the default. */
   const incomeFor = (monthKey: string): number | undefined => {
     const override = incomeByMonth?.[monthKey];
@@ -377,11 +377,17 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
 
   // Describe income situation for AI context: variable vs fixed
   const hasVariable = incomeByMonth != null && Object.keys(incomeByMonth).length > 0;
+  const payCycleLabel = payCycle === "semi-monthly" ? "twice a month (semi-monthly)"
+    : payCycle === "weekly" ? "every week"
+    : "once a month";
+  const payCycleSuffix = payCycle ? ` User gets paid ${payCycleLabel}.` : "";
   const incomeHeader = hasVariable
-    ? `User has VARIABLE monthly income. Default: ${monthlyIncome != null && monthlyIncome > 0 ? curStr(cur, monthlyIncome) : "not set"}/month. Overrides: ${Object.entries(incomeByMonth ?? {}).map(([k, v]) => `${k}: ${curStr(cur, v)}`).join(", ")}.`
+    ? `User has VARIABLE monthly income. Default: ${monthlyIncome != null && monthlyIncome > 0 ? curStr(cur, monthlyIncome) : "not set"}/month. Overrides: ${Object.entries(incomeByMonth ?? {}).map(([k, v]) => `${k}: ${curStr(cur, v)}`).join(", ")}.${payCycleSuffix}`
     : monthlyIncome != null && Number.isFinite(monthlyIncome) && monthlyIncome > 0
-      ? `User's estimated monthly take-home income: ${curStr(cur, monthlyIncome)}.`
-      : null;
+      ? `User's estimated monthly take-home income: ${curStr(cur, monthlyIncome)}.${payCycleSuffix}`
+      : payCycle
+        ? `User's monthly income: not set. User gets paid ${payCycleLabel}.`
+        : null;
 
   // Build overdue summary for the prominent alert block at the top of context.
   const overdueBills = due.filter((b) => (b.dueDays ?? 0) < 0);
@@ -549,7 +555,7 @@ router.post("/ask", askLimiter, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
-    const { text, bills: bodyBills, persona: bodyPersona, localDate, language, includeVoice, currency, countryName, countryCode, monthlyIncome, incomeByMonth } = req.body ?? {};
+    const { text, bills: bodyBills, persona: bodyPersona, localDate, language, includeVoice, currency, countryName, countryCode, monthlyIncome, incomeByMonth, payCycle } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
       res.status(400).json({ error: "text is required" });
       return;
@@ -577,7 +583,8 @@ router.post("/ask", askLimiter, async (req, res) => {
               .map(([k, v]) => [k, v as number]),
           )
         : undefined;
-    const context: string = buildClientContext(bodyBills as ClientBill[], today, cur, income, incomeMo);
+    const cycle: string | undefined = ["monthly", "semi-monthly", "weekly"].includes(payCycle) ? payCycle as string : undefined;
+    const context: string = buildClientContext(bodyBills as ClientBill[], today, cur, income, incomeMo, cycle);
 
     const anthropic = getAnthropic();
     const message = await anthropic.messages.create({

@@ -113,6 +113,8 @@ interface PersistShape {
    * Useful for freelancers / commission-based earners whose income varies.
    */
   incomeByMonth: Record<string, number>;
+  /** How often the user gets paid — monthly, semi-monthly (twice a month), or weekly. */
+  payCycle: "monthly" | "semi-monthly" | "weekly";
   /** Persisted Ask Judith chat history (last 100 messages). */
   askHistory: AskMsg[];
 }
@@ -137,6 +139,7 @@ const DEFAULTS: PersistShape = {
   guest: false,
   monthlyIncome: undefined,
   incomeByMonth: {},
+  payCycle: "monthly",
   askHistory: [],
 };
 
@@ -190,6 +193,7 @@ interface JudithStoreValue extends PersistShape {
   setMonthlyIncome: (n: number | undefined) => void;
   /** Set or clear the income for a specific month ("YYYY-MM"). Pass undefined to remove the override. */
   setMonthIncome: (month: string, amount: number | undefined) => void;
+  setPayCycle: (c: "monthly" | "semi-monthly" | "weekly") => void;
   /** Replace the full Ask Judith chat history (capped at 100 messages). */
   setAskHistory: (msgs: AskMsg[]) => void;
   /** Clear the full Ask Judith chat history. */
@@ -611,6 +615,7 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       setOnbIdx: (i) => patch({ onbIdx: i }),
       setGuest: (v) => patch({ guest: v }),
       setMonthlyIncome: (n) => patch({ monthlyIncome: n }),
+      setPayCycle: (c) => patch({ payCycle: c }),
       setMonthIncome: (month, amount) => {
         setState((s) => {
           const next = { ...s.incomeByMonth };

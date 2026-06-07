@@ -8,6 +8,9 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "judith-widget-bridge": [
+        "./modules/judith-widget-bridge/index"
       ]
     }
   },
