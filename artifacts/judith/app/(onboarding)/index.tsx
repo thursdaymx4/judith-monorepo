@@ -4748,79 +4748,174 @@ const PAY_CYCLES: { value: PayCycle; label: string; sub: string }[] = [
   { value: "weekly",       label: "Every week",      sub: "weekly payroll" },
 ];
 
+const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAY_NUMS = Array.from({ length: 31 }, (_, i) => i + 1);
+
+function paydayOrdinal(n: number): string {
+  if (n === 31) return "Last";
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function DayChip({
+  day, selected, onPress, t,
+}: {
+  day: number; selected: boolean; onPress: () => void;
+  t: ReturnType<typeof useTheme>;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{
+        width: 42, height: 36, borderRadius: 8,
+        borderWidth: 1.5,
+        borderColor: selected ? t.accent : t.hair,
+        backgroundColor: selected ? t.accent + "22" : t.surface2,
+        alignItems: "center", justifyContent: "center",
+      }}
+    >
+      <Txt size={11} weight={selected ? "semibold" : "regular"} color={selected ? t.accent : t.txtHi}>
+        {paydayOrdinal(day)}
+      </Txt>
+    </Pressable>
+  );
+}
+
 function ScreenPayCycle({ ctx }: { ctx: Ctx }) {
   const { t, persona, next } = ctx;
-  const { payCycle, setPayCycle } = useJudith();
-  const [selected, setSelected] = useState<PayCycle>(payCycle ?? "monthly");
+  const { payCycle, paydayDay, paydaySemi, paydayWeekday, setPayCycle, setPaydayDay, setPaydaySemi, setPaydayWeekday } = useJudith();
+  const [selectedCycle, setSelectedCycle] = useState<PayCycle>(payCycle ?? "monthly");
+  const [selectedDay, setSelectedDay] = useState<number>(paydayDay ?? 25);
+  const [semiFirst, setSemiFirst] = useState<number>((paydaySemi ?? [15, 30])[0]);
+  const [semiSecond, setSemiSecond] = useState<number>((paydaySemi ?? [15, 30])[1]);
+  const [selectedWeekday, setSelectedWeekday] = useState<number>(paydayWeekday ?? 5);
+
+  const handleSemiFirst = (d: number) => {
+    setSemiFirst(d);
+    if (semiSecond <= d) setSemiSecond(Math.min(d + 1, 31));
+  };
 
   const save = () => {
-    setPayCycle(selected);
+    setPayCycle(selectedCycle);
+    if (selectedCycle === "monthly") { setPaydayDay(selectedDay); setPaydaySemi(undefined); setPaydayWeekday(undefined); }
+    else if (selectedCycle === "semi-monthly") { setPaydaySemi([semiFirst, semiSecond]); setPaydayDay(undefined); setPaydayWeekday(undefined); }
+    else { setPaydayWeekday(selectedWeekday); setPaydayDay(undefined); setPaydaySemi(undefined); }
     next();
   };
 
   return (
     <>
-      <Scroll center>
-        <JudithAvatar persona={persona} size={76} state="speaking" />
-        <Kicker style={{ marginTop: 18, textAlign: "center" }}>One more thing</Kicker>
-        <Title style={{ maxWidth: 300, textAlign: "center" }}>
-          How often do you get paid?
-        </Title>
-        <Lede style={{ textAlign: "center", maxWidth: 280 }}>
-          I{"'"}ll use this to answer questions like {'"'}do I have enough before my next payday?{'"'}
-        </Lede>
+      <Scroll>
+        <View style={{ alignItems: "center" }}>
+          <JudithAvatar persona={persona} size={76} state="speaking" />
+          <Kicker style={{ marginTop: 18, textAlign: "center" }}>One more thing</Kicker>
+          <Title style={{ maxWidth: 300, textAlign: "center" }}>
+            When do you get paid?
+          </Title>
+          <Lede style={{ textAlign: "center", maxWidth: 280 }}>
+            I{"'"}ll use this to tell you exactly how much time you have until your next payday.
+          </Lede>
+        </View>
+
+        {/* Frequency */}
         <View style={{ marginTop: 24, alignSelf: "stretch", gap: 10 }}>
           {PAY_CYCLES.map(({ value, label, sub }) => {
-            const active = selected === value;
+            const active = selectedCycle === value;
             return (
               <Pressable
                 key={value}
-                onPress={() => setSelected(value)}
+                onPress={() => setSelectedCycle(value)}
                 style={{
-                  flexDirection: "row",
-                  alignItems: "center",
+                  flexDirection: "row", alignItems: "center",
                   borderWidth: 1.5,
                   borderColor: active ? t.accent : t.hair,
                   borderRadius: 14,
                   backgroundColor: active ? t.accent + "18" : t.surface2,
-                  paddingHorizontal: 18,
-                  paddingVertical: 16,
-                  gap: 14,
+                  paddingHorizontal: 18, paddingVertical: 16, gap: 14,
                 }}
               >
-                <View
-                  style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: 11,
-                    borderWidth: 2,
-                    borderColor: active ? t.accent : t.txtLow,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  {active && (
-                    <View
-                      style={{
-                        width: 11,
-                        height: 11,
-                        borderRadius: 6,
-                        backgroundColor: t.accent,
-                      }}
-                    />
-                  )}
+                <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: active ? t.accent : t.txtLow, alignItems: "center", justifyContent: "center" }}>
+                  {active && <View style={{ width: 11, height: 11, borderRadius: 6, backgroundColor: t.accent }} />}
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Txt size={16} weight="semibold" color={active ? t.accent : t.txtHi}>
-                    {label}
-                  </Txt>
-                  <Txt size={13} color={t.txtLow} style={{ marginTop: 2 }}>
-                    {sub}
-                  </Txt>
+                  <Txt size={16} weight="semibold" color={active ? t.accent : t.txtHi}>{label}</Txt>
+                  <Txt size={13} color={t.txtLow} style={{ marginTop: 2 }}>{sub}</Txt>
                 </View>
               </Pressable>
             );
           })}
+        </View>
+
+        {/* Day picker — adapts to frequency */}
+        <View style={{ marginTop: 28, alignSelf: "stretch" }}>
+
+          {selectedCycle === "monthly" && (
+            <>
+              <Txt size={13} weight="semibold" color={t.txtMid} style={{ marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                Which day of the month?
+              </Txt>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
+                {DAY_NUMS.map((d) => (
+                  <DayChip key={d} day={d} selected={selectedDay === d} onPress={() => setSelectedDay(d)} t={t} />
+                ))}
+              </View>
+              <Txt size={11} color={t.txtLow} style={{ marginTop: 10 }}>
+                {"\""}Last{"\" "}= last calendar day of each month (e.g. Jan 31, Feb 28/29).
+              </Txt>
+            </>
+          )}
+
+          {selectedCycle === "semi-monthly" && (
+            <>
+              <Txt size={13} weight="semibold" color={t.txtMid} style={{ marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                First payday each month
+              </Txt>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
+                {DAY_NUMS.slice(0, 27).map((d) => (
+                  <DayChip key={d} day={d} selected={semiFirst === d} onPress={() => handleSemiFirst(d)} t={t} />
+                ))}
+              </View>
+              <Txt size={13} weight="semibold" color={t.txtMid} style={{ marginTop: 24, marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                Second payday each month
+              </Txt>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 7 }}>
+                {DAY_NUMS.filter((d) => d > semiFirst).map((d) => (
+                  <DayChip key={d} day={d} selected={semiSecond === d} onPress={() => setSemiSecond(d)} t={t} />
+                ))}
+              </View>
+            </>
+          )}
+
+          {selectedCycle === "weekly" && (
+            <>
+              <Txt size={13} weight="semibold" color={t.txtMid} style={{ marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                Which day of the week?
+              </Txt>
+              <View style={{ flexDirection: "row", gap: 6 }}>
+                {WEEKDAY_LABELS.map((label, idx) => {
+                  const active = selectedWeekday === idx;
+                  return (
+                    <Pressable
+                      key={idx}
+                      onPress={() => setSelectedWeekday(idx)}
+                      style={{
+                        flex: 1, height: 44, borderRadius: 10,
+                        borderWidth: 1.5,
+                        borderColor: active ? t.accent : t.hair,
+                        backgroundColor: active ? t.accent + "22" : t.surface2,
+                        alignItems: "center", justifyContent: "center",
+                      }}
+                    >
+                      <Txt size={11} weight={active ? "semibold" : "regular"} color={active ? t.accent : t.txtHi}>
+                        {label}
+                      </Txt>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          )}
         </View>
       </Scroll>
       <CtaBar>

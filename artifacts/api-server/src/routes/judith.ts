@@ -211,7 +211,40 @@ function curStr(cur: string, n: number): string {
   return `${cur}${Math.round(n).toLocaleString("en-US")}`;
 }
 
-function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", monthlyIncome?: number, incomeByMonth?: Record<string, number>, payCycle?: string): string {
+function nextPaydayDate(today: Date, cycle?: string, day?: number, semi?: [number, number], weekday?: number): Date | null {
+  if (!cycle) return null;
+  if (cycle === "monthly" && day != null) {
+    const lastOfMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
+    const effectiveDay = (y: number, m: number) => day === 31 ? lastOfMonth(y, m) : Math.min(day, lastOfMonth(y, m));
+    const thisMonth = new Date(today.getFullYear(), today.getMonth(), effectiveDay(today.getFullYear(), today.getMonth()));
+    if (thisMonth >= today) return thisMonth;
+    const nm = today.getMonth() + 1 > 11 ? 0 : today.getMonth() + 1;
+    const ny = nm === 0 ? today.getFullYear() + 1 : today.getFullYear();
+    return new Date(ny, nm, effectiveDay(ny, nm));
+  }
+  if (cycle === "semi-monthly" && semi != null) {
+    const [d1, d2] = semi;
+    const lastOfMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
+    const eff = (d: number, y: number, m: number) => d === 31 ? lastOfMonth(y, m) : Math.min(d, lastOfMonth(y, m));
+    const candidates = [0, 1].flatMap((offset) => {
+      const m = (today.getMonth() + offset) % 12;
+      const y = today.getFullYear() + Math.floor((today.getMonth() + offset) / 12);
+      return [new Date(y, m, eff(d1, y, m)), new Date(y, m, eff(d2, y, m))];
+    });
+    const future = candidates.filter((d) => d >= today).sort((a, b) => a.getTime() - b.getTime());
+    return future[0] ?? null;
+  }
+  if (cycle === "weekly" && weekday != null) {
+    const todayWd = today.getDay();
+    const diff = (weekday - todayWd + 7) % 7;
+    const next = new Date(today);
+    next.setDate(today.getDate() + (diff === 0 ? 0 : diff));
+    return next;
+  }
+  return null;
+}
+
+function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", monthlyIncome?: number, incomeByMonth?: Record<string, number>, payCycle?: string, paydayDay?: number, paydaySemi?: [number, number], paydayWeekday?: number): string {
   /** Effective income for a given month key — use override if set, otherwise the default. */
   const incomeFor = (monthKey: string): number | undefined => {
     const override = incomeByMonth?.[monthKey];
@@ -381,6 +414,19 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     : payCycle === "weekly" ? "every week"
     : "once a month";
   const payCycleSuffix = payCycle ? ` User gets paid ${payCycleLabel}.` : "";
+
+  // Compute next payday and how many days away it is
+  const nextPayday = nextPaydayDate(today, payCycle, paydayDay, paydaySemi, paydayWeekday);
+  const paydayLine = (() => {
+    if (!nextPayday) return null;
+    const msPerDay = 86_400_000;
+    const diffDays = Math.round((nextPayday.getTime() - today.getTime()) / msPerDay);
+    const dateStr = nextPayday.toLocaleDateString("en-US", { month: "long", day: "numeric" });
+    if (diffDays === 0) return `Next payday: TODAY (${dateStr}).`;
+    if (diffDays === 1) return `Next payday: TOMORROW (${dateStr}).`;
+    return `Next payday: ${dateStr} (${diffDays} days from now).`;
+  })();
+
   const incomeHeader = hasVariable
     ? `User has VARIABLE monthly income. Default: ${monthlyIncome != null && monthlyIncome > 0 ? curStr(cur, monthlyIncome) : "not set"}/month. Overrides: ${Object.entries(incomeByMonth ?? {}).map(([k, v]) => `${k}: ${curStr(cur, v)}`).join(", ")}.${payCycleSuffix}`
     : monthlyIncome != null && Number.isFinite(monthlyIncome) && monthlyIncome > 0
@@ -402,6 +448,7 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
       : []),
     `Today is ${englishDate(today)} (${englishWeekday(today)}).`,
     ...(incomeHeader ? [incomeHeader] : []),
+    ...(paydayLine ? [paydayLine] : []),
     `Total still due (unpaid): ${curStr(cur, total)}.`,
     `Total of bills due within 7 days: ${curStr(cur, dueThisWeek)}.`,
     bizUnpaid.length > 0
@@ -555,7 +602,7 @@ router.post("/ask", askLimiter, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
-    const { text, bills: bodyBills, persona: bodyPersona, localDate, language, includeVoice, currency, countryName, countryCode, monthlyIncome, incomeByMonth, payCycle } = req.body ?? {};
+    const { text, bills: bodyBills, persona: bodyPersona, localDate, language, includeVoice, currency, countryName, countryCode, monthlyIncome, incomeByMonth, payCycle, paydayDay, paydaySemi, paydayWeekday } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
       res.status(400).json({ error: "text is required" });
       return;
@@ -584,7 +631,15 @@ router.post("/ask", askLimiter, async (req, res) => {
           )
         : undefined;
     const cycle: string | undefined = ["monthly", "semi-monthly", "weekly"].includes(payCycle) ? payCycle as string : undefined;
-    const context: string = buildClientContext(bodyBills as ClientBill[], today, cur, income, incomeMo, cycle);
+    const safeDay: number | undefined = typeof paydayDay === "number" && paydayDay >= 1 && paydayDay <= 31 ? paydayDay : undefined;
+    const safeSemi: [number, number] | undefined =
+      Array.isArray(paydaySemi) && paydaySemi.length === 2 &&
+      typeof paydaySemi[0] === "number" && typeof paydaySemi[1] === "number" &&
+      paydaySemi[0] >= 1 && paydaySemi[1] > paydaySemi[0] && paydaySemi[1] <= 31
+        ? [paydaySemi[0] as number, paydaySemi[1] as number]
+        : undefined;
+    const safeWeekday: number | undefined = typeof paydayWeekday === "number" && paydayWeekday >= 0 && paydayWeekday <= 6 ? paydayWeekday : undefined;
+    const context: string = buildClientContext(bodyBills as ClientBill[], today, cur, income, incomeMo, cycle, safeDay, safeSemi, safeWeekday);
 
     const anthropic = getAnthropic();
     const message = await anthropic.messages.create({

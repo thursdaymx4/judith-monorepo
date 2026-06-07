@@ -115,6 +115,12 @@ interface PersistShape {
   incomeByMonth: Record<string, number>;
   /** How often the user gets paid — monthly, semi-monthly (twice a month), or weekly. */
   payCycle: "monthly" | "semi-monthly" | "weekly";
+  /** Day of month for monthly pay cycle: 1–30, or 31 meaning "last day of month". */
+  paydayDay?: number;
+  /** Two days of month for semi-monthly pay cycle, e.g. [15, 30]. */
+  paydaySemi?: [number, number];
+  /** Day of week for weekly pay cycle: 0 = Sunday … 6 = Saturday. */
+  paydayWeekday?: number;
   /** Persisted Ask Judith chat history (last 100 messages). */
   askHistory: AskMsg[];
 }
@@ -140,6 +146,9 @@ const DEFAULTS: PersistShape = {
   monthlyIncome: undefined,
   incomeByMonth: {},
   payCycle: "monthly",
+  paydayDay: undefined,
+  paydaySemi: undefined,
+  paydayWeekday: undefined,
   askHistory: [],
 };
 
@@ -194,6 +203,9 @@ interface JudithStoreValue extends PersistShape {
   /** Set or clear the income for a specific month ("YYYY-MM"). Pass undefined to remove the override. */
   setMonthIncome: (month: string, amount: number | undefined) => void;
   setPayCycle: (c: "monthly" | "semi-monthly" | "weekly") => void;
+  setPaydayDay: (d: number | undefined) => void;
+  setPaydaySemi: (days: [number, number] | undefined) => void;
+  setPaydayWeekday: (d: number | undefined) => void;
   /** Replace the full Ask Judith chat history (capped at 100 messages). */
   setAskHistory: (msgs: AskMsg[]) => void;
   /** Clear the full Ask Judith chat history. */
@@ -616,6 +628,9 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       setGuest: (v) => patch({ guest: v }),
       setMonthlyIncome: (n) => patch({ monthlyIncome: n }),
       setPayCycle: (c) => patch({ payCycle: c }),
+      setPaydayDay: (d) => patch({ paydayDay: d }),
+      setPaydaySemi: (days) => patch({ paydaySemi: days }),
+      setPaydayWeekday: (d) => patch({ paydayWeekday: d }),
       setMonthIncome: (month, amount) => {
         setState((s) => {
           const next = { ...s.incomeByMonth };

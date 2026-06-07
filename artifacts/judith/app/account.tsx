@@ -175,6 +175,12 @@ export default function AccountScreen() {
     setMonthIncome,
     payCycle,
     setPayCycle,
+    paydayDay,
+    setPaydayDay,
+    paydaySemi,
+    setPaydaySemi,
+    paydayWeekday,
+    setPaydayWeekday,
   } = useJudith();
 
   const email = user?.email ?? (guest ? "Guest account" : "—");
@@ -184,6 +190,12 @@ export default function AccountScreen() {
   const [editOpen, setEditOpen] = React.useState(false);
   const [editVal, setEditVal] = React.useState(name);
   const [incomeOpen, setIncomeOpen] = React.useState(false);
+  const [payCycleOpen, setPayCycleOpen] = React.useState(false);
+  const [pcCycle, setPcCycle] = React.useState<"monthly" | "semi-monthly" | "weekly">(payCycle ?? "monthly");
+  const [pcDay, setPcDay] = React.useState<number>(paydayDay ?? 25);
+  const [pcSemiFirst, setPcSemiFirst] = React.useState<number>((paydaySemi ?? [15, 30])[0]);
+  const [pcSemiSecond, setPcSemiSecond] = React.useState<number>((paydaySemi ?? [15, 30])[1]);
+  const [pcWeekday, setPcWeekday] = React.useState<number>(paydayWeekday ?? 5);
   const [incomeVal, setIncomeVal] = React.useState(monthlyIncome != null ? fmtCurrency(String(monthlyIncome)) : "");
   // Per-month income override values (local editing state, keyed by "YYYY-MM")
   const [monthVals, setMonthVals] = React.useState<Record<string, string>>({});
@@ -216,6 +228,37 @@ export default function AccountScreen() {
     setName(editVal.trim());
     setEditOpen(false);
     showToast("Name updated ✓");
+  };
+
+  const WEEKDAY_LABELS_ACC = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const DAY_NUMS_ACC = Array.from({ length: 31 }, (_, i) => i + 1);
+  function pcOrdinal(n: number) {
+    if (n === 31) return "Last";
+    const s = ["th","st","nd","rd"]; const v = n % 100;
+    return n + (s[(v-20)%10]||s[v]||s[0]);
+  }
+  const payCycleSubtitle =
+    payCycle === "semi-monthly"
+      ? `Twice a month · ${pcOrdinal(paydaySemi?.[0] ?? 15)} & ${pcOrdinal(paydaySemi?.[1] ?? 30)}`
+      : payCycle === "weekly"
+        ? `Every week · ${WEEKDAY_LABELS_ACC[paydayWeekday ?? 5]}s`
+        : `Once a month · ${pcOrdinal(paydayDay ?? 25)}`;
+
+  const openPayCycle = () => {
+    setPcCycle(payCycle ?? "monthly");
+    setPcDay(paydayDay ?? 25);
+    setPcSemiFirst((paydaySemi ?? [15, 30])[0]);
+    setPcSemiSecond((paydaySemi ?? [15, 30])[1]);
+    setPcWeekday(paydayWeekday ?? 5);
+    setPayCycleOpen(true);
+  };
+  const savePayCycle = () => {
+    setPayCycle(pcCycle);
+    if (pcCycle === "monthly") { setPaydayDay(pcDay); setPaydaySemi(undefined); setPaydayWeekday(undefined); }
+    else if (pcCycle === "semi-monthly") { setPaydaySemi([pcSemiFirst, pcSemiSecond]); setPaydayDay(undefined); setPaydayWeekday(undefined); }
+    else { setPaydayWeekday(pcWeekday); setPaydayDay(undefined); setPaydaySemi(undefined); }
+    showToast("Pay cycle updated ✓");
+    setPayCycleOpen(false);
   };
 
   const openIncome = () => {
@@ -417,23 +460,8 @@ export default function AccountScreen() {
         <Row
           icon="cal"
           title="Pay cycle"
-          subtitle={
-            payCycle === "semi-monthly" ? "Twice a month"
-            : payCycle === "weekly" ? "Every week"
-            : "Once a month"
-          }
-          onPress={() => {
-            Alert.alert(
-              "Pay cycle",
-              "How often do you get paid?",
-              [
-                { text: "Once a month",  onPress: () => setPayCycle("monthly") },
-                { text: "Twice a month", onPress: () => setPayCycle("semi-monthly") },
-                { text: "Every week",    onPress: () => setPayCycle("weekly") },
-                { text: "Cancel", style: "cancel" },
-              ],
-            );
-          }}
+          subtitle={payCycleSubtitle}
+          onPress={openPayCycle}
         />
       </View>
 
@@ -667,6 +695,123 @@ export default function AccountScreen() {
                 onPress={saveIncome}
                 style={{ flex: 1, alignItems: "center", paddingVertical: 13, borderRadius: 11, backgroundColor: t.accent }}
               >
+                <Text style={{ fontFamily: t.fonts.semibold, fontSize: 14, color: t.onAccent }}>Save</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* pay cycle modal */}
+      <Modal visible={payCycleOpen} transparent animationType="fade" onRequestClose={() => setPayCycleOpen(false)} statusBarTranslucent>
+        <Pressable
+          onPress={() => setPayCycleOpen(false)}
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center", padding: 22 }}
+        >
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={{ width: "100%", maxWidth: 380, borderRadius: 18, borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface2, padding: 22 }}
+          >
+            <Text style={{ fontFamily: t.fonts.semibold, fontSize: 19, color: t.txtHi, letterSpacing: -0.3, marginBottom: 4 }}>
+              Pay cycle
+            </Text>
+            <Text style={{ fontFamily: t.fonts.regular, fontSize: 13, color: t.txtMid, marginBottom: 16 }}>
+              Judith uses this to answer questions like {'"'}do I have enough before my next payday?{'"'}
+            </Text>
+
+            {/* Frequency */}
+            <View style={{ gap: 8, marginBottom: 18 }}>
+              {(["monthly", "semi-monthly", "weekly"] as const).map((val) => {
+                const label = val === "monthly" ? "Once a month" : val === "semi-monthly" ? "Twice a month" : "Every week";
+                const active = pcCycle === val;
+                return (
+                  <Pressable
+                    key={val}
+                    onPress={() => setPcCycle(val)}
+                    style={{ flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1.5, borderColor: active ? t.accent : t.hair, borderRadius: 12, backgroundColor: active ? t.accent + "18" : t.surface3, paddingHorizontal: 14, paddingVertical: 12 }}
+                  >
+                    <View style={{ width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: active ? t.accent : t.txtLow, alignItems: "center", justifyContent: "center" }}>
+                      {active && <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: t.accent }} />}
+                    </View>
+                    <Text style={{ fontFamily: active ? t.fonts.semibold : t.fonts.regular, fontSize: 15, color: active ? t.accent : t.txtHi }}>{label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* Day picker */}
+            {pcCycle === "monthly" && (
+              <>
+                <Text style={{ fontFamily: t.fonts.medium, fontSize: 11, color: t.txtMid, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10 }}>Which day?</Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+                  {DAY_NUMS_ACC.map((d) => {
+                    const active = pcDay === d;
+                    return (
+                      <Pressable key={d} onPress={() => setPcDay(d)}
+                        style={{ width: 38, height: 34, borderRadius: 8, borderWidth: 1.5, borderColor: active ? t.accent : t.hair, backgroundColor: active ? t.accent + "22" : t.surface3, alignItems: "center", justifyContent: "center" }}
+                      >
+                        <Text style={{ fontFamily: active ? t.fonts.semibold : t.fonts.regular, fontSize: 11, color: active ? t.accent : t.txtHi }}>{pcOrdinal(d)}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </>
+            )}
+
+            {pcCycle === "semi-monthly" && (
+              <>
+                <Text style={{ fontFamily: t.fonts.medium, fontSize: 11, color: t.txtMid, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10 }}>First payday</Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+                  {DAY_NUMS_ACC.slice(0, 27).map((d) => {
+                    const active = pcSemiFirst === d;
+                    return (
+                      <Pressable key={d} onPress={() => { setPcSemiFirst(d); if (pcSemiSecond <= d) setPcSemiSecond(Math.min(d + 1, 31)); }}
+                        style={{ width: 38, height: 34, borderRadius: 8, borderWidth: 1.5, borderColor: active ? t.accent : t.hair, backgroundColor: active ? t.accent + "22" : t.surface3, alignItems: "center", justifyContent: "center" }}
+                      >
+                        <Text style={{ fontFamily: active ? t.fonts.semibold : t.fonts.regular, fontSize: 11, color: active ? t.accent : t.txtHi }}>{pcOrdinal(d)}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <Text style={{ fontFamily: t.fonts.medium, fontSize: 11, color: t.txtMid, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10 }}>Second payday</Text>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+                  {DAY_NUMS_ACC.filter((d) => d > pcSemiFirst).map((d) => {
+                    const active = pcSemiSecond === d;
+                    return (
+                      <Pressable key={d} onPress={() => setPcSemiSecond(d)}
+                        style={{ width: 38, height: 34, borderRadius: 8, borderWidth: 1.5, borderColor: active ? t.accent : t.hair, backgroundColor: active ? t.accent + "22" : t.surface3, alignItems: "center", justifyContent: "center" }}
+                      >
+                        <Text style={{ fontFamily: active ? t.fonts.semibold : t.fonts.regular, fontSize: 11, color: active ? t.accent : t.txtHi }}>{pcOrdinal(d)}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </>
+            )}
+
+            {pcCycle === "weekly" && (
+              <>
+                <Text style={{ fontFamily: t.fonts.medium, fontSize: 11, color: t.txtMid, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 10 }}>Which day?</Text>
+                <View style={{ flexDirection: "row", gap: 6, marginBottom: 6 }}>
+                  {WEEKDAY_LABELS_ACC.map((label, idx) => {
+                    const active = pcWeekday === idx;
+                    return (
+                      <Pressable key={idx} onPress={() => setPcWeekday(idx)}
+                        style={{ flex: 1, height: 40, borderRadius: 8, borderWidth: 1.5, borderColor: active ? t.accent : t.hair, backgroundColor: active ? t.accent + "22" : t.surface3, alignItems: "center", justifyContent: "center" }}
+                      >
+                        <Text style={{ fontFamily: active ? t.fonts.semibold : t.fonts.regular, fontSize: 11, color: active ? t.accent : t.txtHi }}>{label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </>
+            )}
+
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 18 }}>
+              <Pressable onPress={() => setPayCycleOpen(false)} style={{ flex: 1, alignItems: "center", paddingVertical: 13, borderRadius: 11, borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface3 }}>
+                <Text style={{ fontFamily: t.fonts.medium, fontSize: 14, color: t.txtHi }}>Cancel</Text>
+              </Pressable>
+              <Pressable onPress={savePayCycle} style={{ flex: 1, alignItems: "center", paddingVertical: 13, borderRadius: 11, backgroundColor: t.accent }}>
                 <Text style={{ fontFamily: t.fonts.semibold, fontSize: 14, color: t.onAccent }}>Save</Text>
               </Pressable>
             </View>

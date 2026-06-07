@@ -160,6 +160,9 @@ export function askJudith(
   countryCode?: string,
   incomeByMonth?: Record<string, number>,
   payCycle?: "monthly" | "semi-monthly" | "weekly",
+  paydayDay?: number,
+  paydaySemi?: [number, number],
+  paydayWeekday?: number,
 ): Promise<AskResult> {
   return postJson("/ask", {
     text,
@@ -174,6 +177,9 @@ export function askJudith(
     monthlyIncome,
     incomeByMonth,
     payCycle,
+    paydayDay,
+    paydaySemi,
+    paydayWeekday,
   }, 45_000); // never let the chat hang forever — abort + surface a retry after 45s
 }
 
