@@ -25,7 +25,7 @@
       }
     },
     "android": {
-      "package": "com.judith.app"
+      "package": "com.app.judith"
     },
     "web": {
       "favicon": "./assets/images/icon.png"
