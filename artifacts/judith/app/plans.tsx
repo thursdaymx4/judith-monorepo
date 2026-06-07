@@ -18,7 +18,7 @@ import { Low, Mono, Txt, mix } from "@/components/ui";
 import { getPaywallLocale, fmtFee } from "@/constants/paywallLocale";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
-import { getTierPackages, purchaseForTier, type TierPackages } from "@/lib/purchases";
+import { getTierPackages, purchaseForTier, restorePurchases, type TierPackages } from "@/lib/purchases";
 import type { PurchasesPackage } from "react-native-purchases";
 
 /* ---- thin separator ---- */
@@ -179,6 +179,7 @@ export default function PlansModal() {
   const [loadingPkgs, setLoadingPkgs] = useState(true);
   const [buyingTier, setBuyingTier] = useState<"chat" | "voice" | null>(null);
   const [confirmPending, setConfirmPending] = useState<{ tier: "chat" | "voice"; pkg: PurchasesPackage } | null>(null);
+  const [restoringPurchases, setRestoringPurchases] = useState(false);
 
   const locale = getPaywallLocale(country.code);
   const fmt = (n: number) => fmtFee(country.cur, n);
@@ -242,6 +243,24 @@ export default function PlansModal() {
       return;
     }
     executeBuy(targetTier, pkg);
+  };
+
+  const handleRestore = async () => {
+    setRestoringPurchases(true);
+    try {
+      const restoredTier = await restorePurchases();
+      if (restoredTier !== "free") {
+        subscribe(restoredTier);
+        showToast(restoredTier === "voice" ? "Voice Ask restored ✓" : "Chat Ask restored ✓");
+        router.back();
+      } else {
+        showToast("No active subscription found");
+      }
+    } catch {
+      showToast("Restore failed — try again");
+    } finally {
+      setRestoringPurchases(false);
+    }
   };
 
   const chatActive = tier === "chat" || tier === "voice";
@@ -536,6 +555,19 @@ export default function PlansModal() {
           Prices shown in your local currency.
         </Low>
       </View>
+
+      {/* ── RESTORE PURCHASES ── */}
+      <Pressable
+        onPress={handleRestore}
+        disabled={restoringPurchases}
+        style={{ marginTop: 20, alignItems: "center", paddingVertical: 8 }}
+      >
+        {restoringPurchases ? (
+          <ActivityIndicator size="small" color={t.txtLow} />
+        ) : (
+          <Low size={12} style={{ textDecorationLine: "underline" }}>Restore purchases</Low>
+        )}
+      </Pressable>
     </ScrollView>
 
     {/* ── DEV-MODE test purchase confirmation ── */}
