@@ -1,0 +1,140 @@
+$ set -o pipefail && xcodebuild -workspace ./Judith.xcworkspace -scheme Judith -configuration Release -derivedDataPath ./build -destination 'generic/platform=iOS' -archivePath /Users/expo/Library/Developer/Xcode/Archives/2026-06-06/Judith\ 2026-06-06\ 21.00.45.xcarchive -resultBundlePath '/var/folders/5_/4knlryn57n39p2c_jw8567z00000gn/T/result-bundle-1780804840367.xcresult' archive | tee /Users/expo/workingdir/logs/Judith-Judith.log > /dev/null
+› Executing react-native Pods/hermes-engine » [CP-User] [Hermes] Replace Hermes for the right configuration, if needed
+› Executing react-native Pods/ReactNativeDependencies » [CP-User] [RNDeps] Replace React Native Dependencies for the right configuration, if needed
+› Executing react-native Pods/hermes-engine » [CP] Copy XCFrameworks
+› Preparing Pods/react-native-cloud-store-RNCloudStore_resources » ResourceBundle-RNCloudStore_resources-react-native-cloud-store-Info.plist
+› Copying   ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Judith/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/RNCloudStore_resources.bundle/PrivacyInfo.xcprivacy ➜ ../../../Users/expo/workingdir/build/node_modules/.pnpm/react-native-cloud-store@0.12.0_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/react-native-cloud-store/ios/PrivacyInfo.xcprivacy
+› Creating  Pods/react-native-cloud-store-RNCloudStore_resources » RNCloudStore_resources.bundle
+› Copying   expo-image ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Judith/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/SDWebImage.bundle/PrivacyInfo.xcprivacy ➜ ../../../Users/expo/workingdir/build/artifacts/judith/ios/Pods/SDWebImage/WebImage/PrivacyInfo.xcprivacy
+› Creating  expo-image Pods/SDWebImage-SDWebImage » SDWebImage.bundle
+› Preparing react-native-purchases Pods/RevenueCat-RevenueCat » ResourceBundle-RevenueCat-RevenueCat-Info.plist
+› Copying   react-native-purchases ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Judith/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/RevenueCat.bundle/PrivacyInfo.xcprivacy ➜ ../../../Users/expo/workingdir/build/artifacts/judith/ios/Pods/RevenueCat/Sources/PrivacyInfo.xcprivacy
+› Preparing Pods/React-cxxreact-React-cxxreact_privacy » ResourceBundle-React-cxxreact_privacy-React-cxxreact-Info.plist
+› Copying   ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Judith/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/React-cxxreact_privacy.bundle/PrivacyInfo.xcprivacy ➜ ../../../Users/expo/workingdir/build/node_modules/.pnpm/react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0/node_modules/react-native/ReactCommon/cxxreact/PrivacyInfo.xcprivacy
+› Creating  react-native-purchases Pods/RevenueCat-RevenueCat » RevenueCat.bundle
+› Preparing Pods/React-Core-React-Core_privacy » ResourceBundle-React-Core_privacy-React-Core-Info.plist
+› Copying   ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Judith/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/React-Core_privacy.bundle/PrivacyInfo.xcprivacy ➜ ../../../Users/expo/workingdir/build/node_modules/.pnpm/react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0/node_modules/react-native/React/Resources/PrivacyInfo.xcprivacy
+› Creating  Pods/React-cxxreact-React-cxxreact_privacy » React-cxxreact_privacy.bundle
+› Preparing Pods/RNSVG-RNSVGFilters » ResourceBundle-RNSVGFilters-RNSVG-Info.plist
+› Copying   ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Judith/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/RNSVGFilters.bundle/RNSVGCompositeXor.iphoneos.metallib ➜ ../../../Users/expo/workingdir/build/node_modules/.pnpm/react-native-svg@15.12.1_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/react-native-svg/apple/Filters/MetalCI/RNSVGCompositeXor.iphoneos.metallib
+› Copying   ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Judith/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/RNSVGFilters.bundle/RNSVGArithmeticFilter.iphoneos.metallib ➜ ../../../Users/expo/workingdir/build/node_modules/.pnpm/react-native-svg@15.12.1_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0__react@19.1.0/node_modules/react-native-svg/apple/Filters/MetalCI/RNSVGArithmeticFilter.iphoneos.metallib
+› Creating  Pods/React-Core-React-Core_privacy » React-Core_privacy.bundle
+› Preparing Pods/RNCAsyncStorage-RNCAsyncStorage_resources » ResourceBundle-RNCAsyncStorage_resources-RNCAsyncStorage-Info.plist
+› Copying   ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Judith/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/RNCAsyncStorage_resources.bundle/PrivacyInfo.xcprivacy ➜ ../../../Users/expo/workingdir/build/node_modules/.pnpm/@react-native-async-storage+async-storage@2.2.0_react-native@0.81.5_@babel+core@7.29.0__088e8303e028f6e6ca5c16cc3d46621a/node_modules/@react-native-async-storage/async-storage/ios/PrivacyInfo.xcprivacy
+› Preparing react-native-purchases Pods/PurchasesHybridCommon-PurchasesHybridCommon » ResourceBundle-PurchasesHybridCommon-PurchasesHybridCommon-Info.plist
+› Copying   react-native-purchases ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Judith/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/PurchasesHybridCommon.bundle/PrivacyInfo.xcprivacy ➜ ../../../Users/expo/workingdir/build/artifacts/judith/ios/Pods/PurchasesHybridCommon/ios/PurchasesHybridCommon/PurchasesHybridCommon/PrivacyInfo.xcprivacy
+› Creating  Pods/RNSVG-RNSVGFilters » RNSVGFilters.bundle
+› Creating  Pods/RNCAsyncStorage-RNCAsyncStorage_resources » RNCAsyncStorage_resources.bundle
+› Preparing Judith/JudithWidget » Info.plist
+› Copying   ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Judith/IntermediateBuildFilesPath/UninstalledProducts/watchos/JudithWatch.app/PrivacyInfo.xcprivacy ➜ ../../../Users/expo/workingdir/build/artifacts/judith/ios/Judith/PrivacyInfo.xcprivacy
+› Preparing Pods/ExpoSystemUI-ExpoSystemUI_privacy » ResourceBundle-ExpoSystemUI_privacy-ExpoSystemUI-Info.plist
+› Copying   ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Judith/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/ExpoSystemUI_privacy.bundle/PrivacyInfo.xcprivacy ➜ ../../../Users/expo/workingdir/build/node_modules/.pnpm/expo-system-ui@6.0.9_expo@54.0.35_react-native-web@0.21.2_react-dom@19.1.0_react@19.1.0_241a872de62d3fbc93a7729efc9cf0d5/node_modules/expo-system-ui/ios/PrivacyInfo.xcprivacy
+› Executing react-native Pods/ReactNativeDependencies » [CP] Copy XCFrameworks
+› Creating  react-native-purchases Pods/PurchasesHybridCommon-PurchasesHybridCommon » PurchasesHybridCommon.bundle
+› Preparing Pods/ExpoFileSystem-ExpoFileSystem_privacy » ResourceBundle-ExpoFileSystem_privacy-ExpoFileSystem-Info.plist
+› Copying   ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Judith/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/ExpoFileSystem_privacy.bundle/PrivacyInfo.xcprivacy ➜ ../../../Users/expo/workingdir/build/node_modules/.pnpm/expo-file-system@19.0.23_expo@54.0.35_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0_/node_modules/expo-file-system/ios/PrivacyInfo.xcprivacy
+› Creating  Pods/ExpoSystemUI-ExpoSystemUI_privacy » ExpoSystemUI_privacy.bundle
+› Preparing Pods/EXNotifications-ExpoNotifications_privacy » ResourceBundle-ExpoNotifications_privacy-EXNotifications-Info.plist
+› Copying   ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Judith/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/ExpoNotifications_privacy.bundle/PrivacyInfo.xcprivacy ➜ ../../../Users/expo/workingdir/build/node_modules/.pnpm/expo-notifications@0.32.17_expo@54.0.35_react-native@0.81.5_@babel+core@7.29.0_@types+r_b3025fc55b545043a0a350ba6f0142d8/node_modules/expo-notifications/ios/PrivacyInfo.xcprivacy
+› Creating  Pods/ExpoFileSystem-ExpoFileSystem_privacy » ExpoFileSystem_privacy.bundle
+› Preparing Pods/EXConstants-ExpoConstants_privacy » ResourceBundle-ExpoConstants_privacy-EXConstants-Info.plist
+› Copying   ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Judith/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/ExpoConstants_privacy.bundle/PrivacyInfo.xcprivacy ➜ ../../../Users/expo/workingdir/build/node_modules/.pnpm/expo-constants@18.0.13_expo@54.0.35_react-native@0.81.5_@babel+core@7.29.0_@types+react@19.1.17_react@19.1.0_/node_modules/expo-constants/ios/PrivacyInfo.xcprivacy
+› Creating  Pods/EXNotifications-ExpoNotifications_privacy » ExpoNotifications_privacy.bundle
+› Preparing expo-constants Pods/EXConstants-EXConstants » ResourceBundle-EXConstants-EXConstants-Info.plist
+› Creating  Pods/EXConstants-ExpoConstants_privacy » ExpoConstants_privacy.bundle
+› Preparing Pods/EXApplication-ExpoApplication_privacy » ResourceBundle-ExpoApplication_privacy-EXApplication-Info.plist
+› Copying   ios/build/Build/Intermediates.noindex/ArchiveIntermediates/Judith/IntermediateBuildFilesPath/UninstalledProducts/iphoneos/ExpoApplication_privacy.bundle/PrivacyInfo.xcprivacy ➜ ../../../Users/expo/workingdir/build/node_modules/.pnpm/expo-application@7.0.8_expo@54.0.35/node_modules/expo-application/ios/PrivacyInfo.xcprivacy
+› Creating  expo-constants Pods/EXConstants-EXConstants » EXConstants.bundle
+› Creating  Pods/EXApplication-ExpoApplication_privacy » ExpoApplication_privacy.bundle
+
+❌  (targets/widget/JudithWidget.swift:12:18)
+
+  10 |         StaticConfiguration(kind: Self.kind, provider: JudithProvider()) { entry in
+  11 |             JudithWidgetView(entry: entry)
+> 12 |                 .containerBackground(Color.bgBase, for: .widget)
+     |                  ^ 'containerBackg
+  13 |         }
+  14 |         .configurationDisplayName("Judith")
+  15 |         .description("Your bills at a glance.")
+
+❌  (targets/widget/JudithWidget.swift:12:58)
+
+  10 |         StaticConfiguration(kind: Self.kind, provider: JudithProvider()) { entry in
+  11 |             JudithWidgetView(entry: entry)
+> 12 |                 .containerBackground(Color.bgBase, for: .widget)
+     |                                                          ^ 'widget' is only available in iOS 17.0 or newer
+  13 |         }
+  14 |         .configurationDisplayName("Judith")
+  15 |         .description("Your bills at a glance.")
+
+❌  (targets/widget/JudithWidget.swift:28:18)
+
+  26 |         StaticConfiguration(kind: Self.kind, provider: JudithProvider()) { entry in
+  27 |             JudithWidgetView(entry: entry)
+> 28 |                 .containerBackground(.clear, for: .widget)
+     |                  ^ 'containerBackground' is only available in iOS 17.0 or newer
+  29 |         }
+  30 |         .configurationDisplayName("Judith")
+  31 |         .description("Next bill at a glance.")
+
+❌  (targets/widget/JudithWidget.swift:28:52)
+
+  26 |         StaticConfiguration(kind: Self.kind, provider: JudithProvider()) { entry in
+  27 |             JudithWidgetView(entry: entry)
+> 28 |                 .containerBackground(.clear, for: .widget)
+     |                                                    ^ 'widget' is only available in iOS 17.0 or newer
+  29 |         }
+  30 |         .configurationDisplayName("Judith")
+  31 |         .description("Next bill at a glance.")
+
+❌  (targets/widget/WidgetViews.swift:77:69)
+
+  75 |                     Text("·").foregroundStyle(Color.txtLow).font(.system(size: 9))
+  76 |                     Text("\(entry.currency)\(String(format: "%.0f", entry.totalOwed))")
+> 77 |                         .font(.system(size: 9, design: .monospaced, weight: .medium))
+     |                                                                     ^ argument 'weight' must precede argument 'design'
+  78 |                         .foregroundStyle(Color.txtMid)
+  79 |                 }
+  80 |             }
+
+❌  (targets/widget/WidgetViews.swift:349:22)
+
+  347 |                 Text("\(currency)\(String(format: "%.0f", total))")
+  348 |                     .foregroundStyle(Color.txtMid)
+> 349 |                     .fontDesign(.monospaced)
+      |                      ^ 'fontDesign' is only available in iOS 16.1 or newer
+  350 |                     .fontWeight(.medium)
+  351 |             }
+  352 |         }
+    Run script build phase '[CP-User] [Hermes] Replace Hermes for the right configuration, if needed' will be run during every build because it does not specify any outputs. To address this issue, either add output dependencies to the script phase, or configure it to run in every build by unchecking "Based on dependency analysis" in the script phase. (in target 'hermes-engine' from project 'Pods')
+▸ ** ARCHIVE FAILED **
+▸ The following build commands failed:
+▸ 	SwiftCompile normal arm64 Compiling\ JudithWidget.swift,\ Provider.swift,\ SharedTypes.swift,\ WidgetViews.swift /Users/expo/workingdir/build/artifacts/judith/targets/widget/JudithWidget.swift /Users/expo/workingdir/build/artifacts/judith/targets/widget/Provider.swift /Users/expo/workingdir/build/artifacts/judith/targets/widget/SharedTypes.swift /Users/expo/workingdir/build/artifacts/judith/targets/widget/WidgetViews.swift (in target 'JudithWidget' from project 'Judith')
+▸ 	CompileSwift normal arm64 (in target 'JudithWidget' from project 'Judith')
+▸ 	Archiving workspace Judith with scheme Judith
+▸ (3 failures)
+Exit status: 65
++---------------------------------------+
+|           Build environment           |
++-------------+-------------------------+
+| xcode_path  | /Applications/Xcode.app |
+| gym_version | 2.228.0                 |
+| sdk         | iPhoneOS26.0.sdk        |
++-------------+-------------------------+
+Looks like fastlane ran into a build/archive error with your project
+It's hard to tell what's causing the error, so we wrote some guides on how
+to troubleshoot build and signing issues: https://docs.fastlane.tools/codesigning/getting-started/
+Before submitting an issue on GitHub, please follow the guide above and make
+sure your project is set up correctly.
+fastlane uses `xcodebuild` commands to generate your binary, you can see the
+the full commands printed out in yellow in the above log.
+Make sure to inspect the output above, as usually you'll find more error information there
+[!] Error building the application - see the log above
+Error: The "Run fastlane" step failed because of an error in the Xcode build process. We automatically detected following errors in your Xcode build logs:
+- 'containerBackground(_:for:)' is only available in iOS 17.0 or newer
+- 'widget' is only available in iOS 17.0 or newer
+- 'containerBackground(_:for:)' is only available in iOS 17.0 or newer
+- 'widget' is only available in iOS 17.0 or newer
+- argument 'weight' must precede argument 'design'
+- 'fontDesign' is only available in iOS 16.1 or newer
+Refer to "Xcode Logs" below for additional, more detailed logs.

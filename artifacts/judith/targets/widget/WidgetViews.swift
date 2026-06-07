@@ -74,7 +74,7 @@ private struct SmallView: View {
                 if entry.unpaidCount > 0 {
                     Text("·").foregroundStyle(Color.txtLow).font(.system(size: 9))
                     Text("\(entry.currency)\(String(format: "%.0f", entry.totalOwed))")
-                        .font(.system(size: 9, design: .monospaced, weight: .medium))
+                        .font(.system(size: 9, weight: .medium, design: .monospaced))
                         .foregroundStyle(Color.txtMid)
                 }
             }
@@ -346,8 +346,7 @@ private struct SummaryLabel: View {
                 Text("·").foregroundStyle(Color.txtLow)
                 Text("\(currency)\(String(format: "%.0f", total))")
                     .foregroundStyle(Color.txtMid)
-                    .fontDesign(.monospaced)
-                    .fontWeight(.medium)
+                    .font(.system(size: 9, weight: .medium, design: .monospaced))
             }
         }
         .font(.system(size: 9))

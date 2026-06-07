@@ -8,8 +8,12 @@ struct JudithHomeWidget: Widget {
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: Self.kind, provider: JudithProvider()) { entry in
-            JudithWidgetView(entry: entry)
-                .containerBackground(Color.bgBase, for: .widget)
+            if #available(iOS 17.0, *) {
+                JudithWidgetView(entry: entry)
+                    .containerBackground(Color.bgBase, for: .widget)
+            } else {
+                JudithWidgetView(entry: entry)
+            }
         }
         .configurationDisplayName("Judith")
         .description("Your bills at a glance.")
@@ -24,8 +28,12 @@ struct JudithLockWidget: Widget {
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: Self.kind, provider: JudithProvider()) { entry in
-            JudithWidgetView(entry: entry)
-                .containerBackground(.clear, for: .widget)
+            if #available(iOS 17.0, *) {
+                JudithWidgetView(entry: entry)
+                    .containerBackground(.clear, for: .widget)
+            } else {
+                JudithWidgetView(entry: entry)
+            }
         }
         .configurationDisplayName("Judith")
         .description("Next bill at a glance.")
