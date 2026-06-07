@@ -19,6 +19,7 @@ import {
   englishWeekday,
 } from "../lib/normalize";
 import { logger } from "../lib/logger";
+import { getOnbAudio, setOnbAudio } from "../lib/audioCache";
 import {
   askLimiter,
   sttTtsLimiter,
@@ -1387,19 +1388,19 @@ const ONB_LINE_TO_CONCEPT: Record<string, string> = {
   "Anak, this will only take 5 to 7 minutes. I\u2019ll walk you through everything, promise.": "intro",
   "Grabe besh, 5 to 7 minutes lang! Let\u2019s map all your bills \u2014 I cannot wait!": "intro",
   // Features screen 0 — all persona variants
-  "Go ahead \u2014 tap the mic and just talk to me. Ask anything. I\u2019m listening.": "features0",
+  "Go ahead \u2014 ask me anything. I\u2019m listening.": "features0",
   "I\u2019m all ears! Tap that mic and let\u2019s see what you\u2019ve got.": "features0",
   "You can ask me things now. Go ahead.": "features0",
   "Go ahead anak, ask me anything. I\u2019m here.": "features0",
   "Oh oh oh! Ask me na! I know everything about your bills besh!": "features0",
   // Features screen 1 — all persona variants
-  "Try asking \u2018what\u2019s due this week?\u2019 I\u2019ll tell you everything, right now.": "features1",
+  "Try asking what\u2019s due this week. I\u2019ll give you the full picture.": "features1",
   "Try \u2018what\u2019s due this week?\u2019 \u2014 I\u2019ll spill everything, no holding back!": "features1",
   "Ask what\u2019s due this week. I\u2019ll tell you.": "features1",
   "Try asking what\u2019s due this week anak. I\u2019ll tell you everything.": "features1",
   "Ay! Ask me what\u2019s due this week! I\u2019ll tell you everything besh! Lahat!": "features1",
   // Features screen 2 — all persona variants
-  "Ask me if it\u2019s safe to spend before payday. I\u2019ll check what\u2019s coming and give you a straight answer.": "features2",
+  "Ask me if it\u2019s safe to spend before payday. I\u2019ll check your bills and give you a straight answer.": "features2",
   "Ask if it\u2019s safe to spend before payday. I\u2019ll be brutally honest \u2014 lovingly, of course!": "features2",
   "Ask if it\u2019s safe to spend. I\u2019ll check and give you the truth.": "features2",
   "Ask me if it\u2019s safe to spend anak. I\u2019ll check everything for you.": "features2",
@@ -1416,6 +1417,64 @@ const ONB_LINE_TO_CONCEPT: Record<string, string> = {
   "Yeah yeah, I\u2019m working on it. Give me a second.": "personalizing",
   "Almost ready anak \u2014 I\u2019m making sure everything is just right for you.": "personalizing",
   "Ay grabe, so many bills! But I got you besh \u2014 almost done!": "personalizing",
+
+  // ── Filipino text entries (sent directly from the client for fil/ceb/ilo/hil users) ──
+
+  // Welcome (fil — same for all personas)
+  "Hi \u2014 I\u2019m Judith. Your due date assistant. Aabangan ko lahat ng bills mo para hindi ka mabigla. Let\u2019s take control of your bills, shall we?": "welcome",
+  // Language (fil — same for all personas)
+  "kapag kontrolado mo ang bills mo, kontrolado mo ang buhay mo. Agree?": "language",
+  // Name (fil — same for all personas)
+  "Hi! Can I get your name po?": "name",
+  // LateFee (fil — per persona)
+  "Nangyayari ito sa lahat \u2014 napalampas na bayad, biglang multa. Nandito ako para hindi na mangyari ulit.": "lateFee",
+  "Ay ang sama ng late fees! Pero wag nang mag-alala \u2014 nandito na ako para hindi na maulit!": "lateFee",
+  "Napalampas na bayad. Biglang multa. Nangyayari sa lahat. Kaya nandito ako.": "lateFee",
+  "Huwag mag-alala anak. Nangyayari ito sa lahat. Nandito ako para hindi na maulit.": "lateFee",
+  "Ay grabe, late fees! Ang pangit! Pero besh, nandito na ako \u2014 hindi na maulit \u2018yan!": "lateFee",
+  // Problem (fil — per persona)
+  "Honestly, karamihan sa tao ay hindi nag-ta-track ng bills nila. Palitan na natin iyon.": "problem",
+  "Grabe, karamihan hindi nag-ta-track ng bills! Pero ikaw \u2014 ikaw ay magiging iba na!": "problem",
+  "Karamihan hindi nag-ta-track. Ikaw ay magiging iba.": "problem",
+  "Anak, karamihan hindi nag-ta-track ng bills. Pero okay lang \u2014 palitan na natin iyon ngayon.": "problem",
+  "Ay besh, karamihan hindi nag-ta-track ng bills! Pero tayo \u2014 we\u2019re changing that na!": "problem",
+  // Stakes (fil — per persona)
+  "Hindi na kailangang ganito ang sitwasyon mo. Palitan na natin ito \u2014 ngayon na.": "stakes",
+  "Sige! Tapos na sa ganyan! Palitan na natin \u2014 ngayon na!": "stakes",
+  "Hindi na kailangang ganito. Palitan na natin. Ngayon.": "stakes",
+  "Anak, magbabago na tayo \u2014 simula ngayon. Sama-sama tayo.": "stakes",
+  "Besh! Tapos na! Palitan na natin ito ngayon! Let\u2019s go!": "stakes",
+  // Intro (fil — per persona)
+  "Aabutin ito ng 5 hanggang 7 minuto. I-map natin ang lahat ng bills mo.": "intro",
+  "5 hanggang 7 minuto lang at magiging maayos na ang lahat! Tara na!": "intro",
+  "5 hanggang 7 minuto lang to. Sagutin mo lang ang mga tanong ko.": "intro",
+  "Anak, 5 hanggang 7 minuto lang ito. Sasamahan kita sa lahat, promise.": "intro",
+  "Grabe besh, 5 hanggang 7 minuto lang! I-map na natin ang lahat ng bills mo!": "intro",
+  // Features0 (fil — per persona)
+  "Sige, magtanong ka na. Nakinukinig ako.": "features0",
+  "Ready na ako! Magtanong ka na, curious rin ako kung ano ang sasabihin mo!": "features0",
+  "Pwede ka nang magtanong. Sige.": "features0",
+  "Sige anak, magtanong ka na. Nandito ako.": "features0",
+  "Ay ay ay! Magtanong ka na besh! Alam ko lahat ng tungkol sa bills mo!": "features0",
+  // Features1 (fil — per persona)
+  "Try mo i-tanong kung ano ang due ngayong linggo. Sasabihin ko lahat.": "features1",
+  "I-try mo: \u2018Ano ang due this week?\u2019 \u2014 Isasabi ko lahat, walang tinatago!": "features1",
+  "Tanungin mo kung ano ang due ngayong linggo. Sasabihin ko.": "features1",
+  "Try mo anak, tanungin ang due this week. Isasabi ko lahat sa iyo.": "features1",
+  "Ay! Tanungin mo ako kung ano ang due ngayong linggo! Isasabi ko lahat besh!": "features1",
+  // Features2 (fil — per persona)
+  "Tanungin mo ko kung ligtas mag-gastos. I-check ko lahat ng bills mo.": "features2",
+  "Tanungin mo: ligtas ba mag-gastos? Magsasabi ako ng totoo \u2014 mahal kita kaya!": "features2",
+  "Tanungin mo kung ligtas mag-gastos. Checkuhin ko at sasabihin ko.": "features2",
+  "Tanungin mo anak kung ligtas mag-gastos. I-check ko lahat para sa iyo.": "features2",
+  "Tanungin mo ako kung ligtas mag-gastos! Checkuhin ko ang lahat besh! Grabe!": "features2",
+  // Paywall (fil — per persona)
+  "May walong libreng tanong ka sa simula. Kapag gusto mo ng higit pa, pumili ng plano \u2014 nandito ako.": "paywall",
+  "Walong libreng tanong \u2014 regalo ko! Subukan mo ako, at kapag hooked ka na, bumalik ka!": "paywall",
+  "Walong libreng tanong. Gamitin mo. Kung gusto mo pa, pumili ng plano.": "paywall",
+  "Anak, may walong libreng tanong ka. Subukan mo \u2014 at kapag gusto mo pa, nandito ako.": "paywall",
+  "Besh! Walong libreng tanong! Subukan mo ako! At kapag gusto mo pang makipag-chat \u2014 pick a plan! Waiting ako!": "paywall",
+  // Personalizing (fil) — no .fil variant, falls through to English entries above
 };
 
 type ConceptTranslations = Record<string, string>;
@@ -1910,8 +1969,30 @@ router.post("/tts-onboarding", sttTtsOnboardingLimiter, async (req, res) => {
     }
     const chosen = coercePersona(persona);
     const lang = typeof language === "string" ? language : undefined;
+
+    // Check object-storage cache before calling ElevenLabs.
+    if (lang) {
+      const concept = ONB_LINE_TO_CONCEPT[text.trim()];
+      if (concept) {
+        const cached = await getOnbAudio(concept, chosen, lang);
+        if (cached) {
+          res.json({ audioBase64: cached.base64, mime: cached.mime });
+          return;
+        }
+      }
+    }
+
     const translatedText = lang ? translateOnbLine(text.trim(), lang) : text.trim();
     const audio = await synthesize(translatedText, getVoiceId(chosen, lang), { live: true, speed: getSpeakingSpeed(chosen) });
+
+    // Populate cache for next time (fire-and-forget — never blocks the response).
+    if (lang) {
+      const concept = ONB_LINE_TO_CONCEPT[text.trim()];
+      if (concept) {
+        setOnbAudio(concept, chosen, lang, audio.base64).catch(() => {});
+      }
+    }
+
     res.json({ audioBase64: audio.base64, mime: audio.mime });
   } catch (err) {
     logger.error({ err }, "tts-onboarding failed");
