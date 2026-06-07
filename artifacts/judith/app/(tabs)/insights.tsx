@@ -8,6 +8,7 @@ import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Low, Mono, ProviderLogo, Screen, Txt, mix } from "@/components/ui";
 import { currentCycleDue, isPaidViaCard, totalOwed, type Bill } from "@/constants/data";
+import { getCategoryLabel } from "@/constants/categoryLocale";
 import { CAT_COLORS } from "@/constants/theme";
 import { useJudith } from "@/contexts/JudithStore";
 import { useCountUp } from "@/hooks/useCountUp";
@@ -181,7 +182,7 @@ function TrayChip({ label, selected, onPress }: { label: string; selected: boole
 export default function InsightsScreen() {
   const t = useTheme();
   const router = useRouter();
-  const { bills, persona, money } = useJudith();
+  const { bills, persona, money, language } = useJudith();
 
   /* filter state */
   const [period, setPeriod] = useState<PeriodKey>("this-month");
@@ -744,7 +745,7 @@ export default function InsightsScreen() {
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Txt size={15} weight="medium">{b.provider}</Txt>
                   <Low size={12} style={{ marginTop: 2 }}>
-                    {b.cat} · {catTotal > 0 ? Math.round((b.amount / catTotal) * 100) : 0}% of total
+                    {getCategoryLabel(b.cat, language)} · {catTotal > 0 ? Math.round((b.amount / catTotal) * 100) : 0}% of total
                   </Low>
                 </View>
                 <Mono size={15} weight="semibold">{money(b.amount)}</Mono>

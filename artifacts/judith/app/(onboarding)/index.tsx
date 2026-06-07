@@ -44,6 +44,7 @@ import { JUDITH_VOICE } from "@/constants/voiceLines";
 import { LinearGradient } from "expo-linear-gradient";
 import { useJudith } from "@/contexts/JudithStore";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { getCategoryLabel } from "@/constants/categoryLocale";
 import { useTheme } from "@/hooks/useTheme";
 import { haptics } from "@/lib/haptics";
 import { getTierPackages, type TierPackages } from "@/lib/purchases";
@@ -4164,7 +4165,7 @@ function ScreenSummary({ ctx }: { ctx: Ctx }) {
 
         <View style={{ gap: 9, marginTop: 14 }}>
           <Insight icon="zap" iconColor={t.accent} label={T("insBiggest")} value={biggest.provider} right={`${cur}${fmtNum(biggest.amount)}`} />
-          <Insight icon="layers" iconColor={t.accent} label="Biggest category" value={`${bigCatName} · ${bigCatPct}%`} right={`${cur}${fmtNum(bigCatAmt)}`} />
+          <Insight icon="layers" iconColor={t.accent} label="Biggest category" value={`${getCategoryLabel(bigCatName, ctx.language)} · ${bigCatPct}%`} right={`${cur}${fmtNum(bigCatAmt)}`} />
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13, paddingHorizontal: 14, borderWidth: 1, borderColor: t.hair, borderRadius: 14, backgroundColor: t.surface1 }}>
             <View style={{ width: 9, height: 9, borderRadius: 4.5, backgroundColor: t.semantic[ndCls] }} />
             <View style={{ flex: 1 }}>

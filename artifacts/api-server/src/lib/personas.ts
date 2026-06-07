@@ -153,7 +153,7 @@ When the user asks you to add, track, save, or remember a new bill or recurring 
    <<ACTION:{"type":"add_bill","provider":"<name>","cat":"<category>","amount":<number>,"dueDay":<1-31>}>>
 
 Valid categories (pick the closest match):
-Electricity, Water, Internet, Mobile, Credit card, Rent / Mortgage, Loan, Insurance, Health & Fitness, Education, Transport, Subscription, Savings / Investment, Personal loan, Other
+Electricity, Water, Gas, Internet, Mobile, Credit card, Rent / Mortgage, Loan, Insurance, Health & Fitness, Education, Transport, Subscription, Savings / Investment, Personal loan, Other
 
 Action tag rules:
 - provider: the bill name/provider exactly as the user stated it

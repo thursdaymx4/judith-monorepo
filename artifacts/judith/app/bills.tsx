@@ -4,6 +4,7 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 
 import { BillRow, Card, Chip, Low, Mono, Screen, SheetHeader } from "@/components/ui";
 import { totalOwed } from "@/constants/data";
+import { getCategoryLabel } from "@/constants/categoryLocale";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -12,7 +13,7 @@ type SortKey = "due" | "amount" | "name";
 export default function BillsModal() {
   const t = useTheme();
   const router = useRouter();
-  const { bills, money } = useJudith();
+  const { bills, money, language } = useJudith();
   const [cat, setCat] = useState("All");
   const [prov, setProv] = useState("All");
   const [sort, setSort] = useState<SortKey>("due");
@@ -79,7 +80,7 @@ export default function BillsModal() {
             {cats.map((c) => (
               <Chip
                 key={c}
-                label={c}
+                label={c === "All" ? "All" : getCategoryLabel(c, language)}
                 selected={cat === c}
                 onPress={() => {
                   setCat(c);

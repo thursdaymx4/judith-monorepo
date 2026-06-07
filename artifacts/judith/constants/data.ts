@@ -186,6 +186,18 @@ export const PROVIDERS: Record<string, Provider[]> = {
     { name: "Maynilad", color: "#0067B1", short: "M" },
     { name: "Manila Water", color: "#00A0AF", short: "MW" },
   ],
+  Gas: [
+    { name: "Tokyo Gas", color: "#0057A8", short: "TG" },
+    { name: "Osaka Gas", color: "#E60012", short: "OG" },
+    { name: "Con Edison", color: "#003087", short: "CE" },
+    { name: "National Grid", color: "#0070C0", short: "NG" },
+    { name: "British Gas", color: "#0067AC", short: "BG" },
+    { name: "Engie", color: "#009FDA", short: "EN" },
+    { name: "E.ON", color: "#E2001A", short: "ON" },
+    { name: "AGL", color: "#007DBB", short: "AG" },
+    { name: "Origin Energy", color: "#F78C1E", short: "OE" },
+    { name: "EDF", color: "#004494", short: "EF" },
+  ],
   Internet: [
     { name: "PLDT Home", color: "#C8102E", short: "P" },
     { name: "Converge", color: "#F47920", short: "C" },
@@ -263,6 +275,7 @@ export const PROVIDERS: Record<string, Provider[]> = {
 export const CAT_ICONS: Record<string, string> = {
   Electricity: "zap",
   Water: "droplet",
+  Gas: "flame",
   Internet: "wifi",
   Mobile: "smartphone",
   Landline: "phone",

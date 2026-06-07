@@ -6,12 +6,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "@/components/Icon";
 import { Btn, Chip, Low, Mono, ProviderLogo, RoundBtn, SectionLabel, Txt } from "@/components/ui";
 import { CAT_ICONS, PROVIDERS, findDuplicate, fmtCurrency, makeManualBill } from "@/constants/data";
+import { getCategoryLabel, getVisibleCategories } from "@/constants/categoryLocale";
 import { getProviders, getProviderPlaceholder } from "@/constants/providers";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { haptics } from "@/lib/haptics";
 
-const CATEGORIES = Object.keys(PROVIDERS);
+// CATEGORIES is computed per-render from country — see inside the component
 const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 /** Two-decimal money formatting — used in input fields only (display is whole-number). */
 const to2dp = (n: number): string =>
@@ -22,7 +23,8 @@ export default function AddBillScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { bills, saveBill, deleteBill, showToast, country, money } = useJudith();
+  const { bills, saveBill, deleteBill, showToast, country, money, language } = useJudith();
+  const CATEGORIES = getVisibleCategories(country.code);
 
   const existing = id ? (bills.find((b) => b.id === id) ?? null) : null;
   const isEdit = !!existing;
@@ -291,7 +293,7 @@ export default function AddBillScreen() {
             <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
               <Icon name={(CAT_ICONS[cat] ?? "spark") as never} size={12} color={t.txtLow} />
               <Low size={12}>
-                {cat}{validDay ? (frequency === "annual" ? ` · ${MONTHS_SHORT[dueMonth - 1]} ${day}` : ` · due the ${day}${ordinal(day)}`) : ""}
+                {getCategoryLabel(cat, language)}{validDay ? (frequency === "annual" ? ` · ${MONTHS_SHORT[dueMonth - 1]} ${day}` : ` · due the ${day}${ordinal(day)}`) : ""}
               </Low>
             </View>
           </View>
@@ -318,7 +320,7 @@ export default function AddBillScreen() {
           {CATEGORIES.map((c) => (
             <Chip
               key={c}
-              label={c}
+              label={getCategoryLabel(c, language)}
               icon={(CAT_ICONS[c] ?? "spark") as never}
               selected={cat === c}
               onPress={() => { haptics.selection(); setCat(c); clearErr(); }}

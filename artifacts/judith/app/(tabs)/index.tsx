@@ -20,6 +20,7 @@ import {
   Txt,
 } from "@/components/ui";
 import { CAT_ICONS, currentCycleDue, dueClass, dueShort, isPaidViaCard, isPartialBill, partialPct, totalOwed, type Bill } from "@/constants/data";
+import { getCategoryLabel } from "@/constants/categoryLocale";
 import { useJudith } from "@/contexts/JudithStore";
 import { useCountUp } from "@/hooks/useCountUp";
 import { haptics } from "@/lib/haptics";
@@ -181,7 +182,7 @@ function StaggerRow({
 export default function HomeScreen() {
   const t = useTheme();
   const router = useRouter();
-  const { bills, persona, money } = useJudith();
+  const { bills, persona, money, language } = useJudith();
   const reduce = useReducedMotion();
   const [sortBy, setSortBy] = useState<"dueDate" | "amount">("dueDate");
   const [filterCats, setFilterCats] = useState<Set<string>>(new Set());
@@ -499,7 +500,7 @@ export default function HomeScreen() {
           {cats.map((c) => (
             <Chip
               key={c}
-              label={c}
+              label={getCategoryLabel(c, language)}
               icon={(CAT_ICONS[c] ?? "spark") as IconName}
               selected={filterCats.has(c)}
               onPress={() => {
