@@ -39,6 +39,6 @@ extension Color {
 }
 
 extension Font {
-    static let judithMono      = Font.system(.body,   weight: .semibold, design: .monospaced)
-    static let judithMonoLarge = Font.system(.title2, weight: .bold, design: .monospaced)
+    static let judithMono      = Font.system(style: .body,   weight: .semibold, design: .monospaced)
+    static let judithMonoLarge = Font.system(style: .title2, weight: .bold, design: .monospaced)
 }

@@ -45,7 +45,7 @@ struct FaceView: View {
                         }
                     } else {
                         Image(systemName: "creditcard.fill")
-                            .font(.system(.title3))
+                            .font(.system(style: .title3))
                             .foregroundStyle(Color.judithAccent)
                     }
                 }
@@ -58,7 +58,7 @@ struct FaceView: View {
                         .foregroundStyle(Color.judithAccent)
                 } else if store.totalCount > 0 {
                     Label("All paid up!", systemImage: "checkmark.seal.fill")
-                        .font(.system(.footnote, weight: .semibold, design: .rounded))
+                        .font(.system(style: .footnote, weight: .semibold, design: .rounded))
                         .foregroundStyle(Color.judithAccent)
                 }
 
@@ -69,12 +69,12 @@ struct FaceView: View {
                             .fill(next.urgency.color)
                             .frame(width: 5, height: 5)
                         Text(next.provider)
-                            .font(.system(.caption, weight: .medium, design: .rounded))
+                            .font(.system(style: .caption, weight: .medium, design: .rounded))
                             .foregroundStyle(Color.txtHi)
                             .lineLimit(1)
                         Spacer()
                         Text(next.dueLabelShort)
-                            .font(.system(.caption2, weight: .semibold, design: .monospaced))
+                            .font(.system(style: .caption2, weight: .semibold, design: .monospaced))
                             .foregroundStyle(next.urgency.color)
                     }
                     .padding(.horizontal, 10)
@@ -89,7 +89,7 @@ struct FaceView: View {
                         Text("🔥")
                             .font(.system(size: 11))
                         Text("\(store.streak) paid streak")
-                            .font(.system(.caption2, weight: .semibold, design: .rounded))
+                            .font(.system(style: .caption2, weight: .semibold, design: .rounded))
                             .foregroundStyle(Color.judithAccent)
                     }
                     .padding(.horizontal, 9)

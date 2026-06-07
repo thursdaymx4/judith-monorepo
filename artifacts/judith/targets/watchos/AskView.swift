@@ -26,7 +26,7 @@ struct AskView: View {
                     judithAvatar
 
                     Text("Ask Judith")
-                        .font(.system(.headline, weight: .bold, design: .rounded))
+                        .font(.system(style: .headline, weight: .bold, design: .rounded))
                         .foregroundStyle(Color.txtHi)
 
                     TextField("What do you want to know?", text: $query, axis: .vertical)
@@ -35,7 +35,7 @@ struct AskView: View {
                         .padding(8)
                         .background(Color.surface1)
                         .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .font(.system(.footnote, design: .rounded))
+                        .font(.system(style: .footnote, design: .rounded))
                         .foregroundStyle(Color.txtHi)
 
                     Button {
@@ -46,7 +46,7 @@ struct AskView: View {
                             Text(query.trimmingCharacters(in: .whitespaces).isEmpty
                                  ? "Dictate" : "Ask")
                         }
-                        .font(.system(.footnote, weight: .semibold, design: .rounded))
+                        .font(.system(style: .footnote, weight: .semibold, design: .rounded))
                         .foregroundStyle(.black)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
@@ -69,7 +69,7 @@ struct AskView: View {
                         .tint(Color.judithAccent)
                         .scaleEffect(1.4)
                     Text("Judith is thinking…")
-                        .font(.system(.caption, design: .rounded))
+                        .font(.system(style: .caption, design: .rounded))
                         .foregroundStyle(Color.txtMid)
                         .padding(.top, 8)
 
@@ -79,12 +79,12 @@ struct AskView: View {
                         HStack(spacing: 6) {
                             judithAvatar.scaleEffect(0.6)
                             Text("Judith")
-                                .font(.system(.caption2, weight: .semibold, design: .rounded))
+                                .font(.system(style: .caption2, weight: .semibold, design: .rounded))
                                 .foregroundStyle(Color.judithAccent)
                         }
 
                         Text(reply)
-                            .font(.system(.footnote, design: .rounded))
+                            .font(.system(style: .footnote, design: .rounded))
                             .foregroundStyle(Color.txtHi)
                             .fixedSize(horizontal: false, vertical: true)
 
@@ -93,7 +93,7 @@ struct AskView: View {
                                 speak(reply)
                             } label: {
                                 Image(systemName: "speaker.wave.2.fill")
-                                    .font(.system(.caption))
+                                    .font(.system(style: .caption))
                                     .foregroundStyle(Color.judithAccent)
                             }
                             .buttonStyle(.plain)
@@ -104,7 +104,7 @@ struct AskView: View {
                                 query     = ""
                                 viewState = .idle
                             }
-                            .font(.system(.caption2, weight: .semibold, design: .rounded))
+                            .font(.system(style: .caption2, weight: .semibold, design: .rounded))
                             .tint(Color.judithAccent)
                         }
                         .padding(.top, 4)
@@ -115,10 +115,10 @@ struct AskView: View {
                 case .error(let msg):
                     Spacer(minLength: 16)
                     Image(systemName: "exclamationmark.circle")
-                        .font(.system(.title2))
+                        .font(.system(style: .title2))
                         .foregroundStyle(Color.judithOverdue)
                     Text(msg)
-                        .font(.system(.caption2, design: .rounded))
+                        .font(.system(style: .caption2, design: .rounded))
                         .foregroundStyle(Color.txtMid)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 8)
@@ -128,7 +128,7 @@ struct AskView: View {
                     }
                     .buttonStyle(.bordered)
                     .tint(Color.judithAccent)
-                    .font(.system(.caption2, weight: .semibold, design: .rounded))
+                    .font(.system(style: .caption2, weight: .semibold, design: .rounded))
                 }
             }
             .padding(.bottom, 16)
