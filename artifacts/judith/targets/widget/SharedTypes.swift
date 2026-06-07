@@ -93,4 +93,8 @@ struct WatchPayload: Codable {
     let nextDueLabel: String
     let persona: String
     let upcomingBills: [UpcomingBill]
+    /// Bills already marked paid this cycle — drives watch complication gauge.
+    let paidCount: Int
+    /// Total tracked bills (paid + unpaid) — gauge denominator.
+    let totalCount: Int
 }

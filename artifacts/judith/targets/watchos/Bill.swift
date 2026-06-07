@@ -45,6 +45,10 @@ struct WatchPayload: Codable {
     let nextDueLabel: String
     let persona: String
     let upcomingBills: [UpcomingBill]
+    /// Bills already marked paid this cycle — drives the watch complication gauge.
+    let paidCount: Int
+    /// Total tracked bills (paid + unpaid) — gauge denominator.
+    let totalCount: Int
 
     // MARK: — Derived helpers
 
@@ -56,18 +60,22 @@ struct WatchPayload: Codable {
         "\(currency)\(String(format: "%.0f", nextAmount))"
     }
 
+    /// Optimistically remove a bill when mark-paid is tapped on the watch.
     func removing(billId: String) -> WatchPayload {
-        WatchPayload(
+        let filtered = upcomingBills.filter { $0.id != billId }
+        return WatchPayload(
             generatedAt: generatedAt,
             currency: currency,
             totalOwed: totalOwed,
             unpaidCount: max(0, unpaidCount - 1),
-            nextProvider: nextProvider,
-            nextAmount: nextAmount,
-            nextDueDays: nextDueDays,
-            nextDueLabel: nextDueLabel,
+            nextProvider: filtered.first?.provider ?? "",
+            nextAmount: filtered.first?.amount ?? 0,
+            nextDueDays: filtered.first?.dueDays ?? 0,
+            nextDueLabel: filtered.first?.dueLabel ?? "",
             persona: persona,
-            upcomingBills: upcomingBills.filter { $0.id != billId }
+            upcomingBills: filtered,
+            paidCount: paidCount + 1,
+            totalCount: totalCount
         )
     }
 }

@@ -28,6 +28,12 @@ final class WatchStore: ObservableObject {
     var upcomingBills: [UpcomingBill] { payload?.upcomingBills ?? [] }
     var totalOwed: Double  { payload?.totalOwed ?? 0 }
     var unpaidCount: Int   { payload?.unpaidCount ?? 0 }
+    var paidCount: Int     { payload?.paidCount  ?? 0 }
+    var totalCount: Int    { payload?.totalCount  ?? 0 }
+    var paidFraction: Double {
+        guard totalCount > 0 else { return 0 }
+        return Double(paidCount) / Double(totalCount)
+    }
 
     // MARK: — Apply incoming payload
 

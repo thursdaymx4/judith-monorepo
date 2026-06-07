@@ -56,6 +56,10 @@ export interface WatchPayload {
   persona: PersonaId;
   /** All unpaid bills sorted by dueDays (via-card charges included for display) */
   upcomingBills: UpcomingBill[];
+  /** Bills already marked paid this cycle — drives the complication gauge */
+  paidCount: number;
+  /** Total tracked bills (paid + unpaid) — denominator for the gauge */
+  totalCount: number;
 }
 
 // ─── Payload builder ──────────────────────────────────────────────────────────
@@ -69,6 +73,9 @@ function buildPayload(bills: Bill[], persona: PersonaId, currency: string): Watc
   const payable = enriched.filter(({ b }) => !isPaidViaCard(b));
 
   const next = enriched[0];
+
+  const paidCount  = bills.filter((b) => b.status === "paid").length;
+  const totalCount = bills.length;
 
   return {
     generatedAt: new Date().toISOString(),
@@ -88,6 +95,8 @@ function buildPayload(bills: Bill[], persona: PersonaId, currency: string): Watc
       dueLabel: occ.dueLabel,
       isOverdue: occ.dueDays < 0,
     })),
+    paidCount,
+    totalCount,
   };
 }
 
