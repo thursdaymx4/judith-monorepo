@@ -68,7 +68,7 @@ function computeNaturalPeriodUI(
   return thisMonth;
 }
 
-type ChartPoint = { label: string; value: number; current: boolean };
+type ChartPoint = { label: string; value: number; carriedIn: number; current: boolean };
 
 function buildChart(bill: Bill): ChartPoint[] {
   const today = new Date();
@@ -80,12 +80,11 @@ function buildChart(bill: Bill): ChartPoint[] {
     const period = `${yr}-${String(mo + 1).padStart(2, "0")}`;
     const label = MONTH_SHORT[mo] ?? "";
     if (i === 0) {
-      points.push({ label, value: totalOwed(bill), current: true });
+      points.push({ label, value: totalOwed(bill), carriedIn: bill.carryOver ?? 0, current: true });
       continue;
     }
     const real = bill.paymentHistory?.find((r) => r.period === period);
-    // Only show real recorded data — no synthetic or static backfill
-    points.push({ label, value: real ? real.totalDue : 0, current: false });
+    points.push({ label, value: real ? real.totalDue : 0, carriedIn: real ? (real.carriedIn ?? 0) : 0, current: false });
   }
   return points;
 }
@@ -141,28 +140,32 @@ function MiniBarChart({ points, money }: { points: ChartPoint[]; money: (n: numb
       <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 5 }}>
         {points.map((p, i) => {
           const h = p.value > 0 ? Math.max(6, Math.round((p.value / max) * BAR_H)) : 0;
+          const carryH = p.carriedIn > 0 && p.value > 0
+            ? Math.max(4, Math.round((p.carriedIn / max) * BAR_H))
+            : 0;
+          const baseH = Math.max(0, h - carryH);
           return (
             <View key={i} style={{ flex: 1 }}>
               <View style={{ height: BAR_H, justifyContent: "flex-end" }}>
                 {h > 0 && (
                   <>
+                    {/* Amount label sitting just above the bar */}
                     <Mono
                       size={8}
                       weight="semibold"
                       color={p.current ? t.accent : t.txtLow}
-                      style={{ position: "absolute", top: 0, left: 0, right: 0, textAlign: "center" }}
+                      style={{ position: "absolute", bottom: h + 3, left: 0, right: 0, textAlign: "center" }}
                       numberOfLines={1}
                     >
                       {money(p.value)}
                     </Mono>
-                    <View
-                      style={{
-                        height: h,
-                        borderRadius: 5,
-                        alignSelf: "stretch",
-                        backgroundColor: p.current ? t.accent : t.accent + "55",
-                      }}
-                    />
+                    {/* Stacked bar: carry-over on top in near-color, base below */}
+                    <View style={{ height: h, borderRadius: 5, alignSelf: "stretch", overflow: "hidden", flexDirection: "column-reverse" }}>
+                      <View style={{ height: baseH, backgroundColor: p.current ? t.accent : t.accent + "55" }} />
+                      {carryH > 0 && (
+                        <View style={{ height: carryH, backgroundColor: t.semantic.near }} />
+                      )}
+                    </View>
                   </>
                 )}
               </View>
@@ -753,6 +756,8 @@ export default function BillDetailModal() {
                 if (input.trim() && Number.isFinite(n)) setInput(fmt2(n));
               }}
               keyboardType="decimal-pad"
+              returnKeyType="done"
+              onSubmitEditing={handlePayPartial}
               placeholder={fmt2(viewedOwed * 0.5)}
               placeholderTextColor={t.txtLow}
               style={{ fontFamily: t.fonts.mono, fontSize: 24, color: t.txtHi, paddingVertical: 4, flex: 1 }}

@@ -612,13 +612,15 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       setGuest: (v) => patch({ guest: v }),
       setMonthlyIncome: (n) => patch({ monthlyIncome: n }),
       setMonthIncome: (month, amount) => {
-        const next = { ...state.incomeByMonth };
-        if (amount == null || !Number.isFinite(amount) || amount <= 0) {
-          delete next[month];
-        } else {
-          next[month] = amount;
-        }
-        patch({ incomeByMonth: next });
+        setState((s) => {
+          const next = { ...s.incomeByMonth };
+          if (amount == null || !Number.isFinite(amount) || amount <= 0) {
+            delete next[month];
+          } else {
+            next[month] = amount;
+          }
+          return { ...s, incomeByMonth: next };
+        });
       },
       setAskHistory: (msgs) => patch({ askHistory: msgs.slice(-100) }),
       clearAskHistory: () => patch({ askHistory: [] }),
