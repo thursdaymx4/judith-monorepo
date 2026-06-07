@@ -58,6 +58,7 @@
   },
   "dependencies": {
     "@bacons/apple-targets": "^4.0.7",
+    "judith-widget-bridge": "file:./modules/judith-widget-bridge",
     "@expo-google-fonts/jetbrains-mono": "^0.4.1",
     "@expo-google-fonts/playfair-display": "^0.4.2",
     "@expo-google-fonts/space-grotesk": "^0.4.1",

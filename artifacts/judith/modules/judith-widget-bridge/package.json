@@ -1,0 +1,9 @@
+{
+  "name": "judith-widget-bridge",
+  "version": "1.0.0",
+  "description": "Writes the Judith bill payload to the iOS App Group so widget extensions can read it.",
+  "main": "./index",
+  "peerDependencies": {
+    "expo-modules-core": "*"
+  }
+}

@@ -15,6 +15,7 @@
 import { Platform } from "react-native";
 import { currentCycleDue, isPaidViaCard, type Bill } from "@/constants/data";
 import type { PersonaId } from "@/constants/personas";
+import { writePayload as writeWidgetPayload } from "judith-widget-bridge";
 
 let WatchConnectivity: Record<string, unknown> | null = null;
 try {
@@ -102,19 +103,26 @@ export async function syncBillsToWatch(
   currency: string,
 ): Promise<void> {
   if (Platform.OS !== "ios") return;
-  if (!WatchConnectivity) return;
 
+  const payload     = buildPayload(bills, persona, currency);
+  const payloadJson = JSON.stringify(payload);
+
+  // ── iOS widget extension ─────────────────────────────────────────────────
+  // Writes directly to the App Group UserDefaults so the homescreen and
+  // lockscreen widgets refresh immediately — works even without a paired Watch.
+  writeWidgetPayload(payloadJson);
+
+  // ── Apple Watch app ───────────────────────────────────────────────────────
+  // updateApplicationContext replaces the previous value in-place; the Watch
+  // receives it via didReceiveApplicationContext instantly when reachable, or
+  // on next activation otherwise.
+  if (!WatchConnectivity) return;
   try {
-    const payload = buildPayload(bills, persona, currency);
-    // updateApplicationContext replaces the previous value in-place — much
-    // faster than transferUserInfo (which queues and delivers sequentially).
-    // The watch receives it via didReceiveApplicationContext instantly when
-    // reachable, or on next activation otherwise.
     (
       WatchConnectivity.updateApplicationContext as (
         p: Record<string, unknown>,
       ) => void
-    )({ judith_payload_v2: JSON.stringify(payload) });
+    )({ judith_payload_v2: payloadJson });
   } catch {
     // No paired watch, Expo Go stub, or native module absent — silent no-op
   }
