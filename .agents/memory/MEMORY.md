@@ -27,4 +27,5 @@
 - [Judith Home filters](judith-home-filters.md) — Home timeline filters compose category→biz→overdue; heal stale "pick-one" selections by deriving an effective value during render, never via useEffect.
 - [Judith Insights business split](judith-insights-business-split.md) — Personal-vs-Business + BY-BUSINESS share tagSplit (all-bills scope, matches Home biz total NOT tab grand total); color businesses by alphabetical name, not rank.
 - [Judith Watch embed](judith-watch-embed.md) — Watch app is embedded in the phone EAS build via @bacons/apple-targets (type "watch"); bundle ID .watchkitapp; never gate sync on getIsWatchAppInstalled().
+- [Judith RevenueCat seed](judith-revenuecat-seed.md) — idempotent dual-tier seed script; addIntegration+proposeIntegration both required; custom fetch bridges connectors proxy into RC SDK createClient.
 - [Judith TTS currency](judith-tts-currency.md) — prepareForTTS must normalize ALL currency symbols (A$, CA$, £, ¥, ﷼…) to spoken words; ElevenLabs reads prefix letters literally without this.

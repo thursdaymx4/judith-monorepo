@@ -28,7 +28,7 @@ import { useBiometricLock } from "@/hooks/useBiometricLock";
 import { useNotificationSync } from "@/hooks/useNotificationSync";
 import { useWatchSync } from "@/hooks/useWatchSync";
 import { useTheme } from "@/hooks/useTheme";
-import { getActiveTier } from "@/lib/purchases";
+import { configurePurchases, identifyUser, resetUser, getActiveTier } from "@/lib/purchases";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -114,12 +114,18 @@ function RootLayoutNav() {
   // Sync RevenueCat entitlements into the store whenever the session changes.
   // Runs once on mount (handles cold launch) and again on sign-in/out.
   useEffect(() => {
-    if (!session) return;
-    getActiveTier()
-      .then((activeTier) => {
-        if (activeTier !== tier) subscribe(activeTier);
-      })
-      .catch(() => {});
+    if (session?.user?.id) {
+      const userId = session.user.id;
+      configurePurchases(userId);
+      identifyUser(userId).catch(() => {});
+      getActiveTier()
+        .then((activeTier) => {
+          if (activeTier !== tier) subscribe(activeTier);
+        })
+        .catch(() => {});
+    } else {
+      resetUser().catch(() => {});
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user?.id]);
 

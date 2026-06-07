@@ -1,21 +1,28 @@
 import Purchases, { type PurchasesPackage } from "react-native-purchases";
 import { Platform } from "react-native";
+import Constants from "expo-constants";
 
 import type { AskTier } from "@/contexts/JudithStore";
 
 // ─── API keys ────────────────────────────────────────────────────────────────
-// Set both in your Replit secrets / .env:
-//   EXPO_PUBLIC_REVENUECAT_API_KEY_IOS     → your Apple app's RC public key
-//   EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID → your Google app's RC public key
-//
-// For Expo Go: RC automatically enters "Preview API Mode" when it cannot find
-// the native SDK, so the app still runs without a real key. In-app purchase
-// flows are no-ops in Expo Go regardless — test actual purchases on TestFlight
-// or an Android internal/closed-testing build.
-const IOS_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS ?? "";
+// Set in Replit secrets:
+//   EXPO_PUBLIC_REVENUECAT_TEST_API_KEY    → RevenueCat test-store key (dev / Expo Go)
+//   EXPO_PUBLIC_REVENUECAT_API_KEY_IOS     → Apple App Store production key
+//   EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID → Google Play Store production key
+const TEST_KEY    = process.env.EXPO_PUBLIC_REVENUECAT_TEST_API_KEY    ?? "";
+const IOS_KEY     = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS     ?? "";
 const ANDROID_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID ?? "";
-const API_KEY = Platform.OS === "ios" ? IOS_KEY : ANDROID_KEY;
 
+function resolveApiKey(): string {
+  // Use test-store key in dev builds, Expo Go, and web so purchases
+  // go through the RC test store (no real money, no store review needed).
+  if (__DEV__ || Platform.OS === "web" || Constants.executionEnvironment === "storeClient") {
+    return TEST_KEY || IOS_KEY || ANDROID_KEY;
+  }
+  return Platform.OS === "ios" ? IOS_KEY : ANDROID_KEY;
+}
+
+const API_KEY = resolveApiKey();
 export const isPurchasesConfigured = Boolean(API_KEY);
 
 // ─── Entitlement IDs (must match what you set in the RevenueCat dashboard) ──

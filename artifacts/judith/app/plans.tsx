@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  Modal,
   Pressable,
   ScrollView,
   View,
@@ -177,6 +178,7 @@ export default function PlansModal() {
   const [packages, setPackages] = useState<TierPackages>({ chat: null, voice: null });
   const [loadingPkgs, setLoadingPkgs] = useState(true);
   const [buyingTier, setBuyingTier] = useState<"chat" | "voice" | null>(null);
+  const [confirmPending, setConfirmPending] = useState<{ tier: "chat" | "voice"; pkg: PurchasesPackage } | null>(null);
 
   const locale = getPaywallLocale(country.code);
   const fmt = (n: number) => fmtFee(country.cur, n);
@@ -210,7 +212,7 @@ export default function PlansModal() {
     return () => clearTimeout(id);
   }, [focus, loadingPkgs]);
 
-  const buy = async (targetTier: "chat" | "voice", pkg: PurchasesPackage | null) => {
+  const executeBuy = async (targetTier: "chat" | "voice", pkg: PurchasesPackage | null) => {
     if (!pkg) {
       subscribe(targetTier);
       showToast(targetTier === "chat" ? "Chat Ask activated ✓" : "Voice Ask activated ✓");
@@ -234,6 +236,14 @@ export default function PlansModal() {
     }
   };
 
+  const buy = (targetTier: "chat" | "voice", pkg: PurchasesPackage | null) => {
+    if (__DEV__ && pkg) {
+      setConfirmPending({ tier: targetTier, pkg });
+      return;
+    }
+    executeBuy(targetTier, pkg);
+  };
+
   const chatActive = tier === "chat" || tier === "voice";
   const voiceActive = tier === "voice";
   const isFree = tier === "free";
@@ -245,6 +255,7 @@ export default function PlansModal() {
   const voicePrice = packages.voice?.product.priceString ?? money(199);
 
   return (
+    <>
     <ScrollView
       ref={scrollRef}
       style={{ flex: 1, backgroundColor: t.canvas }}
@@ -526,5 +537,69 @@ export default function PlansModal() {
         </Low>
       </View>
     </ScrollView>
+
+    {/* ── DEV-MODE test purchase confirmation ── */}
+    {__DEV__ && (
+      <Modal
+        visible={!!confirmPending}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirmPending(null)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.55)",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 28,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: t.canvas,
+              borderRadius: 20,
+              padding: 24,
+              width: "100%",
+              gap: 16,
+            }}
+          >
+            <Txt size={17} weight="semibold">Test Purchase</Txt>
+            <Low size={14} style={{ lineHeight: 20 }}>
+              Confirm test purchase for{" "}
+              <Txt size={14} weight="semibold">
+                {confirmPending?.tier === "voice" ? "Voice Ask" : "Chat Ask"}
+              </Txt>
+              ?{"\n"}This goes through the RevenueCat test store — no real charge.
+            </Low>
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <Pressable
+                style={{
+                  flex: 1, paddingVertical: 13, borderRadius: 12,
+                  backgroundColor: t.surface2, alignItems: "center",
+                }}
+                onPress={() => setConfirmPending(null)}
+              >
+                <Txt size={14} weight="semibold" style={{ color: t.txtMid }}>Cancel</Txt>
+              </Pressable>
+              <Pressable
+                style={{
+                  flex: 1, paddingVertical: 13, borderRadius: 12,
+                  backgroundColor: t.accent, alignItems: "center",
+                }}
+                onPress={() => {
+                  const pending = confirmPending;
+                  setConfirmPending(null);
+                  if (pending) executeBuy(pending.tier, pending.pkg);
+                }}
+              >
+                <Txt size={14} weight="semibold" style={{ color: "#fff" }}>Confirm</Txt>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    )}
+    </>
   );
 }
