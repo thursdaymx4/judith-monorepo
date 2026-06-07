@@ -28,7 +28,8 @@ import { useBiometricLock } from "@/hooks/useBiometricLock";
 import { useNotificationSync } from "@/hooks/useNotificationSync";
 import { useWatchSync } from "@/hooks/useWatchSync";
 import { useTheme } from "@/hooks/useTheme";
-import { configurePurchases, identifyUser, resetUser, getActiveTier } from "@/lib/purchases";
+import { configurePurchases, identifyUser, resetUser, getActiveTier, CHAT_ENTITLEMENT_ID, VOICE_ENTITLEMENT_ID, isPurchasesConfigured } from "@/lib/purchases";
+import Purchases, { type CustomerInfo } from "react-native-purchases";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -128,6 +129,25 @@ function RootLayoutNav() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user?.id]);
+
+  // Subscribe to real-time RevenueCat entitlement changes (purchase, renewal, expiry).
+  // Mirrors what the RC skill's SubscriptionProvider does; wired here so JudithStore
+  // stays as the single source of truth for the tier.
+  useEffect(() => {
+    if (!isPurchasesConfigured) return;
+    const listener = (info: CustomerInfo) => {
+      const active = info.entitlements.active;
+      const updatedTier = active[VOICE_ENTITLEMENT_ID]
+        ? ("voice" as const)
+        : active[CHAT_ENTITLEMENT_ID]
+          ? ("chat" as const)
+          : ("free" as const);
+      subscribe(updatedTier);
+    };
+    Purchases.addCustomerInfoUpdateListener(listener);
+    return () => { Purchases.removeCustomerInfoUpdateListener(listener); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Keep local notifications in sync with bills and toggles.
   useNotificationSync();
