@@ -8,6 +8,7 @@
  */
 
 import type { Bill, BillCycleRecord } from "@/constants/data";
+import { DEMO_BILLS, DEMO_ASK_HISTORY } from "@/constants/demoData";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -1357,6 +1358,20 @@ export interface DemoAccount {
 }
 
 export const DEMO_ACCOUNTS: DemoAccount[] = [
+  {
+    code: "US",
+    flag: "🇺🇸",
+    label: "United States",
+    subtitle: "Alex · $ · English",
+    preset: {
+      bills: DEMO_BILLS, asksLeft: 3, tier: "chat", name: "Alex",
+      persona: "funny", voiceId: "rachel", language: "en",
+      theme: "system", accent: "mint", countryCode: "US", currency: "$",
+      toggles: { dueReminders: true, widget: true, watch: false, nudges: true, voiceReplies: true },
+      reduceMotion: false, faceIdLock: false, onboarded: true, onbIdx: 0, guest: false,
+      monthlyIncome: 5500, incomeByMonth: {}, askHistory: DEMO_ASK_HISTORY,
+    },
+  },
   {
     code: "PH",
     flag: "🇵🇭",
