@@ -4688,17 +4688,17 @@ function ScreenMonthlyIncome({ ctx }: { ctx: Ctx }) {
   return (
     <>
       <Scroll center>
-        <JudithAvatar persona={persona} size={76} state="speaking" />
-        <Kicker style={{ marginTop: 18, textAlign: "center" }}>Help me help you</Kicker>
+        <JudithAvatar persona={persona} size={52} state="speaking" />
+        <Kicker style={{ marginTop: 10, textAlign: "center" }}>Help me help you</Kicker>
         <Title style={{ maxWidth: 300, textAlign: "center" }}>
           What{"'"}s your monthly take-home?
         </Title>
         <Lede style={{ textAlign: "center", maxWidth: 280 }}>
-          I{"'"}ll use this to tell you how much you can safely spend before your next payday. You can update it anytime in settings.
+          I{"'"}ll use this to tell you how much you can safely spend before payday.
         </Lede>
         <View
           style={{
-            marginTop: 24,
+            marginTop: 14,
             alignSelf: "stretch",
             flexDirection: "row",
             alignItems: "center",
@@ -4811,18 +4811,18 @@ function ScreenPayCycle({ ctx }: { ctx: Ctx }) {
     <>
       <Scroll>
         <View style={{ alignItems: "center" }}>
-          <JudithAvatar persona={persona} size={76} state="speaking" />
-          <Kicker style={{ marginTop: 18, textAlign: "center" }}>One more thing</Kicker>
+          <JudithAvatar persona={persona} size={52} state="speaking" />
+          <Kicker style={{ marginTop: 10, textAlign: "center" }}>One more thing</Kicker>
           <Title style={{ maxWidth: 300, textAlign: "center" }}>
             When do you get paid?
           </Title>
           <Lede style={{ textAlign: "center", maxWidth: 280 }}>
-            I{"'"}ll use this to tell you exactly how much time you have until your next payday.
+            I{"'"}ll use this to tell you how much time you have until your next payday.
           </Lede>
         </View>
 
         {/* Frequency */}
-        <View style={{ marginTop: 24, alignSelf: "stretch", gap: 10 }}>
+        <View style={{ marginTop: 14, alignSelf: "stretch", gap: 8 }}>
           {PAY_CYCLES.map(({ value, label, sub }) => {
             const active = selectedCycle === value;
             return (
@@ -4835,7 +4835,7 @@ function ScreenPayCycle({ ctx }: { ctx: Ctx }) {
                   borderColor: active ? t.accent : t.hair,
                   borderRadius: 14,
                   backgroundColor: active ? t.accent + "18" : t.surface2,
-                  paddingHorizontal: 18, paddingVertical: 16, gap: 14,
+                  paddingHorizontal: 16, paddingVertical: 11, gap: 12,
                 }}
               >
                 <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: active ? t.accent : t.txtLow, alignItems: "center", justifyContent: "center" }}>
@@ -4851,7 +4851,7 @@ function ScreenPayCycle({ ctx }: { ctx: Ctx }) {
         </View>
 
         {/* Day picker — adapts to frequency */}
-        <View style={{ marginTop: 28, alignSelf: "stretch" }}>
+        <View style={{ marginTop: 16, alignSelf: "stretch" }}>
 
           {selectedCycle === "monthly" && (
             <>
