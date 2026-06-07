@@ -60,14 +60,14 @@ private struct SmallView: View {
 
                 // Provider
                 Text(bill.provider)
-                    .font(.system(.caption, weight: .semibold, design: .rounded))
+                    .font(.system(Font.TextStyle.caption, weight: .semibold, design: .rounded))
                     .foregroundStyle(Color.txtMid)
                     .lineLimit(1)
                     .padding(.bottom, 1)
 
                 // Amount — hero number
                 Text(bill.amountDisplay(currency: entry.currency))
-                    .font(.system(.title2, weight: .black, design: .monospaced))
+                    .font(.system(Font.TextStyle.title2, weight: .black, design: .monospaced))
                     .foregroundStyle(bill.urgency.color)
                     .minimumScaleFactor(0.55)
                     .lineLimit(1)
@@ -87,7 +87,7 @@ private struct SmallView: View {
                             .foregroundStyle(Color.judithAccent)
                     }
                     Text("All paid!")
-                        .font(.system(.caption, weight: .bold, design: .rounded))
+                        .font(.system(Font.TextStyle.caption, weight: .bold, design: .rounded))
                         .foregroundStyle(Color.judithAccent)
                 }
             }
@@ -214,7 +214,7 @@ private struct LargeView: View {
                         }
                         Spacer()
                         Text("\(entry.currency)\(String(format: "%.0f", entry.totalOwed))")
-                            .font(.system(.title3, weight: .black, design: .monospaced))
+                            .font(.system(Font.TextStyle.title3, weight: .black, design: .monospaced))
                             .foregroundStyle(Color.txtHi)
                     }
                 }
@@ -237,14 +237,16 @@ private struct LockCircularView: View {
         ZStack {
             if let bill = entry.nextBill {
                 let d = Double(max(0, min(bill.dueDays, 30)))
+                let gaugeLabel = Text("J")
+                    .font(.system(size: 7, weight: .black, design: .rounded))
+                    .foregroundStyle(Color.judithAccent)
+                let gaugeValue = Text(bill.dueDays <= 0 ? "!" : "\(bill.dueDays)")
+                    .font(.system(Font.TextStyle.body, weight: .bold, design: .monospaced))
+                    .foregroundStyle(bill.urgency.color)
                 Gauge(value: 1.0 - d / 30.0) {
-                    Text("J")
-                        .font(.system(size: 7, weight: .black, design: .rounded))
-                        .foregroundStyle(Color.judithAccent)
+                    gaugeLabel
                 } currentValueLabel: {
-                    Text(bill.dueDays <= 0 ? "!" : "\(bill.dueDays)")
-                        .font(.system(.body, weight: .bold, design: .monospaced))
-                        .foregroundStyle(bill.urgency.color)
+                    gaugeValue
                 }
                 .gaugeStyle(.accessoryCircular)
                 .tint(bill.urgency.color)
@@ -314,13 +316,13 @@ private struct LockRectangularView: View {
                     }
 
                     Text(bill.provider)
-                        .font(.system(.footnote, weight: .bold, design: .rounded))
+                        .font(.system(Font.TextStyle.footnote, weight: .bold, design: .rounded))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
 
                     HStack(spacing: 3) {
                         Text(bill.amountDisplay(currency: entry.currency))
-                            .font(.system(.callout, weight: .black, design: .monospaced))
+                            .font(.system(Font.TextStyle.callout, weight: .black, design: .monospaced))
                             .foregroundStyle(bill.urgency.color)
                         Spacer()
                         Text("\(entry.unpaidCount) due")
@@ -329,7 +331,7 @@ private struct LockRectangularView: View {
                     }
                 } else {
                     Text("All bills paid!")
-                        .font(.system(.footnote, weight: .bold, design: .rounded))
+                        .font(.system(Font.TextStyle.footnote, weight: .bold, design: .rounded))
                         .foregroundStyle(Color.judithAccent)
                     Text("You're on top of it.")
                         .font(.system(size: 9, design: .rounded))
@@ -379,14 +381,14 @@ private struct BillRow: View {
                 .padding(.trailing, 8)
 
             Text(bill.provider)
-                .font(.system(.caption, weight: .semibold, design: .rounded))
+                .font(.system(Font.TextStyle.caption, weight: .semibold, design: .rounded))
                 .foregroundStyle(Color.txtHi)
                 .lineLimit(1)
 
             Spacer(minLength: 4)
 
             Text(bill.amountDisplay(currency: currency))
-                .font(.system(.caption, weight: .bold, design: .monospaced))
+                .font(.system(Font.TextStyle.caption, weight: .bold, design: .monospaced))
                 .foregroundStyle(Color.txtHi)
                 .lineLimit(1)
 
@@ -460,10 +462,10 @@ private struct AllPaidView: View {
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text("All bills paid!")
-                    .font(.system(.callout, weight: .bold, design: .rounded))
+                    .font(.system(Font.TextStyle.callout, weight: .bold, design: .rounded))
                     .foregroundStyle(Color.judithAccent)
                 Text("Nothing due right now.")
-                    .font(.system(.caption2, design: .rounded))
+                    .font(.system(Font.TextStyle.caption2, design: .rounded))
                     .foregroundStyle(Color.txtLow)
             }
         }
