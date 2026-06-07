@@ -26,7 +26,7 @@ struct AskView: View {
                     judithAvatar
 
                     Text("Ask Judith")
-                        .font(.system(.headline, design: .rounded, weight: .bold))
+                        .font(.system(.headline, design: .rounded).weight(.bold))
                         .foregroundStyle(Color.txtHi)
 
                     TextField("What do you want to know?", text: $query, axis: .vertical)
@@ -46,7 +46,7 @@ struct AskView: View {
                             Text(query.trimmingCharacters(in: .whitespaces).isEmpty
                                  ? "Dictate" : "Ask")
                         }
-                        .font(.system(.footnote, design: .rounded, weight: .semibold))
+                        .font(.system(.footnote, design: .rounded).weight(.semibold))
                         .foregroundStyle(.black)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
@@ -79,7 +79,7 @@ struct AskView: View {
                         HStack(spacing: 6) {
                             judithAvatar.scaleEffect(0.6)
                             Text("Judith")
-                                .font(.system(.caption2, design: .rounded, weight: .semibold))
+                                .font(.system(.caption2, design: .rounded).weight(.semibold))
                                 .foregroundStyle(Color.judithAccent)
                         }
 
@@ -104,7 +104,7 @@ struct AskView: View {
                                 query     = ""
                                 viewState = .idle
                             }
-                            .font(.system(.caption2, design: .rounded, weight: .semibold))
+                            .font(.system(.caption2, design: .rounded).weight(.semibold))
                             .tint(Color.judithAccent)
                         }
                         .padding(.top, 4)
@@ -128,7 +128,7 @@ struct AskView: View {
                     }
                     .buttonStyle(.bordered)
                     .tint(Color.judithAccent)
-                    .font(.system(.caption2, design: .rounded, weight: .semibold))
+                    .font(.system(.caption2, design: .rounded).weight(.semibold))
                 }
             }
             .padding(.bottom, 16)

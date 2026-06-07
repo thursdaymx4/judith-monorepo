@@ -75,11 +75,11 @@ struct NotificationView: View {
                             startPoint: .topLeading, endPoint: .bottomTrailing))
                         .frame(width: 24, height: 24)
                     Text("J")
-                        .font(.system(size: 13, design: .rounded, weight: .bold))
+                        .font(.system(size: 13, design: .rounded).weight(.bold))
                         .foregroundStyle(.white)
                 }
                 Text("Judith")
-                    .font(.system(.caption, design: .rounded, weight: .semibold))
+                    .font(.system(.caption, design: .rounded).weight(.semibold))
                     .foregroundStyle(Color.txtHi)
                 Spacer()
                 Text("now")
@@ -95,7 +95,7 @@ struct NotificationView: View {
             if let b = bill {
                 VStack(spacing: 6) {
                     Text(b.provider)
-                        .font(.system(.headline, design: .rounded, weight: .bold))
+                        .font(.system(.headline, design: .rounded).weight(.bold))
                         .foregroundStyle(Color.txtHi)
                         .multilineTextAlignment(.center)
 
@@ -105,7 +105,7 @@ struct NotificationView: View {
 
                     if !b.amountDisplay.isEmpty {
                         Text(b.amountDisplay)
-                            .font(.system(size: 28, design: .monospaced, weight: .bold))
+                            .font(.system(size: 28, design: .monospaced).weight(.bold))
                             .foregroundStyle(Color.txtHi)
                             .padding(.top, 2)
                     }

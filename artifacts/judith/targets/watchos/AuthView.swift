@@ -19,12 +19,12 @@ struct AuthView: View {
                         startPoint: .topLeading, endPoint: .bottomTrailing))
                     .frame(width: 52, height: 52)
                 Text("J")
-                    .font(.system(size: 24, design: .rounded, weight: .bold))
+                    .font(.system(size: 24, design: .rounded).weight(.bold))
                     .foregroundStyle(.white)
             }
 
             Text("Judith")
-                .font(.system(.headline, design: .rounded, weight: .bold))
+                .font(.system(.headline, design: .rounded).weight(.bold))
                 .foregroundStyle(Color.txtHi)
 
             Text("Open Judith on your iPhone to sync\(String(repeating: ".", count: dotCount))")

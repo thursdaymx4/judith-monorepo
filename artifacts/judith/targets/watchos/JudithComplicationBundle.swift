@@ -86,7 +86,7 @@ private struct CircularView: View {
                     EmptyView()
                 } currentValueLabel: {
                     Text("\(entry.paidCount)/\(entry.totalCount)")
-                        .font(.system(size: 11, design: .monospaced, weight: .bold))
+                        .font(.system(size: 11, design: .monospaced).weight(.bold))
                 }
                 .gaugeStyle(.accessoryCircular)
                 .tint(Color.judithAccent)
@@ -142,7 +142,7 @@ private struct RectangularView: View {
         VStack(alignment: .leading, spacing: 3) {
             HStack {
                 Text("JUDITH")
-                    .font(.system(size: 8, design: .rounded, weight: .black))
+                    .font(.system(size: 8, design: .rounded).weight(.black))
                     .foregroundStyle(Color.judithAccent)
                 Spacer()
                 Text("\(entry.paidCount)/\(entry.totalCount) paid")
@@ -153,7 +153,7 @@ private struct RectangularView: View {
             Text(entry.unpaidCount == 0
                  ? "All paid up!"
                  : "\(entry.currency)\(String(format: "%.0f", entry.totalOwed)) due")
-                .font(.system(.callout, design: .monospaced, weight: .bold))
+                .font(.system(.callout, design: .monospaced).weight(.bold))
                 .foregroundStyle(entry.unpaidCount == 0 ? Color.judithAccent : .primary)
                 .lineLimit(1)
 

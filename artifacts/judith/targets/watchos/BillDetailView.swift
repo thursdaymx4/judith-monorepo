@@ -27,7 +27,7 @@ struct BillDetailView: View {
 
                 // Provider name
                 Text(bill.provider)
-                    .font(.system(.headline, design: .rounded, weight: .bold))
+                    .font(.system(.headline, design: .rounded).weight(.bold))
                     .foregroundStyle(Color.txtHi)
                     .multilineTextAlignment(.center)
                     .padding(.top, 8)
@@ -35,7 +35,7 @@ struct BillDetailView: View {
 
                 // Amount — big mono
                 Text(bill.amountDisplay(currency: currency))
-                    .font(.system(size: 36, design: .monospaced, weight: .bold))
+                    .font(.system(size: 36, design: .monospaced).weight(.bold))
                     .foregroundStyle(Color.txtHi)
                     .padding(.top, 6)
 
@@ -60,7 +60,7 @@ struct BillDetailView: View {
                             Image(systemName: "checkmark.circle.fill")
                         }
                         Text(marking ? "Marking…" : "Mark paid")
-                            .font(.system(.body, design: .rounded, weight: .semibold))
+                            .font(.system(.body, design: .rounded).weight(.semibold))
                     }
                     .foregroundStyle(.black)
                     .frame(maxWidth: .infinity)
@@ -103,7 +103,7 @@ private struct UrgencyBadge: View {
     let urgency: Urgency
     var body: some View {
         Text(urgency.label)
-            .font(.system(size: 9, design: .rounded, weight: .semibold))
+            .font(.system(size: 9, design: .rounded).weight(.semibold))
             .foregroundStyle(.black)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
