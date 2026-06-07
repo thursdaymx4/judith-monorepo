@@ -247,9 +247,8 @@ function normalizeLang(language?: string): string {
  * Falls back to the raw English key for unsupported languages — the English
  * keys ("Electricity", "Water" …) are universally readable as-is.
  */
-export function getCategoryLabel(cat: string, language?: string): string {
-  const lang = normalizeLang(language);
-  return CATEGORY_LABELS[lang]?.[cat] ?? cat;
+export function getCategoryLabel(cat: string, _language?: string): string {
+  return cat;
 }
 
 /**
