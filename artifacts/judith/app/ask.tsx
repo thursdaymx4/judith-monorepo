@@ -934,9 +934,9 @@ export default function AskModal() {
             onPress={() => { setNewQText(""); setAddQVisible(true); }}
             style={{
               flexDirection: "row", alignItems: "center", gap: 5,
-              borderWidth: 1, borderColor: t.accent, borderRadius: 22,
+              borderWidth: 1.5, borderColor: t.accent, borderRadius: 22,
               paddingVertical: 8, paddingHorizontal: 14,
-              backgroundColor: mix(t.accent, t.canvas, 0.9),
+              backgroundColor: t.canvas,
             }}
           >
             <Icon name="plus" size={13} color={t.accent} />
