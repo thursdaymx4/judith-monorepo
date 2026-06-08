@@ -4939,7 +4939,7 @@ function ScreenFeature2({ ctx }: { ctx: Ctx }) {
       q={getDLocal(ctx.country.cur, ctx.country.code).askQ2}
       a={getDLocal(ctx.country.cur, ctx.country.code).askA2}
       mood="proud"
-      templateQ="What’s my next bill coming up?"
+      templateQ="What’s the total bill for my water, electricity and internet this month?"
     />
   );
 }
