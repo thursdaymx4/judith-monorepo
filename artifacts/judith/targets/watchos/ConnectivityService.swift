@@ -78,12 +78,28 @@ final class ConnectivityService: NSObject, WCSessionDelegate, ObservableObject {
         // Optimistic update first — phone will confirm with a fresh payload push
         Task { @MainActor in store?.optimisticallyMarkPaid(billId: billId) }
 
-        guard WCSession.default.isReachable else { return }
-        WCSession.default.sendMessage(
-            ["action": "markPaid", "billId": billId],
-            replyHandler: nil,
-            errorHandler: nil
-        )
+        let payload: [String: Any] = ["action": "markPaid", "billId": billId]
+
+        if WCSession.default.isReachable {
+            // sendMessage requires a non-nil replyHandler so the phone receives it
+            // via session(_:didReceiveMessage:replyHandler:) — the channel that
+            // react-native-watch-connectivity's addMessageListener is hooked to.
+            // With replyHandler: nil the phone gets session(_:didReceiveMessage:)
+            // which is NOT forwarded to JS, so markPaid would silently be dropped.
+            WCSession.default.sendMessage(
+                payload,
+                replyHandler: { _ in }, // reply ignored — we just need the channel
+                errorHandler: { _ in
+                    // sendMessage failed (e.g. phone locked mid-call) — fall back
+                    // to the background queue; phone handles it via "user-info" event.
+                    WCSession.default.transferUserInfo(payload)
+                }
+            )
+        } else {
+            // Phone not reachable right now — deliver in the background.
+            // useWatchMessages.ts channel 2 handles this via the "user-info" event.
+            WCSession.default.transferUserInfo(payload)
+        }
     }
 
     // MARK: — Private
