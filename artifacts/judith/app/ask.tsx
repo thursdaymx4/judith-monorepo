@@ -940,7 +940,7 @@ export default function AskModal() {
             }}
           >
             <Icon name="plus" size={13} color={t.accent} />
-            <Txt size={13} weight="medium" color={t.accent}>Add</Txt>
+            <Txt size={13} weight="medium" color={t.accent}>Add question</Txt>
           </Pressable>
 
           {/* user-created questions first */}
