@@ -4504,18 +4504,84 @@ function FeatureShell({
   const started = messages.length > 0 || askMode !== "idle";
 
   /* bills context for the AI (from onboarding store) */
-  const billsCtx = useMemo(
-    () =>
-      bills.map((b) => ({
-        provider: b.provider,
-        cat:      b.cat,
-        amount:   b.amount,
-        dueDays:  b.dueDays,
-        dueLabel: b.due,
-        status:   "unpaid",
-      })),
-    [bills],
-  );
+  const billsCtx = useMemo(() => {
+    const MS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const today = new Date();
+    const todayDay = today.getDate();
+    const yr = today.getFullYear();
+    const mo = today.getMonth(); // 0-indexed
+
+    const result: Array<{
+      provider: string; cat: string; amount: number;
+      dueDays: number; dueLabel: string; dueMonth: string;
+      status: string; isProjection?: boolean;
+    }> = [];
+
+    for (const b of bills) {
+      const parsedDay = parseInt(b.due, 10);
+      const isMonthly = b.frequency !== "annual";
+      const validDay = Number.isFinite(parsedDay) && parsedDay >= 1 && parsedDay <= 31;
+
+      if (!validDay || !isMonthly) {
+        // Annual or day unknown — pass through as-is
+        result.push({
+          provider: b.provider, cat: b.cat, amount: b.amount,
+          dueDays: b.dueDays, dueLabel: b.due,
+          dueMonth: `${yr}-${String(mo + 1).padStart(2, "0")}`,
+          status: "unpaid",
+        });
+        continue;
+      }
+
+      // Compute current-cycle occurrence
+      const daysInCur = new Date(yr, mo + 1, 0).getDate();
+      const dayInCur  = Math.min(parsedDay, daysInCur);
+      const passed    = dayInCur < todayDay;
+
+      let dueDays: number, dueMonth: string, dueLabel: string;
+
+      if (passed) {
+        // Due date already passed → current cycle is next calendar month
+        const nm = (mo + 1) % 12;
+        const ny = mo === 11 ? yr + 1 : yr;
+        const daysInNxt = new Date(ny, nm + 1, 0).getDate();
+        const dayInNxt  = Math.min(parsedDay, daysInNxt);
+        dueDays   = (daysInCur - todayDay) + dayInNxt;
+        dueMonth  = `${ny}-${String(nm + 1).padStart(2, "0")}`;
+        dueLabel  = `${MS[nm]} ${dayInNxt}`;
+      } else {
+        // Due date still upcoming this month
+        dueDays  = dayInCur - todayDay;
+        dueMonth = `${yr}-${String(mo + 1).padStart(2, "0")}`;
+        dueLabel = `${MS[mo]} ${dayInCur}`;
+      }
+
+      result.push({
+        provider: b.provider, cat: b.cat, amount: b.amount,
+        dueDays, dueLabel, dueMonth, status: "unpaid",
+      });
+
+      // Add projection entry for the NEXT cycle month so the AI can answer
+      // "what's my total bill next month?" — recurring bills project forward.
+      const [pYr, pMo1] = dueMonth.split("-").map(Number) as [number, number];
+      const projMo0 = pMo1 % 12; // 0-indexed month after current cycle
+      const projYr  = projMo0 === 0 ? pYr + 1 : pYr;
+      const daysInProj = new Date(projYr, projMo0 + 1, 0).getDate();
+      const dayInProj  = Math.min(parsedDay, daysInProj);
+      const projDate   = new Date(projYr, projMo0, dayInProj);
+      const projDueDays = Math.round((projDate.getTime() - today.getTime()) / 86_400_000);
+      const projMonth  = `${projYr}-${String(projMo0 + 1).padStart(2, "0")}`;
+      const projLabel  = `${MS[projMo0]} ${dayInProj}`;
+
+      result.push({
+        provider: b.provider, cat: b.cat, amount: b.amount,
+        dueDays: projDueDays, dueLabel: projLabel, dueMonth: projMonth,
+        status: "upcoming", isProjection: true,
+      });
+    }
+
+    return result;
+  }, [bills]);
 
   const doAsk = async (text: string) => {
     const q2 = text.trim();
