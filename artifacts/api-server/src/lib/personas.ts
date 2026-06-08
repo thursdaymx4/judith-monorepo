@@ -36,8 +36,19 @@ export const PHILIPPINE_ENGLISH_VOICE_IDS: Record<PersonaId, string> = {
   britney: "Xb7hH8MSUJpSbSDYk0k2",
 };
 
-/** Philippine language codes that should use Filipino native-speaker voices. */
-const FILIPINO_FAMILY = new Set(["fil", "ceb", "ilo", "hil"]);
+/**
+ * Philippine language codes that should use Filipino native-speaker voices.
+ * Includes Cebuano/Ilocano/Ilonggo — ElevenLabs has no dedicated voices for
+ * those languages, so the Filipino-accented voices are the closest match.
+ */
+const FILIPINO_VOICES = new Set(["fil", "ceb", "ilo", "hil"]);
+
+/**
+ * Codes that should receive the Taglish/Filipino *language instruction*.
+ * Cebuano, Ilocano, Ilonggo are NOT Tagalog — they get their own language
+ * rules via LANGUAGE_NAMES below, using the Filipino voices above.
+ */
+const TAGLISH_FAMILY = new Set(["fil"]);
 
 /** ISO-3166-1 alpha-2 codes we consider "Philippines". */
 const PHILIPPINES_CODES = new Set(["PH", "ph"]);
@@ -49,8 +60,8 @@ const PHILIPPINES_CODES = new Set(["PH", "ph"]);
  * - Everything else → standard default voices
  */
 export function getVoiceId(persona: PersonaId, language?: string, countryCode?: string): string {
-  if (language && FILIPINO_FAMILY.has(language)) return FILIPINO_VOICE_IDS[persona];
-  if (countryCode && PHILIPPINES_CODES.has(countryCode) && language && !FILIPINO_FAMILY.has(language)) {
+  if (language && FILIPINO_VOICES.has(language)) return FILIPINO_VOICE_IDS[persona];
+  if (countryCode && PHILIPPINES_CODES.has(countryCode) && language && !FILIPINO_VOICES.has(language)) {
     return PHILIPPINE_ENGLISH_VOICE_IDS[persona];
   }
   return DEFAULT_VOICE_IDS[persona];
@@ -186,6 +197,9 @@ const LANGUAGE_NAMES: Record<string, string> = {
   "en-US-GA": "English",
   "en-US-MW": "English",
   "en-US-SV": "English",
+  ceb: "Cebuano",
+  ilo: "Ilocano",
+  hil: "Ilonggo (Hiligaynon)",
   es: "Spanish",
   id: "Indonesian (Bahasa Indonesia)",
   vi: "Vietnamese",
@@ -232,7 +246,7 @@ function usRegionalFlavor(lang: string): string {
 function languageInstruction(language?: string): string {
   const lang = (language ?? "fil").toLowerCase();
 
-  if (FILIPINO_FAMILY.has(lang) || lang === "fil" || !language) {
+  if (TAGLISH_FAMILY.has(lang) || lang === "fil" || !language) {
     return `LANGUAGE RULES (strict):
 - Speak in Tagalog / natural Taglish (around 85-90% Filipino words)
 - Use natural particles and contractions: ha, 'di ba, naman, pa, na, nga, lang, muna, pala, kasi
@@ -270,8 +284,8 @@ export function systemPrompt(persona: PersonaId, language?: string, countryName?
   const location = countryName ?? "the Philippines";
   const cur = currency ?? "₱";
   const lang = (language ?? "fil").toLowerCase();
-  const isPhilippineEnglish = countryCode && PHILIPPINES_CODES.has(countryCode) && !FILIPINO_FAMILY.has(lang) && !!language;
-  const isFilipinoLang = FILIPINO_FAMILY.has(lang) || lang === "fil" || !language;
+  const isPhilippineEnglish = countryCode && PHILIPPINES_CODES.has(countryCode) && !FILIPINO_VOICES.has(lang) && !!language;
+  const isFilipinoLang = TAGLISH_FAMILY.has(lang) || lang === "fil" || !language;
   const langName = isFilipinoLang ? null : (LANGUAGE_NAMES[lang] ?? lang.toUpperCase());
 
   // For non-Filipino languages, add a terse mandatory-language line at the very
