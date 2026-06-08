@@ -1,9 +1,10 @@
 import SwiftUI
 import UserNotifications
 
-// NOTE: @main lives in JudithComplicationBundle.swift so the WidgetBundle
-// can be the module entry point (watchOS 9+). The App struct is still found
-// by the runtime because it conforms to the App protocol in the same target.
+// NOTE: @main is here on the App struct. JudithComplicationBundle (WidgetBundle)
+// has no @main — watchOS 9+ auto-discovers Widget types in the same target as
+// complications without needing the bundle to be the module entry point.
+@main
 struct JudithWatchApp: App {
 
     @StateObject private var store        = WatchStore()

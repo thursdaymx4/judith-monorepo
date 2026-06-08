@@ -225,11 +225,10 @@ struct JudithComplication: Widget {
     }
 }
 
-// MARK: — Bundle (@main lives here; JudithWatchApp has no @main)
-// In watchOS 9+, a WidgetBundle can be the module entry point while the
-// App struct in the same target still provides the watch app UI.
+// MARK: — Bundle (no @main — JudithWatchApp is the module entry point)
+// watchOS 9+ auto-discovers Widget types declared in the same target as
+// complications. No @main needed here; the App struct drives the lifecycle.
 
-@main
 struct JudithComplicationBundle: WidgetBundle {
     var body: some Widget {
         JudithComplication()
