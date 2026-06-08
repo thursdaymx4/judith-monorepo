@@ -183,7 +183,7 @@ var PERSONA_SPEED = {
   sarcastic: 0.92,
   mom: 0.92,
   marites: 1.12,
-  // perky, fast-talking tsismosa energy
+  // perky, fast-talking gossip-friend energy
   britney: 0.97
   // crisp and deliberate — every word counts
 };
@@ -299,11 +299,12 @@ function cacheLanguageGroup(lang) {
   return lang;
 }
 var SAMPLE_PREFIX = "persona-sample";
-async function setSampleAudio(persona, lang, audioBase64) {
+async function setSampleAudio(persona, lang, audioBase64, countryCode) {
   const bucket = getBucket();
   if (!bucket) return;
   try {
-    const key = `${SAMPLE_PREFIX}/${persona}/${cacheLanguageGroup(lang)}.mp3`;
+    const langSlot = `${cacheLanguageGroup(lang)}${countryCode ? `_${countryCode}` : ""}`;
+    const key = `${SAMPLE_PREFIX}/${persona}/${langSlot}.mp3`;
     const buf = Buffer.from(audioBase64, "base64");
     await bucket.file(key).save(buf, {
       resumable: false,
@@ -338,6 +339,7 @@ var BASE_PERSONAS = [
   "funny",
   "sarcastic",
   "mom",
+  "marites",
   "britney"
 ];
 var EN_TEXT = {
