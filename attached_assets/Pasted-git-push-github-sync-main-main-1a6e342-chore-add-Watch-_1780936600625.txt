@@ -1,0 +1,38 @@
+git push github-sync main
+[main 1a6e342] chore: add Watch/widget assets, lock OTA deps (npmrc + lockfile)
+ 31 files changed, 807 insertions(+), 1 deletion(-)
+ create mode 100644 artifacts/judith/targets/watchos/Assets.xcassets/AppIcon.appiconset/App-Icon-1024x1024@1x.png
+ create mode 100644 artifacts/judith/targets/watchos/Assets.xcassets/AppIcon.appiconset/Contents.json
+ create mode 100644 artifacts/judith/targets/watchos/generated.entitlements
+ create mode 100644 artifacts/judith/targets/widget/Assets.xcassets/AppIcon.appiconset/App-Icon-20x20@1x.png
+ create mode 100644 artifacts/judith/targets/widget/Assets.xcassets/AppIcon.appiconset/App-Icon-20x20@2x.png
+ create mode 100644 artifacts/judith/targets/widget/Assets.xcassets/AppIcon.appiconset/App-Icon-20x20@3x.png
+ create mode 100644 artifacts/judith/targets/widget/Assets.xcassets/AppIcon.appiconset/App-Icon-29x29@1x.png
+ create mode 100644 artifacts/judith/targets/widget/Assets.xcassets/AppIcon.appiconset/App-Icon-29x29@2x.png
+ create mode 100644 artifacts/judith/targets/widget/Assets.xcassets/AppIcon.appiconset/App-Icon-29x29@3x.png
+ create mode 100644 artifacts/judith/targets/widget/Assets.xcassets/AppIcon.appiconset/App-Icon-40x40@1x.png
+ create mode 100644 artifacts/judith/targets/widget/Assets.xcassets/AppIcon.appiconset/App-Icon-40x40@2x.png
+ create mode 100644 artifacts/judith/targets/widget/Assets.xcassets/AppIcon.appiconset/App-Icon-40x40@3x.png
+ create mode 100644 artifacts/judith/targets/widget/Assets.xcassets/AppIcon.appiconset/App-Icon-60x60@2x.png
+ create mode 100644 artifacts/judith/targets/widget/Assets.xcassets/AppIcon.appiconset/App-Icon-60x60@3x.png
+ create mode 100644 artifacts/judith/targets/widget/Assets.xcassets/AppIcon.appiconset/App-Icon-76x76@1x.png
+ create mode 100644 artifacts/judith/targets/widget/Assets.xcassets/AppIcon.appiconset/App-Icon-76x76@2x.png
+ create mode 100644 artifacts/judith/targets/widget/Assets.xcassets/AppIcon.appiconset/App-Icon-83.5x83.5@2x.png
+ create mode 100644 artifacts/judith/targets/widget/Assets.xcassets/AppIcon.appiconset/Contents.json
+ create mode 100644 artifacts/judith/targets/widget/Assets.xcassets/AppIcon.appiconset/ItunesArtwork@2x.png
+ create mode 100644 artifacts/judith/targets/widget/Info.plist
+ create mode 100644 artifacts/judith/targets/widget/generated.entitlements
+ create mode 100644 watch-app/JudithWatch/BillDetailView.swift
+ create mode 100644 watch-app/JudithWatch/JudithWatchApp.swift
+ create mode 100644 watch-app/JudithWatch/MarkedPaidView.swift
+ create mode 100644 watch-app/JudithWatch/WatchModels.swift
+ create mode 100644 watch-app/JudithWatch/WatchSync.swift
+ create mode 100644 watch-app/JudithWatch/WatchTheme.swift
+ create mode 100644 watch-app/JudithWidgets/JudithWidgets.swift
+ create mode 100644 watch-app/WATCH_BUILD.md
+fatal: 'github-sync' does not appear to be a git repository
+fatal: Could not read from remote repository.
+
+Please make sure you have the correct access rights
+and the repository exists.
+carlocanieso@Carlos-Mac-Studio judith-monorepo % 
