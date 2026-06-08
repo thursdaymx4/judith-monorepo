@@ -3551,7 +3551,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                   <FieldLabel>Due date</FieldLabel>
                   <Pressable
                     onPress={() => { setShowDayPicker(true); haptics.selection(); }}
-                    style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderWidth: 1, borderColor: t.hair, borderRadius: t.radius.sm, paddingHorizontal: 12, paddingVertical: 11, backgroundColor: t.surface2 }}
+                    style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderWidth: 1, borderColor: t.hair, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: t.surface1 }}
                   >
                     <Txt size={14} color={form.due ? t.txtHi : t.txtLow}>
                       {form.due ? ordinal(parseInt(form.due, 10)) : "Pick a day"}
@@ -4047,7 +4047,11 @@ function MicBtn({ live, onPress }: { live?: boolean; onPress?: () => void }) {
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   const t = useTheme();
-  return <Txt size={12} color={t.txtMid} style={{ marginBottom: 6 }}>{children}</Txt>;
+  return (
+    <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6, marginBottom: 9 }}>
+      <Txt size={13} weight="semibold" color={t.txtMid}>{children}</Txt>
+    </View>
+  );
 }
 
 function Input({
