@@ -1,0 +1,132 @@
+carlocanieso@Carlos-Mac-Studio judith % git stash
+Saved working directory and index state WIP on main: b2d2416 Improve onboarding flow for bill selection and transitions
+carlocanieso@Carlos-Mac-Studio judith % git pull --rebase origin main
+remote: Enumerating objects: 91, done.
+remote: Counting objects: 100% (91/91), done.
+remote: Compressing objects: 100% (16/16), done.
+remote: Total 69 (delta 53), reused 69 (delta 53), pack-reused 0 (from 0)
+Unpacking objects: 100% (69/69), 1.51 MiB | 1.91 MiB/s, done.
+From https://github.com/thursdaymx4/judith-monorepo
+ * branch            main       -> FETCH_HEAD
+   42ddc6a..ff3652e  main       -> origin/main
+Updating b2d2416..ff3652e
+Fast-forward
+ .replit                                                               |  15 +
+ artifacts/api-server/build-pregen.mjs                                 |   5 +-
+ artifacts/api-server/dist-pregen/pregen-onb-voice.mjs                 |  86 ++--
+ artifacts/api-server/dist-pregen/pregen-onb-voice.mjs.map             |   4 +-
+ artifacts/api-server/dist-pregen/pregen-persona-samples.mjs           | 666 +++++++++++++++++++++++++++
+ artifacts/api-server/dist-pregen/pregen-persona-samples.mjs.map       |   7 +
+ artifacts/api-server/package.json                                     |   3 +-
+ artifacts/api-server/scripts/pregen-onb-voice.ts                      | 178 ++++----
+ artifacts/api-server/scripts/pregen-persona-samples.ts                | 534 ++++++++++++++++++++++
+ artifacts/api-server/src/lib/audioCache.ts                            |  60 +++
+ artifacts/api-server/src/lib/personas.ts                              |  40 +-
+ artifacts/api-server/src/middleware/rateLimit.ts                      |   4 +-
+ artifacts/api-server/src/routes/judith.ts                             |  58 ++-
+ artifacts/judith/app.json                                             |   7 +
+ artifacts/judith/app/(onboarding)/index.tsx                           | 770 +++++++++++++++++++-------------
+ artifacts/judith/app/(tabs)/settings.tsx                              |  70 ++-
+ artifacts/judith/app/ask.tsx                                          | 113 ++++-
+ artifacts/judith/components/JudithAvatar.tsx                          |   2 +
+ artifacts/judith/constants/personas.ts                                |   9 +-
+ artifacts/judith/constants/theme.ts                                   |   1 +
+ artifacts/judith/constants/voiceLines.ts                              |  70 ++-
+ artifacts/judith/contexts/JudithStore.tsx                             |   9 +
+ artifacts/judith/eas.json                                             |   3 +
+ artifacts/judith/lib/proxy.ts                                         |  70 ++-
+ artifacts/judith/metro.config.js                                      |  14 +
+ artifacts/judith/package.json                                         |   3 +-
+ attached_assets/IMG_4280_1780896503301.png                            | Bin 0 -> 247720 bytes
+ attached_assets/IMG_4281_1780896703246.png                            | Bin 0 -> 260729 bytes
+ attached_assets/IMG_4282_1780896983185.png                            | Bin 0 -> 679221 bytes
+ attached_assets/IMG_4283_1780897223367.png                            | Bin 0 -> 257038 bytes
+ attached_assets/IMG_4284_1780897284484.png                            | Bin 0 -> 216251 bytes
+ attached_assets/IMG_4287_1780898270851.png                            | Bin 0 -> 256062 bytes
+ attached_assets/IMG_4289_1780898511266.png                            | Bin 0 -> 176450 bytes
+ attached_assets/IMG_4290_1780898856373.png                            | Bin 0 -> 175763 bytes
+ attached_assets/IMG_4291_1780899090791.png                            | Bin 0 -> 160955 bytes
+ attached_assets/IMG_4292_1780899162633.png                            | Bin 0 -> 185068 bytes
+ attached_assets/IMG_4293_1780899470801.png                            | Bin 0 -> 568416 bytes
+ attached_assets/IMG_4294_1780900228032.png                            | Bin 0 -> 242090 bytes
+ attached_assets/IMG_4296_1780901604873.png                            | Bin 0 -> 175666 bytes
+ attached_assets/IMG_4298_1780902524048.jpeg                           | Bin 0 -> 126903 bytes
+ attached_assets/IMG_4299_1780902642405.jpeg                           | Bin 0 -> 81161 bytes
+ attached_assets/IMG_4300_1780903834773.png                            | Bin 0 -> 840399 bytes
+ attached_assets/IMG_4301_1780903956838.jpeg                           | Bin 0 -> 82009 bytes
+ attached_assets/IMG_4302_1780905110096.png                            | Bin 0 -> 349464 bytes
+ attached_assets/IMG_4321_1780913093493.PNG                            | Bin 0 -> 364803 bytes
+ attached_assets/IMG_4322_1780913093492.PNG                            | Bin 0 -> 266976 bytes
+ ...nieso-Carlos-Mac-Studio-judith-git-pull-origin-m_1780910174801.txt |  40 ++
+ attached_assets/Screenshot_2026-06-08_at_5.43.20_PM_1780911812549.png | Bin 0 -> 516731 bytes
+ attached_assets/Screenshot_2026-06-08_at_5.49.11_PM_1780912162472.png | Bin 0 -> 195922 bytes
+ attached_assets/Screenshot_2026-06-08_at_6.08.48_PM_1780913335698.png | Bin 0 -> 423781 bytes
+ pnpm-lock.yaml                                                        |  75 ++++
+ 51 files changed, 2439 insertions(+), 477 deletions(-)
+ create mode 100644 artifacts/api-server/dist-pregen/pregen-persona-samples.mjs
+ create mode 100644 artifacts/api-server/dist-pregen/pregen-persona-samples.mjs.map
+ create mode 100644 artifacts/api-server/scripts/pregen-persona-samples.ts
+ create mode 100644 attached_assets/IMG_4280_1780896503301.png
+ create mode 100644 attached_assets/IMG_4281_1780896703246.png
+ create mode 100644 attached_assets/IMG_4282_1780896983185.png
+ create mode 100644 attached_assets/IMG_4283_1780897223367.png
+ create mode 100644 attached_assets/IMG_4284_1780897284484.png
+ create mode 100644 attached_assets/IMG_4287_1780898270851.png
+ create mode 100644 attached_assets/IMG_4289_1780898511266.png
+ create mode 100644 attached_assets/IMG_4290_1780898856373.png
+ create mode 100644 attached_assets/IMG_4291_1780899090791.png
+ create mode 100644 attached_assets/IMG_4292_1780899162633.png
+ create mode 100644 attached_assets/IMG_4293_1780899470801.png
+ create mode 100644 attached_assets/IMG_4294_1780900228032.png
+ create mode 100644 attached_assets/IMG_4296_1780901604873.png
+ create mode 100644 attached_assets/IMG_4298_1780902524048.jpeg
+ create mode 100644 attached_assets/IMG_4299_1780902642405.jpeg
+ create mode 100644 attached_assets/IMG_4300_1780903834773.png
+ create mode 100644 attached_assets/IMG_4301_1780903956838.jpeg
+ create mode 100644 attached_assets/IMG_4302_1780905110096.png
+ create mode 100644 attached_assets/IMG_4321_1780913093493.PNG
+ create mode 100644 attached_assets/IMG_4322_1780913093492.PNG
+ create mode 100644 attached_assets/Pasted-carlocanieso-Carlos-Mac-Studio-judith-git-pull-origin-m_1780910174801.txt
+ create mode 100644 attached_assets/Screenshot_2026-06-08_at_5.43.20_PM_1780911812549.png
+ create mode 100644 attached_assets/Screenshot_2026-06-08_at_5.49.11_PM_1780912162472.png
+ create mode 100644 attached_assets/Screenshot_2026-06-08_at_6.08.48_PM_1780913335698.png
+carlocanieso@Carlos-Mac-Studio judith % git stash pop
+Auto-merging artifacts/judith/app.json
+Auto-merging artifacts/judith/contexts/JudithStore.tsx
+Auto-merging artifacts/judith/package.json
+Auto-merging pnpm-lock.yaml
+CONFLICT (content): Merge conflict in pnpm-lock.yaml
+On branch main
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+	modified:   app.json
+	modified:   app/bills.tsx
+	modified:   app/devices.tsx
+	modified:   app/reminders.tsx
+	modified:   contexts/JudithStore.tsx
+	modified:   hooks/useWatchMessages.ts
+	new file:   lib/currentCycle.ts
+	modified:   lib/watch.ts
+	modified:   package.json
+	modified:   targets/watchos/AskView.swift
+	modified:   targets/watchos/Bill.swift
+
+Unmerged paths:
+  (use "git restore --staged <file>..." to unstage)
+  (use "git add <file>..." to mark resolution)
+	both modified:   ../../pnpm-lock.yaml
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	../../.local-bin/
+	targets/watchos/Assets.xcassets/
+	targets/watchos/generated.entitlements
+	targets/widget/Assets.xcassets/
+	targets/widget/Info.plist
+	targets/widget/generated.entitlements
+	../../watch-app/
+
+The stash entry is kept in case you need it again.
+carlocanieso@Carlos-Mac-Studio judith % git push origin main
+Everything up-to-date
+carlocanieso@Carlos-Mac-Studio judith % 
