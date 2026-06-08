@@ -230,14 +230,16 @@ const _settingsSampleCache = new Map<string, { text: string; audioBase64: string
 export async function fetchSample(
   persona: PersonaId,
   language?: string,
+  countryCode?: string,
 ): Promise<{ text: string; audioBase64: string; mime: string }> {
-  const cacheKey = `${persona}__${language ?? "en"}`;
+  const cacheKey = `${persona}__${language ?? "en"}__${countryCode ?? ""}`;
   const hit = _settingsSampleCache.get(cacheKey);
   if (hit) return hit;
 
   const headers = await authHeader();
   const lang = language ? `&language=${encodeURIComponent(language)}` : "";
-  const res = await fetch(`${BASE}/sample?persona=${PERSONA_MAP[persona]}${lang}`, {
+  const cc = countryCode ? `&countryCode=${encodeURIComponent(countryCode)}` : "";
+  const res = await fetch(`${BASE}/sample?persona=${PERSONA_MAP[persona]}${lang}${cc}`, {
     headers,
   });
   throwIfRateLimited(res);

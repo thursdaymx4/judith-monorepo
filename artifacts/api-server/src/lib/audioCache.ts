@@ -92,11 +92,13 @@ export async function setOnbAudio(
 export async function getSampleAudio(
   persona: string,
   lang: string,
+  countryCode?: string,
 ): Promise<{ base64: string; mime: string } | null> {
   const bucket = getBucket();
   if (!bucket) return null;
   try {
-    const key = `${SAMPLE_PREFIX}/${persona}/${cacheLanguageGroup(lang)}.mp3`;
+    const langSlot = `${cacheLanguageGroup(lang)}${countryCode ? `_${countryCode}` : ""}`;
+    const key = `${SAMPLE_PREFIX}/${persona}/${langSlot}.mp3`;
     const file = bucket.file(key);
     const [exists] = await file.exists();
     if (!exists) return null;
@@ -112,11 +114,13 @@ export async function setSampleAudio(
   persona: string,
   lang: string,
   audioBase64: string,
+  countryCode?: string,
 ): Promise<void> {
   const bucket = getBucket();
   if (!bucket) return;
   try {
-    const key = `${SAMPLE_PREFIX}/${persona}/${cacheLanguageGroup(lang)}.mp3`;
+    const langSlot = `${cacheLanguageGroup(lang)}${countryCode ? `_${countryCode}` : ""}`;
+    const key = `${SAMPLE_PREFIX}/${persona}/${langSlot}.mp3`;
     const buf = Buffer.from(audioBase64, "base64");
     await bucket.file(key).save(buf, {
       resumable: false,

@@ -1205,16 +1205,17 @@ router.get("/sample", sampleVoicesLimiter, async (req, res) => {
     if (!user) return;
     const persona = coercePersona(req.query["persona"]);
     const language = typeof req.query["language"] === "string" ? req.query["language"] : undefined;
+    const countryCode = typeof req.query["countryCode"] === "string" ? req.query["countryCode"] : undefined;
     const text = getSampleText(persona, language);
 
-    const cached = await getSampleAudio(persona, language ?? "en");
+    const cached = await getSampleAudio(persona, language ?? "en", countryCode);
     if (cached) {
       res.json({ text, audioBase64: cached.base64, mime: cached.mime });
       return;
     }
 
-    const audio = await synthesize(text, getVoiceId(persona, language), { live: false, speed: getSpeakingSpeed(persona) });
-    setSampleAudio(persona, language ?? "en", audio.base64).catch(() => {});
+    const audio = await synthesize(text, getVoiceId(persona, language, countryCode), { live: false, speed: getSpeakingSpeed(persona) });
+    setSampleAudio(persona, language ?? "en", audio.base64, countryCode).catch(() => {});
     res.json({ text, audioBase64: audio.base64, mime: audio.mime });
   } catch (err) {
     logger.error({ err }, "sample failed");

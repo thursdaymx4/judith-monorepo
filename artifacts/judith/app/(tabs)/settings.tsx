@@ -126,7 +126,7 @@ function SettingsLabel({ children }: { children: React.ReactNode }) {
 export default function SettingsScreen() {
   const t = useTheme();
   const router = useRouter();
-  const { persona, setPersona, language, setLanguage, toggles, setToggle, reduceMotion, setReduceMotion, asksLeft, tier, theme, setTheme, restart, loadDemoData, loadDemoAccount, money, bills, name, guest, country, setCountry, currency, setCurrency } =
+  const { persona, setPersona, language, setLanguage, toggles, setToggle, reduceMotion, setReduceMotion, asksLeft, tier, theme, setTheme, restart, loadDemoData, loadDemoAccount, money, bills, name, guest, country, setCountry, currency, setCurrency, countryCode } =
     useJudith();
   const { user } = useAuth();
   const email = user?.email ?? (guest ? "Guest account" : "—");
@@ -141,7 +141,7 @@ export default function SettingsScreen() {
     speakAbortRef.current = false;
     setSpeakingPersona(id);
     try {
-      const { audioBase64 } = await fetchSample(id, language);
+      const { audioBase64 } = await fetchSample(id, language, countryCode);
       if (speakAbortRef.current) return;
       await playBase64Mp3(audioBase64);
     } catch {
@@ -149,7 +149,7 @@ export default function SettingsScreen() {
     } finally {
       setSpeakingPersona((cur) => (cur === id ? null : cur));
     }
-  }, [speakingPersona, language]);
+  }, [speakingPersona, language, countryCode]);
 
   const subscribed = tier !== "free";
 
