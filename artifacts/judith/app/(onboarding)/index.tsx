@@ -3779,8 +3779,8 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
         })()}
         {mode === "more" && (
           <>
-            <Btn label="Yes, add another" icon="plus" onPress={() => { setManualReturn("more"); setMode("manualCats"); }} />
-            <Btn label="No, that’s everything" variant="soft" onPress={() => setMode("done")} />
+            <Btn label="Add another bill" icon="plus" onPress={() => { setManualReturn("more"); setMode("manualCats"); }} />
+            <Btn label="That’s everything →" variant="soft" onPress={() => setMode("done")} />
           </>
         )}
         {mode === "cardIntro" && (
