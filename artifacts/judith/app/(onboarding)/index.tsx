@@ -4464,6 +4464,7 @@ function FeatureShell({
   const [askMode,     setAskMode]     = useState<AskMode>("idle");
   const [askErr,      setAskErr]      = useState("");
   const [hasAnswered, setHasAnswered] = useState(false);
+  const [hadError,    setHadError]    = useState(false);
   const recorder   = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const scrollRef  = useRef<ScrollView>(null);
 
@@ -4566,8 +4567,9 @@ function FeatureShell({
     } catch {
       setMessages((m) => [
         ...m,
-        { role: "judith", text: "Sorry, I couldn\u2019t connect right now. Try again in a moment." },
+        { role: "judith", text: "Sorry, I couldn\u2019t connect right now." },
       ]);
+      setHadError(true);
     } finally {
       setAskMode("idle");
       requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
@@ -4718,8 +4720,8 @@ function FeatureShell({
       </Scroll>
 
       <CtaBar>
-        {/* ── mic row — hidden once Judith has answered ── */}
-        {!hasAnswered && (
+        {/* ── mic row — hidden once Judith has answered or errored ── */}
+        {!hasAnswered && !hadError && (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 }}>
             <Pressable
               onPress={listening ? stopRec : busy ? undefined : startRec}
@@ -4770,6 +4772,25 @@ function FeatureShell({
                 size={22}
                 color={listening ? "#fff" : busy ? t.txtLow : t.onAccent}
               />
+            </Pressable>
+          </View>
+        )}
+
+        {/* ── retry / skip after a connection error ── */}
+        {hadError && !busy && (
+          <View style={{ gap: 10 }}>
+            <Btn
+              label="Try again"
+              onPress={() => {
+                setMessages([]);
+                setHadError(false);
+                doAsk(templateQ);
+              }}
+            />
+            <Pressable onPress={next} style={{ alignItems: "center", paddingVertical: 8 }}>
+              <Low size={13} style={{ textDecorationLine: "underline" }}>
+                {dotIdx === 2 ? "Skip and finish" : "Skip for now"}
+              </Low>
             </Pressable>
           </View>
         )}
