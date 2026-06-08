@@ -4440,6 +4440,7 @@ function FeatureShell({
   mood,
   variant,
   templateQ,
+  idleState = "speaking",
 }: {
   ctx: Ctx;
   dotIdx: number;
@@ -4451,6 +4452,7 @@ function FeatureShell({
   mood: "warm" | "proud" | "joy";
   variant: 1 | 2 | 3;
   templateQ: string;
+  idleState?: "idle" | "speaking";
 }) {
   const { t, persona, language, next, bills } = ctx;
   const isFil = isFilipino(language);
@@ -4616,7 +4618,7 @@ function FeatureShell({
 
   const busy        = askMode === "thinking" || askMode === "speaking";
   const listening   = askMode === "listening";
-  const avatarState = listening ? "listening" : busy ? "speaking" : started ? "idle" : "speaking";
+  const avatarState = listening ? "listening" : busy ? "speaking" : started ? "idle" : idleState;
 
   return (
     <>
@@ -4635,6 +4637,16 @@ function FeatureShell({
             />
           ))}
         </View>
+
+        {/* ── headline ── */}
+        {!started && (
+          <Txt
+            size={22}
+            style={{ fontWeight: "700", textAlign: "center", marginBottom: 22 }}
+          >
+            Try asking Judith
+          </Txt>
+        )}
 
         {/* ── avatar ── */}
         <View style={{ alignItems: "center", marginBottom: 28 }}>
@@ -4686,8 +4698,8 @@ function FeatureShell({
                 maxWidth: 300,
               }}
             >
-              <Icon name="chatbubble-ellipses-outline" size={16} color={t.accent} />
-              <Txt size={14} color={t.accent} style={{ fontWeight: "600", flexShrink: 1 }}>{templateQ}</Txt>
+              <Icon name="chatbubble-ellipses-outline" size={18} color={t.accent} />
+              <Txt size={17} color={t.accent} style={{ fontWeight: "700", flexShrink: 1, lineHeight: 24 }}>{templateQ}</Txt>
             </Pressable>
             <Low size={12} style={{ marginTop: 14 }}>or tap the mic to ask by voice</Low>
           </View>
@@ -4792,6 +4804,7 @@ function ScreenFeature1({ ctx }: { ctx: Ctx }) {
       q={getDLocal(ctx.country.cur, ctx.country.code).askQ}
       a={getDLocal(ctx.country.cur, ctx.country.code).askA}
       mood="warm"
+      idleState="speaking"
       templateQ="How much is my total bills for this month?"
     />
   );
@@ -4808,6 +4821,7 @@ function ScreenFeature2({ ctx }: { ctx: Ctx }) {
       q={getDLocal(ctx.country.cur, ctx.country.code).askQ2}
       a={getDLocal(ctx.country.cur, ctx.country.code).askA2}
       mood="proud"
+      idleState="idle"
       templateQ="What’s the total bill for my water, electricity and internet this month?"
     />
   );
@@ -4824,6 +4838,7 @@ function ScreenFeature3({ ctx }: { ctx: Ctx }) {
       q={getDLocal(ctx.country.cur, ctx.country.code).askQ3}
       a={getDLocal(ctx.country.cur, ctx.country.code).askA3}
       mood="joy"
+      idleState="speaking"
       templateQ="What’s my estimated total bill for next month?"
     />
   );
