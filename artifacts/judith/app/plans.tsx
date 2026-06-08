@@ -468,7 +468,7 @@ export default function PlansModal() {
               <View style={{ gap: 10 }}>
                 <Feature text="Unlimited text asks to Judith — type anything, get a real answer" />
                 <Feature text="Bill tracking, reminders, and calendar" />
-                <Feature text="All 5 personas — mama, Marites, ate, and more" />
+                <Feature text="All 5 personas — mama, Perky Pal, ate, and more" />
               </View>
               <CtaBtn
                 label={chatActive ? "Current plan" : "Get Chat Ask"}
