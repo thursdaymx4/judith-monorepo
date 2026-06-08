@@ -89,5 +89,7 @@ export const sttTtsLimiter           = userLimiter(HOUR, 60);
 export const sampleVoicesLimiter     = userLimiter(HOUR, 30);
 export const parseLimiter            = userLimiter(HOUR, 20);
 export const askOnboardingLimiter    = ipLimiter(HOUR, 10);
-export const sttTtsOnboardingLimiter = ipLimiter(HOUR, 20);
-export const sampleOnboardingLimiter = ipLimiter(HOUR, 20);
+// Raised from 20 → 80: onboarding has many screens (up to ~15 voice lines per
+// run) and developers re-test repeatedly; 20/hr was too easy to exhaust.
+export const sttTtsOnboardingLimiter = ipLimiter(HOUR, 80);
+export const sampleOnboardingLimiter = ipLimiter(HOUR, 60);
