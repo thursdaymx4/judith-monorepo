@@ -4439,6 +4439,7 @@ function FeatureShell({
   a,
   mood,
   variant,
+  templateQ,
 }: {
   ctx: Ctx;
   dotIdx: number;
@@ -4449,6 +4450,7 @@ function FeatureShell({
   a: string;
   mood: "warm" | "proud" | "joy";
   variant: 1 | 2 | 3;
+  templateQ: string;
 }) {
   const { t, persona, language, next, bills } = ctx;
   const isFil = isFilipino(language);
@@ -4495,9 +4497,10 @@ function FeatureShell({
   }, []);
 
   /* ── interactive ask state ── */
-  const [messages,  setMessages]  = useState<FeatureMsg[]>([]);
-  const [askMode,   setAskMode]   = useState<AskMode>("idle");
-  const [askErr,    setAskErr]    = useState("");
+  const [messages,    setMessages]    = useState<FeatureMsg[]>([]);
+  const [askMode,     setAskMode]     = useState<AskMode>("idle");
+  const [askErr,      setAskErr]      = useState("");
+  const [hasAnswered, setHasAnswered] = useState(false);
   const recorder   = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const scrollRef  = useRef<ScrollView>(null);
 
@@ -4594,6 +4597,7 @@ function FeatureShell({
       const { reply, audioBase64 } = await askOnboarding(q2, billsCtx, persona, language);
       const finalReply = reply?.trim() || "Hmm, I couldn\u2019t answer that just now.";
       setMessages((m) => [...m, { role: "judith", text: finalReply }]);
+      setHasAnswered(true);
       setAskMode("speaking");
       if (audioBase64) await playBase64Mp3(audioBase64).catch(() => {});
     } catch {
@@ -4606,6 +4610,13 @@ function FeatureShell({
       requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
     }
   };
+
+  /* auto-advance once Judith has answered */
+  useEffect(() => {
+    if (!hasAnswered) return;
+    const t2 = setTimeout(() => next(), 2800);
+    return () => clearTimeout(t2);
+  }, [hasAnswered]);
 
   const startRec = async () => {
     if (askMode !== "idle") return;
@@ -4813,32 +4824,30 @@ function FeatureShell({
         <Title style={{ textAlign: "center", maxWidth: 290 }}>{title}</Title>
         <Lede style={{ textAlign: "center", maxWidth: 285 }}>{lede}</Lede>
 
-        {/* ── quick-ask chips ── */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 8, paddingVertical: 6 }}
-          style={{ marginTop: 6 }}
-        >
-          {getQuickAsks(ctx.country.code).slice(0, 4).map((qa, i) => (
+        {/* ── single template question chip ── */}
+        {!started && (
+          <View style={{ alignItems: "center", marginTop: 10 }}>
             <Pressable
-              key={i}
-              onPress={() => doAsk(qa)}
+              onPress={() => doAsk(templateQ)}
               disabled={busy || listening}
               style={{
                 borderWidth: 1,
-                borderColor: t.hair,
+                borderColor: t.accent,
                 borderRadius: 20,
-                paddingVertical: 7,
-                paddingHorizontal: 13,
-                backgroundColor: t.surface2,
+                paddingVertical: 10,
+                paddingHorizontal: 18,
+                backgroundColor: mix(t.accent, t.canvas, 0.1),
                 opacity: busy || listening ? 0.4 : 1,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
               }}
             >
-              <Txt size={13}>{qa}</Txt>
+              <Icon name="chatbubble-ellipses-outline" size={14} color={t.accent} />
+              <Txt size={13} color={t.accent} style={{ fontWeight: "600" }}>{templateQ}</Txt>
             </Pressable>
-          ))}
-        </ScrollView>
+          </View>
+        )}
       </Scroll>
 
       <CtaBar>
@@ -4914,6 +4923,7 @@ function ScreenFeature1({ ctx }: { ctx: Ctx }) {
       q={getDLocal(ctx.country.cur, ctx.country.code).askQ}
       a={getDLocal(ctx.country.cur, ctx.country.code).askA}
       mood="warm"
+      templateQ="How much is my total bills for this month?"
     />
   );
 }
@@ -4929,6 +4939,7 @@ function ScreenFeature2({ ctx }: { ctx: Ctx }) {
       q={getDLocal(ctx.country.cur, ctx.country.code).askQ2}
       a={getDLocal(ctx.country.cur, ctx.country.code).askA2}
       mood="proud"
+      templateQ="What’s my next bill coming up?"
     />
   );
 }
@@ -4944,6 +4955,7 @@ function ScreenFeature3({ ctx }: { ctx: Ctx }) {
       q={getDLocal(ctx.country.cur, ctx.country.code).askQ3}
       a={getDLocal(ctx.country.cur, ctx.country.code).askA3}
       mood="joy"
+      templateQ="What’s my estimated total bill for next month?"
     />
   );
 }
