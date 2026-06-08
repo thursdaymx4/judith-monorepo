@@ -3050,6 +3050,11 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
               {renderFrequencyToggle()}
               {renderBusinessToggle()}
               {renderCardToggle(activeFormCat.cat)}
+              {renderPaymentPicker(
+                parseInt(form.due, 10),
+                parseFloat(form.amount) || 0,
+                form.frequency,
+              )}
             </Animated.View>
           )}
 
