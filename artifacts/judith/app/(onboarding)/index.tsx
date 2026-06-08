@@ -3695,7 +3695,17 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
           return (
             <>
               <Btn label={g.addLabel} icon="plus" variant="soft" onPress={() => { setManualReturn("breather"); setMode("manualCats"); }} />
-              <Btn label="Keep going →" onPress={() => { if (breatherGroup === 2) { if (skipLoans) setMode("more"); else startLoans(); } else setMode("prompt"); }} />
+              <Btn label="Keep going →" onPress={() => {
+                // breatherGroup === 2 is the last scripted group (insurance).
+                // idx >= SAMPLES.length means all selected samples are exhausted
+                // (e.g. user picked only group-0 bills so there's nothing in group 1).
+                // In both cases: advance past scripted to loans or "more".
+                if (breatherGroup === 2 || idx >= SAMPLES.length) {
+                  if (!skipLoans) startLoans(); else setMode("more");
+                } else {
+                  setMode("prompt");
+                }
+              }} />
             </>
           );
         })()}
