@@ -9,9 +9,12 @@
  * Identifiers are deterministic so re-scheduling replaces the old one.
  */
 import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Alert, Platform } from "react-native";
 import { isPaidViaCard, nextOccurrence, type Bill } from "@/constants/data";
 import type { PersonaId } from "@/constants/personas";
+import { supabase } from "@/lib/supabase";
 
 // Show alerts even when the app is foregrounded
 Notifications.setNotificationHandler({
@@ -24,12 +27,142 @@ Notifications.setNotificationHandler({
   }),
 });
 
+const REMOTE_PUSH_STORAGE_KEY = "judith.remote-push.v1";
+
+export interface RemotePushRegistration {
+  expoPushToken: string | null;
+  devicePushToken: string | null;
+  devicePushType: string | null;
+  permissionStatus: "granted" | "denied" | "undetermined";
+  platform: string;
+  projectId: string | null;
+  updatedAt: string;
+}
+
+function getProjectId(): string | null {
+  const expoProjectId =
+    Constants.expoConfig?.extra?.eas?.projectId ??
+    Constants.easConfig?.projectId ??
+    null;
+  return typeof expoProjectId === "string" && expoProjectId.length > 0
+    ? expoProjectId
+    : null;
+}
+
+async function readStoredRemotePushRegistration(): Promise<RemotePushRegistration | null> {
+  try {
+    const raw = await AsyncStorage.getItem(REMOTE_PUSH_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as RemotePushRegistration;
+  } catch {
+    return null;
+  }
+}
+
+async function writeStoredRemotePushRegistration(
+  registration: RemotePushRegistration,
+): Promise<void> {
+  try {
+    await AsyncStorage.setItem(
+      REMOTE_PUSH_STORAGE_KEY,
+      JSON.stringify(registration),
+    );
+  } catch {
+    // Best-effort cache only.
+  }
+}
+
+function registrationsEqual(
+  left: RemotePushRegistration | null | undefined,
+  right: RemotePushRegistration | null | undefined,
+): boolean {
+  if (!left || !right) return false;
+  return (
+    left.expoPushToken === right.expoPushToken &&
+    left.devicePushToken === right.devicePushToken &&
+    left.devicePushType === right.devicePushType &&
+    left.permissionStatus === right.permissionStatus &&
+    left.platform === right.platform &&
+    left.projectId === right.projectId
+  );
+}
+
 // ─── Permission ───────────────────────────────────────────────────────────────
 
 export async function getPermissionStatus(): Promise<"granted" | "denied" | "undetermined"> {
   if (Platform.OS === "web") return "denied";
   const { status } = await Notifications.getPermissionsAsync();
   return status as "granted" | "denied" | "undetermined";
+}
+
+export async function registerRemotePushTokens(): Promise<RemotePushRegistration | null> {
+  if (Platform.OS === "web") return null;
+
+  const permissionStatus = await getPermissionStatus();
+  if (permissionStatus !== "granted") return null;
+
+  let expoPushToken: string | null = null;
+  let devicePushToken: string | null = null;
+  let devicePushType: string | null = null;
+  const projectId = getProjectId();
+
+  try {
+    if (projectId) {
+      expoPushToken = (
+        await Notifications.getExpoPushTokenAsync({ projectId })
+      ).data;
+    }
+  } catch {
+    expoPushToken = null;
+  }
+
+  try {
+    const nativeToken = await Notifications.getDevicePushTokenAsync();
+    devicePushType = nativeToken.type;
+    devicePushToken =
+      typeof nativeToken.data === "string" ? nativeToken.data : null;
+  } catch {
+    devicePushToken = null;
+    devicePushType = null;
+  }
+
+  if (!expoPushToken && !devicePushToken) return null;
+
+  const registration: RemotePushRegistration = {
+    expoPushToken,
+    devicePushToken,
+    devicePushType,
+    permissionStatus,
+    platform: Platform.OS,
+    projectId,
+    updatedAt: new Date().toISOString(),
+  };
+
+  await writeStoredRemotePushRegistration(registration);
+  return registration;
+}
+
+export async function syncRemotePushRegistrationToSession(): Promise<void> {
+  if (Platform.OS === "web" || !supabase) return;
+
+  const { data } = await supabase.auth.getSession();
+  if (!data.session?.user) return;
+
+  const registration =
+    (await registerRemotePushTokens()) ??
+    (await readStoredRemotePushRegistration());
+  if (!registration) return;
+
+  const current =
+    (data.session.user.user_metadata?.judithPushNotifications ??
+      null) as RemotePushRegistration | null;
+  if (registrationsEqual(current, registration)) return;
+
+  await supabase.auth.updateUser({
+    data: {
+      judithPushNotifications: registration,
+    },
+  });
 }
 
 /**
@@ -40,7 +173,10 @@ export async function getPermissionStatus(): Promise<"granted" | "denied" | "und
 export async function requestPermission(): Promise<boolean> {
   if (Platform.OS === "web") return false;
   const { status: current } = await Notifications.getPermissionsAsync();
-  if (current === "granted") return true;
+  if (current === "granted") {
+    await syncRemotePushRegistrationToSession().catch(() => {});
+    return true;
+  }
   if (current === "denied") {
     Alert.alert(
       "Enable notifications",
@@ -50,6 +186,9 @@ export async function requestPermission(): Promise<boolean> {
     return false;
   }
   const { status } = await Notifications.requestPermissionsAsync();
+  if (status === "granted") {
+    await syncRemotePushRegistrationToSession().catch(() => {});
+  }
   return status === "granted";
 }
 

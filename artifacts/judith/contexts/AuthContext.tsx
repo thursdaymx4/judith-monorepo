@@ -12,6 +12,7 @@ import React, {
 } from "react";
 import { Platform } from "react-native";
 
+import { syncRemotePushRegistrationToSession } from "@/lib/notifications";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -99,11 +100,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setLoading(false);
-      if (data.session) sendSessionToWatch(data.session);
+      if (data.session) {
+        sendSessionToWatch(data.session);
+        syncRemotePushRegistrationToSession().catch(() => {});
+      }
     });
     const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
       setSession(next);
-      if (event === "SIGNED_IN" && next) sendSessionToWatch(next);
+      if (event === "SIGNED_IN" && next) {
+        sendSessionToWatch(next);
+        syncRemotePushRegistrationToSession().catch(() => {});
+      }
     });
     return () => sub.subscription.unsubscribe();
   }, []);

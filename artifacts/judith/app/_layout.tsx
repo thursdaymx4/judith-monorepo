@@ -28,6 +28,7 @@ import { useBiometricLock } from "@/hooks/useBiometricLock";
 import { useNotificationSync } from "@/hooks/useNotificationSync";
 import { useWatchSync } from "@/hooks/useWatchSync";
 import { useTheme } from "@/hooks/useTheme";
+import { syncRemotePushRegistrationToSession } from "@/lib/notifications";
 import { configurePurchases, identifyUser, resetUser, getActiveTier } from "@/lib/purchases";
 import { SubscriptionProvider } from "@/lib/SubscriptionProvider";
 
@@ -158,6 +159,14 @@ function RootLayoutNav() {
     return () => sub.remove();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnboarded]);
+
+  useEffect(() => {
+    if (!authed) return;
+    const sub = Notifications.addPushTokenListener(() => {
+      syncRemotePushRegistrationToSession().catch(() => {});
+    });
+    return () => sub.remove();
+  }, [authed]);
 
   // Only engage biometric lock once the user is fully onboarded and authed.
   const { locked, unlock } = useBiometricLock(isOnboarded && faceIdLock);
