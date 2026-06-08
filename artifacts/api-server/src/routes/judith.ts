@@ -662,14 +662,21 @@ router.post("/ask", askLimiter, async (req, res) => {
     let ttsChars = 0;
     if (includeVoice !== false) {
       try {
-        if (await isSafeForTTS(reply)) {
-          const audio = await synthesize(reply, voiceId, { live: true, speed: getSpeakingSpeed(persona), language: typeof language === "string" ? language : undefined });
+        const lang = typeof language === "string" ? language : undefined;
+        // Run moderation and TTS in parallel — moderation almost never blocks a bill
+        // reply, so we start TTS speculatively and discard if flagged. Removes the
+        // full moderation round-trip (~200-500ms) from the critical path.
+        const [safe, audio] = await Promise.all([
+          isSafeForTTS(reply),
+          synthesize(reply, voiceId, { live: true, speed: getSpeakingSpeed(persona), language: lang }).catch(() => null),
+        ]);
+        if (!safe) {
+          logger.warn("tts skipped — moderation flagged reply");
+        } else if (audio) {
           audioBase64 = audio.base64;
           mime = audio.mime;
           ttsOk = true;
           ttsChars = reply.length;
-        } else {
-          logger.warn("tts skipped — moderation flagged reply");
         }
       } catch (ttsErr) {
         logger.error({ err: ttsErr }, "tts failed during ask");
@@ -1234,13 +1241,17 @@ router.post("/ask-onboarding", askOnboardingLimiter, async (req, res) => {
     let audioBase64: string | null = null;
     let mime = "audio/mpeg";
     try {
-      /* Onboarding = first impression — use high-quality non-live model (eleven_v3) */
-      if (await isSafeForTTS(reply)) {
-        const audio = await synthesize(reply, voiceId, { live: false, speed: getSpeakingSpeed(persona) });
+      /* Onboarding = first impression — use high-quality non-live model (eleven_v3).
+         Run moderation in parallel with TTS to cut the sequential wait. */
+      const [safe, audio] = await Promise.all([
+        isSafeForTTS(reply),
+        synthesize(reply, voiceId, { live: false, speed: getSpeakingSpeed(persona) }).catch(() => null),
+      ]);
+      if (!safe) {
+        logger.warn("tts skipped — moderation flagged onboarding reply");
+      } else if (audio) {
         audioBase64 = audio.base64;
         mime = audio.mime;
-      } else {
-        logger.warn("tts skipped — moderation flagged onboarding reply");
       }
     } catch (ttsErr) {
       logger.error({ err: ttsErr }, "tts failed during ask-onboarding");
