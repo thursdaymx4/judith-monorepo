@@ -109,7 +109,7 @@ private struct SmallView: View {
                     }
                 } else {
                     Spacer(minLength: 0)
-                    AllPaidViewCompact(debugState: nil)
+                    AllPaidViewCompact(isStale: entry.isDataStale, debugState: entry.debugState)
                 }
 
                 Spacer(minLength: 0)
@@ -158,7 +158,7 @@ private struct MediumView: View {
                 .padding(.bottom, 12)
 
                 if entry.nextBill == nil {
-                    AllPaidView(debugState: nil)
+                    AllPaidView(isStale: entry.isDataStale, debugState: entry.debugState)
                 } else {
                     VStack(spacing: 10) {
                         HStack(alignment: .bottom) {
@@ -246,7 +246,7 @@ private struct LargeView: View {
                 .padding(.bottom, 12)
 
                 if entry.nextBill == nil {
-                    AllPaidView(debugState: nil)
+                    AllPaidView(isStale: entry.isDataStale, debugState: entry.debugState)
                 } else {
                     VStack(spacing: 10) {
                         HStack(alignment: .bottom) {
@@ -546,27 +546,35 @@ private struct SummaryPill: View {
 }
 
 private struct AllPaidView: View {
+    let isStale: Bool
     let debugState: String?
 
     var body: some View {
         HStack(spacing: 10) {
             ZStack {
                 Circle()
-                    .fill(Color.judithAccent.opacity(0.12))
+                    .fill((isStale ? Color.judithNear : Color.judithAccent).opacity(0.12))
                     .frame(width: 38, height: 38)
-                Image(systemName: "checkmark")
+                Image(systemName: isStale ? "clock.arrow.circlepath" : "checkmark")
                     .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(Color.judithAccent)
+                    .foregroundStyle(isStale ? Color.judithNear : Color.judithAccent)
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text("All bills paid!")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color.judithAccent)
                 if let debugState {
                     Text("Widget sync: \(debugState)")
                         .font(.system(size: 10, design: .monospaced))
                         .foregroundStyle(Color.judithUrgent)
+                } else if isStale {
+                    Text("Open Judith to refresh")
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color.judithNear)
+                    Text("Widget data may be outdated.")
+                        .font(.system(size: 11, design: .rounded))
+                        .foregroundStyle(Color.txtLow)
                 } else {
+                    Text("All bills paid!")
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color.judithAccent)
                     Text("Nothing due right now.")
                         .font(.system(size: 11, design: .rounded))
                         .foregroundStyle(Color.txtLow)
@@ -578,25 +586,31 @@ private struct AllPaidView: View {
 }
 
 private struct AllPaidViewCompact: View {
+    let isStale: Bool
     let debugState: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             ZStack {
                 Circle()
-                    .fill(Color.judithAccent.opacity(0.14))
+                    .fill((isStale ? Color.judithNear : Color.judithAccent).opacity(0.14))
                     .frame(width: 32, height: 32)
-                Image(systemName: "checkmark")
+                Image(systemName: isStale ? "clock.arrow.circlepath" : "checkmark")
                     .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(Color.judithAccent)
+                    .foregroundStyle(isStale ? Color.judithNear : Color.judithAccent)
             }
-            Text("All paid!")
-                .font(.system(size: 12, weight: .bold, design: .rounded))
-                .foregroundStyle(Color.judithAccent)
             if let debugState {
                 Text(debugState)
                     .font(.system(size: 8, design: .monospaced))
                     .foregroundStyle(Color.judithUrgent)
+            } else if isStale {
+                Text("Tap to refresh")
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.judithNear)
+            } else {
+                Text("All paid!")
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.judithAccent)
             }
         }
     }
