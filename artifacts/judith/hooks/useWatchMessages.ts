@@ -17,7 +17,12 @@
 import { useEffect, useRef } from "react";
 import { useJudith } from "@/contexts/JudithStore";
 import { askJudith, type AskBill } from "@/lib/proxy";
-import { currentCycleDue, isPaidViaCard, type Bill } from "@/constants/data";
+import {
+  currentCycleDue,
+  isPaidViaCard,
+  makeBillFromAction,
+  type Bill,
+} from "@/constants/data";
 import { WatchConnectivity } from "@/lib/watch";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -45,10 +50,134 @@ function billToAskBill(b: Bill, allBills: Bill[]): AskBill {
   };
 }
 
+function normalizeText(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function formatMoney(amount: number, currency: string): string {
+  const rounded = Math.round((amount + Number.EPSILON) * 100) / 100;
+  const hasDecimals = Math.abs(rounded % 1) > 0.0001;
+  return `${currency}${rounded.toLocaleString(undefined, {
+    minimumFractionDigits: hasDecimals ? 2 : 0,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function getOutstandingAmount(bill: Bill): number {
+  return Math.max(0, bill.amount + (bill.carryOver ?? 0) - (bill.amountPaid ?? 0));
+}
+
+function resolveBillByTarget(
+  target: string | null,
+  bills: Bill[],
+): Bill | null {
+  const unpaidBills = bills
+    .filter((bill) => bill.status !== "paid")
+    .sort((left, right) => currentCycleDue(left).dueDays - currentCycleDue(right).dueDays);
+
+  if (unpaidBills.length === 0) return null;
+  if (!target) {
+    return unpaidBills.length === 1 ? unpaidBills[0] : null;
+  }
+
+  const normalizedTarget = normalizeText(target);
+  if (!normalizedTarget) return unpaidBills.length === 1 ? unpaidBills[0] : null;
+
+  const targetTokens = normalizedTarget.split(" ").filter(Boolean);
+  const scored = unpaidBills
+    .map((bill) => {
+      const normalizedProvider = normalizeText(bill.provider);
+      const tokenMatches = targetTokens.filter(
+        (token) =>
+          normalizedProvider.includes(token) || token.includes(normalizedProvider),
+      ).length;
+      const directMatch =
+        normalizedProvider.includes(normalizedTarget) ||
+        normalizedTarget.includes(normalizedProvider);
+      return { bill, score: directMatch ? tokenMatches + 10 : tokenMatches };
+    })
+    .sort((left, right) => right.score - left.score);
+
+  return scored[0]?.score > 0 ? scored[0].bill : null;
+}
+
+function extractMarkPaidTarget(query: string): string | null {
+  const lowered = query.toLowerCase().trim();
+
+  const targetedPatterns = [
+    /mark\s+(.+?)\s+as\s+paid/,
+    /mark\s+(.+?)\s+paid/,
+    /pay\s+(.+?)\s+bill/,
+    /pay\s+(.+?)\s+as\s+paid/,
+  ];
+
+  for (const pattern of targetedPatterns) {
+    const match = lowered.match(pattern);
+    if (match?.[1]) return match[1].trim();
+  }
+
+  if (
+    lowered.includes("mark the bill as paid") ||
+    lowered.includes("mark this bill as paid") ||
+    lowered.includes("mark bill as paid") ||
+    lowered.includes("pay this bill")
+  ) {
+    return "";
+  }
+
+  return null;
+}
+
+function resolveMarkPaidBill(query: string, bills: Bill[]): Bill | null {
+  const target = extractMarkPaidTarget(query);
+  if (target == null) return null;
+  return resolveBillByTarget(target, bills);
+}
+
+function extractPartialPayment(query: string): { target: string | null; amount: number } | null {
+  const lowered = query.toLowerCase().trim();
+  if (!/(^|\s)(paid|pay|payment|partial)(\s|$)/.test(lowered)) return null;
+  if (/mark\s+.+\s+paid|mark\s+.+\s+as\s+paid/.test(lowered)) return null;
+
+  const amountMatch = query.match(/(?:₱|\$|php|usd)?\s*([\d,]+(?:\.\d{1,2})?)/i);
+  if (!amountMatch?.[1]) return null;
+
+  const amount = Number(amountMatch[1].replace(/,/g, ""));
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+
+  const targetPatterns = [
+    /\b(?:on|for|to|toward|towards)\s+(.+)$/i,
+    /\b(?:paid|pay|payment(?:\s+of)?|partial payment(?:\s+of)?)\s+(?:₱|\$|php|usd)?\s*[\d,]+(?:\.\d{1,2})?\s+(?:on|for|to|toward|towards)?\s*(.+)$/i,
+  ];
+
+  for (const pattern of targetPatterns) {
+    const match = query.match(pattern);
+    if (match?.[1]) {
+      return { target: match[1].trim(), amount };
+    }
+  }
+
+  if (/\bthis bill\b/i.test(query)) {
+    return { target: "", amount };
+  }
+
+  return { target: null, amount };
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useWatchMessages() {
-  const { bills, persona, currency, country, monthlyIncome, incomeByMonth, markPaid } =
+  const {
+    bills,
+    persona,
+    currency,
+    country,
+    monthlyIncome,
+    incomeByMonth,
+    markPaid,
+    payPartial,
+    saveBill,
+  } =
     useJudith();
 
   // Keep refs so the stable subscription closure always sees latest values.
@@ -59,6 +188,8 @@ export function useWatchMessages() {
   const monthlyIncomeRef = useRef(monthlyIncome);
   const incomeByMonthRef = useRef(incomeByMonth);
   const markPaidRef = useRef(markPaid);
+  const payPartialRef = useRef(payPartial);
+  const saveBillRef = useRef(saveBill);
 
   useEffect(() => { billsRef.current = bills; }, [bills]);
   useEffect(() => { personaRef.current = persona; }, [persona]);
@@ -67,6 +198,8 @@ export function useWatchMessages() {
   useEffect(() => { monthlyIncomeRef.current = monthlyIncome; }, [monthlyIncome]);
   useEffect(() => { incomeByMonthRef.current = incomeByMonth; }, [incomeByMonth]);
   useEffect(() => { markPaidRef.current = markPaid; }, [markPaid]);
+  useEffect(() => { payPartialRef.current = payPartial; }, [payPartial]);
+  useEffect(() => { saveBillRef.current = saveBill; }, [saveBill]);
 
   useEffect(() => {
     if (!WatchConnectivity) return;
@@ -95,6 +228,34 @@ export function useWatchMessages() {
           const query = (message.query as string | undefined) ?? "";
           try {
             const currentBills = billsRef.current;
+            const partialPayment = extractPartialPayment(query);
+            if (partialPayment) {
+              const matchedBill = resolveBillByTarget(partialPayment.target, currentBills);
+              if (matchedBill) {
+                const outstanding = getOutstandingAmount(matchedBill);
+                const amountPaid = Math.min(partialPayment.amount, outstanding || partialPayment.amount);
+                if (amountPaid > 0) {
+                  payPartialRef.current(matchedBill.id, amountPaid);
+                  const fullyPaid = amountPaid >= outstanding && outstanding > 0;
+                  reply?.({
+                    answer: fullyPaid
+                      ? `${matchedBill.provider} is fully paid.`
+                      : `Recorded ${formatMoney(amountPaid, currencyRef.current)} for ${matchedBill.provider}.`,
+                  });
+                  return;
+                }
+              }
+            }
+
+            const matchedBill = resolveMarkPaidBill(query, currentBills);
+            if (matchedBill) {
+              markPaidRef.current(matchedBill.id);
+              reply?.({
+                answer: `${matchedBill.provider} is marked as paid.`,
+              });
+              return;
+            }
+
             const askBills = currentBills.map((b) => billToAskBill(b, currentBills));
             const result = await askJudith(
               query,
@@ -108,6 +269,10 @@ export function useWatchMessages() {
               countryRef.current?.code,
               incomeByMonthRef.current,
             );
+            if (result.action?.type === "add_bill") {
+              const bill = makeBillFromAction(result.action);
+              saveBillRef.current(bill);
+            }
             reply?.({ answer: result.reply });
           } catch {
             reply?.({ error: "Judith couldn't respond right now." });
