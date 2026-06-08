@@ -1,0 +1,40 @@
+carlocanieso@Carlos-Mac-Studio judith % git pull origin main
+remote: Enumerating objects: 49, done.
+remote: Counting objects: 100% (49/49), done.
+remote: Compressing objects: 100% (13/13), done.
+remote: Total 38 (delta 24), reused 38 (delta 24), pack-reused 0 (from 0)
+Unpacking objects: 100% (38/38), 6.42 MiB | 4.06 MiB/s, done.
+From https://github.com/thursdaymx4/judith-monorepo
+ * branch            main       -> FETCH_HEAD
+   f900bac..b2d2416  main       -> origin/main
+Updating f900bac..b2d2416
+Fast-forward
+ artifacts/api-server/src/middleware/rateLimit.ts                       |   6 ++++--
+ artifacts/judith/app/(onboarding)/index.tsx                            |  24 +++++++++++++++++++-----
+ attached_assets/Screenshot_2026-06-08_at_11.32.04_AM_1780889529877.png | Bin 0 -> 1013897 bytes
+ attached_assets/Screenshot_2026-06-08_at_11.48.14_AM_1780890499114.png | Bin 0 -> 585199 bytes
+ attached_assets/Screenshot_2026-06-08_at_11.50.36_AM_1780890651247.png | Bin 0 -> 653852 bytes
+ attached_assets/Screenshot_2026-06-08_at_11.50.43_AM_1780890651247.png | Bin 0 -> 1361081 bytes
+ attached_assets/Screenshot_2026-06-08_at_11.54.59_AM_1780890919920.png | Bin 0 -> 664254 bytes
+ attached_assets/Screenshot_2026-06-08_at_11.55.12_AM_1780890919920.png | Bin 0 -> 1146552 bytes
+ attached_assets/Screenshot_2026-06-08_at_11.58.14_AM_1780891099610.png | Bin 0 -> 1190085 bytes
+ attached_assets/Screenshot_2026-06-08_at_12.01.30_PM_1780891295509.png | Bin 0 -> 350615 bytes
+ 10 files changed, 23 insertions(+), 7 deletions(-)
+ create mode 100644 attached_assets/Screenshot_2026-06-08_at_11.32.04_AM_1780889529877.png
+ create mode 100644 attached_assets/Screenshot_2026-06-08_at_11.48.14_AM_1780890499114.png
+ create mode 100644 attached_assets/Screenshot_2026-06-08_at_11.50.36_AM_1780890651247.png
+ create mode 100644 attached_assets/Screenshot_2026-06-08_at_11.50.43_AM_1780890651247.png
+ create mode 100644 attached_assets/Screenshot_2026-06-08_at_11.54.59_AM_1780890919920.png
+ create mode 100644 attached_assets/Screenshot_2026-06-08_at_11.55.12_AM_1780890919920.png
+ create mode 100644 attached_assets/Screenshot_2026-06-08_at_11.58.14_AM_1780891099610.png
+ create mode 100644 attached_assets/Screenshot_2026-06-08_at_12.01.30_PM_1780891295509.png
+carlocanieso@Carlos-Mac-Studio judith % pnpm --filter @workspace/judith add expo-updates
+../mockup-sandbox                        | [WARN] deprecated recharts@2.15.4
+[WARN] 10 deprecated subdependencies found: @xmldom/xmldom@0.7.13, glob@10.5.0, glob@7.2.3, inflight@1.0.6, node-domexception@1.0.0, rimraf@3.0.2, uuid@3.4.0, uuid@7.0.3, uuid@8.3.2, uuid@9.0.1
+../..                                    | Progress: resolved 1238, reused 1, downloaded 0, added 0, done
+../..                                    |   +9 +
+../.. preinstall$ sh -c 'rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*) ;; *) …
+│ Use pnpm instead
+└─ Failed in 27ms at /Users/carlocanieso/Judith/judith-monorepo
+[ELIFECYCLE] Command failed with exit code 1.
+carlocanieso@Carlos-Mac-Studio judith % 
