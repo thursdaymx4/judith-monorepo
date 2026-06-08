@@ -192,6 +192,23 @@ const CAT_ID_TO_VGROUP: Record<string, number> = {
   loan:          3,
 };
 
+/**
+ * Maps the `cat` label on each SAMPLE entry back to the bill-picker category ID.
+ * Used to filter the voice-add flow to only ask about bills the user said they have.
+ */
+const SAMPLE_CAT_TO_ID: Record<string, string> = {
+  "Rent / Mortgage":    "rent",
+  "Electricity":        "electricity",
+  "Water":              "water",
+  "Internet":           "internet",
+  "Mobile":             "mobile",
+  "Phone subscription": "appsubs",
+  "Web app":            "webapps",
+  "Insurance":          "insurance",
+  "Credit card":        "creditcard",
+  "Personal loan":      "loan",
+};
+
 /* Voice lines live in constants/voiceLines.ts — edit them there. */
 
 /**
@@ -2228,12 +2245,20 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const CARD_TEMPLATES = getCardTemplates(ctx.country.code);
   const LOAN_TEMPLATES = getLoanTemplates(ctx.country.code);
   const { t, persona, bills, addBill, next, language, selectedCats } = ctx;
-  // Derive which VGROUPS to show based on bill-picker selection
+  // Derive which phases to show based on bill-picker selection
   const skipCards = selectedCats.length > 0 && !selectedCats.includes("creditcard");
   const skipLoans = selectedCats.length > 0 && !selectedCats.includes("loan");
   const hasGroup = (g: number) =>
     selectedCats.length === 0 || selectedCats.some((id) => CAT_ID_TO_VGROUP[id] === g);
-  const SAMPLES = SAMPLES_ALL.filter((s) => hasGroup(s.group));
+  // Filter samples by individual category, not just by group — so selecting only
+  // "electricity" doesn't also ask about water, internet, and rent (all group 0).
+  const SAMPLES = SAMPLES_ALL.filter((s) => {
+    if (selectedCats.length === 0) return true;
+    const id = SAMPLE_CAT_TO_ID[s.cat];
+    if (id) return selectedCats.includes(id);
+    // Fallback to group for any sample cat not in the map
+    return hasGroup(s.group);
+  });
   const { saveBill, bills: storeBills } = useJudith();
   const cur = ctx.country.cur;
   const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
