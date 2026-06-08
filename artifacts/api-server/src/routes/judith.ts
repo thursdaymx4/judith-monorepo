@@ -32,7 +32,7 @@ import {
 
 const router: IRouter = Router();
 
-const PERSONAS: PersonaId[] = ["professional", "funny", "sarcastic", "mom", "marites"];
+const PERSONAS: PersonaId[] = ["professional", "funny", "sarcastic", "mom", "marites", "britney"];
 
 function coercePersona(value: unknown): PersonaId {
   return PERSONAS.includes(value as PersonaId)
@@ -753,6 +753,8 @@ const SAMPLE_LINES_FIL: Record<PersonaId, string> = {
     "Anak, si Judith 'to. Nandito na ako, 'wag kang mag-alala. Bantayan ko ang mga bayarin mo — walang makakalusot sa akin, ha.",
   marites:
     "Besh, chismis muna! Si Judith 'to — at alam ko na lahat ng bills mo! Grabe, 'di ba? Wala kang makakalimutan, promise. Mag-update ka ha!",
+  britney:
+    "Judith. Bills mo, due dates, amounts — naka-track na lahat. 'Yun lang.",
 };
 
 const SAMPLE_LINES_EN: Record<PersonaId, string> = {
@@ -766,11 +768,13 @@ const SAMPLE_LINES_EN: Record<PersonaId, string> = {
     "Hi there — I'm Judith. I'll keep an eye on all your bills for you. Don't worry, I've got everything covered.",
   marites:
     "Oh my gosh, hi! It's Judith! I literally know everything about your bills — and trust me, we need to talk!",
+  britney:
+    "Judith. Bills, amounts, due dates — tracked. Pay them on time. That's the deal.",
 };
 
 const FILIPINO_LANG_CODES = new Set(["fil", "ceb", "ilo", "hil"]);
 
-type PersonaSamples = Record<PersonaId, string>;
+type PersonaSamples = Partial<Record<PersonaId, string>>;
 
 const SAMPLE_LINES_BY_LANG: Record<string, PersonaSamples> = {
   es: {
@@ -1173,13 +1177,13 @@ const SAMPLE_LINES_BY_LANG: Record<string, PersonaSamples> = {
 
 function getSampleText(persona: PersonaId, language?: string): string {
   const lang = language ?? "en-US";
-  if (FILIPINO_LANG_CODES.has(lang)) return SAMPLE_LINES_FIL[persona];
+  if (FILIPINO_LANG_CODES.has(lang)) return SAMPLE_LINES_FIL[persona] ?? SAMPLE_LINES_EN[persona];
   const lines =
     SAMPLE_LINES_BY_LANG[lang] ??
     SAMPLE_LINES_BY_LANG[lang.split("-").slice(0, 2).join("-")] ??
-    SAMPLE_LINES_BY_LANG[lang.split("-")[0]] ??
-    SAMPLE_LINES_EN;
-  return lines[persona];
+    SAMPLE_LINES_BY_LANG[lang.split("-")[0]];
+  // Fall back to English if the language entry exists but lacks this persona's line
+  return lines?.[persona] ?? SAMPLE_LINES_EN[persona];
 }
 
 // GET /api/judith/voices -> { voices: [{ id, name, category }] }

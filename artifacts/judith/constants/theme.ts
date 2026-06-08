@@ -46,6 +46,7 @@ export const PERSONA_LOOKS = {
   sib: { g1: "#43c3c3", g2: "#005d75", label: "Sarcastic" },
   mama: { g1: "#ec99a3", g2: "#8d3d67", label: "Mama mo" },
   marites: { g1: "#f472b6", g2: "#be185d", label: "Marites" },
+  britney: { g1: "#94a3b8", g2: "#1e293b", label: "Brutal Britney" },
 } as const;
 
 export interface Palette {

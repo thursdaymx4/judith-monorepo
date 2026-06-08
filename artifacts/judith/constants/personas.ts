@@ -4,7 +4,7 @@
  * the English variants from the spec.
  */
 
-export type PersonaId = "pro" | "funny" | "sib" | "mama" | "marites";
+export type PersonaId = "pro" | "funny" | "sib" | "mama" | "marites" | "britney";
 
 export interface Persona {
   id: PersonaId;
@@ -54,6 +54,13 @@ export const PERSONAS: Persona[] = [
     vibe: "Tsismosa · makulit",
     line: "Besh! Alam ko na lahat ng bills mo — at 'di ko 'yan kakalimutan. Grabe, di ba?",
     phOnly: true,
+  },
+  {
+    id: "britney",
+    icon: "zap",
+    name: "Brutal Britney",
+    vibe: "Honest · brutal",
+    line: "Bills. Due dates. Amounts. I track them. You pay them. That's it.",
   },
 ];
 

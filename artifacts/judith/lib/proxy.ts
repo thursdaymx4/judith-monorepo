@@ -10,6 +10,7 @@ const PERSONA_MAP: Record<PersonaId, string> = {
   sib: "sarcastic",
   mama: "mom",
   marites: "marites",
+  britney: "britney",
 };
 
 /** Bill shape sent to the /ask endpoint as context. */

@@ -1207,6 +1207,7 @@ const PERSONA_FIL_SAMPLES: Record<PersonaId, (name: string) => string> = {
   sib: () => "Luh??!!? Totoo ba yan?! Nag babayad ka na ng bills?",
   mama: (n) => `${n ? `${n}, ` : ""}wag kalimutan ang mga bills. Be responsible! Wag din kalimutang mag pahinga.`,
   marites: (n) => `${n ? `Uy ${n},` : "Uy,"} may chismis ako sa'yo — lahat ng bills mo, alam ko na! Grabe, 'di ba? Judith na 'to!`,
+  britney: () => "Judith. Bills mo, due dates, amounts — naka-track na lahat. Bayaran mo sa tamang oras.",
 };
 
 function ScreenPersona({ ctx }: { ctx: Ctx }) {

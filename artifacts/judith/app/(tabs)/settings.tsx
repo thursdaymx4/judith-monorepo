@@ -761,7 +761,7 @@ export default function SettingsScreen() {
           if (!granted) return;
           await Notifications.scheduleNotificationAsync({
             content: {
-              title: `Test · ${persona === "funny" ? "Heads up 👀" : persona === "pro" ? "Reminder: you have bills." : persona === "mama" ? "Anak, test lang 👋" : persona === "marites" ? "Psst! Test notification 🤫" : "Test notification"}`,
+              title: `Test · ${persona === "funny" ? "Heads up 👀" : persona === "pro" ? "Reminder: you have bills." : persona === "mama" ? "Anak, test lang 👋" : persona === "marites" ? "Psst! Test notification 🤫" : persona === "britney" ? "You have bills. Pay them." : "Test notification"}`,
               body: "Notifications are working! ₱2,500 due in 3 days.",
               sound: true,
             },

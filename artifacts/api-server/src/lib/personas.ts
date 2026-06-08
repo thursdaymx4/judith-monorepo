@@ -1,4 +1,4 @@
-export type PersonaId = "professional" | "funny" | "sarcastic" | "mom" | "marites";
+export type PersonaId = "professional" | "funny" | "sarcastic" | "mom" | "marites" | "britney";
 
 // Judith is female, so every persona uses a distinct, tone-matched female voice.
 // DEFAULT = neutral American English — used for all non-Philippine countries/languages.
@@ -8,6 +8,7 @@ export const DEFAULT_VOICE_IDS: Record<PersonaId, string> = {
   sarcastic: "56AoDkrOh6qfVPDXZ7Pt",     // Cassidy — crisp, direct, conversational (american)
   mom: "hpp4J3VqNfWAUOO0d1Us",           // Bella — professional, bright, warm, middle-aged (american)
   marites: "cgSgspJ2msm6clMCkdW9",       // Jessica — playful, bright, warm, young (american)
+  britney: "Xb7hH8MSUJpSbSDYk0k2",      // Alice — sharp, crisp, British (british)
 };
 
 /** Filipino/Taglish voice IDs — used when the user's language is "fil". */
@@ -17,6 +18,7 @@ export const FILIPINO_VOICE_IDS: Record<PersonaId, string> = {
   mom: "gILcvhAz18uV9ARSsU4u",
   sarcastic: "RGymW84CSmfVugnA5tvA",
   marites: "XB0fDUnXU5powFXDhCwa",
+  britney: "n6WaB3rOlZSC9y8yEPEz",      // Use professional Filipino voice — Britney stays direct regardless of language
 };
 
 /**
@@ -31,6 +33,7 @@ export const PHILIPPINE_ENGLISH_VOICE_IDS: Record<PersonaId, string> = {
   mom: "gILcvhAz18uV9ARSsU4u",
   sarcastic: "RGymW84CSmfVugnA5tvA",
   marites: "XB0fDUnXU5powFXDhCwa",
+  britney: "Xb7hH8MSUJpSbSDYk0k2",
 };
 
 /** Philippine language codes that should use Filipino native-speaker voices. */
@@ -60,6 +63,7 @@ const PERSONA_SPEED: Record<PersonaId, number> = {
   sarcastic: 0.92,
   mom: 0.92,
   marites: 1.12, // perky, fast-talking tsismosa energy
+  britney: 0.97, // crisp and deliberate — every word counts
 };
 
 export function getSpeakingSpeed(persona: PersonaId): number {
@@ -92,6 +96,12 @@ Dramatic. Expressive. Build-up before the amount, like you're sharing a secret y
 Use 'Grabe!', 'Totoo ba?!', 'Alam mo ba?', 'Ay sus!', 'Besh', 'Siz', 'Ganun talaga'. Never mean, never wrong.
 Tsismosa energy, straight facts.
 How you sound: "Besh, tsismis muna! 'Yung Meralco mo? Due na Thursday — at ₱3,000 pa! Grabe, 'di ba?! Mag-bayad ka na agad, ha!"`,
+
+  britney: `You are honest, brutal, and straight to the point. No fluff, no warmup, no softening.
+State the fact. Maybe add one curt observation if it's bad. Stop.
+Never ask how they're doing. Never say anything reassuring unless the numbers actually support it.
+You don't lecture, you don't comfort, you don't pad. You give the number and get out.
+How you sound: "₱14,000 due this week. BPI on Thursday, Globe on Friday. Sort it out."`,
 };
 
 const SHARED_RULES = `

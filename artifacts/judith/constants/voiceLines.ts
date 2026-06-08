@@ -49,6 +49,7 @@ export const JUDITH_VOICE = {
     sib:     { en: "About 5 to 7 minutes. Just answer my questions — it'll be worth it.", fil: "5 hanggang 7 minuto lang to. Sagutin mo lang ang mga tanong ko." },
     mama:    { en: "Anak, this will only take 5 to 7 minutes. I'll walk you through everything, promise.", fil: "Anak, 5 hanggang 7 minuto lang ito. Sasamahan kita sa lahat, promise." },
     marites: { en: "Grabe besh, 5 to 7 minutes lang! Let's map all your bills — I cannot wait!", fil: "Grabe besh, 5 hanggang 7 minuto lang! I-map na natin ang lahat ng bills mo!" },
+    britney: { en: "Five to seven minutes. Answer my questions. Every bill gets tracked. Let's start.", fil: "Lima hanggang pitong minuto. Sagutin ang mga tanong ko. Naka-track na lahat. Tara." },
   } satisfies PersonaLines,
 
   /* ── ScreenLateFee ────────────────────────────────────────────────────── */
@@ -58,6 +59,7 @@ export const JUDITH_VOICE = {
     sib:     { en: "Missed payment. Surprise fee. Happens to everyone. That's why I'm here.", fil: "Napalampas na bayad. Biglang multa. Nangyayari sa lahat. Kaya nandito ako." },
     mama:    { en: "Anak, don't worry — it happens to everyone. I'm here to make sure it doesn't happen to you again.", fil: "Huwag mag-alala anak. Nangyayari ito sa lahat. Nandito ako para hindi na maulit." },
     marites: { en: "Ay grabe, late fees! The absolute worst! But besh, that's why I'm here — hindi na maulit iyon!", fil: "Ay grabe, late fees! Ang pangit! Pero besh, nandito na ako — hindi na maulit 'yan!" },
+    britney: { en: "Missed payment. Late fee. Entirely avoidable. That's what I'm here for.", fil: "Napalampas na bayad. Multa. Maiiwasan ito. Kaya nandito ako." },
   } satisfies PersonaLines,
 
   /* ── ScreenProblem ────────────────────────────────────────────────────── */
@@ -67,6 +69,7 @@ export const JUDITH_VOICE = {
     sib:     { en: "Most people don't track this. You're about to be different.", fil: "Karamihan hindi nag-ta-track. Ikaw ay magiging iba." },
     mama:    { en: "Anak, most people don't track their bills. But that's okay — we're changing that right now.", fil: "Anak, karamihan hindi nag-ta-track ng bills. Pero okay lang — palitan na natin iyon ngayon." },
     marites: { en: "Ay besh, most people don't track their bills! Pero tayo — we're changing that na!", fil: "Ay besh, karamihan hindi nag-ta-track ng bills! Pero tayo — we're changing that na!" },
+    britney: { en: "Most people don't track their bills. That's a choice with a cost. Fix it.", fil: "Karamihan hindi nag-ta-track ng bills. May epekto iyon. Ayusin na natin." },
   } satisfies PersonaLines,
 
   /* ── ScreenStakes ─────────────────────────────────────────────────────── */
@@ -76,6 +79,7 @@ export const JUDITH_VOICE = {
     sib:     { en: "This doesn't have to stay this way. Let's change it. Now.", fil: "Hindi na kailangang ganito. Palitan na natin. Ngayon." },
     mama:    { en: "Anak, we're going to change this together — starting right now.", fil: "Anak, magbabago na tayo — simula ngayon. Sama-sama tayo." },
     marites: { en: "Besh! No more of this! We're changing it right now! Let's go!", fil: "Besh! Tapos na! Palitan na natin ito ngayon! Let's go!" },
+    britney: { en: "This changes now. Track them. Pay them. That's all there is to it.", fil: "Nagbabago na ito ngayon. I-track. Bayaran. 'Yun lang." },
   } satisfies PersonaLines,
 
   /* ── ScreenAskPaywall ─────────────────────────────────────────────────── */
@@ -85,6 +89,7 @@ export const JUDITH_VOICE = {
     sib:     { en: "Eight free asks. Use them. If you want more, pick a plan.", fil: "Walong libreng tanong. Gamitin mo. Kung gusto mo pa, pumili ng plano." },
     mama:    { en: "Anak, you have eight free asks to start. Try them out — and when you want more, I'll be right here.", fil: "Anak, may walong libreng tanong ka. Subukan mo — at kapag gusto mo pa, nandito ako." },
     marites: { en: "Besh! Eight free asks — try me! And when you want to keep chatting, pick a plan! I'll be waiting!", fil: "Besh! Walong libreng tanong! Subukan mo ako! At kapag gusto mo pang makipag-chat — pick a plan! Waiting ako!" },
+    britney: { en: "Eight free asks. Use them. Want more — pick a plan.", fil: "Walong libreng tanong. Gamitin. Gusto mo pa — pumili ng plano." },
   } satisfies PersonaLines,
 
   /* ── ScreenPersonalizing (spoken while loading) ───────────────────────── */
@@ -96,6 +101,7 @@ export const JUDITH_VOICE = {
     sib:     "Yeah yeah, I'm working on it. Give me a second.",
     mama:    "Almost ready anak — I'm making sure everything is just right for you.",
     marites: "Ay grabe, so many bills! But I got you besh — almost done!",
+    britney: "Setting this up. Almost done.",
   } satisfies Record<PersonaId, string>,
 
   /* ─────────────────────────────────────────────────────────────────────── */
@@ -122,6 +128,10 @@ export const JUDITH_VOICE = {
     marites: {
       en:  ["Oh oh oh! Ask me na! I know everything about your bills besh!", "Ay! Ask me what's due this week! I'll tell you everything besh! Lahat!", "Ask me if it's safe to spend! I'll check your bills — all of them! Grabe besh!"],
       fil: ["Ay ay ay! Magtanong ka na besh! Alam ko lahat ng tungkol sa bills mo!", "Ay! Tanungin mo ako kung ano ang due ngayong linggo! Isasabi ko lahat besh!", "Tanungin mo ako kung ligtas mag-gastos! Checkuhin ko ang lahat besh! Grabe!"],
+    },
+    britney: {
+      en:  ["Ask me anything.", "Ask what's due this week. I'll give you amounts and dates.", "Ask if it's safe to spend. I'll check your bills and give you a straight answer."],
+      fil: ["Magtanong ka.", "Tanungin mo ang due this week. Sasabihin ko ang amounts at dates.", "Tanungin mo kung ligtas mag-gastos. I-check ko at sasabihin ko nang tapat."],
     },
   } satisfies Record<PersonaId, { en: [string, string, string]; fil: [string, string, string] }>,
 
@@ -287,6 +297,34 @@ export const JUDITH_VOICE = {
         "Personal loan":      "May utang pa?! Sinong nagpahiram at magkano monthly?!",
       },
     },
+    britney: {
+      en: {
+        "Rent / Mortgage":    "Rent. Amount and due date.",
+        Electricity:          "Electricity. Provider and monthly amount.",
+        Water:                "Water. Provider and amount.",
+        Internet:             "Internet. Provider and cost.",
+        Mobile:               "Phone plan. Network and monthly amount.",
+        "Phone subscription": "Screenshot Subscriptions in Settings. Or list them one by one.",
+        "TV / Streaming":     "Streaming. Which ones and how much?",
+        "Web app":            "Web subscriptions. Name, cost.",
+        Insurance:            "Insurance. Type, provider, monthly amount.",
+        "Credit card":        "Bank and amount due.",
+        "Personal loan":      "Lender and monthly payment.",
+      },
+      fil: {
+        "Rent / Mortgage":    "Renta. Halaga at due date.",
+        Electricity:          "Kuryente. Provider at monthly amount.",
+        Water:                "Tubig. Provider at halaga.",
+        Internet:             "Internet. Provider at halaga.",
+        Mobile:               "Phone plan. Network at monthly amount.",
+        "Phone subscription": "I-screenshot ang Subscriptions sa Settings. O ilista isa-isa.",
+        "TV / Streaming":     "Streaming. Alin-alin at magkano?",
+        "Web app":            "Web subscriptions. Pangalan, halaga.",
+        Insurance:            "Insurance. Uri, provider, monthly amount.",
+        "Credit card":        "Bangko at halaga ng due.",
+        "Personal loan":      "Lender at monthly payment.",
+      },
+    },
   }) as Record<PersonaId, { en: Record<string, string>; fil: Record<string, string> }>,
 
   /* ─────────────────────────────────────────────────────────────────────── */
@@ -353,6 +391,18 @@ export const JUDITH_VOICE = {
       cardNext:   { en: (n) => `Card ${n} — same details: bank, amount, due date?`, fil: (n) => `Card ${n} — same details: bank, amount, at kelan due?` },
       loanFirst:  { en: "Sinong nag pahiram sayo, magkano monthly at tuwing kelan mo kailangan bayaran?", fil: "Sinong nag pahiram sayo, magkano monthly at tuwing kelan mo kailangan bayaran?" },
       loanNext:   { en: (n) => `Loan ${n} — sino pa, magkano monthly, at kelan?`, fil: (n) => `Loan ${n} — sino pa, magkano monthly, at kelan?` },
+    },
+    britney: {
+      breather0:  { en: "Essentials logged. Power, water, internet — done.", fil: "Essentials naka-save. Kuryente, tubig, internet — done." },
+      breather1:  { en: "Subscriptions logged.", fil: "Subscriptions naka-save." },
+      breather2:  { en: "Insurance logged.", fil: "Insurance naka-save." },
+      countCards: { en: "Credit cards. How many?", fil: "Mga credit card. Ilan?" },
+      countLoans: { en: "Loans. How many?", fil: "Mga loans. Ilan?" },
+      more:       { en: (n) => `${n} bills. Any more?`, fil: (n) => `${n} bills. May iba pa?` },
+      cardFirst:  { en: "First card — bank and amount due.", fil: "Unang card — bangko at halaga ng due." },
+      cardNext:   { en: (n) => `Card ${n} — bank and amount.`, fil: (n) => `Card ${n} — bangko at halaga.` },
+      loanFirst:  { en: "First loan — lender and monthly amount.", fil: "Unang loan — lender at monthly amount." },
+      loanNext:   { en: (n) => `Loan ${n} — lender and monthly amount.`, fil: (n) => `Loan ${n} — lender at monthly amount.` },
     },
   } satisfies Record<PersonaId, BillFlow>,
 
