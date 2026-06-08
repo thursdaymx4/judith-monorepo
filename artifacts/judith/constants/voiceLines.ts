@@ -110,28 +110,28 @@ export const JUDITH_VOICE = {
   /* ─────────────────────────────────────────────────────────────────────── */
   features: {
     pro: {
-      en:  ["Go ahead — ask me anything. I'm listening.", "Try asking what's due this week. I'll give you the full picture.", "Ask me if it's safe to spend before payday. I'll check your bills and give you a straight answer."],
-      fil: ["Sige, magtanong ka na. Nakinukinig ako.", "Try mo i-tanong kung ano ang due ngayong linggo. Sasabihin ko lahat.", "Tanungin mo ko kung ligtas mag-gastos. I-check ko lahat ng bills mo."],
+      en:  ["Tap the question below — I'll add up every bill you have this month.", "Now ask about your utilities and rent — tap the question below.", "Now let's look ahead — tap below to see your estimated total for next month."],
+      fil: ["I-tap ang tanong sa baba — i-total ko ang lahat ng bills mo ngayong buwan.", "Tanungin mo na ang utilities at renta — i-tap ang tanong sa baba.", "Tignan natin ang susunod na buwan — i-tap sa baba para makita ang estimated total mo."],
     },
     funny: {
-      en:  ["I'm all ears! Tap that mic and let's see what you've got.", "Try 'what's due this week?' — I'll spill everything, no holding back!", "Ask if it's safe to spend before payday. I'll be brutally honest — lovingly, of course!"],
-      fil: ["Ready na ako! Magtanong ka na, curious rin ako kung ano ang sasabihin mo!", "I-try mo: 'Ano ang due this week?' — Isasabi ko lahat, walang tinatago!", "Tanungin mo: ligtas ba mag-gastos? Magsasabi ako ng totoo — mahal kita kaya!"],
+      en:  ["Ooh, the big question! Tap it — I'll crunch every single bill right now!", "Utilities AND rent?! Tap that question — I'll add it all up for you!", "Ooh, future planning! Tap it — I'll project your entire next month for you!"],
+      fil: ["Ay, ang laki ng tanong! I-tap na — kukwentahin ko lahat ng bills mo ngayon!", "Utilities AT renta?! I-tap na — itatotal ko lahat para sa iyo!", "Future planning na?! I-tap na — iproprojekt ko ang buong susunod na buwan para sa iyo!"],
     },
     sib: {
-      en:  ["You can ask me things now. Go ahead.", "Ask what's due this week. I'll tell you.", "Ask if it's safe to spend. I'll check and give you the truth."],
-      fil: ["Pwede ka nang magtanong. Sige.", "Tanungin mo kung ano ang due ngayong linggo. Sasabihin ko.", "Tanungin mo kung ligtas mag-gastos. Checkuhin ko at sasabihin ko."],
+      en:  ["Tap the question. I'll total your bills for this month.", "Water, electricity, internet, rent. Tap the question. I'll total it.", "Next month. Tap the question. I'll estimate from what you've added."],
+      fil: ["I-tap ang tanong. I-total ko ang bills mo ngayong buwan.", "Tubig, kuryente, internet, renta. I-tap ang tanong. I-total ko.", "Susunod na buwan. I-tap ang tanong. I-e-estimate ko mula sa mga bills mo."],
     },
     mama: {
-      en:  ["Go ahead anak, ask me anything. I'm here.", "Try asking what's due this week anak. I'll tell you everything.", "Ask me if it's safe to spend anak. I'll check everything for you."],
-      fil: ["Sige anak, magtanong ka na. Nandito ako.", "Try mo anak, tanungin ang due this week. Isasabi ko lahat sa iyo.", "Tanungin mo anak kung ligtas mag-gastos. I-check ko lahat para sa iyo."],
+      en:  ["Go ahead anak, tap the question — I'll add everything up for you.", "Try asking about your utilities and rent anak — tap below and I'll add it all up.", "Let's look at next month anak — tap the question and I'll estimate everything for you."],
+      fil: ["Sige anak, i-tap ang tanong — i-add ko lahat para sa iyo.", "Tanungin mo ang utilities at renta mo anak — i-tap sa baba at itatotal ko lahat.", "Tignan natin ang susunod na buwan anak — i-tap at i-e-estimate ko lahat para sa iyo."],
     },
     marites: {
-      en:  ["Oh oh oh! Ask me na! I know everything about your bills besh!", "Ay! Ask me what's due this week! I'll tell you everything besh! Lahat!", "Ask me if it's safe to spend! I'll check your bills — all of them! Grabe besh!"],
-      fil: ["Ay ay ay! Magtanong ka na besh! Alam ko lahat ng tungkol sa bills mo!", "Ay! Tanungin mo ako kung ano ang due ngayong linggo! Isasabi ko lahat besh!", "Tanungin mo ako kung ligtas mag-gastos! Checkuhin ko ang lahat besh! Grabe!"],
+      en:  ["Ay! Total bills this month?! Tap it besh — I know every single one!", "Water! Electric! Internet! Rent! Tap the question besh — I'll get the total!", "Next month na?! Ay besh, I'm already excited! Tap it — I'll project it all!"],
+      fil: ["Ay! Total bills this month?! I-tap na besh — alam ko lahat!", "Tubig! Kuryente! Internet! Renta! I-tap na besh — kukunin ko ang total!", "Susunod na buwan na?! Ay besh, excited na ako! I-tap na — iproprojekt ko lahat!"],
     },
     britney: {
-      en:  ["Ask me anything.", "Ask what's due this week. I'll give you amounts and dates.", "Ask if it's safe to spend. I'll check your bills and give you a straight answer."],
-      fil: ["Magtanong ka.", "Tanungin mo ang due this week. Sasabihin ko ang amounts at dates.", "Tanungin mo kung ligtas mag-gastos. I-check ko at sasabihin ko nang tapat."],
+      en:  ["Tap the question. I'll total your bills for this month.", "Utilities and rent. Tap the question. I'll total it.", "Tap the question. I'll project your total bill for next month."],
+      fil: ["I-tap ang tanong. I-total ko ang bills mo ngayong buwan.", "Utilities at renta. I-tap ang tanong. I-total ko.", "I-tap ang tanong. Iproprojekt ko ang total bill mo para sa susunod na buwan."],
     },
   } satisfies Record<PersonaId, { en: [string, string, string]; fil: [string, string, string] }>,
 

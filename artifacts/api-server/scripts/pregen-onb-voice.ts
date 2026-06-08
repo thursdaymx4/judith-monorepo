@@ -99,28 +99,28 @@ const EN_TEXT: Record<Concept, Record<PersonaId, string>> = {
     britney:      "About 5 to 7 minutes. Answer my questions. I\u2019ll walk you through it.",
   },
   features0: {
-    professional: "Go ahead \u2014 ask me anything. I\u2019m listening.",
-    funny:        "I\u2019m all ears! Tap that mic and let\u2019s see what you\u2019ve got.",
-    sarcastic:    "You can ask me things now. Go ahead.",
-    mom:          "Go ahead anak, ask me anything. I\u2019m here.",
-    marites:      "Oh oh oh! Ask me na! I know everything about your bills besh!",
-    britney:      "Ask me something.",
+    professional: "Tap the question below — I’ll add up every bill you have this month.",
+    funny:        "Ooh, the big question! Tap it — I’ll crunch every single bill right now!",
+    sarcastic:    "Tap the question. I’ll total your bills for this month.",
+    mom:          "Go ahead anak, tap the question — I’ll add everything up for you.",
+    marites:      "Ay! Total bills this month?! Tap it besh — I know every single one!",
+    britney:      "Tap the question. I’ll total your bills for this month.",
   },
   features1: {
-    professional: "Try asking what\u2019s due this week. I\u2019ll give you the full picture.",
-    funny:        "Try \u2018what\u2019s due this week?\u2019 \u2014 I\u2019ll spill everything, no holding back!",
-    sarcastic:    "Ask what\u2019s due this week. I\u2019ll tell you.",
-    mom:          "Try asking what\u2019s due this week anak. I\u2019ll tell you everything.",
-    marites:      "Ay! Ask me what\u2019s due this week! I\u2019ll tell you everything besh! Lahat!",
-    britney:      "Ask what\u2019s due this week. I\u2019ll tell you.",
+    professional: "Now ask about your utilities and rent — tap the question below.",
+    funny:        "Utilities AND rent?! Tap that question — I’ll add it all up for you!",
+    sarcastic:    "Water, electricity, internet, rent. Tap the question. I’ll total it.",
+    mom:          "Try asking about your utilities and rent anak — tap below and I’ll add it all up.",
+    marites:      "Water! Electric! Internet! Rent! Tap the question besh — I’ll get the total!",
+    britney:      "Utilities and rent. Tap the question. I’ll total it.",
   },
   features2: {
-    professional: "Ask me if it\u2019s safe to spend before payday. I\u2019ll check your bills and give you a straight answer.",
-    funny:        "Ask if it\u2019s safe to spend before payday. I\u2019ll be brutally honest \u2014 lovingly, of course!",
-    sarcastic:    "Ask if it\u2019s safe to spend. I\u2019ll check and give you the truth.",
-    mom:          "Ask me if it\u2019s safe to spend anak. I\u2019ll check everything for you.",
-    marites:      "Ask me if it\u2019s safe to spend! I\u2019ll check your bills \u2014 all of them! Grabe besh!",
-    britney:      "Ask if it\u2019s safe to spend. I\u2019ll check and answer.",
+    professional: "Now let’s look ahead — tap below to see your estimated total for next month.",
+    funny:        "Ooh, future planning! Tap it — I’ll project your entire next month for you!",
+    sarcastic:    "Next month. Tap the question. I’ll estimate from what you’ve added.",
+    mom:          "Let’s look at next month anak — tap the question and I’ll estimate everything for you.",
+    marites:      "Next month na?! Ay besh, I’m already excited! Tap it — I’ll project it all!",
+    britney:      "Tap the question. I’ll project your total bill for next month.",
   },
   paywall: {
     professional: "You\u2019ve got eight free asks to start. When you\u2019re ready for more, pick a plan and I\u2019m all yours.",
@@ -201,28 +201,28 @@ const FIL_TEXT: Record<Concept, Record<PersonaId, string>> = {
     britney:      "5 hanggang 7 minuto lang. Sagutin mo ang mga tanong ko.",
   },
   features0: {
-    professional: "Sige, magtanong ka na. Nakinukinig ako.",
-    funny:        "Ready na ako! Magtanong ka na, curious rin ako kung ano ang sasabihin mo!",
-    sarcastic:    "Pwede ka nang magtanong. Sige.",
-    mom:          "Sige anak, magtanong ka na. Nandito ako.",
-    marites:      "Ay ay ay! Magtanong ka na besh! Alam ko lahat ng tungkol sa bills mo!",
-    britney:      "Magtanong ka na.",
+    professional: "I-tap ang tanong sa baba — i-total ko ang lahat ng bills mo ngayong buwan.",
+    funny:        "Ay, ang laki ng tanong! I-tap na — kukwentahin ko lahat ng bills mo ngayon!",
+    sarcastic:    "I-tap ang tanong. I-total ko ang bills mo ngayong buwan.",
+    mom:          "Sige anak, i-tap ang tanong — i-add ko lahat para sa iyo.",
+    marites:      "Ay! Total bills this month?! I-tap na besh — alam ko lahat!",
+    britney:      "I-tap ang tanong. I-total ko ang bills mo ngayong buwan.",
   },
   features1: {
-    professional: "Try mo i-tanong kung ano ang due ngayong linggo. Sasabihin ko lahat.",
-    funny:        "I-try mo: \u2018Ano ang due this week?\u2019 \u2014 Isasabi ko lahat, walang tinatago!",
-    sarcastic:    "Tanungin mo kung ano ang due ngayong linggo. Sasabihin ko.",
-    mom:          "Try mo anak, tanungin ang due this week. Isasabi ko lahat sa iyo.",
-    marites:      "Ay! Tanungin mo ako kung ano ang due ngayong linggo! Isasabi ko lahat besh!",
-    britney:      "Tanungin mo kung ano ang due ngayong linggo. Sasabihin ko.",
+    professional: "Tanungin mo na ang utilities at renta — i-tap ang tanong sa baba.",
+    funny:        "Utilities AT renta?! I-tap na — itatotal ko lahat para sa iyo!",
+    sarcastic:    "Tubig, kuryente, internet, renta. I-tap ang tanong. I-total ko.",
+    mom:          "Tanungin mo ang utilities at renta mo anak — i-tap sa baba at itatotal ko lahat.",
+    marites:      "Tubig! Kuryente! Internet! Renta! I-tap na besh — kukunin ko ang total!",
+    britney:      "Utilities at renta. I-tap ang tanong. I-total ko.",
   },
   features2: {
-    professional: "Tanungin mo ko kung ligtas mag-gastos. I-check ko lahat ng bills mo.",
-    funny:        "Tanungin mo: ligtas ba mag-gastos? Magsasabi ako ng totoo \u2014 mahal kita kaya!",
-    sarcastic:    "Tanungin mo kung ligtas mag-gastos. Checkuhin ko at sasabihin ko.",
-    mom:          "Tanungin mo anak kung ligtas mag-gastos. I-check ko lahat para sa iyo.",
-    marites:      "Tanungin mo ako kung ligtas mag-gastos! Checkuhin ko ang lahat besh! Grabe!",
-    britney:      "Tanungin mo kung ligtas mag-gastos. Checkuhin ko at sasabihin ko.",
+    professional: "Tignan natin ang susunod na buwan — i-tap sa baba para makita ang estimated total mo.",
+    funny:        "Future planning na?! I-tap na — iproprojekt ko ang buong susunod na buwan para sa iyo!",
+    sarcastic:    "Susunod na buwan. I-tap ang tanong. I-e-estimate ko mula sa mga bills mo.",
+    mom:          "Tignan natin ang susunod na buwan anak — i-tap at i-e-estimate ko lahat para sa iyo.",
+    marites:      "Susunod na buwan na?! Ay besh, excited na ako! I-tap na — iproprojekt ko lahat!",
+    britney:      "I-tap ang tanong. Iproprojekt ko ang total bill mo para sa susunod na buwan.",
   },
   paywall: {
     professional: "May walong libreng tanong ka sa simula. Kapag gusto mo ng higit pa, pumili ng plano \u2014 nandito ako.",
@@ -471,52 +471,52 @@ const TRANS: Record<Concept, Record<string, string>> = {
     vi: "\u0110i\u1ec1u n\u00e0y th\u01b0\u1eddng m\u1ea5t t\u1eeb 5 \u0111\u1ebfn 7 ph\u00fat. T\u00f4i s\u1ebd h\u01b0\u1edbng d\u1eabn b\u1ea1n t\u1eebng b\u01b0\u1edbc.", th: "\u0e1b\u0e01\u0e15\u0e34\u0e43\u0e0a\u0e49\u0e40\u0e27\u0e25\u0e32 5 \u0e16\u0e36\u0e07 7 \u0e19\u0e32\u0e17\u0e35 \u0e09\u0e31\u0e19\u0e08\u0e30\u0e41\u0e19\u0e30\u0e19\u0e33\u0e04\u0e38\u0e13\u0e17\u0e38\u0e01\u0e02\u0e31\u0e49\u0e19\u0e15\u0e2d\u0e19",
   },
   features0: {
-    es: "Adelante \u2014 preg\u00fantame lo que quieras. Te escucho.", pt: "Pode perguntar \u2014 qualquer coisa. Estou ouvindo.", "pt-PT": "Podes perguntar \u2014 qualquer coisa. Estou a ouvir.",
-    fr: "Allez-y \u2014 posez-moi n\u2019importe quelle question. Je vous \u00e9coute.", de: "Fragen Sie mich ruhig \u2014 irgendetwas. Ich h\u00f6re zu.", it: "Vai pure \u2014 chiedimi quello che vuoi. Sono qui ad ascoltarti.",
-    nl: "Ga uw gang \u2014 vraag me van alles. Ik luister.", pl: "\u015amia\u0142o \u2014 zapytaj mnie o cokolwiek. S\u0142ucham.", sv: "K\u00f6r ig\u00e5ng \u2014 fr\u00e5ga mig vad som helst. Jag lyssnar.",
-    da: "Bare sp\u00f8rg \u2014 alt du vil. Jeg lytter.", no: "Bare sp\u00f8r \u2014 hva som helst. Jeg lytter.", fi: "Kysy vain \u2014 mit\u00e4 tahansa. Kuuntelen.",
-    cs: "Klidn\u011b se ptejte \u2014 cokoliv. Poslouchám.", sk: "K\u013eudne sa p\u00fdtajte \u2014 \u010dokolwiek. Počúvam.", ro: "D\u0103-i drumul \u2014 \u00eentreba\u0103-m\u0103 orice. Ascult.",
-    bg: "\u041f\u0438\u0442\u0430\u0439 \u2014 \u043a\u0430\u043a\u0432\u043e\u0442\u043e \u0438\u0441\u043a\u0430\u0448. \u0421\u043b\u0443\u0448\u0430\u043c.", hr: "Slobodno pitaj \u2014 \u0161to god ho\u0107e\u0161. Slu\u0161am.", el: "\u03a1\u03ce\u03c4\u03b7\u03c3\u03ad \u03bc\u03b5 \u2014 \u03bf\u03c4\u03b9\u03b4\u03ae\u03c0\u03bf\u03c4\u03b5. \u0391\u03ba\u03bf\u03cd\u03c9.",
-    hu: "Csak k\u00e9rdezz \u2014 b\u00e1rmit. Figyelek.", uk: "\u0421\u043c\u0456\u043b\u0438\u0432\u043e \u043f\u0438\u0442\u0430\u0439\u0442\u0435 \u2014 \u0431\u0443\u0434\u044c-\u0449\u043e. \u042f \u0441\u043b\u0443\u0445\u0430\u044e.", ru: "\u0421\u043c\u0435\u043b\u043e \u0441\u043f\u0440\u0430\u0448\u0438\u0432\u0430\u0439\u0442\u0435 \u2014 \u0447\u0442\u043e \u0443\u0433\u043e\u0434\u043d\u043e. \u042f \u0441\u043b\u0443\u0448\u0430\u044e.",
-    tr: "Buyurun \u2014 ne olursa sorun. Dinliyorum.", ar: "\u062a\u0641\u0636\u0644\u064a \u2014 \u0627\u0633\u0623\u0644\u064a\u0646\u064a \u0639\u0646 \u0623\u064a \u0634\u064a\u0621. \u0623\u0646\u0627 \u0623\u0633\u062a\u0645\u0639.", arz: "\u0627\u062a\u0641\u0636\u0644\u064a \u2014 \u0627\u0633\u0623\u0644\u064a\u0646\u064a \u0639\u0644\u0649 \u0623\u064a \u062d\u0627\u062c\u0629. \u0623\u0646\u0627 \u0628\u0633\u0645\u0639\u0643.",
-    apc: "\u062a\u0641\u0636\u0644\u064a \u2014 \u0627\u0633\u0623\u0644\u064a\u0646\u064a \u0639\u0646 \u0623\u064a \u0634\u064a. \u0639\u0645 \u0628\u0633\u0645\u0639\u0643.", afb: "\u062a\u0641\u0636\u0644\u064a \u2014 \u0627\u0633\u0623\u0644\u064a\u0646\u064a \u0623\u064a \u0634\u064a. \u0623\u0633\u0645\u0639\u0643.",
-    hi: "\u092a\u0942\u091b\u093f\u090f \u2014 \u0915\u0941\u091b \u092d\u0940\u0964 \u092e\u0948\u0902 \u0938\u0941\u0928 \u0930\u0939\u0940 \u0939\u0942\u0901\u0964", ta: "\u0b95\u0bc7\u0bb3\u0bc1\u0b99\u0bcd\u0b95\u0bb3\u0bcd \u2014 \u0b8e\u0ba4\u0bc1\u0bb5\u0bc1\u0bae\u0bcd. \u0ba8\u0bbe\u0ba9\u0bcd \u0b95\u0bc7\u0b9f\u0bcd\u0b95\u0bbf\u0bb1\u0bc7\u0ba9\u0bcd.",
-    ja: "\u3069\u3046\u305e \u2014 \u4f55\u3067\u3082\u8074\u3044\u3066\u304f\u3060\u3055\u3044\u3002\u8074\u3044\u3066\u3044\u307e\u3059\u3002", ko: "\ubb34\uc5c7\uc774\ub4e0 \ubb3c\uc5b4\ubcf4\uc138\uc694. \ub4e3\uace0 \uc788\uc5b4\uc694.",
-    zh: "\u968f\u65f6\u63d0\u95ee \u2014 \u4ec0\u4e48\u90fd\u53ef\u4ee5\u3002\u6211\u5728\u542c\u3002", yue: "\u96a8\u6642\u554f\u6211 \u2014 \u4e5f\u5f97\u3002\u6211\u55ba\u807d\u7dca\u3002",
-    id: "Silakan tanya \u2014 apa saja. Aku mendengarkan.", ms: "Sila tanya \u2014 apa sahaja. Saya mendengar.",
-    vi: "C\u1ee9 h\u1ecfi \u0111i \u2014 b\u1ea5t c\u1ee9 \u0111i\u1ec1u g\u00ec. T\u00f4i \u0111ang l\u1eafng nghe.", th: "\u0e16\u0e32\u0e21\u0e44\u0e14\u0e49\u0e40\u0e25\u0e22 \u2014 \u0e2d\u0e30\u0e44\u0e23\u0e01\u0e47\u0e44\u0e14\u0e49 \u0e09\u0e31\u0e19\u0e01\u0e33\u0e25\u0e31\u0e07\u0e1f\u0e31\u0e07\u0e2d\u0e22\u0e39\u0e48",
+    es: "Toca la pregunta de abajo — voy a sumar todas tus facturas de este mes.", pt: "Toque na pergunta abaixo — vou somar todas as suas contas deste mês.", "pt-PT": "Toca na pregunta abaixo — vou totalizar todas as tuas faturas deste mês.",
+    fr: "Appuyez sur la question ci-dessous — je vais additionner toutes vos factures du mois.", de: "Tippe auf die Frage unten — ich addiere alle Ihre Rechnungen für diesen Monat.", it: "Tocca la domanda qui sotto — summerò tutte le tue bollette di questo mese.",
+    nl: "Tik op de vraag hieronder — ik tel al uw rekeningen voor deze maand bij elkaar op.", pl: "Dotknąż pytania poniżej — zsumuję wszystkie twoje rachunki za ten miesiąc.", sv: "Tryck på frågan nedan — jag summerar alla dina räkningar för den här månaden.",
+    da: "Tryk på spørgsmålet nedenfor — jeg lægger alle dine regninger for denne måned sammen.", no: "Trykk på spørsmålet nedenfor — jeg legger sammen alle regningene dine for denne måneden.", fi: "Napauta alla olevaa kysymystä — lasken yhteen kaikki tämän kuun laskusi.",
+    cs: "Klepněte na otázku níže — sečtu všechny vaše účty za tento měsíc.", sk: "Klepnite na otázku nižšie — spočítam všetky vaše účty za tento mesiac.", ro: "Atingeți întrebarea de mai jos — voi totaliza toate facturile tale din această lună.",
+    bg: "Докоснете въпроса по-долу — ще сумирам всичките ви сметки за този месец.", hr: "Dodirni pitanje ispod — zbrojit ću sve tvoje račune za ovaj mjesec.", el: "Πατήστε την ερώτηση παρακάτω — θα αθροίσω όλους τους λογαριασμούς σας αυτό τον μήνα.",
+    hu: "Koppints az alábbi kérdésre — összesítem az összes számládat ebben a hónapban.", uk: "Торкніться питання нижче — я підсумую всі ваші рахунки за цей місяць.", ru: "Нажмите на вопрос ниже — я суммирую все ваши счета за этот месяц.",
+    tr: "Aşağıdaki soruya dokunun — bu ayki tüm faturalarınızı toplayağım.", ar: "اضغطي على السؤال أدناه — سأجمع كل فواتيرك هذا الشهر.", arz: "اضغطي على السؤال تحت — هجمع كل فواتيرك الشهر ده.",
+    apc: "اضغطي على السؤال تحت — رح أجمع كل فواتيرك هاد الشهر.", afb: "اضغطي على السؤال أدناه — بجمع لك كل فواتيرك هالشهر.",
+    hi: "नीचे दिए प्रश्न पर टैप करें — मैं इस महीने के सभी बिल जोड़ दूंगी।", ta: "கீழே உள்ள கேள்வியை தட்டுங்கள் — இந்த மாதம் உங்கள் அனைத்து கட்டணங்களையும் தொகுக்கிறேன்.",
+    ja: "下の質問をタップしてください — 今月の請求書をすべて合計します。", ko: "아래 질문을 탭하세요 — 이번 달 청구서를 모두 합산해 드릴게요.",
+    zh: "点击下面的问题 — 我将合计您这个月的所有账单。", yue: "點擊下面唖條問題 — 我會幫你加埋呢個月所有嘗賬單。",
+    id: "Ketuk pertanyaan di bawah — aku akan menjumlahkan semua tagihanmu bulan ini.", ms: "Ketuk soalan di bawah — saya akan menjumlahkan semua bil anda bulan ini.",
+    vi: "Nhấn vào câu hỏi bên dưới — tôi sẽ tổng hợp tất cả hóa đơn của bạn tháng này.", th: "แตะคำถามด้านล่าง — ฉันจะรวมบิลทั้งหมดของคุณเดือนนี้",
   },
   features1: {
-    es: "Prueba preguntando qu\u00e9 vence esta semana. Te digo todo.", pt: "Tente perguntar o que vence essa semana. Eu te digo tudo.", "pt-PT": "Tenta perguntar o que vence esta semana. Digo-te tudo.",
-    fr: "Essayez de me demander ce qui est d\u00fb cette semaine. Je vous dis tout.", de: "Fragen Sie mich, was diese Woche f\u00e4llig ist. Ich sage Ihnen alles.", it: "Prova a chiedermi cosa scade questa settimana. Ti dico tutto.",
-    nl: "Vraag me wat er deze week vervalt. Ik vertel u alles.", pl: "Spr\u00f3buj zapyta\u0107, co jest do zap\u0142aty w tym tygodniu. Powiem ci wszystko.", sv: "F\u00f6rs\u00f6k fr\u00e5ga vad som f\u00f6rfaller den h\u00e4r veckan. Jag ber\u00e4ttar allt.",
-    da: "Pr\u00f8v at sp\u00f8rge, hvad der forfalder denne uge. Jeg fort\u00e6ller dig alt.", no: "Pr\u00f8v \u00e5 sp\u00f8rre hva som forfaller denne uken. Jeg forteller deg alt.", fi: "Kokeile kysym\u00e4\u00e4, mitk\u00e4 laskut er\u00e4\u00e4ntyv\u00e4t t\u00e4ll\u00e4 viikolla. Kerron kaiken.",
-    cs: "Zkuste se zeptat, co je splatn\u00e9 tento t\u00fdden. \u0158eknu v\u00e1m v\u0161e.", sk: "Sk\u00fate sa op\u00fdta\u0165, \u010do je splatn\u00e9 tento t\u00fd\u017ede\u0148. Poviem v\u00e1m v\u0161etko.", ro: "\u00cencerc\u0103 s\u0103 m\u0103 \u00eentrebi ce e scadent s\u0103pt\u00e2m\u00e2na aceasta. \u00ce\u021bi spun tot.",
-    bg: "\u041e\u043f\u0438\u0442\u0430\u0439 \u0434\u0430 \u043c\u0435 \u043f\u043e\u043f\u0438\u0442\u0430\u0448 \u043a\u0430\u043a\u0432\u043e \u0435 \u0434\u044a\u043b\u0436\u0438\u043c\u043e \u0442\u0430\u0437\u0438 \u0441\u0435\u0434\u043c\u0438\u0446\u0430. \u0429\u0435 \u0442\u0438 \u043a\u0430\u0436\u0430 \u0432\u0441\u0438\u0447\u043a\u043e.", hr: "Poku\u0161aj me pitati \u0161to dospijeva ovog tjedna. Re\u0107i \u0107u ti sve.", el: "\u0394\u03bf\u03ba\u03af\u03bc\u03b1\u03c3\u03b5 \u03bd\u03b1 \u03bc\u03b5 \u03c1\u03c9\u03c4\u03ae\u03c3\u03b5\u03b9\u03c2 \u03c4\u03b9 \u03bb\u03ae\u03b3\u03b5\u03b9 \u03b1\u03c5\u03c4\u03ae\u03bd \u03c4\u03b7\u03bd \u03b5\u03b2\u03b4\u03bf\u03bc\u03ac\u03b4\u03b1. \u0398\u03b1 \u03c3\u03bf\u03c5 \u03c0\u03c9 \u03c4\u03b1 \u03c0\u03ac\u03bd\u03c4\u03b1.",
-    hu: "Pr\u00f3b\u00e1ld megk\u00e9rdezni, mi es\u00e9d\u00e9kes ezen a h\u00e9ten. Mindent elmondok.", uk: "\u0421\u043f\u0440\u043e\u0431\u0443\u0439\u0442\u0435 \u0437\u0430\u043f\u0438\u0442\u0430\u0442\u0438, \u0449\u043e \u043f\u043e\u0442\u0440\u0456\u0431\u043d\u043e \u0441\u043f\u043b\u0430\u0442\u0438\u0442\u0438 \u0446\u044c\u043e\u0433\u043e \u0442\u0438\u0436\u043d\u044f. \u042f \u0440\u043e\u0437\u043f\u043e\u0432\u0456\u043c \u0443\u0441\u0435.", ru: "\u041f\u043e\u043f\u0440\u043e\u0431\u0443\u0439\u0442\u0435 \u0441\u043f\u0440\u043e\u0441\u0438\u0442\u044c, \u0447\u0442\u043e \u043d\u0443\u0436\u043d\u043e \u043e\u043f\u043b\u0430\u0442\u0438\u0442\u044c \u043d\u0430 \u044d\u0442\u043e\u0439 \u043d\u0435\u0434\u0435\u043b\u0435. \u0420\u0430\u0441\u0441\u043a\u0430\u0436\u0443 \u0432\u0441\u0451.",
-    tr: "Bu hafta neyin \u00f6denece\u011fini sormay\u0131 deneyin. Her \u015feyi s\u00f6ylerim.", ar: "\u062c\u0631\u0651\u0628\u064a \u0623\u0646 \u062a\u0633\u0623\u0644\u064a\u0646\u064a \u0645\u0627 \u0627\u0644\u0630\u064a \u064a\u062d\u0644 \u0647\u0630\u0627 \u0627\u0644\u0623\u0633\u0628\u0648\u0639. \u0633\u0623\u062e\u0628\u0631\u0643\u0650 \u0628\u0643\u0644 \u0634\u064a\u0621.", arz: "\u062c\u0631\u0628\u064a \u062a\u0633\u0623\u0644\u064a\u0646\u064a \u0625\u064a\u0647 \u0627\u0644\u0644\u064a \u0628\u064a\u0633\u062a\u062d\u0642 \u0627\u0644\u0623\u0633\u0628\u0648\u0639 \u062f\u0647. \u0647\u0642\u0648\u0644\u0643 \u0643\u0644 \u062d\u0627\u062c\u0629.",
-    apc: "\u062c\u0631\u0628\u064a \u062a\u0633\u0623\u0644\u064a\u0646\u064a \u0634\u0648 \u0628\u064a\u0633\u062a\u062d\u0642 \u0647\u0627\u0644\u0623\u0633\u0628\u0648\u0639. \u0631\u062d \u0623\u062d\u0643\u064a\u0644\u0643 \u0643\u0644 \u0634\u064a.", afb: "\u062c\u0631\u0628\u064a \u062a\u0633\u0623\u0644\u064a\u0646\u064a \u0648\u0634 \u064a\u0633\u062a\u062d\u0642 \u0647\u0627\u0644\u0623\u0633\u0628\u0648\u0639. \u0623\u062e\u0628\u0631\u0643 \u0628\u0643\u0644 \u0634\u064a.",
-    hi: "\u0907\u0938 \u0939\u092b\u093c\u094d\u0924\u0947 \u0915\u094d\u092f\u093e \u0926\u0947\u092f \u0939\u0948 \u092a\u0942\u091b\u0928\u0947 \u0915\u0940 \u0915\u094b\u0936\u093f\u0936 \u0915\u0930\u0947\u0902\u0964 \u092e\u0948\u0902 \u0938\u092c \u092c\u0924\u093e \u0926\u0942\u0901\u0917\u0940\u0964", ta: "\u0b87\u0ba8\u0bcd\u0ba4 \u0bb5\u0bbe\u0bb0\u0bae\u0bcd \u0b8e\u0ba9\u0bcd\u0ba9 \u0b95\u0bbe\u0bb0\u0ba3\u0bae\u0bbe\u0b95 \u0b87\u0bb0\u0bc1\u0b95\u0bcd\u0b95\u0bbf\u0bb1\u0ba4\u0bc1 \u0b8e\u0ba9\u0bcd\u0bb1\u0bc1 \u0b95\u0bc7\u0bb3\u0bc1\u0b99\u0bcd\u0b95\u0bb3\u0bcd. \u0b8e\u0bb2\u0bcd\u0bb2\u0bbe\u0bb5\u0bb1\u0bcd\u0bb1\u0bc8\u0baf\u0bc1\u0bae\u0bcd \u0b9a\u0bca\u0bb2\u0bcd\u0b95\u0bbf\u0bb1\u0bc7\u0ba9\u0bcd.",
-    ja: "\u4eca\u9031\u306e\u652f\u6255\u3044\u671f\u65e5\u3092\u8074\u3044\u3066\u307f\u3066\u304f\u3060\u3055\u3044\u3002\u3059\u3079\u3066\u304a\u4f1a\u3048\u3057\u307e\u3059\u3002", ko: "\uc774\ubc88 \uc8fc\uc5d0 \ub0a9\ubd80\ud560 \uac83\uc774 \ubb38\uc9c0 \ubb3c\uc5b4\ubcf4\uc138\uc694. \uc804\ubd80 \uc54c\ub824\ub4dc\ub9b4\uac8c\uc694.",
-    zh: "\u8bd5\u7740\u95ee\u95ee\u8fd9\u5468\u6709\u54ea\u4e9b\u5230\u671f\u8d26\u5355\u3002\u6211\u4f1a\u544a\u8bc9\u4f60\u6240\u6709\u4fe1\u606f\u3002", yue: "\u8a66\u4e0b\u554f\u6211\u4eca\u500b\u661f\u671f\u6709\u54aa\u4e9b\u5230\u671f\u8cec\u55ae\u3002\u6211\u6703\u8a71\u4f60\u77e5\u6240\u6709\u5955\u3002",
-    id: "Coba tanya apa yang jatuh tempo minggu ini. Aku akan ceritakan semuanya.", ms: "Cuba tanya apa yang perlu dibayar minggu ini. Saya akan ceritakan segalanya.",
-    vi: "Th\u1eed h\u1ecfi nh\u1eefng g\u00ec \u0111\u1ebfn h\u1ea1n tu\u1ea7n n\u00e0y. T\u00f4i s\u1ebd cho b\u1ea1n bi\u1ebft t\u1ea5t c\u1ea3.", th: "\u0e25\u0e2d\u0e07\u0e16\u0e32\u0e21\u0e27\u0e48\u0e32\u0e2a\u0e31\u0e1b\u0e14\u0e32\u0e2b\u0e4c\u0e19\u0e35\u0e49\u0e21\u0e35\u0e1a\u0e34\u0e25\u0e2d\u0e30\u0e44\u0e23\u0e04\u0e23\u0e1a\u0e01\u0e33\u0e2b\u0e19\u0e14\u0e1a\u0e49\u0e32\u0e07 \u0e09\u0e31\u0e19\u0e08\u0e30\u0e1a\u0e2d\u0e01\u0e17\u0e38\u0e01\u0e2d\u0e22\u0e48\u0e32\u0e07",
+    es: "Toca la pregunta de abajo — voy a sumar agua, luz, internet y alquiler de este mes.", pt: "Toque na pergunta abaixo — vou somar água, luz, internet e aluguel deste mês.", "pt-PT": "Toca na pergunta abaixo — vou totalizar água, luz, internet e renda deste mês.",
+    fr: "Appuyez sur la question ci-dessous — je vais additionner eau, électricité, internet et loyer du mois.", de: "Tippe auf die Frage unten — ich addiere Wasser, Strom, Internet und Miete für diesen Monat.", it: "Tocca la domanda qui sotto — summerò acqua, luce, internet e affitto di questo mese.",
+    nl: "Tik op de vraag hieronder — ik tel water, stroom, internet en huur voor deze maand op.", pl: "Dotknąż pytania poniżej — zsumuję wodę, prąd, internet i czynsz za ten miesiąc.", sv: "Tryck på frågan nedan — jag summerar vatten, el, internet och hyra för den här månaden.",
+    da: "Tryk på spørgsmålet nedenfor — jeg lægger vand, el, internet og husleje for denne måned sammen.", no: "Trykk på spørsmålet nedenfor — jeg legger sammen vann, strøm, internett og husleie for denne måneden.", fi: "Napauta alla olevaa kysymystä — lasken vesi, sähkö, internet ja vuokra yhteen tältä kuulta.",
+    cs: "Klepněte na otázku níže — sečtu vodu, elektřinu, internet a nájem za tento měsíc.", sk: "Klepnite na otázku nižšie — spočítam vodu, elektrinu, internet a nájom za tento mesiac.", ro: "Atingeți întrebarea de mai jos — voi totaliza apă, curent, internet şi chirie din această lună.",
+    bg: "Докоснете въпроса по-долу — ще сумирам вода, ток, интернет и наем за този месец.", hr: "Dodirni pitanje ispod — zbrojit ću vodu, struju, internet i najam za ovaj mjesec.", el: "Πατήστε την ερώτηση παρακάτω — θα αθροίσω νερό, ρεύμα, ίντερνετ και ενοίκιο αυτό τον μήνα.",
+    hu: "Koppints az alábbi kérdésre — összesítem a vizet, áramot, internetet és bérleti díjat ebben a hónapban.", uk: "Торкніться питання нижче — я підсумую воду, електрику, інтернет та оренду за цей місяць.", ru: "Нажмите на вопрос ниже — я суммирую воду, электричество, интернет и аренду за этот месяц.",
+    tr: "Aşağıdaki soruya dokunun — su, elektrik, internet ve kirayı bu ay için toplayağım.", ar: "اضغطي على السؤال أدناه — سأجمع الماء والكهرباء والإنترنت والإيجار هذا الشهر.", arz: "اضغطي على السؤال تحت — هجمع مياه وكهرباء وإنترنت وإيجار الشهر ده.",
+    apc: "اضغطي على السؤال تحت — رح أجمع مي وكهرباء وإنترنت وإيجار هاد الشهر.", afb: "اضغطي على السؤال أدناه — بجمع مي وكهرباء وإنترنت وإيجار هالشهر.",
+    hi: "नीचे दिए प्रश्न पर टैप करें — मैं इस महीने पानी, बिजली, इंटरनेट और किराया जोड़ दूंगी।", ta: "கீழே உள்ள கேள்வியை தட்டுங்கள் — இந்த மாதம் தண்ணீர், மின்சாரம், இணையம் மற்றும் வாடகை தொகுக்கிறேன்.",
+    ja: "下の質問をタップしてください — 今月の水道、電気、インターネット、家賌を合計します。", ko: "아래 질문을 탭하세요 — 이번 달 수도, 전기, 인터넷, 임대료를 합산해 드릴게요.",
+    zh: "点击下面的问题 — 我将合计您这个月的水费、电费、网费和房租。", yue: "點擊下面唖條問題 — 我會幫你加埋呢個月嘗水費、電費、網費同租金。",
+    id: "Ketuk pertanyaan di bawah — aku akan menjumlahkan air, listrik, internet dan sewa bulan ini.", ms: "Ketuk soalan di bawah — saya akan menjumlahkan air, elektrik, internet dan sewa bulan ini.",
+    vi: "Nhấn vào câu hỏi bên dưới — tôi sẽ tổng hợp tiền nước, điện, internet và thuê nhà tháng này.", th: "แตะคำถามด้านล่าง — ฉันจะรวมค่าน้ำ ค่าไฟ อินเตอร์เน็ต และค่าเช่าเดือนนี้",
   },
   features2: {
-    es: "Preg\u00fantame si es seguro gastar antes del cobro. Reviso tus facturas y te doy una respuesta clara.", pt: "Pergunte se \u00e9 seguro gastar antes do sal\u00e1rio. Vejo suas contas e dou uma resposta direta.", "pt-PT": "Pergunta se \u00e9 seguro gastar antes do sal\u00e1rio. Vejo as tuas faturas e dou-te uma resposta clara.",
-    fr: "Demandez-moi si c\u2019est prudent de d\u00e9penser avant la paie. Je v\u00e9rifie et vous donne une r\u00e9ponse claire.", de: "Fragen Sie, ob es sicher ist, vor dem Zahltag auszugeben. Ich pr\u00fcfe alles und gebe Ihnen eine klare Antwort.", it: "Chiedimi se \u00e8 sicuro spendere prima del giorno di paga. Controllo tutto e ti do una risposta chiara.",
-    nl: "Vraag of het veilig is om te besteden voor de salarisdag. Ik controleer alles en geef u een duidelijk antwoord.", pl: "Zapytaj mnie, czy bezpiecznie jest wyda\u0107 przed wyp\u0142at\u0105. Sprawdz\u0119 i dam ci jasn\u0105 odpowied\u017a.", sv: "Fr\u00e5ga om det \u00e4r s\u00e4kert att spendera f\u00f6re l\u00f6nedagen. Jag kollar allt och ger dig ett tydligt svar.",
-    da: "Sp\u00f8rg om det er sikkert at bruge penge f\u00f8r l\u00f8nningsdagen. Jeg tjekker alt og giver dig et klart svar.", no: "Sp\u00f8r om det er trygt \u00e5 bruke penger f\u00f8r l\u00f8nningsdagen. Jeg sjekker alt og gir deg et tydelig svar.", fi: "Kysy, onko turvallista kuluttaa ennen palkkapaiv\u00e4\u00e4. Tarkistan kaiken ja annan sinulle selke\u00e4n vastauksen.",
-    cs: "Zeptejte se, zda je bezpe\u010dn\u00e9 utr\u00e1cet p\u0159ed v\u00fdplatou. Zkontroluju v\u0161e a d\u00e1m v\u00e1m jasnou odpov\u011b\u010f.", sk: "Op\u00fdtajte sa, \u010di je bezpe\u010dn\u00e9 m\u00edna\u0165 pred v\u00fdplatou. Skontrolujem v\u0161etko a d\u00e1m v\u00e1m jasnú odpove\u010f.", ro: "\u00ceitreab\u0103-m\u0103 dac\u0103 e sigur s\u0103 cheltuiesti \u00eenainte de ziua de salariu. Verific totul \u015fi \u00ef\u0163i dau un r\u0103spuns clar.",
-    bg: "\u041f\u043e\u043f\u0438\u0442\u0430\u0439 \u043c\u0435 \u0434\u0430\u043b\u0438 \u0435 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e \u0434\u0430 \u0445\u0430\u0440\u0447\u0438\u0448 \u043f\u0440\u0435\u0434\u0438 \u0437\u0430\u043f\u043b\u0430\u0442\u0430. \u041f\u0440\u043e\u0432\u0435\u0440\u044f\u0432\u0430\u043c \u0432\u0441\u0438\u0447\u043a\u043e \u0438 \u0442\u0438 \u0434\u0430\u0432\u0430\u043c \u044f\u0441\u0435\u043d \u043e\u0442\u0433\u043e\u0432\u043e\u0440.", hr: "Pitaj me je li sigurno tro\u0161iti prije isplate. Provjerim sve i dam ti jasan odgovor.", el: "\u03a1\u03ce\u03c4\u03b7\u03c3\u03ad \u03bc\u03b5 \u03b1\u03bd \u03b5\u03af\u03bd\u03b1\u03b9 \u03b1\u03c3\u03c6\u03b1\u03bb\u03ad\u03c2 \u03bd\u03b1 \u03be\u03bf\u03b4\u03ad\u03c8\u03b5\u03b9\u03c2 \u03c0\u03c1\u03b9\u03bd \u03c4\u03b7\u03bd \u03b7\u03bc\u03ad\u03c1\u03b1 \u03c0\u03bb\u03b7\u03c1\u03c9\u03bc\u03ae\u03c2. \u0395\u03bb\u03ad\u03b3\u03c7\u03c9 \u03c4\u03b1 \u03c0\u03ac\u03bd\u03c4\u03b1 \u03ba\u03b1\u03b9 \u03c3\u03bf\u03c5 \u03b4\u03af\u03bd\u03c9 \u03bc\u03b9\u03b1 \u03be\u03b5\u03ba\u03ac\u03b8\u03b1\u03c1\u03b7 \u03b1\u03c0\u03ac\u03bd\u03c4\u03b7\u03c3\u03b7.",
-    hu: "K\u00e9rdezd meg, hogy biztons\u00e1gos-e fizet\u00e9snap el\u0151tt p\u00e9nzt k\u00f6lteni. Mindent ellen\u0151rz\u00f6k \u00e9s egyértelm\u0171 v\u00e1laszt adok.", uk: "\u0417\u0430\u043f\u0438\u0442\u0430\u0439\u0442\u0435 \u043c\u0435\u043d\u0435, \u0447\u0438 \u0431\u0435\u0437\u043f\u0435\u0447\u043d\u043e \u0432\u0438\u0442\u0440\u0430\u0447\u0430\u0442\u0438 \u043f\u0435\u0440\u0435\u0434 \u0437\u0430\u0440\u043f\u043b\u0430\u0442\u043e\u044e. \u041f\u0435\u0440\u0435\u0432\u0456\u0440\u044e \u0432\u0441\u0435 \u0456 \u0434\u0430\u043c \u0432\u0430\u043c \u0447\u0456\u0442\u043a\u0443 \u0432\u0456\u0434\u043f\u043e\u0432\u0456\u0434\u044c.", ru: "\u0421\u043f\u0440\u043e\u0441\u0438\u0442\u0435 \u043c\u0435\u043d\u044f, \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e \u043b\u0438 \u0442\u0440\u0430\u0442\u0438\u0442\u044c \u0434\u043e \u0437\u0430\u0440\u043f\u043b\u0430\u0442\u044b. \u041f\u0440\u043e\u0432\u0435\u0440\u044e \u0432\u0441\u0451 \u0438 \u0434\u0430\u043c \u0447\u0451\u0442\u043a\u0438\u0439 \u043e\u0442\u0432\u0435\u0442.",
-    tr: "Ma\u00e1\u015f g\u00fcn\u00fcnden \u00f6nce harcama yapman\u0131n g\u00fcvenli olup olmad\u0131\u011f\u0131n\u0131 sorun. Her \u015feyi kontrol edip net bir cevap veririm.", ar: "\u0627\u0633\u0623\u0644\u064a\u0646\u064a \u0647\u0644 \u0645\u0646 \u0627\u0644\u0622\u0645\u0646 \u0627\u0644\u0625\u0646\u0641\u0627\u0642 \u0642\u0628\u0644 \u064a\u0648\u0645 \u0627\u0644\u0631\u0627\u062a\u0628. \u0633\u0623\u062a\u062d\u0642\u0642 \u0645\u0646 \u0643\u0644 \u0634\u064a\u0621 \u0648\u0623\u0639\u0637\u064a\u0643\u0650 \u0625\u062c\u0627\u0628\u0629 \u0648\u0627\u0636\u062d\u0629.", arz: "\u0627\u0633\u0623\u0644\u064a\u0646\u064a \u0647\u0644 \u0627\u0644\u0625\u0646\u0641\u0627\u0642 \u0622\u0645\u0646 \u0642\u0628\u0644 \u0627\u0644\u0645\u0631\u062a\u0628. \u0647\u062a\u062d\u0642\u0642 \u0645\u0646 \u0643\u0644 \u062d\u0627\u062c\u0629 \u0648\u0623\u062f\u064a\u0643\u0650 \u0625\u062c\u0627\u0628\u0629 \u0648\u0627\u0636\u062d\u0629.",
-    apc: "\u0627\u0633\u0623\u0644\u064a\u0646\u064a \u0625\u0630\u0627 \u0643\u0627\u0646 \u0627\u0644\u0625\u0646\u0641\u0627\u0642 \u0622\u0645\u0646 \u0642\u0628\u0644 \u0627\u0644\u0631\u0627\u062a\u0628. \u0631\u062d \u0623\u062a\u062d\u0642\u0642 \u0645\u0646 \u0643\u0644 \u0634\u064a \u0648\u0623\u0639\u0637\u064a\u0643\u0650 \u062c\u0648\u0627\u0628 \u0648\u0627\u0636\u062d.", afb: "\u0627\u0633\u0623\u0644\u064a\u0646\u064a \u0625\u0630\u0627 \u0627\u0644\u0625\u0646\u0641\u0627\u0642 \u0622\u0645\u0646 \u0642\u0628\u0644 \u0627\u0644\u0631\u0627\u062a\u0628. \u0623\u062a\u062d\u0642\u0642 \u0645\u0646 \u0643\u0644 \u0634\u064a \u0648\u0623\u0639\u0637\u064a\u0643 \u062c\u0648\u0627\u0628 \u0635\u0631\u064a\u062d.",
-    hi: "\u092e\u0941\u091d\u0938\u0947 \u092a\u0942\u091b\u0947\u0902 \u0915\u093f \u0924\u0928\u0916\u094d\u0935\u093e\u0939 \u0938\u0947 \u092a\u0939\u0932\u0947 \u0916\u0930\u094d\u091a \u0915\u0930\u0928\u093e \u0938\u0941\u0930\u0915\u094d\u0937\u093f\u0924 \u0939\u0948 \u092f\u093e \u0928\u0939\u0940\u0902\u0964 \u092e\u0948\u0902 \u0938\u092c \u091c\u093e\u0901\u091a\u0915\u0930 \u0938\u093e\u092b \u091c\u0935\u093e\u092c \u0926\u0942\u0901\u0917\u0940\u0964", ta: "\u0b9a\u0bae\u0bcd\u0baa\u0bb3\u0ba4\u0bcd\u0ba4\u0bbf\u0bb1\u0bcd\u0b95\u0bc1 \u0bae\u0bc1\u0ba9\u0bcd \u0b9a\u0bc6\u0bb2\u0bb5\u0bb4\u0bbf\u0baa\u0bcd\u0baa\u0ba4\u0bc1 \u0baa\u0bbe\u0ba4\u0bc1\u0b95\u0bbe\u0baa\u0bcd\u0baa\u0bbe\u0ba9\u0ba4\u0bbe \u0b8e\u0ba9\u0bcd\u0bb1\u0bc1 \u0b95\u0bc7\u0bb3\u0bc1\u0b99\u0bcd\u0b95\u0bb3\u0bcd. \u0b8e\u0bb2\u0bcd\u0bb2\u0bbe\u0bb5\u0bb1\u0bcd\u0bb1\u0bc8\u0baf\u0bc1\u0bae\u0bcd \u0b9a\u0bb0\u0bbf\u0baa\u0bbe\u0bb0\u0bcd\u0ba4\u0bcd\u0ba4\u0bc1 \u0ba4\u0bc6\u0bb3\u0bbf\u0bb5\u0bbe\u0ba9 \u0baa\u0ba4\u0bbf\u0bb2\u0bcd \u0ba4\u0bb0\u0bc1\u0b95\u0bbf\u0bb1\u0bc7\u0ba9\u0bcd.",
-    ja: "\u7d66\u6599\u65e5\u524d\u306b\u4f7f\u3063\u3066\u3082\u5927\u4e08\u592b\u304b\u8074\u3044\u3066\u304f\u3060\u3055\u3044\u3002\u3059\u3079\u3066\u78ba\u8a8d\u3057\u3066\u660e\u78ba\u306a\u7b54\u3048\u3092\u304a\u4f1d\u3048\u3057\u307e\u3059\u3002", ko: "\uc6d4\uae09\ub0a0 \uc804\uc5d0 \uc368\ub3c4 \ub418\ub294\uc9c0 \ubb3c\uc5b4\ubcf4\uc138\uc694. \ubaa8\ub450 \ud655\uc778\ud558\uace0 \uba85\ud655\ud55c \ub2f5\uc744 \ub4dc\ub9b4\uac8c\uc694.",
-    zh: "\u95ee\u95ee\u6211\u53d1\u85aa\u65e5\u524d\u662f\u5426\u53ef\u4ee5\u5b89\u5168\u6d88\u8d39\u3002\u6211\u4f1a\u68c0\u67e5\u4e00\u5207\u5e76\u7ed9\u4f60\u660e\u786e\u7684\u7b54\u6848\u3002", yue: "\u554f\u4e0b\u6211\u51fa\u7cae\u524d\u4fc2\u5514\u4fc2\u53ef\u4ee5\u5b89\u5168\u6d88\u8cbb\u3002\u6211\u6703\u67e5\u6652\u6240\u6709\u5955\uff0c\u518d\u7d66\u4f60\u4e00\u500b\u6e05\u6670\u7684\u7b54\u6848\u3002",
-    id: "Tanya aku apakah aman menghabiskan uang sebelum gajian. Aku periksa semua dan berikan jawaban yang jelas.", ms: "Tanya saya sama ada selamat untuk berbelanja sebelum hari gaji. Saya semak semuanya dan beri anda jawapan yang jelas.",
-    vi: "H\u1ecfi t\u00f4i li\u1ec7u c\u00f3 an to\u00e0n \u0111\u1ec3 chi ti\u00eau tr\u01b0\u1edbc ng\u00e0y l\u01b0\u01a1ng kh\u00f4ng. T\u00f4i ki\u1ec3m tra t\u1ea5t c\u1ea3 v\u00e0 \u0111\u01b0a ra c\u00e2u tr\u1ea3 l\u1eddi r\u00f5 r\u00e0ng.", th: "\u0e16\u0e32\u0e21\u0e09\u0e31\u0e19\u0e27\u0e48\u0e32\u0e43\u0e0a\u0e49\u0e08\u0e48\u0e32\u0e22\u0e01\u0e48\u0e2d\u0e19\u0e27\u0e31\u0e19\u0e40\u0e07\u0e34\u0e19\u0e40\u0e14\u0e37\u0e2d\u0e19\u0e1b\u0e25\u0e2d\u0e14\u0e20\u0e31\u0e22\u0e44\u0e2b\u0e21 \u0e09\u0e31\u0e19\u0e08\u0e30\u0e15\u0e23\u0e27\u0e08\u0e2a\u0e2d\u0e1a\u0e17\u0e38\u0e01\u0e2d\u0e22\u0e48\u0e32\u0e07\u0e41\u0e25\u0e30\u0e43\u0e2b\u0e49\u0e04\u0e33\u0e15\u0e2d\u0e1a\u0e17\u0e35\u0e48\u0e0a\u0e31\u0e14\u0e40\u0e08\u0e19",
+    es: "Toca la pregunta de abajo — voy a estimar el total de tus facturas del próximo mes.", pt: "Toque na pergunta abaixo — vou estimar o total das suas contas do próximo mês.", "pt-PT": "Toca na pergunta abaixo — vou estimar o total das tuas faturas do próximo mês.",
+    fr: "Appuyez sur la question ci-dessous — je vais estimer votre total de factures du mois prochain.", de: "Tippe auf die Frage unten — ich schätze Ihre gesamten Rechnungen für den nächsten Monat.", it: "Tocca la domanda qui sotto — stimerò il totale delle tue bollette del prossimo mese.",
+    nl: "Tik op de vraag hieronder — ik schat uw totale rekeningen voor de volgende maand.", pl: "Dotknąż pytania poniżej — oszacuję łączne rachunki na przyszły miesiąc.", sv: "Tryck på frågan nedan — jag beräknar ditt totala räkningsbelopp för nästa månad.",
+    da: "Tryk på spørgsmålet nedenfor — jeg beregner dit samlede regningsbeløb for næste måned.", no: "Trykk på spørsmålet nedenfor — jeg beregner ditt totale regningsbeløp for neste måned.", fi: "Napauta alla olevaa kysymystä — arvioin ensi kuun kokonaislaskusi.",
+    cs: "Klepněte na otázku níže — odhadnu celkové účty pro příští měsíc.", sk: "Klepnite na otázku nižšie — odhadnem celkové účty na budúci mesiac.", ro: "Atingeți întrebarea de mai jos — voi estima totalul facturilor tale pentru luna viitoare.",
+    bg: "Докоснете въпроса по-долу — ще оценя общите ви сметки за следващия месец.", hr: "Dodirni pitanje ispod — procijenit ću ukupne tvoje račune za sljedeći mjesec.", el: "Πατήστε την ερώτηση παρακάτω — θα εκτιμήσω τους συνολικούς λογαριασμούς σας για τον επόμενο μήνα.",
+    hu: "Koppints az alábbi kérdésre — megbecsülöm a jövő havi összes számládat.", uk: "Торкніться питання нижче — я оціню загальні ваші рахунки на наступний місяць.", ru: "Нажмите на вопрос ниже — я оценю общую сумму ваших счетов на следующий месяц.",
+    tr: "Aşağıdaki soruya dokunun — gelecek ay toplam faturalarınızı tahmin edeceğim.", ar: "اضغطي على السؤال أدناه — سأقدّر إجمالي فواتيرك للشهر القادم.", arz: "اضغطي على السؤال تحت — هقدّر مجموع فواتيرك الشهر الجاي.",
+    apc: "اضغطي على السؤال تحت — رح أقدّر مجموع فواتيرك الشهر الجاي.", afb: "اضغطي على السؤال أدناه — بقدّر مجموع فواتيرك الشهر الياي.",
+    hi: "नीचे दिए प्रश्न पर टैप करें — मैं अगले महीने के लिए आपके कुल बिल का अनुमान लगाऊँगी।", ta: "கீழே உள்ள கேள்வியை தட்டுங்கள் — அடுத்த மாதம் உங்கள் மொத்த கட்டணங்களை மதிப்பிடுகிறேன்.",
+    ja: "下の質問をタップしてください — 来月の請求書の合計を見積もります。", ko: "아래 질문을 탭하세요 — 다음 달 요쫑서를 예측해 드릴게요.",
+    zh: "点击下面的问题 — 我将估算您下个月的总账单。", yue: "點擊下面唖條問題 — 我會估算你下個月嘗總賬單。",
+    id: "Ketuk pertanyaan di bawah — aku akan memperkirakan total tagihanmu bulan depan.", ms: "Ketuk soalan di bawah — saya akan menganggar jumlah bil anda bulan depan.",
+    vi: "Nhấn vào câu hỏi bên dưới — tôi sẽ ước tính tổng hóa đơn của bạn tháng tới.", th: "แตะคำถามด้านล่าง — ฉันจะประมาณยอดรวมบิลของคุณสำหรับเดือนหน้า",
   },
   paywall: {
     es: "Tienes ocho preguntas gratuitas para empezar. Cuando quieras m\u00e1s, elige un plan.", pt: "Voc\u00ea tem oito perguntas gratuitas para come\u00e7ar. Quando quiser mais, escolha um plano.", "pt-PT": "Tens oito perguntas gratuitas para come\u00e7ar. Quando quiseres mais, escolhe um plano.",
@@ -565,6 +565,8 @@ async function main() {
   let skipped = 0;
   let failed = 0;
 
+  const FORCE_CONCEPTS = new Set<Concept>(["features0", "features1", "features2"]);
+
   for (const concept of CONCEPTS) {
     for (const persona of PERSONAS) {
       const speed = getSpeakingSpeed(persona);
@@ -574,7 +576,7 @@ async function main() {
         const lang = "en";
         const text = EN_TEXT[concept][persona];
         const voiceId = DEFAULT_VOICE_IDS[persona];
-        if (await hasOnbAudio(concept, persona, lang)) {
+        if (!FORCE_CONCEPTS.has(concept) && await hasOnbAudio(concept, persona, lang)) {
           skipped++;
           process.stdout.write(`  skip  ${concept}/${persona}/${lang}\r`);
         } else {
@@ -595,7 +597,7 @@ async function main() {
         const lang = "fil";
         const text = FIL_TEXT[concept][persona];
         const voiceId = FILIPINO_VOICE_IDS[persona];
-        if (await hasOnbAudio(concept, persona, lang)) {
+        if (!FORCE_CONCEPTS.has(concept) && await hasOnbAudio(concept, persona, lang)) {
           skipped++;
           process.stdout.write(`  skip  ${concept}/${persona}/${lang}\r`);
         } else {
@@ -616,7 +618,7 @@ async function main() {
         const text = TRANS[concept]?.[lang];
         if (!text) { skipped++; continue; }
         const voiceId = DEFAULT_VOICE_IDS[persona];
-        if (await hasOnbAudio(concept, persona, lang)) {
+        if (!FORCE_CONCEPTS.has(concept) && await hasOnbAudio(concept, persona, lang)) {
           skipped++;
           process.stdout.write(`  skip  ${concept}/${persona}/${lang}\r`);
           continue;
