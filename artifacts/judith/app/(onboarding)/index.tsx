@@ -1256,15 +1256,14 @@ function ScreenPersona({ ctx }: { ctx: Ctx }) {
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: t.space.gap }}>
           {visiblePersonas.map((p) => {
             const on = persona === p.id;
-            const isFullRow = !!p.phOnly;
             return (
               <Pressable
                 key={p.id}
                 onPress={() => playLine(p.id)}
                 style={{
-                  width: isFullRow ? "100%" : `${(100 - 4) / 2}%` as `${number}%`,
-                  flexDirection: isFullRow ? "row" : "column",
-                  alignItems: isFullRow ? "center" : "flex-start",
+                  width: `${(100 - 4) / 2}%` as `${number}%`,
+                  flexDirection: "column",
+                  alignItems: "flex-start",
                   borderWidth: 1,
                   borderColor: on ? withAlpha(t.accent, 0.6) : t.hair,
                   borderRadius: t.radius.md,
@@ -1280,25 +1279,25 @@ function ScreenPersona({ ctx }: { ctx: Ctx }) {
                 }}
               >
                 <JudithAvatar persona={p.id} size={52} state={speakId === p.id ? "speaking" : "idle"} />
-                <View style={isFullRow ? { flex: 1 } : undefined}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                    <Txt size={15} weight="semibold">{p.name}</Txt>
-                    {p.phOnly && (
-                      <View style={{
-                        backgroundColor: "#f472b6",
-                        borderRadius: 20,
-                        paddingVertical: 2,
-                        paddingHorizontal: 7,
-                      }}>
-                        <Txt size={10} weight="semibold" color="#fff">🇵🇭 PH only</Txt>
-                      </View>
-                    )}
-                  </View>
+                <View>
+                  <Txt size={15} weight="semibold">{p.name}</Txt>
+                  {p.phOnly && (
+                    <View style={{
+                      backgroundColor: "#f472b6",
+                      borderRadius: 20,
+                      paddingVertical: 2,
+                      paddingHorizontal: 7,
+                      alignSelf: "flex-start",
+                      marginTop: 3,
+                    }}>
+                      <Txt size={10} weight="semibold" color="#fff">🇵🇭 PH only</Txt>
+                    </View>
+                  )}
                   <Low size={12} style={{ marginTop: 2 }}>{p.vibe}</Low>
                 </View>
                 <View
                   style={{
-                    alignSelf: isFullRow ? "center" : "flex-start",
+                    alignSelf: "flex-start",
                     flexDirection: "row",
                     alignItems: "center",
                     gap: 6,
