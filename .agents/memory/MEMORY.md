@@ -32,3 +32,4 @@
 - [Judith persona sample lines](judith-persona-sample-lines.md) — SAMPLE_LINES split into FIL/EN; getSampleText picks by language; English path via fetchSampleOnboarding, Filipino path client-side.
 - [Judith RevenueCat seed](judith-revenuecat-seed.md) — idempotent dual-tier seed script; addIntegration+proposeIntegration both required; custom fetch bridges connectors proxy into RC SDK createClient.
 - [Judith TTS currency](judith-tts-currency.md) — prepareForTTS must normalize ALL currency symbols (A$, CA$, £, ¥, ﷼…) to spoken words; ElevenLabs reads prefix letters literally without this.
+- [Judith OTA setup](judith-ota-setup.md) — eas update needs babel-preset-expo pinned as direct dep (@54.0.11) + metro transformIgnorePatterns to prevent hermesc private-field errors.
