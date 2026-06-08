@@ -45,7 +45,7 @@ export const PERSONA_LOOKS = {
   funny: { g1: "#f8a64f", g2: "#ae4024", label: "Funny friend" },
   sib: { g1: "#43c3c3", g2: "#005d75", label: "Sarcastic" },
   mama: { g1: "#ec99a3", g2: "#8d3d67", label: "Mama mo" },
-  marites: { g1: "#f472b6", g2: "#be185d", label: "Marites" },
+  marites: { g1: "#f472b6", g2: "#be185d", label: "Perky Pal" },
   britney: { g1: "#94a3b8", g2: "#1e293b", label: "Brutal Britney" },
 } as const;
 
