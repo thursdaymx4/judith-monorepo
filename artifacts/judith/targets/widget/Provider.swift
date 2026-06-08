@@ -12,6 +12,8 @@ struct JudithEntry: TimelineEntry {
     let totalOwed: Double
     let relevance: TimelineEntryRelevance?
     let debugState: String?
+    /// True when the cached payload is older than 12 hours — widget may be stale.
+    let isDataStale: Bool
 
     static let placeholder = JudithEntry(
         date: Date(),
@@ -32,7 +34,8 @@ struct JudithEntry: TimelineEntry {
         unpaidCount: 3,
         totalOwed: 4_348,
         relevance: nil,
-        debugState: nil
+        debugState: nil,
+        isDataStale: false
     )
 }
 
@@ -50,8 +53,12 @@ struct JudithProvider: TimelineProvider {
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<JudithEntry>) -> Void) {
         let entry   = makeEntry()
-        // Refresh at midnight so "Xd" counters tick over correctly.
-        let refresh = Calendar.current.startOfDay(for: Date().addingTimeInterval(86_400))
+        // Refresh every 6 hours so the staleness indicator appears promptly
+        // when the user hasn't opened the app for a while. Also refresh at
+        // midnight so "Xd" due-day counters tick over correctly.
+        let sixHours = Date().addingTimeInterval(6 * 3_600)
+        let midnight = Calendar.current.startOfDay(for: Date().addingTimeInterval(86_400))
+        let refresh  = min(sixHours, midnight)
         completion(Timeline(entries: [entry], policy: .after(refresh)))
     }
 
@@ -81,6 +88,17 @@ struct JudithProvider: TimelineProvider {
             debugState = "no-payload"
         }
 
+        // Check staleness: if generatedAt is more than 12 hours ago, the widget
+        // may be showing data from a previous billing cycle.
+        let isDataStale: Bool = {
+            guard let ts = payload?.generatedAt else { return false }
+            let fmt = ISO8601DateFormatter()
+            fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            let date = fmt.date(from: ts) ?? ISO8601DateFormatter().date(from: ts)
+            guard let date else { return false }
+            return Date().timeIntervalSince(date) > 12 * 3_600
+        }()
+
         let currency    = payload?.currency     ?? "₱"
         let unpaidCount = payload?.unpaidCount  ?? 0
         let totalOwed   = payload?.totalOwed    ?? 0
@@ -102,7 +120,8 @@ struct JudithProvider: TimelineProvider {
             unpaidCount:   unpaidCount,
             totalOwed:     totalOwed,
             relevance:     relevance,
-            debugState:    debugState
+            debugState:    debugState,
+            isDataStale:   isDataStale
         )
     }
 }
