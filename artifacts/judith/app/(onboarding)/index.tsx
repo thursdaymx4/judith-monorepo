@@ -2290,9 +2290,10 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     return [...new Set([...fromOnb, ...fromStore])];
   }, [bills, storeBills]);
   const [phase, setPhase] = useState<"scripted" | "cards" | "loans">(() => skipCards ? "scripted" : "cards");
-  // When starting in scripted phase (no cards/loans selected), begin at "prompt"
-  // so the first bill type is shown immediately. "count" is only for card/loan phases.
-  const [mode, setMode] = useState<VMode>(() => skipCards ? "prompt" : "count");
+  // When starting in scripted phase, begin at "prompt". If SAMPLES is empty
+  // (the selected categories didn't match any sample in the list), jump straight
+  // to "more" so the user can add bills manually rather than hitting a crash.
+  const [mode, setMode] = useState<VMode>(() => skipCards ? (SAMPLES.length > 0 ? "prompt" : "more") : "count");
   const [breatherGroup, setBreatherGroup] = useState(0);
   const [cardN, setCardN] = useState(0);
   const [cardDone, setCardDone] = useState(0);
@@ -2308,7 +2309,10 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const [showDayPicker, setShowDayPicker] = useState(false);
   const formEnterAnim = useRef(new Animated.Value(0)).current;
 
-  const scriptedItem = SAMPLES[Math.min(idx, SAMPLES.length - 1)]!;
+  // Fallback to the first item from the unfiltered list when SAMPLES is empty
+  // (mode will be "more" in that case so the fallback value is never rendered).
+  const scriptedItem: Sample =
+    SAMPLES.length > 0 ? SAMPLES[Math.min(idx, SAMPLES.length - 1)]! : SAMPLES_ALL[0]!;
   const sample: Sample =
     phase === "cards"
       ? { ...CARD_TEMPLATES[cardDone % CARD_TEMPLATES.length]!, cat: "Credit card", icon: "card", group: 2 }
