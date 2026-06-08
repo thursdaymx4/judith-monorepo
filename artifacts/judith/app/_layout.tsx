@@ -28,7 +28,7 @@ import { useBiometricLock } from "@/hooks/useBiometricLock";
 import { useNotificationSync } from "@/hooks/useNotificationSync";
 import { useWatchSync } from "@/hooks/useWatchSync";
 import { useTheme } from "@/hooks/useTheme";
-import { syncRemotePushRegistrationToSession } from "@/lib/notifications";
+import { registerNotificationCategories } from "@/lib/notifications";
 import { configurePurchases, identifyUser, resetUser, getActiveTier } from "@/lib/purchases";
 import { SubscriptionProvider } from "@/lib/SubscriptionProvider";
 
@@ -105,7 +105,7 @@ function BiometricLockScreen({ onUnlock }: { onUnlock: () => void }) {
 
 function RootLayoutNav() {
   const { session, loading, configured, recoveryActive } = useAuth();
-  const { onboarded, hydrated, guest, faceIdLock, tier, subscribe } = useJudith();
+  const { onboarded, hydrated, guest, faceIdLock, tier, subscribe, markPaid, snooze } = useJudith();
   const t = useTheme();
   const router = useRouter();
   const [splashDone, setSplashDone] = useState(false);
@@ -131,6 +131,9 @@ function RootLayoutNav() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user?.id]);
 
+  // Register notification action categories (Mark Paid / Remind Tomorrow buttons).
+  useEffect(() => { registerNotificationCategories().catch(() => {}); }, []);
+
   // Keep local notifications in sync with bills and toggles.
   useNotificationSync();
 
@@ -143,8 +146,16 @@ function RootLayoutNav() {
     if (!isOnboarded) return;
 
     function handleResponse(response: Notifications.NotificationResponse) {
-      const billId = response.notification.request.content.data?.billId;
-      if (typeof billId === "string") {
+      const billId = response.notification.request.content.data?.billId as string | undefined;
+      if (typeof billId !== "string") return;
+
+      const action = response.actionIdentifier;
+      if (action === "pay-now") {
+        markPaid(billId);
+      } else if (action === "remind-tomorrow") {
+        snooze(billId, 1);
+      } else {
+        // Default tap — open the bill detail
         router.push(`/bill/${billId}`);
       }
     }
@@ -159,14 +170,6 @@ function RootLayoutNav() {
     return () => sub.remove();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnboarded]);
-
-  useEffect(() => {
-    if (!authed) return;
-    const sub = Notifications.addPushTokenListener(() => {
-      syncRemotePushRegistrationToSession().catch(() => {});
-    });
-    return () => sub.remove();
-  }, [authed]);
 
   // Only engage biometric lock once the user is fully onboarded and authed.
   const { locked, unlock } = useBiometricLock(isOnboarded && faceIdLock);
