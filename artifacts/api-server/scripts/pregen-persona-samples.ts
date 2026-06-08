@@ -32,13 +32,13 @@ const ALL_PERSONAS: PersonaId[] = [
   "britney",
 ];
 
-// Britney is global (no phOnly) → include in all language groups.
-// Marites is phOnly → PH users only ever get EN or FIL, already handled above.
+// All personas are global — include all in every language group.
 const BASE_PERSONAS: PersonaId[] = [
   "professional",
   "funny",
   "sarcastic",
   "mom",
+  "marites",
   "britney",
 ];
 
