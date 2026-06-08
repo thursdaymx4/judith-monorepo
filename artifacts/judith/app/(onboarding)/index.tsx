@@ -31,7 +31,7 @@ import {
   countryFood,
   type Country,
 } from "@/constants/countries";
-import { HOUSES, findDuplicate, fmtCurrency, type Bill } from "@/constants/data";
+import { HOUSES, findDuplicate, fmtCurrency, type Bill, type BillCycleRecord } from "@/constants/data";
 import {
   getSamples, getCardTemplates, getLoanTemplates,
   getDLocal, getProviderPlaceholder, getQuickAsks,
@@ -296,6 +296,7 @@ interface OnbBill {
   house?: string;
   chargedToCard?: boolean;
   parentCardId?: string;
+  amountPaid?: number;
 }
 
 const fmtNum = (n: number): string => n.toLocaleString("en-US");
@@ -2307,6 +2308,8 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const [parsedEdits, setParsedEdits] = useState<{ provider: string; amount: string; dueDay: string; kind: "Fixed" | "Variable"; frequency: "monthly" | "annual" }>({ provider: "", amount: "", dueDay: "", kind: "Fixed", frequency: "monthly" });
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [showDayPicker, setShowDayPicker] = useState(false);
+  const [paidStatus, setPaidStatus] = useState<"no" | "full" | "partial">("no");
+  const [paidAmount, setPaidAmount] = useState("");
   const formEnterAnim = useRef(new Animated.Value(0)).current;
 
   // Fallback to the first item from the unfiltered list when SAMPLES is empty
@@ -2332,6 +2335,8 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     setScreenshotStatus("idle");
     setScreenshotBills([]);
     setDraftSubs([]);
+    setPaidStatus("no");
+    setPaidAmount("");
     if (phase === "cards") {
       const d = cardDone + 1;
       setCardDone(d);
@@ -2397,11 +2402,16 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
 
   const confirm = () => {
     const linkCard = canLinkCard(sample.cat) && !!form.chargedToCard;
+    const billAmount = parsedBill?.amount ?? sample.amount;
+    const resolvedPaid =
+      paidStatus === "full" ? billAmount :
+      paidStatus === "partial" ? (parseFloat(paidAmount) || 0) :
+      0;
     const b: OnbBill = {
       provider: parsedBill?.provider || sample.provider,
       cat: sample.cat,
       icon: sample.icon,
-      amount: parsedBill?.amount ?? sample.amount,
+      amount: billAmount,
       due: parsedBill?.dueDay != null ? ordinal(parsedBill.dueDay) : sample.due,
       dueDays: parsedBill?.dueDay ?? sample.dueDays,
       kind: parsedBill?.kind ?? kindFor(sample.cat),
@@ -2411,6 +2421,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       ...(form.isBusiness ? { isBusiness: true } : {}),
       ...(form.isBusiness && form.businessName ? { businessName: form.businessName } : {}),
       ...(linkCard ? { chargedToCard: true, parentCardId: form.parentCardId } : {}),
+      ...(resolvedPaid > 0 ? { amountPaid: resolvedPaid } : {}),
     };
     commitBill(b, advanceAfterItem);
   };
@@ -2432,17 +2443,24 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     const presets: Record<string, string> = { "Rent / Mortgage": "18000", Electricity: "3450", Water: "890", Internet: "1699", Mobile: "999", "TV / Streaming": "549", "Credit card": "5200" };
     setFormCat(c);
     setForm({ provider: "", amount: presets[c.cat] || "", due: "", kind: kindFor(c.cat), frequency: "monthly", isBusiness: false, businessName: "", subtype: c.cat === "Rent / Mortgage" ? "Rent" : undefined, house: HOUSES[0], chargedToCard: false, parentCardId: undefined });
+    setPaidStatus("no");
+    setPaidAmount("");
     setMode("manualForm");
   };
   const saveForm = () => {
     const cat = formCat ?? (phase === "scripted" ? { cat: sample.cat, icon: sample.icon } : null);
     if (!cat) return;
     const linkCard = canLinkCard(cat.cat) && !!form.chargedToCard;
+    const formBillAmount = parseFloat(form.amount) || 0;
+    const formResolvedPaid =
+      paidStatus === "full" ? formBillAmount :
+      paidStatus === "partial" ? (parseFloat(paidAmount) || 0) :
+      0;
     const b: OnbBill = {
       provider: form.provider || cat.cat,
       cat: cat.cat,
       icon: cat.icon,
-      amount: parseFloat(form.amount) || 0,
+      amount: formBillAmount,
       due: form.due || "—",
       dueDays: 20,
       kind: form.kind || kindFor(cat.cat),
@@ -2452,6 +2470,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       ...(form.isBusiness ? { isBusiness: true } : {}),
       ...(form.isBusiness && form.businessName ? { businessName: form.businessName } : {}),
       ...(linkCard ? { chargedToCard: true, parentCardId: form.parentCardId } : {}),
+      ...(formResolvedPaid > 0 ? { amountPaid: formResolvedPaid } : {}),
     };
     const after = () => {
       if (manualReturn === "prompt") advanceAfterItem();
@@ -2814,6 +2833,42 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   );
 
   /** Personal vs Business tag — kept on every bill-logging screen. */
+  const dueDayPassed = (dueDay: number): boolean => {
+    if (!Number.isFinite(dueDay) || dueDay < 1 || dueDay > 31) return false;
+    return dueDay < new Date().getDate();
+  };
+
+  const renderPaymentPicker = (dueDay: number, billAmount: number, freq?: string) => {
+    if (freq === "annual") return null;
+    if (!dueDayPassed(dueDay) || !Number.isFinite(billAmount) || billAmount <= 0) return null;
+    return (
+      <View style={{ marginTop: 14, paddingHorizontal: 2 }}>
+        <Low size={12} style={{ marginBottom: 8 }}>Already paid this month?</Low>
+        <Seg
+          options={["Not yet", "Fully paid", "Partial"]}
+          value={paidStatus === "no" ? "Not yet" : paidStatus === "full" ? "Fully paid" : "Partial"}
+          onChange={(v) => {
+            haptics.selection();
+            setPaidStatus(v === "Fully paid" ? "full" : v === "Partial" ? "partial" : "no");
+            if (v !== "Partial") setPaidAmount("");
+          }}
+        />
+        {paidStatus === "partial" && (
+          <View style={{ marginTop: 8 }}>
+            <Low size={12} style={{ marginBottom: 6 }}>Amount paid so far</Low>
+            <Input
+              value={paidAmount}
+              onChangeText={(v) => setPaidAmount(fmtCurrency(v))}
+              placeholder={`${cur} 0`}
+              keyboardType="numeric"
+              mono
+            />
+          </View>
+        )}
+      </View>
+    );
+  };
+
   const renderBusinessToggle = () => (
     <View style={{ marginTop: 14, paddingHorizontal: 2 }}>
       <Low size={12} style={{ marginBottom: 8 }}>Business expense?</Low>
@@ -3247,6 +3302,11 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
               </View>
               {renderBusinessToggle()}
               {renderCardToggle(sample.cat)}
+              {renderPaymentPicker(
+                parsedBill?.dueDay ?? parseInt(sample.due, 10),
+                parsedBill?.amount ?? sample.amount,
+                parsedBill?.frequency ?? "monthly",
+              )}
             </>
           )}
           {mode === "parsed" && parsedEditing && (
@@ -3544,6 +3604,11 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
               )}
               {renderBusinessToggle()}
               {renderCardToggle(formCat.cat)}
+              {renderPaymentPicker(
+                parseInt(form.due, 10),
+                parseFloat(form.amount) || 0,
+                form.frequency,
+              )}
             </View>
           )}
         </View>
@@ -3971,6 +4036,17 @@ function onbBillToStoreBill(b: OnbBill): Bill {
     dueDays = daysInCurrent - todayDay + Math.min(dueDate, daysInNext);
     labelMonth = nm;
   }
+  const paid = b.amountPaid ?? 0;
+  const isFullyPaid = paid > 0 && paid >= b.amount;
+  const paymentHistory: BillCycleRecord[] = paid > 0 ? [{
+    period: `${year}-${String(month + 1).padStart(2, "0")}`,
+    charged: b.amount,
+    carriedIn: 0,
+    totalDue: b.amount,
+    paid,
+    rolledOver: Math.max(0, b.amount - paid),
+    onTime: true,
+  }] : [];
   return {
     id: `onb-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
     provider: b.provider,
@@ -3980,12 +4056,14 @@ function onbBillToStoreBill(b: OnbBill): Bill {
     dueDays: Math.max(0, dueDays),
     dueDate: clamped,
     dueLabel: `${MONTHS_S[labelMonth]!} ${clamped}`,
-    status: "due",
+    status: isFullyPaid ? "paid" : "due",
     house: b.house,
     kind: b.kind,
     subtype: b.subtype as "Rent" | "Mortgage" | undefined,
     frequency: b.frequency,
     createdAt: today.toISOString().slice(0, 10),
+    ...(paid > 0 ? { amountPaid: paid } : {}),
+    ...(paymentHistory.length > 0 ? { paymentHistory } : {}),
     ...(b.isBusiness ? { isBusiness: true } : {}),
     ...(b.isBusiness && b.businessName ? { businessName: b.businessName } : {}),
     ...(b.chargedToCard ? { chargedToCard: true } : {}),
