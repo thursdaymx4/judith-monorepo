@@ -3033,6 +3033,11 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                   <Icon name="chevron-right" size={13} color={t.txtLow} style={{ marginLeft: 6 }} />
                 </Pressable>
               </View>
+              {renderPaymentPicker(
+                parseInt(form.due, 10),
+                parseFloat(form.amount) || 0,
+                form.frequency,
+              )}
               {/* Fixed / Variable toggle — compact pills below the card */}
               <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginTop: 10, paddingHorizontal: 2 }}>
                 <Low size={12}>Bill type:</Low>
@@ -3050,11 +3055,6 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
               {renderFrequencyToggle()}
               {renderBusinessToggle()}
               {renderCardToggle(activeFormCat.cat)}
-              {renderPaymentPicker(
-                parseInt(form.due, 10),
-                parseFloat(form.amount) || 0,
-                form.frequency,
-              )}
             </Animated.View>
           )}
 
@@ -3305,13 +3305,13 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                   </View>
                 </PCell>
               </View>
-              {renderBusinessToggle()}
-              {renderCardToggle(sample.cat)}
               {renderPaymentPicker(
                 parsedBill?.dueDay ?? parseInt(sample.due, 10),
                 parsedBill?.amount ?? sample.amount,
                 parsedBill?.frequency ?? "monthly",
               )}
+              {renderBusinessToggle()}
+              {renderCardToggle(sample.cat)}
             </>
           )}
           {mode === "parsed" && parsedEditing && (
@@ -3562,6 +3562,11 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                   </Pressable>
                 </View>
               </View>
+              {renderPaymentPicker(
+                parseInt(form.due, 10),
+                parseFloat(form.amount) || 0,
+                form.frequency,
+              )}
               <View style={{ marginTop: 10 }}>
                 <FieldLabel>Type</FieldLabel>
                 <Seg
@@ -3609,11 +3614,6 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
               )}
               {renderBusinessToggle()}
               {renderCardToggle(formCat.cat)}
-              {renderPaymentPicker(
-                parseInt(form.due, 10),
-                parseFloat(form.amount) || 0,
-                form.frequency,
-              )}
             </View>
           )}
         </View>
