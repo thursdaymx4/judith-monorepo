@@ -18,4 +18,18 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   return context.resolveRequest(context, moduleName, platform);
 };
 
+// expo-updates extracts Android native C++ source into a temporary directory
+// (_tmp_NNNN) during pnpm install, then removes it. If Metro starts before
+// cleanup finishes it tries to watch those paths and crashes with ENOENT.
+// Block any path that looks like an expo-updates temp extraction dir.
+const { blockList: existingBlockList } = config.resolver;
+config.resolver.blockList = [
+  ...(existingBlockList
+    ? Array.isArray(existingBlockList)
+      ? existingBlockList
+      : [existingBlockList]
+    : []),
+  /expo-updates_tmp_[^/]+[\\/]/,
+];
+
 module.exports = config;
