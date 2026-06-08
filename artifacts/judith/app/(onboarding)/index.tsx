@@ -2449,7 +2449,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     const cat = formCat ?? (phase === "scripted" ? { cat: sample.cat, icon: sample.icon } : null);
     if (!cat) return;
     const linkCard = canLinkCard(cat.cat) && !!form.chargedToCard;
-    const formBillAmount = parseFloat(form.amount) || 0;
+    const formBillAmount = parseFloat(form.amount.replace(/,/g, "")) || 0;
     const formResolvedPaid =
       paidStatus === "full" ? formBillAmount :
       paidStatus === "partial" ? (parseFloat(paidAmount) || 0) :
@@ -3033,7 +3033,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
               </View>
               {renderPaymentPicker(
                 parseInt(form.due, 10),
-                parseFloat(form.amount) || 0,
+                parseFloat(form.amount.replace(/,/g, "")) || 0,
                 form.frequency,
               )}
               {/* Fixed / Variable toggle — compact pills below the card */}
@@ -3562,7 +3562,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
               </View>
               {renderPaymentPicker(
                 parseInt(form.due, 10),
-                parseFloat(form.amount) || 0,
+                parseFloat(form.amount.replace(/,/g, "")) || 0,
                 form.frequency,
               )}
               <View style={{ marginTop: 10 }}>
@@ -3735,7 +3735,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
               const d = parseInt(parsedEdits.dueDay, 10);
               setParsedBill({
                 provider: parsedEdits.provider.trim() || null,
-                amount: parseFloat(parsedEdits.amount) || null,
+                amount: parseFloat(parsedEdits.amount.replace(/,/g, "")) || null,
                 dueDay: Number.isFinite(d) && d >= 1 && d <= 31 ? d : null,
                 kind: parsedEdits.kind,
                 frequency: parsedEdits.frequency,
