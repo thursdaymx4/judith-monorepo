@@ -1,0 +1,50 @@
+carlocanieso@Carlos-Mac-Studio judith % git pull origin main
+remote: Enumerating objects: 64, done.
+remote: Counting objects: 100% (64/64), done.
+remote: Compressing objects: 100% (14/14), done.
+remote: Total 48 (delta 34), reused 48 (delta 34), pack-reused 0 (from 0)
+Unpacking objects: 100% (48/48), 6.17 MiB | 649.00 KiB/s, done.
+From https://github.com/thursdaymx4/judith-monorepo
+ * branch            main       -> FETCH_HEAD
+   0e4890b..8ff6126  main       -> origin/main
+Updating 0e4890b..8ff6126
+Fast-forward
+ artifacts/judith/app/(onboarding)/index.tsx                           |  58 ++++++++++++++++++--------------
+ artifacts/judith/app/plans.tsx                                        |   4 +--
+ artifacts/judith/hooks/useWatchSync.ts                                |   6 ++--
+ artifacts/judith/lib/watch.ts                                         |  13 ++++---
+ artifacts/judith/targets/watchos/JudithComplicationBundle.swift       |   7 ++--
+ artifacts/judith/targets/watchos/JudithWatchApp.swift                 |   7 ++--
+ attached_assets/IMG_4269_1780855121168.jpeg                           | Bin 0 -> 304091 bytes
+ attached_assets/IMG_4270_1780855121168.png                            | Bin 0 -> 347341 bytes
+ attached_assets/IMG_4272_1780855372550.png                            | Bin 0 -> 808717 bytes
+ attached_assets/IMG_4273_1780856001053.png                            | Bin 0 -> 267149 bytes
+ attached_assets/IMG_4274_1780856001053.png                            | Bin 0 -> 260339 bytes
+ attached_assets/IMG_4274_1780857081933.png                            | Bin 0 -> 260339 bytes
+ attached_assets/IMG_4275_1780856001053.png                            | Bin 0 -> 168779 bytes
+ .../Screenshot_2026-06-08_at_10.18.53_AM_1780885148857.png            | Bin 0 -> 441350 bytes
+ .../Screenshot_2026-06-08_at_10.27.13_AM_1780885638458.png            | Bin 0 -> 423061 bytes
+ .../Screenshot_2026-06-08_at_10.32.29_AM_1780885959722.png            | Bin 0 -> 499106 bytes
+ .../Screenshot_2026-06-08_at_10.37.20_AM_1780886248437.png            | Bin 0 -> 3338231 bytes
+ 17 files changed, 53 insertions(+), 42 deletions(-)
+ create mode 100644 attached_assets/IMG_4269_1780855121168.jpeg
+ create mode 100644 attached_assets/IMG_4270_1780855121168.png
+ create mode 100644 attached_assets/IMG_4272_1780855372550.png
+ create mode 100644 attached_assets/IMG_4273_1780856001053.png
+ create mode 100644 attached_assets/IMG_4274_1780856001053.png
+ create mode 100644 attached_assets/IMG_4274_1780857081933.png
+ create mode 100644 attached_assets/IMG_4275_1780856001053.png
+ create mode 100644 attached_assets/Screenshot_2026-06-08_at_10.18.53_AM_1780885148857.png
+ create mode 100644 attached_assets/Screenshot_2026-06-08_at_10.27.13_AM_1780885638458.png
+ create mode 100644 attached_assets/Screenshot_2026-06-08_at_10.32.29_AM_1780885959722.png
+ create mode 100644 attached_assets/Screenshot_2026-06-08_at_10.37.20_AM_1780886248437.png
+carlocanieso@Carlos-Mac-Studio judith % npx expo prebuild --platform ios --clean
+! Git branch has uncommitted file changes
+› It's recommended to commit all changes before proceeding in case you want to revert generated changes.
+
+✔ Continue with uncommitted changes? … no
+carlocanieso@Carlos-Mac-Studio judith % git pull origin main
+From https://github.com/thursdaymx4/judith-monorepo
+ * branch            main       -> FETCH_HEAD
+Already up to date.
+carlocanieso@Carlos-Mac-Studio judith % 
