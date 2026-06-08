@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import React, { useCallback, useRef, useState } from "react";
-import { Modal, Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
 
 import * as Notifications from "expo-notifications";
 import * as Updates from "expo-updates";
@@ -530,6 +530,7 @@ export default function SettingsScreen() {
 
       <Modal visible={countryOpen} transparent animationType="slide" onRequestClose={() => setCountryOpen(false)}>
         <Pressable onPress={() => setCountryOpen(false)} style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}>
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
           <Pressable
             onPress={(e) => e.stopPropagation()}
             style={{ backgroundColor: t.surface1, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderColor: t.hair, maxHeight: "85%", paddingBottom: 34 }}
@@ -576,6 +577,7 @@ export default function SettingsScreen() {
               })}
             </ScrollView>
           </Pressable>
+          </KeyboardAvoidingView>
         </Pressable>
       </Modal>
 
@@ -601,6 +603,7 @@ export default function SettingsScreen() {
 
       <Modal visible={curOpen} transparent animationType="slide" onRequestClose={() => setCurOpen(false)}>
         <Pressable onPress={() => setCurOpen(false)} style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}>
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
           <Pressable
             onPress={(e) => e.stopPropagation()}
             style={{ backgroundColor: t.surface1, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderColor: t.hair, maxHeight: "85%", paddingBottom: 34 }}
@@ -653,6 +656,7 @@ export default function SettingsScreen() {
               })}
             </ScrollView>
           </Pressable>
+          </KeyboardAvoidingView>
         </Pressable>
       </Modal>
 
