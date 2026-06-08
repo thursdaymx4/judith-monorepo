@@ -50,10 +50,9 @@ export const PERSONAS: Persona[] = [
   {
     id: "marites",
     icon: "star",
-    name: "Marites",
-    vibe: "Tsismosa · makulit",
-    line: "Besh! Alam ko na lahat ng bills mo — at 'di ko 'yan kakalimutan. Grabe, di ba?",
-    phOnly: true,
+    name: "Perky Pal",
+    vibe: "Perky · gossip-y",
+    line: "Oh my gosh, I know everything about your bills — and I will never let you forget them!",
   },
   {
     id: "britney",
