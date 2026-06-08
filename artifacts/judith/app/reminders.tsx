@@ -17,10 +17,11 @@ import {
   mix,
 } from "@/components/ui";
 import { MOM_ENDEARMENT } from "@/constants/countries";
-import { dueClass, dueText, type Bill } from "@/constants/data";
+import { currentCycleDue, dueClass, dueText, type Bill } from "@/constants/data";
 import type { PersonaId } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
+import { isPaidThisMonth } from "@/lib/currentCycle";
 import { getPermissionStatus } from "@/lib/notifications";
 
 /* persona + country flavored notification copy for a given bill */
@@ -252,13 +253,15 @@ export default function RemindersModal() {
   const router = useRouter();
   const { bills, money, toggles } = useJudith();
   const [permStatus, setPermStatus] = React.useState<"granted" | "denied" | "undetermined">("undetermined");
+  const today = new Date();
 
   React.useEffect(() => {
     getPermissionStatus().then(setPermStatus).catch(() => {});
   }, []);
 
   const list = bills
-    .filter((b) => b.status !== "paid")
+    .map((b) => ({ ...b, ...currentCycleDue(b, today) }))
+    .filter((b) => !isPaidThisMonth(b, today))
     .slice()
     .sort((a, b) => a.dueDays - b.dueDays);
   const hero = list[0] || null;

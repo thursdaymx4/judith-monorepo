@@ -19,13 +19,29 @@
       "usesAppleSignIn": true,
       "appleTeamId": "88JK8X8BT7",
       "entitlements": {
-        "com.apple.developer.icloud-container-identifiers": ["iCloud.com.app.judith"],
-        "com.apple.developer.ubiquity-container-identifiers": ["iCloud.com.app.judith"],
-        "com.apple.security.application-groups": ["group.com.app.judith"]
+        "com.apple.developer.icloud-container-identifiers": [
+          "iCloud.com.app.judith",
+          "iCloud.com.app.judith"
+        ],
+        "com.apple.developer.ubiquity-container-identifiers": [
+          "iCloud.com.app.judith",
+          "iCloud.com.app.judith"
+        ],
+        "com.apple.security.application-groups": [
+          "group.com.app.judith",
+          "group.com.app.judith"
+        ]
+      },
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "com.app.judith"
+      "package": "com.app.judith",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "favicon": "./assets/images/icon.png"
@@ -62,7 +78,33 @@
     },
     "extra": {
       "eas": {
-        "projectId": "a0a9f1ab-a9bb-4397-85ee-75138eec8109"
+        "projectId": "a0a9f1ab-a9bb-4397-85ee-75138eec8109",
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "bundleIdentifier": "com.app.judith.widget",
+                  "targetName": "JudithWidget",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.com.app.judith"
+                    ]
+                  }
+                },
+                {
+                  "bundleIdentifier": "com.app.judith.watchkitapp",
+                  "targetName": "JudithWatch",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.com.app.judith"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
       }
     }
   }

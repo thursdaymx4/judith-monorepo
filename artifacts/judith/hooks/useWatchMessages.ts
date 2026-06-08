@@ -71,20 +71,24 @@ export function useWatchMessages() {
   useEffect(() => {
     if (!WatchConnectivity) return;
 
+    const events = (
+      WatchConnectivity as {
+        watchEvents?: {
+          on: (
+            event: string,
+            cb: (...args: unknown[]) => void,
+          ) => { remove?: () => void };
+        };
+      }
+    ).watchEvents;
+
     // ── Channel 1: sendMessage (phone foregrounded / reachable) ──────────────
-    const addMessageListener = WatchConnectivity.addMessageListener as
-      | ((
-          cb: (
-            message: Record<string, unknown>,
-            reply: (response: Record<string, unknown>) => void,
-          ) => void,
-        ) => { remove?: () => void })
-      | undefined;
-
     let messageSub: { remove?: () => void } | undefined;
-
-    if (addMessageListener) {
-      messageSub = addMessageListener(async (message, reply) => {
+    if (events?.on) {
+      messageSub = events.on("message", async (...args: unknown[]) => {
+        const message = (args[0] ?? null) as Record<string, unknown> | null;
+        const reply = (args[1] ?? null) as ((response: Record<string, unknown>) => void) | null;
+        if (!message) return;
         const action = message.action as string | undefined;
 
         if (action === "ask") {
@@ -104,16 +108,16 @@ export function useWatchMessages() {
               countryRef.current?.code,
               incomeByMonthRef.current,
             );
-            reply({ answer: result.reply });
+            reply?.({ answer: result.reply });
           } catch {
-            reply({ error: "Judith couldn't respond right now." });
+            reply?.({ error: "Judith couldn't respond right now." });
           }
         }
 
         if (action === "markPaid") {
           const billId = message.billId as string | undefined;
           if (billId) markPaidRef.current(billId);
-          reply({ ok: true });
+          reply?.({ ok: true });
         }
       });
     }
@@ -121,17 +125,6 @@ export function useWatchMessages() {
     // ── Channel 2: transferUserInfo (phone was backgrounded/locked) ──────────
     // Watch sends markPaid via transferUserInfo when sendMessage fails because
     // the phone is not reachable. No reply handler available here.
-    const events = (
-      WatchConnectivity as {
-        watchEvents?: {
-          on: (
-            event: string,
-            cb: (...args: unknown[]) => void,
-          ) => { remove?: () => void };
-        };
-      }
-    ).watchEvents;
-
     let userInfoSub: { remove?: () => void } | undefined;
 
     if (events?.on) {

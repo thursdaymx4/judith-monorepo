@@ -3,10 +3,11 @@ import React, { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
 import { BillRow, Card, Chip, Low, Mono, Screen, SheetHeader } from "@/components/ui";
-import { totalOwed } from "@/constants/data";
+import { currentCycleDue, type Bill } from "@/constants/data";
 import { getCategoryLabel } from "@/constants/categoryLocale";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
+import { isPaidThisMonth, remainingThisMonth } from "@/lib/currentCycle";
 
 type SortKey = "due" | "amount" | "name";
 
@@ -17,6 +18,7 @@ export default function BillsModal() {
   const [cat, setCat] = useState("All");
   const [prov, setProv] = useState("All");
   const [sort, setSort] = useState<SortKey>("due");
+  const today = new Date();
 
   const cats = ["All", ...Array.from(new Set(bills.map((b) => b.cat)))];
   const provsForCat = bills
@@ -24,19 +26,24 @@ export default function BillsModal() {
     .map((b) => b.provider);
   const provs = ["All", ...Array.from(new Set(provsForCat))];
 
-  const billRemaining = (b: (typeof bills)[0]) => Math.max(0, totalOwed(b) - (b.amountPaid ?? 0));
+  const billRemaining = (b: Bill) => remainingThisMonth(b, today);
+  const liveBills = bills.map((b) => ({ ...b, ...currentCycleDue(b, today) }));
 
-  let list = bills.filter(
+  let list = liveBills.filter(
     (b) => (cat === "All" || b.cat === cat) && (prov === "All" || b.provider === prov),
   );
   list = list.slice().sort((a, b) => {
     if (sort === "amount") return billRemaining(b) - billRemaining(a);
     if (sort === "name") return a.provider.localeCompare(b.provider);
     // due: unpaid first by days, paid last
-    if ((a.status === "paid") !== (b.status === "paid")) return a.status === "paid" ? 1 : -1;
+    const aPaid = isPaidThisMonth(a, today);
+    const bPaid = isPaidThisMonth(b, today);
+    if (aPaid !== bPaid) return aPaid ? 1 : -1;
     return a.dueDays - b.dueDays;
   });
-  const total = list.filter((b) => b.status !== "paid").reduce((s, b) => s + billRemaining(b), 0);
+  const total = list
+    .filter((b) => !isPaidThisMonth(b, today))
+    .reduce((s, b) => s + billRemaining(b), 0);
   const sorts: [SortKey, string][] = [
     ["due", "Due date"],
     ["amount", "Amount"],

@@ -445,36 +445,96 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       },
       markPaid: (id) => {
         const today = new Date();
-        setState((s) => ({
-          ...s,
-          bills: s.bills.map((b) => {
-            if (b.id !== id) return b;
-            const owed = b.amount + (b.carryOver ?? 0);
-            const cp = computeNaturalPeriod(b, today);
-            const existing = b.paymentHistory ?? [];
-            if (existing.some((r) => r.period === cp && r.paid >= r.totalDue)) return b;
-            const [pYr, pMo] = cp.split("-").map(Number) as [number, number];
-            const dueDateForPeriod = new Date(pYr, pMo - 1, Math.min(b.dueDate ?? 1, _daysInMonth(pYr, pMo - 1)));
-            const record: BillCycleRecord = {
-              period: cp,
-              charged: b.amount,
-              carriedIn: b.carryOver ?? 0,
-              totalDue: owed,
-              paid: owed,
-              rolledOver: 0,
-              onTime: today <= dueDateForPeriod,
-            };
-            const paymentHistory = [record, ...existing.filter((r) => r.period !== cp)].slice(0, 24);
-            const newNaturalPeriod = computeNaturalPeriod({ dueDate: b.dueDate, paymentHistory }, today);
-            const isCurrentPaid = paymentHistory.some((r) => r.period === newNaturalPeriod && r.paid >= r.totalDue);
-            return {
-              ...b,
-              status: isCurrentPaid ? "paid" as const : "due" as const,
-              amountPaid: isCurrentPaid ? owed : 0,
-              paymentHistory,
-            };
-          }),
-        }));
+        setState((s) => {
+          const target = s.bills.find((b) => b.id === id);
+          if (!target) return s;
+
+          const cp = computeNaturalPeriod(target, today);
+          const targetExisting = target.paymentHistory ?? [];
+          if (targetExisting.some((r) => r.period === cp && r.paid >= r.totalDue)) return s;
+
+          const linkedCardId =
+            target.cat !== "Credit card" && isPaidViaCard(target)
+              ? target.parentCardId
+              : undefined;
+          const chargeAmt = target.amount;
+
+          const bills = s.bills.map((b) => {
+            if (b.id === id) {
+              const owed = b.amount + (b.carryOver ?? 0);
+              const existing = b.paymentHistory ?? [];
+              const [pYr, pMo] = cp.split("-").map(Number) as [number, number];
+              const dueDateForPeriod = new Date(
+                pYr,
+                pMo - 1,
+                Math.min(b.dueDate ?? 1, _daysInMonth(pYr, pMo - 1)),
+              );
+              const record: BillCycleRecord = {
+                period: cp,
+                charged: b.amount,
+                carriedIn: b.carryOver ?? 0,
+                totalDue: owed,
+                paid: owed,
+                rolledOver: 0,
+                onTime: today <= dueDateForPeriod,
+              };
+              const paymentHistory = [record, ...existing.filter((r) => r.period !== cp)].slice(0, 24);
+              const newNaturalPeriod = computeNaturalPeriod({ dueDate: b.dueDate, paymentHistory }, today);
+              const isCurrentPaid = paymentHistory.some(
+                (r) => r.period === newNaturalPeriod && r.paid >= r.totalDue,
+              );
+              return {
+                ...b,
+                status: isCurrentPaid ? "paid" as const : "due" as const,
+                amountPaid: isCurrentPaid ? owed : 0,
+                paymentHistory,
+              };
+            }
+
+            if (
+              linkedCardId &&
+              b.id === linkedCardId &&
+              cp === computeNaturalPeriod(b, today)
+            ) {
+              const owedCard = totalOwed(b);
+              const existingCard = b.paymentHistory ?? [];
+              const cur = b.amountPaid ?? 0;
+              const next = Math.min(owedCard, cur + chargeAmt);
+              const fullyPaid = owedCard > 0 && next >= owedCard;
+
+              let cardHistory = existingCard.filter((r) => r.period !== cp);
+              if (fullyPaid) {
+                const [cy, cmo] = cp.split("-").map(Number) as [number, number];
+                const dueForP = new Date(
+                  cy,
+                  cmo - 1,
+                  Math.min(b.dueDate ?? 1, _daysInMonth(cy, cmo - 1)),
+                );
+                const rec: BillCycleRecord = {
+                  period: cp,
+                  charged: b.amount,
+                  carriedIn: b.carryOver ?? 0,
+                  totalDue: owedCard,
+                  paid: owedCard,
+                  rolledOver: 0,
+                  onTime: today <= dueForP,
+                };
+                cardHistory = [rec, ...cardHistory].slice(0, 24);
+              }
+
+              return {
+                ...b,
+                amountPaid: next,
+                status: fullyPaid ? ("paid" as const) : ("due" as const),
+                paymentHistory: cardHistory,
+              };
+            }
+
+            return b;
+          });
+
+          return { ...s, bills };
+        });
       },
       markUnpaid: (id) =>
         mapBills((b) => (b.id === id ? { ...b, status: "due" as const, amountPaid: 0 } : b)),

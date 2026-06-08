@@ -12,6 +12,8 @@ struct UpcomingBill: Codable, Identifiable, Hashable {
     let dueDays: Int
     let dueLabel: String
     let isOverdue: Bool
+    let optimisticTotalOwedDelta: Double
+    let optimisticUnpaidCountDelta: Int
 
     // MARK: — Display helpers
 
@@ -45,9 +47,9 @@ struct WatchPayload: Codable {
     let nextDueLabel: String
     let persona: String
     let upcomingBills: [UpcomingBill]
-    /// Bills already marked paid this cycle — drives the watch complication gauge.
+    /// Bills already marked paid this month — drives the watch complication gauge.
     let paidCount: Int
-    /// Total tracked bills (paid + unpaid) — gauge denominator.
+    /// Bills due this month (paid + unpaid) — gauge denominator.
     let totalCount: Int
 
     // MARK: — Derived helpers
@@ -62,12 +64,13 @@ struct WatchPayload: Codable {
 
     /// Optimistically remove a bill when mark-paid is tapped on the watch.
     func removing(billId: String) -> WatchPayload {
+        guard let removed = upcomingBills.first(where: { $0.id == billId }) else { return self }
         let filtered = upcomingBills.filter { $0.id != billId }
         return WatchPayload(
             generatedAt: generatedAt,
             currency: currency,
-            totalOwed: totalOwed,
-            unpaidCount: max(0, unpaidCount - 1),
+            totalOwed: max(0, totalOwed - removed.optimisticTotalOwedDelta),
+            unpaidCount: max(0, unpaidCount - removed.optimisticUnpaidCountDelta),
             nextProvider: filtered.first?.provider ?? "",
             nextAmount: filtered.first?.amount ?? 0,
             nextDueDays: filtered.first?.dueDays ?? 0,

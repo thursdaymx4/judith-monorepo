@@ -1,18 +1,15 @@
 import SwiftUI
 import AVFoundation
+import WatchKit
 
-// MARK: — Ask Judith via the Watch's built-in dictation
-//
-// Tapping the TextField on the Watch opens the system input controller
-// (dictation mic, scribble, emoji) — no custom speech recognizer needed.
+// MARK: — Ask Judith via the watchOS text input controller
 
 struct AskView: View {
 
     @EnvironmentObject var connectivity: ConnectivityService
 
-    @State private var query:     String   = ""
+    @State private var query: String = ""
     @State private var viewState: AskState = .idle
-    @FocusState private var fieldFocused: Bool
 
     private let synthesizer = AVSpeechSynthesizer()
 
@@ -21,7 +18,6 @@ struct AskView: View {
             VStack(spacing: 12) {
                 switch viewState {
 
-                // ── Idle / composing ──────────────────────────────────────
                 case .idle:
                     judithAvatar
 
@@ -29,22 +25,14 @@ struct AskView: View {
                         .font(.system(Font.TextStyle.headline, design: .rounded).weight(.bold))
                         .foregroundStyle(Color.txtHi)
 
-                    TextField("What do you want to know?", text: $query, axis: .vertical)
-                        .focused($fieldFocused)
-                        .lineLimit(3)
-                        .padding(8)
-                        .background(Color.surface1)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .font(.system(Font.TextStyle.footnote, design: .rounded))
-                        .foregroundStyle(Color.txtHi)
+                    promptCard
 
                     Button {
-                        submitQuery()
+                        beginAskFlow()
                     } label: {
                         HStack(spacing: 6) {
-                            Image(systemName: "mic.fill")
-                            Text(query.trimmingCharacters(in: .whitespaces).isEmpty
-                                 ? "Dictate" : "Ask")
+                            Image(systemName: "message.fill")
+                            Text("Ask Judith")
                         }
                         .font(.system(Font.TextStyle.footnote, design: .rounded).weight(.semibold))
                         .foregroundStyle(.black)
@@ -53,18 +41,28 @@ struct AskView: View {
                     }
                     .background(Color.judithAccent)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .onTapGesture {
-                        if query.trimmingCharacters(in: .whitespaces).isEmpty {
-                            fieldFocused = true
-                        } else {
-                            submitQuery()
-                        }
-                    }
-                    .simultaneousGesture(TapGesture())
 
-                // ── Asking ────────────────────────────────────────────────
-                case .asking:
+                    if !connectivity.isPhoneReachable {
+                        Text("Open Judith on your iPhone if this takes a while.")
+                            .font(.system(Font.TextStyle.caption2, design: .rounded))
+                            .foregroundStyle(Color.txtLow)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 8)
+                    }
+
+                case .capturing:
                     Spacer(minLength: 24)
+                    ProgressView()
+                        .tint(Color.judithAccent)
+                        .scaleEffect(1.2)
+                    Text("Listening…")
+                        .font(.system(Font.TextStyle.caption, design: .rounded))
+                        .foregroundStyle(Color.txtMid)
+                        .padding(.top, 8)
+
+                case .asking:
+                    promptCard
+                        .padding(.bottom, 4)
                     ProgressView()
                         .tint(Color.judithAccent)
                         .scaleEffect(1.4)
@@ -73,7 +71,6 @@ struct AskView: View {
                         .foregroundStyle(Color.txtMid)
                         .padding(.top, 8)
 
-                // ── Answered ──────────────────────────────────────────────
                 case .answered(let reply):
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 6) {
@@ -81,6 +78,13 @@ struct AskView: View {
                             Text("Judith")
                                 .font(.system(Font.TextStyle.caption2, design: .rounded).weight(.semibold))
                                 .foregroundStyle(Color.judithAccent)
+                        }
+
+                        if !query.isEmpty {
+                            Text(query)
+                                .font(.system(Font.TextStyle.caption2, design: .rounded))
+                                .foregroundStyle(Color.txtLow)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
 
                         Text(reply)
@@ -92,8 +96,8 @@ struct AskView: View {
                             Button {
                                 speak(reply)
                             } label: {
-                                Image(systemName: "speaker.wave.2.fill")
-                                    .font(.caption)
+                                Label("Play", systemImage: "speaker.wave.2.fill")
+                                    .font(.system(Font.TextStyle.caption2, design: .rounded).weight(.semibold))
                                     .foregroundStyle(Color.judithAccent)
                             }
                             .buttonStyle(.plain)
@@ -101,7 +105,7 @@ struct AskView: View {
                             Spacer()
 
                             Button("Ask again") {
-                                query     = ""
+                                query = ""
                                 viewState = .idle
                             }
                             .font(.system(Font.TextStyle.caption2, design: .rounded).weight(.semibold))
@@ -111,20 +115,18 @@ struct AskView: View {
                     }
                     .padding(.horizontal, 4)
 
-                // ── Error ─────────────────────────────────────────────────
-                case .error(let msg):
+                case .error(let message):
                     Spacer(minLength: 16)
                     Image(systemName: "exclamationmark.circle")
                         .font(.title2)
                         .foregroundStyle(Color.judithOverdue)
-                    Text(msg)
+                    Text(message)
                         .font(.system(Font.TextStyle.caption2, design: .rounded))
                         .foregroundStyle(Color.txtMid)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 8)
-                    Button("Try again") {
-                        query     = ""
-                        viewState = .idle
+                    Button("Ask Judith") {
+                        beginAskFlow()
                     }
                     .buttonStyle(.bordered)
                     .tint(Color.judithAccent)
@@ -139,6 +141,17 @@ struct AskView: View {
 
     // MARK: — Sub-views
 
+    private var promptCard: some View {
+        Text(query.isEmpty ? "Tap Ask Judith to dictate or scribble your question." : query)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .lineLimit(4)
+            .padding(10)
+            .background(Color.surface1)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .font(.system(Font.TextStyle.footnote, design: .rounded))
+            .foregroundStyle(query.isEmpty ? Color.txtLow : Color.txtHi)
+    }
+
     private var judithAvatar: some View {
         Image("JudithAvatar")
             .resizable()
@@ -149,16 +162,63 @@ struct AskView: View {
 
     // MARK: — Actions
 
-    private func submitQuery() {
-        let q = query.trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty else { fieldFocused = true; return }
+    private func beginAskFlow() {
+        Task { await requestInputAndAsk() }
+    }
 
-        fieldFocused = false
-        viewState    = .asking
+    @MainActor
+    private func requestInputAndAsk() async {
+        viewState = .capturing
+
+        guard let captured = await presentTextInput(),
+              !captured.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            viewState = .idle
+            return
+        }
+
+        query = captured.trimmingCharacters(in: .whitespacesAndNewlines)
+        submitQuery()
+    }
+
+    @MainActor
+    private func presentTextInput() async -> String? {
+        guard let controller = WKExtension.shared().visibleInterfaceController else {
+            return nil
+        }
+
+        let suggestions = [
+            "What bills are due this week?",
+            "How much do I still owe this month?",
+            "Which bill should I pay first?"
+        ]
+
+        let results = await controller.presentTextInputController(
+            withSuggestions: suggestions,
+            allowedInputMode: .plain
+        )
+
+        guard let first = results?.first else { return nil }
+        if let text = first as? String { return text }
+        if let data = first as? Data,
+           let emoji = String(data: data, encoding: .utf8) {
+            return emoji
+        }
+        return nil
+    }
+
+    private func submitQuery() {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            viewState = .idle
+            return
+        }
+
+        query = trimmed
+        viewState = .asking
 
         Task {
             do {
-                let answer = try await connectivity.sendAsk(query: q)
+                let answer = try await connectivity.sendAsk(query: trimmed)
                 viewState = .answered(answer)
                 speak(answer)
             } catch ConnectivityService.AskError.phoneNotReachable {
@@ -171,11 +231,20 @@ struct AskView: View {
 
     private func speak(_ text: String) {
         synthesizer.stopSpeaking(at: .immediate)
-        let utt         = AVSpeechUtterance(string: text)
-        utt.rate        = 0.52
-        utt.pitchMultiplier = 1.05
-        utt.volume      = 0.9
-        synthesizer.speak(utt)
+
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [])
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            // Best-effort only — speech can still proceed with the default session.
+        }
+
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.rate = 0.52
+        utterance.pitchMultiplier = 1.05
+        utterance.volume = 0.9
+        utterance.voice = AVSpeechSynthesisVoice(language: Locale.preferredLanguages.first ?? "en-US")
+        synthesizer.speak(utterance)
     }
 }
 
@@ -183,6 +252,7 @@ struct AskView: View {
 
 private enum AskState {
     case idle
+    case capturing
     case asking
     case answered(String)
     case error(String)

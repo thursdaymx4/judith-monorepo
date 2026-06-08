@@ -5,9 +5,10 @@ import { Pressable, Text, View } from "react-native";
 import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Dot, Low, Mono, Screen, SheetHeader, Txt, mix } from "@/components/ui";
-import { dueClass, dueShort, dueText, type Bill } from "@/constants/data";
+import { currentCycleDue, dueClass, dueShort, dueText, isPaidViaCard, type Bill } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
+import { isPaidThisMonth, remainingThisMonth } from "@/lib/currentCycle";
 
 type NextBill = { provider: string; amount: number; dueDays: number; cat: string };
 
@@ -188,14 +189,25 @@ export default function DevicesModal() {
   const t = useTheme();
   const router = useRouter();
   const { bills, money, country, persona } = useJudith();
+  const today = new Date();
 
   const cur = country?.cur || "₱";
   const due = bills
-    .filter((b) => b.status !== "paid")
+    .map((b) => ({ ...b, ...currentCycleDue(b, today) }))
+    .filter((b) => !isPaidThisMonth(b, today))
     .slice()
     .sort((a, b) => a.dueDays - b.dueDays);
-  const total = due.reduce((s, b) => s + b.amount, 0);
-  const next: NextBill = due[0] ?? { provider: "Meralco", amount: 3450, dueDays: 3, cat: "Electricity" };
+  const total = due
+    .filter((b) => !isPaidViaCard(b))
+    .reduce((s, b) => s + remainingThisMonth(b, today), 0);
+  const next: NextBill = due[0]
+    ? {
+        provider: due[0].provider,
+        amount: remainingThisMonth(due[0], today),
+        dueDays: due[0].dueDays,
+        cat: due[0].cat,
+      }
+    : { provider: "Meralco", amount: 3450, dueDays: 3, cat: "Electricity" };
 
   return (
     <Screen contentStyle={{ paddingTop: 14, paddingBottom: 28 }}>
