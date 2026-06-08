@@ -4572,12 +4572,6 @@ function FeatureShell({
     }
   };
 
-  /* auto-advance once Judith has answered */
-  useEffect(() => {
-    if (!hasAnswered) return;
-    const t2 = setTimeout(() => next(), 2800);
-    return () => clearTimeout(t2);
-  }, [hasAnswered]);
 
   const startRec = async () => {
     if (askMode !== "idle") return;
@@ -4712,61 +4706,75 @@ function FeatureShell({
       </Scroll>
 
       <CtaBar>
-        {/* ── mic row ── */}
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 }}>
-          <Pressable
-            onPress={listening ? stopRec : busy ? undefined : startRec}
-            style={{
-              flex: 1,
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 10,
-              borderWidth: 1,
-              borderColor: listening ? t.semantic.urgent : t.hair,
-              borderRadius: 14,
-              paddingVertical: 13,
-              paddingHorizontal: 14,
-              backgroundColor: listening
-                ? mix(t.semantic.urgent, t.canvas, 0.12)
-                : t.surface1,
-            }}
-          >
-            <Icon
-              name="mic"
-              size={16}
-              color={listening ? t.semantic.urgent : busy ? t.txtLow : t.txtMid}
-            />
-            <Txt size={14} color={listening ? t.semantic.urgent : t.txtLow}>
-              {listening
-                ? "Tap to send\u2026"
-                : askMode === "thinking"
-                  ? "Judith is thinking\u2026"
-                  : askMode === "speaking"
-                    ? "Judith is speaking\u2026"
-                    : "Tap mic to ask Judith"}
-            </Txt>
-          </Pressable>
+        {/* ── mic row — hidden once Judith has answered ── */}
+        {!hasAnswered && (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 }}>
+            <Pressable
+              onPress={listening ? stopRec : busy ? undefined : startRec}
+              style={{
+                flex: 1,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 10,
+                borderWidth: 1,
+                borderColor: listening ? t.semantic.urgent : t.hair,
+                borderRadius: 14,
+                paddingVertical: 13,
+                paddingHorizontal: 14,
+                backgroundColor: listening
+                  ? mix(t.semantic.urgent, t.canvas, 0.12)
+                  : t.surface1,
+              }}
+            >
+              <Icon
+                name="mic"
+                size={16}
+                color={listening ? t.semantic.urgent : busy ? t.txtLow : t.txtMid}
+              />
+              <Txt size={14} color={listening ? t.semantic.urgent : t.txtLow}>
+                {listening
+                  ? "Tap to send\u2026"
+                  : askMode === "thinking"
+                    ? "Judith is thinking\u2026"
+                    : askMode === "speaking"
+                      ? "Judith is speaking\u2026"
+                      : "Tap mic to ask Judith"}
+              </Txt>
+            </Pressable>
 
-          <Pressable
-            onPress={listening ? stopRec : busy ? undefined : startRec}
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 24,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: listening ? t.semantic.urgent : busy ? t.surface2 : t.accent,
-            }}
-          >
-            <Icon
-              name="mic"
-              size={22}
-              color={listening ? "#fff" : busy ? t.txtLow : t.onAccent}
-            />
-          </Pressable>
-        </View>
+            <Pressable
+              onPress={listening ? stopRec : busy ? undefined : startRec}
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 24,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: listening ? t.semantic.urgent : busy ? t.surface2 : t.accent,
+              }}
+            >
+              <Icon
+                name="mic"
+                size={22}
+                color={listening ? "#fff" : busy ? t.txtLow : t.onAccent}
+              />
+            </Pressable>
+          </View>
+        )}
 
-        <Btn label={dotIdx === 2 ? T("finish") : T("continue")} onPress={next} />
+        {/* ── speaking status while Judith is responding ── */}
+        {hasAnswered && busy && (
+          <View style={{ alignItems: "center", paddingVertical: 10, marginBottom: 10 }}>
+            <Low size={13}>
+              {askMode === "thinking" ? "Judith is thinking\u2026" : "Judith is speaking\u2026"}
+            </Low>
+          </View>
+        )}
+
+        {/* ── Next button — appears only after Judith finishes speaking ── */}
+        {hasAnswered && !busy && (
+          <Btn label={dotIdx === 2 ? T("finish") : T("next")} onPress={next} />
+        )}
       </CtaBar>
     </>
   );
