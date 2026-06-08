@@ -3,7 +3,6 @@ import React, { useCallback, useRef, useState } from "react";
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
 
 import * as Notifications from "expo-notifications";
-import * as Updates from "expo-updates";
 import { Icon, type IconName } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Dot, Low, Mono, Screen, Txt, mix } from "@/components/ui";
@@ -1036,11 +1035,7 @@ export default function SettingsScreen() {
           <Low size={12}>Restart from scratch</Low>
         </Pressable>
         <Low size={11} style={{ marginTop: 6, opacity: 0.4 }}>
-          {Updates.updateId
-            ? `update ${Updates.updateId.slice(0, 8)}`
-            : Updates.isEmbeddedLaunch
-            ? "embedded build"
-            : "dev"}
+          dev
         </Low>
       </View>
 

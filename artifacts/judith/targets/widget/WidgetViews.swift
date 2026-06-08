@@ -46,75 +46,83 @@ private struct SmallView: View {
     let entry: JudithEntry
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        ZStack {
+            WidgetCardBackground()
 
-            // Brand header
-            HStack(spacing: 5) {
-                JudithAvatar(size: 18)
-                Text("JUDITH")
-                    .font(.system(size: 8, weight: .black, design: .rounded))
-                    .foregroundStyle(Color.judithAccent)
-                    .kerning(1.4)
-                Spacer()
-            }
-            .padding(.bottom, 11)
-
-            if let bill = entry.nextBill {
-
-                // Provider
-                Text(bill.provider)
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Color.txtMid)
-                    .lineLimit(1)
-                    .padding(.bottom, 1)
-
-                // Amount — hero number
-                Text(bill.amountDisplay(currency: entry.currency))
-                    .font(.system(size: 22, weight: .black, design: .monospaced))
-                    .foregroundStyle(bill.urgency.color)
-                    .minimumScaleFactor(0.55)
-                    .lineLimit(1)
-                    .padding(.bottom, 8)
-
-                DueBadge(bill: bill)
-
-            } else {
-                Spacer(minLength: 0)
-                VStack(alignment: .leading, spacing: 6) {
-                    ZStack {
-                        Circle()
-                            .fill(Color.judithAccent.opacity(0.14))
-                            .frame(width: 32, height: 32)
-                        Image(systemName: "checkmark")
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 5) {
+                    JudithAvatar(size: 18)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("JUDITH")
+                            .font(.system(size: 8, weight: .black, design: .rounded))
+                            .foregroundStyle(Color.judithAccent)
+                            .kerning(1.4)
+                        Text("Bill tracker")
+                            .font(.system(size: 7, weight: .medium, design: .rounded))
+                            .foregroundStyle(Color.txtLow)
+                    }
+                    Spacer()
+                    if entry.unpaidCount > 0 {
+                        Text("\(entry.unpaidCount)")
+                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .foregroundStyle(Color.txtHi)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(
+                                Capsule()
+                                    .fill(Color.surface1.opacity(0.9))
+                            )
+                    } else {
+                        Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 13, weight: .bold))
                             .foregroundStyle(Color.judithAccent)
                     }
-                    Text("All paid!")
+                }
+                .padding(.bottom, 12)
+
+                if let bill = entry.nextBill {
+                    Text("DUE THIS MONTH")
+                        .font(.system(size: 8, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color.txtLow)
+                        .kerning(0.8)
+                        .padding(.bottom, 6)
+
+                    Text(fullAmount(entry.totalOwed, currency: entry.currency))
+                        .font(.system(size: 24, weight: .black, design: .monospaced))
+                        .foregroundStyle(Color.txtHi)
+                        .minimumScaleFactor(0.72)
+                        .lineLimit(1)
+                        .padding(.bottom, 8)
+
+                    Text(bill.provider)
                         .font(.system(size: 12, weight: .bold, design: .rounded))
                         .foregroundStyle(Color.judithAccent)
-                }
-            }
+                        .lineLimit(1)
+                        .padding(.bottom, 4)
 
-            Spacer(minLength: 0)
-
-            // Footer count
-            HStack(spacing: 3) {
-                if entry.unpaidCount == 0 {
-                    Text("Nothing due")
-                        .font(.system(size: 9, weight: .medium, design: .rounded))
-                        .foregroundStyle(Color.judithAccent.opacity(0.7))
+                    HStack(spacing: 6) {
+                        DueBadge(bill: bill)
+                        Text(bill.amountDisplay(currency: entry.currency))
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .foregroundStyle(bill.urgency.color)
+                            .lineLimit(1)
+                    }
                 } else {
-                    Text("\(entry.unpaidCount) due")
+                    Spacer(minLength: 0)
+                    AllPaidViewCompact(debugState: nil)
+                }
+
+                Spacer(minLength: 0)
+
+                HStack(spacing: 5) {
+                    StatusDot(color: entry.nextBill?.urgency.color ?? Color.judithAccent)
+                    Text(entry.unpaidCount == 0 ? "Nothing due right now" : "Next: \(entry.nextBill?.dueLabelShort ?? "")")
                         .font(.system(size: 9, weight: .medium, design: .rounded))
-                        .foregroundStyle(Color.txtLow)
-                    Text("·").foregroundStyle(Color.txtLow).font(.system(size: 9))
-                    Text("\(entry.currency)\(String(format: "%.0f", entry.totalOwed))")
-                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
                         .foregroundStyle(Color.txtMid)
                 }
             }
+            .padding(14)
         }
-        .padding(14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
@@ -127,35 +135,82 @@ private struct MediumView: View {
     let entry: JudithEntry
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        ZStack {
+            WidgetCardBackground()
 
-            // Brand header
-            HStack(spacing: 7) {
-                JudithAvatar(size: 22)
-                Text("JUDITH")
-                    .font(.system(size: 10, weight: .black, design: .rounded))
-                    .foregroundStyle(Color.judithAccent)
-                    .kerning(1.2)
-                Spacer()
-                SummaryPill(count: entry.unpaidCount,
-                            total: entry.totalOwed,
-                            currency: entry.currency)
-            }
-            .padding(.bottom, 10)
-
-            if entry.nextBill == nil {
-                AllPaidView()
-            } else {
-                VStack(spacing: 5) {
-                    ForEach(entry.upcomingBills.prefix(3)) { bill in
-                        BillRow(bill: bill, currency: entry.currency)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .top, spacing: 10) {
+                    JudithAvatar(size: 24)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("JUDITH")
+                            .font(.system(size: 10, weight: .black, design: .rounded))
+                            .foregroundStyle(Color.judithAccent)
+                            .kerning(1.3)
+                        Text(entry.nextBill == nil ? "Everything settled" : "Live bill snapshot")
+                            .font(.system(size: 10, weight: .medium, design: .rounded))
+                            .foregroundStyle(Color.txtLow)
                     }
+                    Spacer()
+                    SummaryPill(count: entry.unpaidCount,
+                                total: entry.totalOwed,
+                                currency: entry.currency)
                 }
-            }
+                .padding(.bottom, 12)
 
-            Spacer(minLength: 0)
+                if entry.nextBill == nil {
+                    AllPaidView(debugState: nil)
+                } else {
+                    VStack(spacing: 10) {
+                        HStack(alignment: .bottom) {
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text("Due this month")
+                                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                                    .foregroundStyle(Color.txtLow)
+                                    .kerning(0.5)
+                                Text(fullAmount(entry.totalOwed, currency: entry.currency))
+                                    .font(.system(size: 28, weight: .black, design: .monospaced))
+                                    .foregroundStyle(Color.txtHi)
+                                    .minimumScaleFactor(0.75)
+                                    .lineLimit(1)
+                            }
+                            Spacer(minLength: 8)
+                            VStack(alignment: .trailing, spacing: 4) {
+                                Text(entry.nextBill?.provider.uppercased() ?? "")
+                                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                                    .foregroundStyle(entry.nextBill?.urgency.color ?? Color.judithAccent)
+                                    .kerning(0.7)
+                                    .lineLimit(1)
+                                Text(entry.nextBill?.dueLabelShort.uppercased() ?? "")
+                                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(Color.txtMid)
+                            }
+                        }
+
+                        HStack(spacing: 8) {
+                            StatChip(label: "\(entry.unpaidCount) unpaid", color: entry.nextBill?.urgency.color ?? Color.judithAccent)
+                            if let bill = entry.nextBill {
+                                StatChip(label: compactAmount(bill.amount, currency: entry.currency), color: bill.urgency.color)
+                            }
+                            Spacer(minLength: 0)
+                        }
+
+                        VStack(spacing: 7) {
+                            ForEach(entry.upcomingBills.prefix(2)) { bill in
+                                BillRow(bill: bill, currency: entry.currency)
+                            }
+                        }
+                    }
+                    .padding(12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(Color.surface1.opacity(0.95))
+                    )
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(14)
         }
-        .padding(14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
@@ -168,63 +223,82 @@ private struct LargeView: View {
     let entry: JudithEntry
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        ZStack {
+            WidgetCardBackground()
 
-            // Brand header
-            HStack(spacing: 8) {
-                JudithAvatar(size: 28)
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("JUDITH")
-                        .font(.system(size: 11, weight: .black, design: .rounded))
-                        .foregroundStyle(Color.judithAccent)
-                        .kerning(1.2)
-                    Text("Bill tracker")
-                        .font(.system(size: 8, design: .rounded))
-                        .foregroundStyle(Color.txtLow)
-                }
-                Spacer()
-                SummaryPill(count: entry.unpaidCount,
-                            total: entry.totalOwed,
-                            currency: entry.currency)
-            }
-            .padding(.bottom, 12)
-
-            if entry.nextBill == nil {
-                AllPaidView()
-            } else {
-                VStack(spacing: 6) {
-                    ForEach(entry.upcomingBills.prefix(6)) { bill in
-                        BillRow(bill: bill, currency: entry.currency)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 8) {
+                    JudithAvatar(size: 28)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("JUDITH")
+                            .font(.system(size: 11, weight: .black, design: .rounded))
+                            .foregroundStyle(Color.judithAccent)
+                            .kerning(1.2)
+                        Text("Bill tracker")
+                            .font(.system(size: 8, design: .rounded))
+                            .foregroundStyle(Color.txtLow)
                     }
+                    Spacer()
+                    SummaryPill(count: entry.unpaidCount,
+                                total: entry.totalOwed,
+                                currency: entry.currency)
                 }
-            }
+                .padding(.bottom, 12)
 
-            Spacer(minLength: 0)
-
-            // Footer total
-            if entry.unpaidCount > 0 {
-                VStack(spacing: 7) {
-                    Rectangle()
-                        .fill(Color.surface2)
-                        .frame(height: 1)
-                    HStack {
-                        HStack(spacing: 4) {
-                            JudithAvatar(size: 14)
-                            Text("TOTAL DUE")
-                                .font(.system(size: 8, weight: .bold, design: .rounded))
-                                .foregroundStyle(Color.txtLow)
-                                .kerning(0.5)
+                if entry.nextBill == nil {
+                    AllPaidView(debugState: nil)
+                } else {
+                    VStack(spacing: 10) {
+                        HStack(alignment: .bottom) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Due this month")
+                                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                                    .foregroundStyle(Color.txtLow)
+                                    .kerning(0.5)
+                                Text(fullAmount(entry.totalOwed, currency: entry.currency))
+                                    .font(.system(size: 32, weight: .black, design: .monospaced))
+                                    .foregroundStyle(Color.txtHi)
+                                    .minimumScaleFactor(0.8)
+                                    .lineLimit(1)
+                            }
+                            Spacer(minLength: 10)
+                            VStack(alignment: .trailing, spacing: 4) {
+                                Text(entry.nextBill?.provider.uppercased() ?? "")
+                                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                                    .foregroundStyle(entry.nextBill?.urgency.color ?? Color.judithAccent)
+                                    .kerning(0.8)
+                                    .lineLimit(1)
+                                Text(entry.nextBill?.dueLabelShort.uppercased() ?? "")
+                                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(Color.txtMid)
+                            }
                         }
-                        Spacer()
-                        Text("\(entry.currency)\(String(format: "%.0f", entry.totalOwed))")
-                            .font(.system(size: 20, weight: .black, design: .monospaced))
-                            .foregroundStyle(Color.txtHi)
+                        .background(
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .fill(Color.surface1.opacity(0.95))
+                        )
+                        .padding(14)
+
+                        HStack(spacing: 8) {
+                            StatChip(label: "\(entry.unpaidCount) unpaid", color: entry.nextBill?.urgency.color ?? Color.judithAccent)
+                            if let bill = entry.nextBill {
+                                StatChip(label: compactAmount(bill.amount, currency: entry.currency), color: bill.urgency.color)
+                            }
+                            Spacer(minLength: 0)
+                        }
+
+                        VStack(spacing: 6) {
+                            ForEach(entry.upcomingBills.prefix(4)) { bill in
+                                BillRow(bill: bill, currency: entry.currency)
+                            }
+                        }
                     }
                 }
-                .padding(.top, 8)
+
+                Spacer(minLength: 0)
             }
+            .padding(16)
         }
-        .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
@@ -388,31 +462,35 @@ private struct BillRow: View {
         HStack(spacing: 0) {
             RoundedRectangle(cornerRadius: 2)
                 .fill(bill.urgency.color)
-                .frame(width: 3)
-                .padding(.vertical, 4)
-                .padding(.trailing, 8)
+                .frame(width: 4)
+                .padding(.vertical, 5)
+                .padding(.trailing, 10)
 
             Text(bill.provider)
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .foregroundStyle(Color.txtHi)
                 .lineLimit(1)
+                .layoutPriority(1)
 
             Spacer(minLength: 4)
 
-            Text(bill.amountDisplay(currency: currency))
+            Text(compactAmount(bill.amount, currency: currency))
                 .font(.system(size: 12, weight: .bold, design: .monospaced))
                 .foregroundStyle(Color.txtHi)
                 .lineLimit(1)
+                .fixedSize()
 
             Text(bill.dueLabelShort.uppercased())
-                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
                 .foregroundStyle(bill.urgency.color)
-                .frame(width: 44, alignment: .trailing)
+                .frame(width: 46, alignment: .trailing)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
-        .background(Color.surface1)
-        .clipShape(RoundedRectangle(cornerRadius: 7))
+        .padding(.horizontal, 11)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.surface1.opacity(0.95))
+        )
     }
 }
 
@@ -449,19 +527,27 @@ private struct SummaryPill: View {
                 }
                 .foregroundStyle(Color.judithAccent)
             } else {
-                Text("\(count) · \(currency)\(String(format: "%.0f", total))")
-                    .foregroundStyle(Color.txtMid)
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text("\(count)")
+                        .foregroundStyle(Color.txtHi)
+                    Text("\(currency)\(String(format: "%.0f", total))")
+                        .foregroundStyle(Color.txtMid)
+                }
             }
         }
         .font(.system(size: 9, weight: .semibold, design: .rounded))
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(Color.surface1)
-        .clipShape(Capsule())
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            Capsule()
+                .fill(Color.surface1.opacity(0.92))
+        )
     }
 }
 
 private struct AllPaidView: View {
+    let debugState: String?
+
     var body: some View {
         HStack(spacing: 10) {
             ZStack {
@@ -476,11 +562,156 @@ private struct AllPaidView: View {
                 Text("All bills paid!")
                     .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundStyle(Color.judithAccent)
-                Text("Nothing due right now.")
-                    .font(.system(size: 11, design: .rounded))
-                    .foregroundStyle(Color.txtLow)
+                if let debugState {
+                    Text("Widget sync: \(debugState)")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(Color.judithUrgent)
+                } else {
+                    Text("Nothing due right now.")
+                        .font(.system(size: 11, design: .rounded))
+                        .foregroundStyle(Color.txtLow)
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
+}
+
+private struct AllPaidViewCompact: View {
+    let debugState: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ZStack {
+                Circle()
+                    .fill(Color.judithAccent.opacity(0.14))
+                    .frame(width: 32, height: 32)
+                Image(systemName: "checkmark")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(Color.judithAccent)
+            }
+            Text("All paid!")
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .foregroundStyle(Color.judithAccent)
+            if let debugState {
+                Text(debugState)
+                    .font(.system(size: 8, design: .monospaced))
+                    .foregroundStyle(Color.judithUrgent)
+            }
+        }
+    }
+}
+
+private struct WidgetCardBackground: View {
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color.surface1, Color.surface2],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+
+            Circle()
+                .fill(Color.judithAccent.opacity(0.14))
+                .frame(width: 120, height: 120)
+                .offset(x: -90, y: 70)
+
+            Circle()
+                .fill(Color.judithAccent.opacity(0.08))
+                .frame(width: 160, height: 160)
+                .offset(x: 110, y: -80)
+
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.05), lineWidth: 1)
+        }
+    }
+}
+
+private struct MiniSummaryPill: View {
+    let count: Int
+    let total: Double
+    let currency: String
+
+    var body: some View {
+        HStack(spacing: 4) {
+            if count == 0 {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(Color.judithAccent)
+                Text("CLEAR")
+                    .font(.system(size: 8, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.judithAccent)
+            } else {
+                Text("\(count)")
+                    .font(.system(size: 8, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.txtHi)
+                Text("·")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(Color.txtLow)
+                Text("\(currency)\(String(format: "%.0f", total))")
+                    .font(.system(size: 8, weight: .bold, design: .monospaced))
+                    .foregroundStyle(Color.txtMid)
+            }
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 4)
+        .background(
+            Capsule()
+                .fill(Color.surface1.opacity(0.9))
+        )
+    }
+}
+
+private struct StatusDot: View {
+    let color: Color
+
+    var body: some View {
+        Circle()
+            .fill(color)
+            .frame(width: 7, height: 7)
+    }
+}
+
+private struct StatChip: View {
+    let label: String
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 6) {
+            StatusDot(color: color)
+            Text(label)
+                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color.txtMid)
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 6)
+        .background(
+            Capsule()
+                .fill(Color.surface1.opacity(0.92))
+        )
+    }
+}
+
+private func compactAmount(_ amount: Double, currency: String) -> String {
+    let absolute = abs(amount)
+    if absolute >= 10_000 {
+        return "\(currency)\(Int((amount / 1_000).rounded()))k"
+    }
+    if absolute >= 1_000 {
+        return "\(currency)\(String(format: "%.1f", amount / 1_000))k"
+            .replacingOccurrences(of: ".0k", with: "k")
+    }
+    return "\(currency)\(String(format: "%.0f", amount))"
+}
+
+private func fullAmount(_ amount: Double, currency: String) -> String {
+    let formatter = NumberFormatter()
+    formatter.numberStyle = .decimal
+    formatter.maximumFractionDigits = 0
+    formatter.groupingSeparator = ","
+    let number = formatter.string(from: NSNumber(value: amount)) ?? String(format: "%.0f", amount)
+    return "\(currency)\(number)"
 }

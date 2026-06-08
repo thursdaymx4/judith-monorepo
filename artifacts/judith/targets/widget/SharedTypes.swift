@@ -71,7 +71,7 @@ struct UpcomingBill: Codable, Identifiable {
     }
 
     func amountDisplay(currency: String) -> String {
-        "\(currency)\(String(format: "%.0f", amount))"
+        "\(currency)\(amount.formattedAmount)"
     }
 
     var dueLabelShort: String {
@@ -97,4 +97,14 @@ struct WatchPayload: Codable {
     let paidCount: Int
     /// Total tracked bills (paid + unpaid) — gauge denominator.
     let totalCount: Int
+}
+
+private extension Double {
+    var formattedAmount: String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 0
+        formatter.groupingSeparator = ","
+        return formatter.string(from: NSNumber(value: self)) ?? String(format: "%.0f", self)
+    }
 }

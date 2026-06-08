@@ -6,7 +6,7 @@
  *
  * Safe to call on Android and in Expo Go — no-ops silently.
  */
-import { Platform } from "react-native";
+import { NativeModules, Platform } from "react-native";
 
 type Bridge = { writePayload: (json: string) => void };
 
@@ -21,9 +21,12 @@ function getBridge(): Bridge | null {
     const { requireOptionalNativeModule } = require("expo-modules-core") as {
       requireOptionalNativeModule: (name: string) => Bridge | null;
     };
-    _bridge = requireOptionalNativeModule("JudithWidgetBridge");
+    _bridge =
+      requireOptionalNativeModule("JudithWidgetBridge") ??
+      (NativeModules.JudithWidgetBridge as Bridge | undefined) ??
+      null;
   } catch {
-    _bridge = null;
+    _bridge = (NativeModules.JudithWidgetBridge as Bridge | undefined) ?? null;
   }
   return _bridge;
 }

@@ -11,6 +11,7 @@ struct JudithEntry: TimelineEntry {
     let unpaidCount: Int
     let totalOwed: Double
     let relevance: TimelineEntryRelevance?
+    let debugState: String?
 
     static let placeholder = JudithEntry(
         date: Date(),
@@ -30,7 +31,8 @@ struct JudithEntry: TimelineEntry {
         ],
         unpaidCount: 3,
         totalOwed: 4_348,
-        relevance: nil
+        relevance: nil,
+        debugState: nil
     )
 }
 
@@ -58,8 +60,25 @@ struct JudithProvider: TimelineProvider {
     private func makeEntry() -> JudithEntry {
         let defaults = UserDefaults(suiteName: Config.appGroupID)
         var payload: WatchPayload? = nil
+        var debugState: String? = nil
         if let data = defaults?.data(forKey: Config.payloadCacheKey) {
             payload = try? JSONDecoder().decode(WatchPayload.self, from: data)
+            if payload == nil {
+                debugState = "decode:data"
+            }
+        }
+        if payload == nil,
+           let json = defaults?.string(forKey: "\(Config.payloadCacheKey).string"),
+           let data = json.data(using: .utf8) {
+            payload = try? JSONDecoder().decode(WatchPayload.self, from: data)
+            if payload == nil {
+                debugState = "decode:string"
+            }
+        }
+        if defaults == nil {
+            debugState = "no-suite"
+        } else if payload == nil && debugState == nil {
+            debugState = "no-payload"
         }
 
         let currency    = payload?.currency     ?? "₱"
@@ -82,7 +101,8 @@ struct JudithProvider: TimelineProvider {
             upcomingBills: bills,
             unpaidCount:   unpaidCount,
             totalOwed:     totalOwed,
-            relevance:     relevance
+            relevance:     relevance,
+            debugState:    debugState
         )
     }
 }
