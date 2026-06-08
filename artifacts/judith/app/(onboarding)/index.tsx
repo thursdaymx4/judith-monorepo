@@ -4564,11 +4564,11 @@ function FeatureShell({
       setHasAnswered(true);
       setAskMode("speaking");
       if (audioBase64) await playBase64Mp3(audioBase64).catch(() => {});
-    } catch {
-      setMessages((m) => [
-        ...m,
-        { role: "judith", text: "Sorry, I couldn\u2019t connect right now." },
-      ]);
+    } catch (e) {
+      const msg = e instanceof RateLimitError
+        ? "You\u2019ve asked a lot — wait a moment, then tap \u201CTry again\u201D."
+        : "Sorry, I couldn\u2019t connect right now.";
+      setMessages((m) => [...m, { role: "judith", text: msg }]);
       setHadError(true);
     } finally {
       setAskMode("idle");

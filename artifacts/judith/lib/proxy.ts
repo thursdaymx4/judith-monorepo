@@ -256,7 +256,9 @@ export function askOnboarding(
     amount?: number | null;
     dueDays?: number | null;
     dueLabel?: string | null;
+    dueMonth?: string | null;
     status?: string | null;
+    isProjection?: boolean | null;
   }>,
   persona?: PersonaId,
   language?: string,
