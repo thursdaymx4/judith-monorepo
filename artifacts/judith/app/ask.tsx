@@ -75,7 +75,7 @@ export default function AskModal() {
   const t = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { bills, asksLeft, tier, persona, language, country, currency, monthlyIncome, incomeByMonth, payCycle, paydayDay, paydaySemi, paydayWeekday, consumeAsk, addAsks, canUseVoice, saveBill, showToast, toggles, setToggle, askHistory, setAskHistory, clearAskHistory, hydrated } = useJudith();
+  const { bills, asksLeft, tier, persona, language, country, currency, monthlyIncome, incomeByMonth, payCycle, paydayDay, paydaySemi, paydayWeekday, consumeAsk, addAsks, canUseVoice, saveBill, showToast, toggles, setToggle, askHistory, setAskHistory, clearAskHistory, hydrated, customQuestions, addCustomQuestion, deleteCustomQuestion } = useJudith();
   // Voice tier can mute spoken replies (e.g. in public) and get text-only answers.
   const speakAloud = toggles.voiceReplies;
   const voiceTier = tier === "voice";
@@ -142,6 +142,9 @@ export default function AskModal() {
 
   const [scanBusy, setScanBusy] = useState(false);
   const [scanRows, setScanRows] = useState<ScanRow[] | null>(null);
+  const [addQVisible, setAddQVisible] = useState(false);
+  const [newQText, setNewQText] = useState("");
+  const [deletingQIdx, setDeletingQIdx] = useState<number | null>(null);
   const includedCount = scanRows?.filter((r) => r.include).length ?? 0;
 
   const processScanAsset = async (asset: ImagePicker.ImagePickerAsset) => {
@@ -926,9 +929,44 @@ export default function AskModal() {
           contentContainerStyle={{ gap: 8, paddingHorizontal: 22, paddingVertical: 8, alignItems: "center" }}
           keyboardShouldPersistTaps="handled"
         >
+          {/* + add custom question */}
+          <Pressable
+            onPress={() => { setNewQText(""); setAddQVisible(true); }}
+            style={{
+              flexDirection: "row", alignItems: "center", gap: 5,
+              borderWidth: 1, borderColor: t.accent, borderRadius: 22,
+              paddingVertical: 8, paddingHorizontal: 14,
+              backgroundColor: mix(t.accent, t.canvas, 0.9),
+            }}
+          >
+            <Icon name="plus" size={13} color={t.accent} />
+            <Txt size={13} weight="medium" color={t.accent}>Add</Txt>
+          </Pressable>
+
+          {/* user-created questions first */}
+          {(customQuestions ?? []).map((qa, i) => (
+            <Pressable
+              key={`custom-${i}`}
+              onPress={() => ask(qa)}
+              onLongPress={() => setDeletingQIdx(i)}
+              delayLongPress={500}
+              style={{
+                borderWidth: 1, borderColor: t.accent, borderRadius: 22,
+                paddingVertical: 8, paddingHorizontal: 14,
+                backgroundColor: mix(t.accent, t.canvas, 0.85),
+                opacity: busy ? 0.5 : 1,
+                flexDirection: "row", alignItems: "center", gap: 6,
+              }}
+            >
+              <Icon name="star" size={11} color={t.accent} />
+              <Txt size={13} weight="medium" color={t.accent} style={{ maxWidth: 200 }} numberOfLines={1}>{qa}</Txt>
+            </Pressable>
+          ))}
+
+          {/* built-in suggestions */}
           {getQuickAsks(country.code).map((qa, i) => (
             <Chip
-              key={i}
+              key={`builtin-${i}`}
               label={qa}
               onPress={() => ask(qa)}
               style={{ opacity: busy ? 0.5 : 1 }}
@@ -936,6 +974,73 @@ export default function AskModal() {
           ))}
         </ScrollView>
       )}
+
+      {/* ── Add custom question sheet ── */}
+      <Modal visible={addQVisible} transparent animationType="slide" onRequestClose={() => setAddQVisible(false)} statusBarTranslucent>
+        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }} onPress={() => setAddQVisible(false)}>
+          <Pressable
+            style={{ position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: t.canvas, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 22, paddingTop: 20, paddingBottom: insets.bottom + 20 }}
+          >
+            <Txt size={18} weight="bold" style={{ marginBottom: 4 }}>Save a question</Txt>
+            <Low size={13} style={{ marginBottom: 16 }}>It'll appear first in your chip strip — tap to send anytime.</Low>
+            <TextInput
+              value={newQText}
+              onChangeText={setNewQText}
+              placeholder="e.g. How much is my Meralco this month?"
+              placeholderTextColor={t.txtLow}
+              autoFocus
+              multiline
+              returnKeyType="done"
+              blurOnSubmit
+              style={{
+                backgroundColor: t.surface1, borderWidth: 1, borderColor: t.hair,
+                borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14,
+                color: t.txtHi, fontSize: 15, fontFamily: t.fonts.regular,
+                minHeight: 56, marginBottom: 14,
+              }}
+            />
+            <Pressable
+              onPress={() => {
+                const q = newQText.trim();
+                if (!q) return;
+                addCustomQuestion(q);
+                setAddQVisible(false);
+                setNewQText("");
+              }}
+              style={{
+                backgroundColor: newQText.trim() ? t.accent : t.surface2,
+                borderRadius: 14, paddingVertical: 15, alignItems: "center",
+              }}
+            >
+              <Txt size={15} weight="semibold" color={newQText.trim() ? t.onAccent : t.txtLow}>Save question</Txt>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* ── Delete custom question confirm ── */}
+      <Modal visible={deletingQIdx !== null} transparent animationType="fade" onRequestClose={() => setDeletingQIdx(null)} statusBarTranslucent>
+        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", paddingHorizontal: 28 }} onPress={() => setDeletingQIdx(null)}>
+          <Pressable style={{ backgroundColor: t.surface2, borderRadius: 22, padding: 24 }}>
+            <Txt size={17} weight="bold" style={{ marginBottom: 6 }}>Remove this question?</Txt>
+            <Low size={14} style={{ marginBottom: 22, lineHeight: 20 }} numberOfLines={3}>
+              {deletingQIdx !== null ? (customQuestions ?? [])[deletingQIdx] : ""}
+            </Low>
+            <Pressable
+              onPress={() => {
+                if (deletingQIdx !== null) deleteCustomQuestion(deletingQIdx);
+                setDeletingQIdx(null);
+              }}
+              style={{ backgroundColor: t.semantic.urgent, borderRadius: 13, paddingVertical: 13, alignItems: "center", marginBottom: 10 }}
+            >
+              <Txt size={15} weight="semibold" color="#fff">Remove</Txt>
+            </Pressable>
+            <Pressable onPress={() => setDeletingQIdx(null)} style={{ paddingVertical: 10, alignItems: "center" }}>
+              <Txt size={14} color={t.txtMid}>Keep it</Txt>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {!!err && (
         <Txt

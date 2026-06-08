@@ -124,6 +124,8 @@ interface PersistShape {
   paydayWeekday?: number;
   /** Persisted Ask Judith chat history (last 100 messages). */
   askHistory: AskMsg[];
+  /** User-created template questions shown first in the quick-ask chip strip. */
+  customQuestions: string[];
 }
 
 const DEFAULTS: PersistShape = {
@@ -151,6 +153,7 @@ const DEFAULTS: PersistShape = {
   paydaySemi: undefined,
   paydayWeekday: undefined,
   askHistory: [],
+  customQuestions: [],
 };
 
 interface JudithStoreValue extends PersistShape {
@@ -211,6 +214,10 @@ interface JudithStoreValue extends PersistShape {
   setAskHistory: (msgs: AskMsg[]) => void;
   /** Clear the full Ask Judith chat history. */
   clearAskHistory: () => void;
+  /** Prepend a new user-created template question (max 50). */
+  addCustomQuestion: (q: string) => void;
+  /** Remove a user-created template question by index. */
+  deleteCustomQuestion: (index: number) => void;
   restart: () => void;
   loadDemoData: () => void;
   loadDemoAccount: (code: string) => void;
@@ -646,6 +653,8 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       },
       setAskHistory: (msgs) => patch({ askHistory: msgs.slice(-100) }),
       clearAskHistory: () => patch({ askHistory: [] }),
+      addCustomQuestion: (q) => setState((s) => ({ ...s, customQuestions: [q, ...(s.customQuestions ?? [])].slice(0, 50) })),
+      deleteCustomQuestion: (index) => setState((s) => ({ ...s, customQuestions: (s.customQuestions ?? []).filter((_, i) => i !== index) })),
       restart: () => {
         setState({ ...DEFAULTS });
         AsyncStorage.removeItem(storageKey).catch(() => {});
