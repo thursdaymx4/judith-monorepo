@@ -4457,45 +4457,6 @@ function FeatureShell({
   const voiceLine = JUDITH_VOICE.features[persona][isFil ? "fil" : "en"][dotIdx];
   useOnbVoice(voiceLine, persona, language);
 
-  /* ── demo float animation (shown before first real ask) ── */
-  const floatY  = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(floatY, { toValue: -13, duration: 2500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(floatY, { toValue: 0,   duration: 2500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ]),
-    ).start();
-  }, []);
-
-  /* ── staggered bubble-in for demo Q&A ── */
-  const tOpacity = useRef(new Animated.Value(0)).current;
-  const tY       = useRef(new Animated.Value(8)).current;
-  const tScale   = useRef(new Animated.Value(0.97)).current;
-  const rOpacity = useRef(new Animated.Value(0)).current;
-  const rY       = useRef(new Animated.Value(8)).current;
-  const rScale   = useRef(new Animated.Value(0.97)).current;
-  useEffect(() => {
-    const ease = Easing.bezier(0.2, 0.8, 0.2, 1);
-    const dur  = 400;
-    Animated.sequence([
-      Animated.delay(150),
-      Animated.parallel([
-        Animated.timing(tOpacity, { toValue: 1, duration: dur, easing: ease, useNativeDriver: true }),
-        Animated.timing(tY,       { toValue: 0, duration: dur, easing: ease, useNativeDriver: true }),
-        Animated.timing(tScale,   { toValue: 1, duration: dur, easing: ease, useNativeDriver: true }),
-      ]),
-    ]).start();
-    Animated.sequence([
-      Animated.delay(350),
-      Animated.parallel([
-        Animated.timing(rOpacity, { toValue: 1, duration: dur, easing: ease, useNativeDriver: true }),
-        Animated.timing(rY,       { toValue: 0, duration: dur, easing: ease, useNativeDriver: true }),
-        Animated.timing(rScale,   { toValue: 1, duration: dur, easing: ease, useNativeDriver: true }),
-      ]),
-    ]).start();
-  }, []);
-
   /* ── interactive ask state ── */
   const [messages,    setMessages]    = useState<FeatureMsg[]>([]);
   const [askMode,     setAskMode]     = useState<AskMode>("idle");
@@ -4667,7 +4628,7 @@ function FeatureShell({
     <>
       <Scroll>
         {/* ── dot pagination ── */}
-        <View style={{ flexDirection: "row", gap: 7, justifyContent: "center", marginBottom: 22 }}>
+        <View style={{ flexDirection: "row", gap: 7, justifyContent: "center", marginBottom: 32 }}>
           {[0, 1, 2].map((i) => (
             <View
               key={i}
@@ -4681,130 +4642,60 @@ function FeatureShell({
           ))}
         </View>
 
-        {/* ── hero section — each variant has a distinct layout ── */}
-        {!started ? (
-          variant === 1 ? (
-            /* Variant 1: Large avatar with glow rings + floating demo Q&A */
-            <Animated.View
-              style={{
-                alignSelf: "stretch",
-                minHeight: 220,
-                alignItems: "center",
-                justifyContent: "center",
-                transform: [{ translateY: floatY }],
-              }}
-            >
-              <View style={{ gap: 11, width: "100%", alignItems: "center" }}>
-                <View style={{ alignItems: "center", justifyContent: "center" }}>
-                  <View style={{ position: "absolute", width: 138, height: 138, borderRadius: 69, backgroundColor: t.accent, opacity: 0.10 }} />
-                  <View style={{ position: "absolute", width: 110, height: 110, borderRadius: 55, backgroundColor: t.accent, opacity: 0.10 }} />
-                  <JudithAvatar persona={persona} size={88} state="speaking" mood={mood} />
+        {/* ── avatar ── */}
+        <View style={{ alignItems: "center", marginBottom: 28 }}>
+          <View style={{ position: "absolute", width: 120, height: 120, borderRadius: 60, backgroundColor: t.accent, opacity: 0.08, top: -16 }} />
+          <JudithAvatar persona={persona} size={80} state={avatarState} mood={mood} />
+        </View>
+
+        {/* ── chat messages (after first ask) ── */}
+        {started && (
+          <ScrollView
+            ref={scrollRef}
+            scrollEnabled={false}
+            contentContainerStyle={{ gap: 10, paddingBottom: 8 }}
+          >
+            {messages.map((m, i) =>
+              m.role === "user" ? (
+                <View key={i} style={{ alignSelf: "flex-end" }}>
+                  <Transcript>{m.text}</Transcript>
                 </View>
-                <Animated.View style={{ alignSelf: "flex-end", opacity: tOpacity, transform: [{ translateY: tY }, { scale: tScale }] }}>
-                  <Transcript compact>{q}</Transcript>
-                </Animated.View>
-                <Animated.View style={{ opacity: rOpacity, transform: [{ translateY: rY }, { scale: rScale }] }}>
-                  <JudithLine compact>{a}</JudithLine>
-                </Animated.View>
-              </View>
-            </Animated.View>
-          ) : variant === 2 ? (
-            /* Variant 2: Avatar inline with tappable quick-ask chips as the demo */
-            <View style={{ minHeight: 220, justifyContent: "center", gap: 12 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
-                <JudithAvatar persona={persona} size={56} state="speaking" mood={mood} />
-                <View style={{ flex: 1, gap: 8 }}>
-                  {getQuickAsks(ctx.country.code).slice(0, 3).map((qa, i) => (
-                    <Pressable
-                      key={i}
-                      onPress={() => doAsk(qa)}
-                      disabled={busy || listening}
-                      style={{
-                        borderWidth: 1,
-                        borderColor: t.hair,
-                        borderRadius: 20,
-                        paddingVertical: 8,
-                        paddingHorizontal: 14,
-                        backgroundColor: t.surface2,
-                        opacity: busy || listening ? 0.4 : 1,
-                      }}
-                    >
-                      <Txt size={13}>{qa}</Txt>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-              <Animated.View style={{ alignSelf: "flex-end", opacity: tOpacity, transform: [{ translateY: tY }, { scale: tScale }] }}>
-                <Transcript compact>{q}</Transcript>
-              </Animated.View>
-              <Animated.View style={{ opacity: rOpacity, transform: [{ translateY: rY }, { scale: rScale }] }}>
-                <JudithLine compact>{a}</JudithLine>
-              </Animated.View>
-            </View>
-          ) : (
-            /* Variant 3: Real bill insight card — shows the user's actual total + next due */
-            (() => {
-              const total   = bills.reduce((s, b) => s + b.amount, 0);
-              const nextDue = bills.length > 0
-                ? bills.reduce((a2, b) => (b.dueDays < a2.dueDays ? b : a2), bills[0]!)
-                : null;
-              return (
-                <View style={{ minHeight: 220, justifyContent: "center", gap: 14 }}>
-                  <View style={{ alignItems: "center" }}>
-                    <JudithAvatar persona={persona} size={64} state={avatarState} mood={mood} />
-                  </View>
-                  <View style={{ backgroundColor: t.surface2, borderRadius: 18, padding: 20, gap: 4 }}>
-                    <Txt size={12} color={t.txtLow} style={{ textTransform: "uppercase", letterSpacing: 0.8 }}>
-                      {isFil ? "Monthly total mo" : "Your monthly total"}
-                    </Txt>
-                    <Txt size={30} style={{ fontWeight: "700" }}>
-                      {ctx.country.cur}{total > 0 ? total.toLocaleString() : "—"}
-                    </Txt>
-                    {nextDue && (
-                      <Txt size={14} color={t.txtMid} style={{ marginTop: 6 }}>
-                        {isFil
-                          ? `Susunod: ${nextDue.provider} sa ${nextDue.dueDays} araw`
-                          : `Next up: ${nextDue.provider} in ${nextDue.dueDays} day${nextDue.dueDays !== 1 ? "s" : ""}`}
-                      </Txt>
-                    )}
-                  </View>
-                </View>
-              );
-            })()
-          )
-        ) : (
-          <View style={{ minHeight: 220 }}>
-            <View style={{ alignItems: "center", marginBottom: 10 }}>
-              <JudithAvatar persona={persona} size={60} state={avatarState} />
-            </View>
-            <ScrollView
-              ref={scrollRef}
-              scrollEnabled={false}
-              contentContainerStyle={{ gap: 10 }}
-            >
-              {messages.map((m, i) =>
-                m.role === "user" ? (
-                  <View key={i} style={{ alignSelf: "flex-end" }}>
-                    <Transcript>{m.text}</Transcript>
-                  </View>
-                ) : (
-                  <JudithLine key={i}>{m.text}</JudithLine>
-                ),
-              )}
-              {askMode === "thinking" && (
-                <JudithLine>
-                  <Low size={14}>Judith is thinking\u2026</Low>
-                </JudithLine>
-              )}
-            </ScrollView>
-          </View>
+              ) : (
+                <JudithLine key={i}>{m.text}</JudithLine>
+              ),
+            )}
+            {askMode === "thinking" && (
+              <JudithLine>
+                <Low size={14}>Thinking\u2026</Low>
+              </JudithLine>
+            )}
+          </ScrollView>
         )}
 
-        {/* ── listening indicator ── */}
-        {listening && (
-          <View style={{ alignItems: "center", marginTop: 6, gap: 4 }}>
-            <VoiceBars accent={t.accent} />
-            <Low size={12}>Listening\u2026</Low>
+        {/* ── template question chip (before first ask) ── */}
+        {!started && (
+          <View style={{ alignItems: "center" }}>
+            <Pressable
+              onPress={() => doAsk(templateQ)}
+              disabled={busy || listening}
+              style={{
+                borderWidth: 1.5,
+                borderColor: t.accent,
+                borderRadius: 24,
+                paddingVertical: 14,
+                paddingHorizontal: 22,
+                backgroundColor: mix(t.accent, t.canvas, 0.08),
+                opacity: busy || listening ? 0.4 : 1,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 10,
+                maxWidth: 300,
+              }}
+            >
+              <Icon name="chatbubble-ellipses-outline" size={16} color={t.accent} />
+              <Txt size={14} color={t.accent} style={{ fontWeight: "600", flexShrink: 1 }}>{templateQ}</Txt>
+            </Pressable>
+            <Low size={12} style={{ marginTop: 14 }}>or tap the mic to ask by voice</Low>
           </View>
         )}
 
@@ -4813,40 +4704,10 @@ function FeatureShell({
           <Txt
             size={12}
             color={t.semantic.urgent}
-            style={{ textAlign: "center", marginTop: 6, paddingHorizontal: 8 }}
+            style={{ textAlign: "center", marginTop: 10, paddingHorizontal: 8 }}
           >
             {askErr}
           </Txt>
-        )}
-
-        {/* ── copy block ── */}
-        <Kicker style={{ marginTop: 28, textAlign: "center" }}>{kicker}</Kicker>
-        <Title style={{ textAlign: "center", maxWidth: 290 }}>{title}</Title>
-        <Lede style={{ textAlign: "center", maxWidth: 285 }}>{lede}</Lede>
-
-        {/* ── single template question chip ── */}
-        {!started && (
-          <View style={{ alignItems: "center", marginTop: 10 }}>
-            <Pressable
-              onPress={() => doAsk(templateQ)}
-              disabled={busy || listening}
-              style={{
-                borderWidth: 1,
-                borderColor: t.accent,
-                borderRadius: 20,
-                paddingVertical: 10,
-                paddingHorizontal: 18,
-                backgroundColor: mix(t.accent, t.canvas, 0.1),
-                opacity: busy || listening ? 0.4 : 1,
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <Icon name="chatbubble-ellipses-outline" size={14} color={t.accent} />
-              <Txt size={13} color={t.accent} style={{ fontWeight: "600" }}>{templateQ}</Txt>
-            </Pressable>
-          </View>
         )}
       </Scroll>
 
