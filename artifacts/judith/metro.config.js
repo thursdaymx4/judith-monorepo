@@ -32,4 +32,12 @@ config.resolver.blockList = [
   /expo-updates_tmp_[^/]+[\\/]/,
 ];
 
+// Force Babel to transform react-native ecosystem packages that ship modern JS
+// syntax (private class fields, etc.). Metro skips node_modules by default,
+// which causes hermesc (local binary) to reject those constructs at OTA time.
+// This makes `eas update` work without needing a full EAS cloud build.
+config.transformer.transformIgnorePatterns = [
+  "node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|react-native-svg|react-native-reanimated|react-native-gesture-handler|@bacons/.*)/)",
+];
+
 module.exports = config;
