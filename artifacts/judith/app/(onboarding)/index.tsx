@@ -4843,7 +4843,7 @@ function ScreenFeature2({ ctx }: { ctx: Ctx }) {
       a={getDLocal(ctx.country.cur, ctx.country.code).askA2}
       mood="proud"
       idleState="idle"
-      templateQ="What’s the total bill for my water, electricity and internet this month?"
+      templateQ="What’s the total bill for my water, electricity, internet and rent this month?"
     />
   );
 }
