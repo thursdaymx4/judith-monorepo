@@ -224,10 +224,17 @@ export function previewVoice(
   return postJson("/tts", { text, voiceId });
 }
 
+/** In-memory cache for authenticated settings persona samples. */
+const _settingsSampleCache = new Map<string, { text: string; audioBase64: string; mime: string }>();
+
 export async function fetchSample(
   persona: PersonaId,
   language?: string,
 ): Promise<{ text: string; audioBase64: string; mime: string }> {
+  const cacheKey = `${persona}__${language ?? "en"}`;
+  const hit = _settingsSampleCache.get(cacheKey);
+  if (hit) return hit;
+
   const headers = await authHeader();
   const lang = language ? `&language=${encodeURIComponent(language)}` : "";
   const res = await fetch(`${BASE}/sample?persona=${PERSONA_MAP[persona]}${lang}`, {
@@ -238,11 +245,9 @@ export async function fetchSample(
     const detail = await res.text().catch(() => "");
     throw new Error(`Sample failed (${res.status}): ${detail}`);
   }
-  return (await res.json()) as {
-    text: string;
-    audioBase64: string;
-    mime: string;
-  };
+  const result = (await res.json()) as { text: string; audioBase64: string; mime: string };
+  _settingsSampleCache.set(cacheKey, result);
+  return result;
 }
 
 /**

@@ -20,6 +20,10 @@ author = "agent"
 task = "workflow.run"
 args = "Pregen Onboarding Audio"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Pregen Persona Samples"
+
 [[workflows.workflow]]
 name = "Pregen Onboarding Audio"
 author = "agent"
@@ -27,6 +31,17 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "pnpm --filter @workspace/api-server run pregen-onb-voice"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "Pregen Persona Samples"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/api-server run pregen-persona-samples"
 
 [workflows.workflow.metadata]
 outputType = "console"

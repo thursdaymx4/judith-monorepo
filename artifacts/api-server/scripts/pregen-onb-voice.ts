@@ -26,7 +26,7 @@ import { setOnbAudio, hasOnbAudio } from "../src/lib/audioCache.js";
 
 /* ── Personas ────────────────────────────────────────────────────────────── */
 
-const PERSONAS: PersonaId[] = ["professional", "funny", "sarcastic", "mom", "marites"];
+const PERSONAS: PersonaId[] = ["professional", "funny", "sarcastic", "mom", "marites", "britney"];
 
 /* ── Concepts ────────────────────────────────────────────────────────────── */
 
@@ -48,6 +48,7 @@ const EN_TEXT: Record<Concept, Record<PersonaId, string>> = {
     sarcastic:    "Hi \u2014 I\u2019m Judith. Your due date assistant. Let\u2019s take control of your bills, shall we?",
     mom:          "Hi \u2014 I\u2019m Judith. Your due date assistant. Let\u2019s take control of your bills, shall we?",
     marites:      "Hi \u2014 I\u2019m Judith. Your due date assistant. Let\u2019s take control of your bills, shall we?",
+    britney:      "Hi \u2014 I\u2019m Judith. Your due date assistant. Let\u2019s take control of your bills, shall we?",
   },
   language: {
     professional: "Take control of your bills, take control of your life.",
@@ -55,6 +56,7 @@ const EN_TEXT: Record<Concept, Record<PersonaId, string>> = {
     sarcastic:    "Take control of your bills, take control of your life.",
     mom:          "Take control of your bills, take control of your life.",
     marites:      "Take control of your bills, take control of your life.",
+    britney:      "Take control of your bills, take control of your life.",
   },
   name: {
     professional: "One more thing \u2014 what should I call you?",
@@ -62,6 +64,7 @@ const EN_TEXT: Record<Concept, Record<PersonaId, string>> = {
     sarcastic:    "One more thing \u2014 what should I call you?",
     mom:          "One more thing \u2014 what should I call you?",
     marites:      "One more thing \u2014 what should I call you?",
+    britney:      "One more thing \u2014 what should I call you?",
   },
   lateFee: {
     professional: "We\u2019ve all been there \u2014 missed a payment, surprise fee. I\u2019m here to make sure that never happens again.",
@@ -69,6 +72,7 @@ const EN_TEXT: Record<Concept, Record<PersonaId, string>> = {
     sarcastic:    "Missed payment. Surprise fee. Happens to everyone. That\u2019s why I\u2019m here.",
     mom:          "Anak, don\u2019t worry \u2014 it happens to everyone. I\u2019m here to make sure it doesn\u2019t happen to you again.",
     marites:      "Ay grabe, late fees! The absolute worst! But besh, that\u2019s why I\u2019m here \u2014 hindi na maulit iyon!",
+    britney:      "Missed payment. Late fee. It happens. I\u2019m here to make sure it doesn\u2019t happen again.",
   },
   problem: {
     professional: "Honestly, most people don\u2019t track their bills. Let\u2019s change that.",
@@ -76,6 +80,7 @@ const EN_TEXT: Record<Concept, Record<PersonaId, string>> = {
     sarcastic:    "Most people don\u2019t track this. You\u2019re about to be different.",
     mom:          "Anak, most people don\u2019t track their bills. But that\u2019s okay \u2014 we\u2019re changing that right now.",
     marites:      "Ay besh, most people don\u2019t track their bills! Pero tayo \u2014 we\u2019re changing that na!",
+    britney:      "Most people don\u2019t track their bills. You\u2019re changing that.",
   },
   stakes: {
     professional: "This doesn\u2019t have to be your situation. Let\u2019s change it \u2014 right now.",
@@ -83,6 +88,7 @@ const EN_TEXT: Record<Concept, Record<PersonaId, string>> = {
     sarcastic:    "This doesn\u2019t have to stay this way. Let\u2019s change it. Now.",
     mom:          "Anak, we\u2019re going to change this together \u2014 starting right now.",
     marites:      "Besh! No more of this! We\u2019re changing it right now! Let\u2019s go!",
+    britney:      "This doesn\u2019t have to stay this way. Change it. Now.",
   },
   intro: {
     professional: "This usually takes 5 to 7 minutes. Let\u2019s map out every bill \u2014 I\u2019ll walk you through it.",
@@ -90,6 +96,7 @@ const EN_TEXT: Record<Concept, Record<PersonaId, string>> = {
     sarcastic:    "About 5 to 7 minutes. Just answer my questions \u2014 it\u2019ll be worth it.",
     mom:          "Anak, this will only take 5 to 7 minutes. I\u2019ll walk you through everything, promise.",
     marites:      "Grabe besh, 5 to 7 minutes lang! Let\u2019s map all your bills \u2014 I cannot wait!",
+    britney:      "About 5 to 7 minutes. Answer my questions. I\u2019ll walk you through it.",
   },
   features0: {
     professional: "Go ahead \u2014 ask me anything. I\u2019m listening.",
@@ -97,6 +104,7 @@ const EN_TEXT: Record<Concept, Record<PersonaId, string>> = {
     sarcastic:    "You can ask me things now. Go ahead.",
     mom:          "Go ahead anak, ask me anything. I\u2019m here.",
     marites:      "Oh oh oh! Ask me na! I know everything about your bills besh!",
+    britney:      "Ask me something.",
   },
   features1: {
     professional: "Try asking what\u2019s due this week. I\u2019ll give you the full picture.",
@@ -104,6 +112,7 @@ const EN_TEXT: Record<Concept, Record<PersonaId, string>> = {
     sarcastic:    "Ask what\u2019s due this week. I\u2019ll tell you.",
     mom:          "Try asking what\u2019s due this week anak. I\u2019ll tell you everything.",
     marites:      "Ay! Ask me what\u2019s due this week! I\u2019ll tell you everything besh! Lahat!",
+    britney:      "Ask what\u2019s due this week. I\u2019ll tell you.",
   },
   features2: {
     professional: "Ask me if it\u2019s safe to spend before payday. I\u2019ll check your bills and give you a straight answer.",
@@ -111,6 +120,7 @@ const EN_TEXT: Record<Concept, Record<PersonaId, string>> = {
     sarcastic:    "Ask if it\u2019s safe to spend. I\u2019ll check and give you the truth.",
     mom:          "Ask me if it\u2019s safe to spend anak. I\u2019ll check everything for you.",
     marites:      "Ask me if it\u2019s safe to spend! I\u2019ll check your bills \u2014 all of them! Grabe besh!",
+    britney:      "Ask if it\u2019s safe to spend. I\u2019ll check and answer.",
   },
   paywall: {
     professional: "You\u2019ve got eight free asks to start. When you\u2019re ready for more, pick a plan and I\u2019m all yours.",
@@ -118,6 +128,7 @@ const EN_TEXT: Record<Concept, Record<PersonaId, string>> = {
     sarcastic:    "Eight free asks. Use them. If you want more, pick a plan.",
     mom:          "Anak, you have eight free asks to start. Try them out \u2014 and when you want more, I\u2019ll be right here.",
     marites:      "Besh! Eight free asks \u2014 try me! And when you want to keep chatting, pick a plan! I\u2019ll be waiting!",
+    britney:      "Eight free asks. Use them. Want more \u2014 pick a plan.",
   },
   personalizing: {
     professional: "Setting up your reminders now. Almost ready.",
@@ -125,6 +136,7 @@ const EN_TEXT: Record<Concept, Record<PersonaId, string>> = {
     sarcastic:    "Yeah yeah, I\u2019m working on it. Give me a second.",
     mom:          "Almost ready anak \u2014 I\u2019m making sure everything is just right for you.",
     marites:      "Ay grabe, so many bills! But I got you besh \u2014 almost done!",
+    britney:      "Setting up your reminders. Almost done.",
   },
 };
 
@@ -138,6 +150,7 @@ const FIL_TEXT: Record<Concept, Record<PersonaId, string>> = {
     sarcastic:    "Hi \u2014 I\u2019m Judith. Your due date assistant. Aabangan ko lahat ng bills mo para hindi ka mabigla. Let\u2019s take control of your bills, shall we?",
     mom:          "Hi \u2014 I\u2019m Judith. Your due date assistant. Aabangan ko lahat ng bills mo para hindi ka mabigla. Let\u2019s take control of your bills, shall we?",
     marites:      "Hi \u2014 I\u2019m Judith. Your due date assistant. Aabangan ko lahat ng bills mo para hindi ka mabigla. Let\u2019s take control of your bills, shall we?",
+    britney:      "Hi \u2014 I\u2019m Judith. Your due date assistant. Aabangan ko lahat ng bills mo para hindi ka mabigla. Let\u2019s take control of your bills, shall we?",
   },
   language: {
     professional: "kapag kontrolado mo ang bills mo, kontrolado mo ang buhay mo. Agree?",
@@ -145,6 +158,7 @@ const FIL_TEXT: Record<Concept, Record<PersonaId, string>> = {
     sarcastic:    "kapag kontrolado mo ang bills mo, kontrolado mo ang buhay mo. Agree?",
     mom:          "kapag kontrolado mo ang bills mo, kontrolado mo ang buhay mo. Agree?",
     marites:      "kapag kontrolado mo ang bills mo, kontrolado mo ang buhay mo. Agree?",
+    britney:      "kapag kontrolado mo ang bills mo, kontrolado mo ang buhay mo. Agree?",
   },
   name: {
     professional: "Hi! Can I get your name po?",
@@ -152,6 +166,7 @@ const FIL_TEXT: Record<Concept, Record<PersonaId, string>> = {
     sarcastic:    "Hi! Can I get your name po?",
     mom:          "Hi! Can I get your name po?",
     marites:      "Hi! Can I get your name po?",
+    britney:      "Hi! Can I get your name po?",
   },
   lateFee: {
     professional: "Nangyayari ito sa lahat \u2014 napalampas na bayad, biglang multa. Nandito ako para hindi na mangyari ulit.",
@@ -159,6 +174,7 @@ const FIL_TEXT: Record<Concept, Record<PersonaId, string>> = {
     sarcastic:    "Napalampas na bayad. Biglang multa. Nangyayari sa lahat. Kaya nandito ako.",
     mom:          "Huwag mag-alala anak. Nangyayari ito sa lahat. Nandito ako para hindi na maulit.",
     marites:      "Ay grabe, late fees! Ang pangit! Pero besh, nandito na ako \u2014 hindi na maulit \u2018yan!",
+    britney:      "Napalampas na bayad. Biglang multa. Nangyayari sa lahat. Kaya nandito ako.",
   },
   problem: {
     professional: "Honestly, karamihan sa tao ay hindi nag-ta-track ng bills nila. Palitan na natin iyon.",
@@ -166,6 +182,7 @@ const FIL_TEXT: Record<Concept, Record<PersonaId, string>> = {
     sarcastic:    "Karamihan hindi nag-ta-track. Ikaw ay magiging iba.",
     mom:          "Anak, karamihan hindi nag-ta-track ng bills. Pero okay lang \u2014 palitan na natin iyon ngayon.",
     marites:      "Ay besh, karamihan hindi nag-ta-track ng bills! Pero tayo \u2014 we\u2019re changing that na!",
+    britney:      "Karamihan hindi nag-ta-track. Ikaw ay magiging iba.",
   },
   stakes: {
     professional: "Hindi na kailangang ganito ang sitwasyon mo. Palitan na natin ito \u2014 ngayon na.",
@@ -173,6 +190,7 @@ const FIL_TEXT: Record<Concept, Record<PersonaId, string>> = {
     sarcastic:    "Hindi na kailangang ganito. Palitan na natin. Ngayon.",
     mom:          "Anak, magbabago na tayo \u2014 simula ngayon. Sama-sama tayo.",
     marites:      "Besh! Tapos na! Palitan na natin ito ngayon! Let\u2019s go!",
+    britney:      "Hindi na kailangang ganito. Palitan na natin. Ngayon.",
   },
   intro: {
     professional: "Aabutin ito ng 5 hanggang 7 minuto. I-map natin ang lahat ng bills mo.",
@@ -180,6 +198,7 @@ const FIL_TEXT: Record<Concept, Record<PersonaId, string>> = {
     sarcastic:    "5 hanggang 7 minuto lang to. Sagutin mo lang ang mga tanong ko.",
     mom:          "Anak, 5 hanggang 7 minuto lang ito. Sasamahan kita sa lahat, promise.",
     marites:      "Grabe besh, 5 hanggang 7 minuto lang! I-map na natin ang lahat ng bills mo!",
+    britney:      "5 hanggang 7 minuto lang. Sagutin mo ang mga tanong ko.",
   },
   features0: {
     professional: "Sige, magtanong ka na. Nakinukinig ako.",
@@ -187,6 +206,7 @@ const FIL_TEXT: Record<Concept, Record<PersonaId, string>> = {
     sarcastic:    "Pwede ka nang magtanong. Sige.",
     mom:          "Sige anak, magtanong ka na. Nandito ako.",
     marites:      "Ay ay ay! Magtanong ka na besh! Alam ko lahat ng tungkol sa bills mo!",
+    britney:      "Magtanong ka na.",
   },
   features1: {
     professional: "Try mo i-tanong kung ano ang due ngayong linggo. Sasabihin ko lahat.",
@@ -194,6 +214,7 @@ const FIL_TEXT: Record<Concept, Record<PersonaId, string>> = {
     sarcastic:    "Tanungin mo kung ano ang due ngayong linggo. Sasabihin ko.",
     mom:          "Try mo anak, tanungin ang due this week. Isasabi ko lahat sa iyo.",
     marites:      "Ay! Tanungin mo ako kung ano ang due ngayong linggo! Isasabi ko lahat besh!",
+    britney:      "Tanungin mo kung ano ang due ngayong linggo. Sasabihin ko.",
   },
   features2: {
     professional: "Tanungin mo ko kung ligtas mag-gastos. I-check ko lahat ng bills mo.",
@@ -201,6 +222,7 @@ const FIL_TEXT: Record<Concept, Record<PersonaId, string>> = {
     sarcastic:    "Tanungin mo kung ligtas mag-gastos. Checkuhin ko at sasabihin ko.",
     mom:          "Tanungin mo anak kung ligtas mag-gastos. I-check ko lahat para sa iyo.",
     marites:      "Tanungin mo ako kung ligtas mag-gastos! Checkuhin ko ang lahat besh! Grabe!",
+    britney:      "Tanungin mo kung ligtas mag-gastos. Checkuhin ko at sasabihin ko.",
   },
   paywall: {
     professional: "May walong libreng tanong ka sa simula. Kapag gusto mo ng higit pa, pumili ng plano \u2014 nandito ako.",
@@ -208,6 +230,7 @@ const FIL_TEXT: Record<Concept, Record<PersonaId, string>> = {
     sarcastic:    "Walong libreng tanong. Gamitin mo. Kung gusto mo pa, pumili ng plano.",
     mom:          "Anak, may walong libreng tanong ka. Subukan mo \u2014 at kapag gusto mo pa, nandito ako.",
     marites:      "Besh! Walong libreng tanong! Subukan mo ako! At kapag gusto mo pang makipag-chat \u2014 pick a plan! Waiting ako!",
+    britney:      "Walong libreng tanong. Gamitin mo. Gusto mo pa \u2014 pumili ng plano.",
   },
   personalizing: {
     // No .fil variant — these send English text through Filipino voices.
@@ -216,6 +239,7 @@ const FIL_TEXT: Record<Concept, Record<PersonaId, string>> = {
     sarcastic:    "Yeah yeah, I\u2019m working on it. Give me a second.",
     mom:          "Almost ready anak \u2014 I\u2019m making sure everything is just right for you.",
     marites:      "Ay grabe, so many bills! But I got you besh \u2014 almost done!",
+    britney:      "Setting up your reminders. Almost done.",
   },
 };
 

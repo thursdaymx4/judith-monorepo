@@ -19,7 +19,7 @@ import {
   englishWeekday,
 } from "../lib/normalize";
 import { logger } from "../lib/logger";
-import { getOnbAudio, setOnbAudio } from "../lib/audioCache";
+import { getOnbAudio, setOnbAudio, getSampleAudio, setSampleAudio } from "../lib/audioCache";
 import {
   askLimiter,
   sttTtsLimiter,
@@ -1206,7 +1206,15 @@ router.get("/sample", sampleVoicesLimiter, async (req, res) => {
     const persona = coercePersona(req.query["persona"]);
     const language = typeof req.query["language"] === "string" ? req.query["language"] : undefined;
     const text = getSampleText(persona, language);
+
+    const cached = await getSampleAudio(persona, language ?? "en");
+    if (cached) {
+      res.json({ text, audioBase64: cached.base64, mime: cached.mime });
+      return;
+    }
+
     const audio = await synthesize(text, getVoiceId(persona, language), { live: false, speed: getSpeakingSpeed(persona) });
+    setSampleAudio(persona, language ?? "en", audio.base64).catch(() => {});
     res.json({ text, audioBase64: audio.base64, mime: audio.mime });
   } catch (err) {
     logger.error({ err }, "sample failed");

@@ -8,7 +8,10 @@ globalThis.require = createRequire(import.meta.url);
 const artifactDir = path.dirname(fileURLToPath(import.meta.url));
 
 await esbuild({
-  entryPoints: [path.resolve(artifactDir, "scripts/pregen-onb-voice.ts")],
+  entryPoints: [
+    path.resolve(artifactDir, "scripts/pregen-onb-voice.ts"),
+    path.resolve(artifactDir, "scripts/pregen-persona-samples.ts"),
+  ],
   platform: "node",
   bundle: true,
   format: "esm",

@@ -45,6 +45,7 @@ export function cacheLanguageGroup(lang: string): string {
 }
 
 const PREFIX = "onb-voice";
+const SAMPLE_PREFIX = "persona-sample";
 
 /** Return cached onboarding audio, or null on miss / storage unavailable. */
 export async function getOnbAudio(
@@ -84,6 +85,61 @@ export async function setOnbAudio(
     });
   } catch {
     // Non-critical — live ElevenLabs generation still serves the response.
+  }
+}
+
+/** Return cached persona-sample audio, or null on miss / storage unavailable. */
+export async function getSampleAudio(
+  persona: string,
+  lang: string,
+): Promise<{ base64: string; mime: string } | null> {
+  const bucket = getBucket();
+  if (!bucket) return null;
+  try {
+    const key = `${SAMPLE_PREFIX}/${persona}/${cacheLanguageGroup(lang)}.mp3`;
+    const file = bucket.file(key);
+    const [exists] = await file.exists();
+    if (!exists) return null;
+    const [buf] = await file.download();
+    return { base64: buf.toString("base64"), mime: "audio/mpeg" };
+  } catch {
+    return null;
+  }
+}
+
+/** Write persona-sample audio to the cache. Non-critical — never throws. */
+export async function setSampleAudio(
+  persona: string,
+  lang: string,
+  audioBase64: string,
+): Promise<void> {
+  const bucket = getBucket();
+  if (!bucket) return;
+  try {
+    const key = `${SAMPLE_PREFIX}/${persona}/${cacheLanguageGroup(lang)}.mp3`;
+    const buf = Buffer.from(audioBase64, "base64");
+    await bucket.file(key).save(buf, {
+      resumable: false,
+      metadata: { contentType: "audio/mpeg" },
+    });
+  } catch {
+    // Non-critical — live ElevenLabs generation still serves the response.
+  }
+}
+
+/** Check existence only (used by the pregen script). */
+export async function hasSampleAudio(
+  persona: string,
+  lang: string,
+): Promise<boolean> {
+  const bucket = getBucket();
+  if (!bucket) return false;
+  try {
+    const key = `${SAMPLE_PREFIX}/${persona}/${cacheLanguageGroup(lang)}.mp3`;
+    const [exists] = await bucket.file(key).exists();
+    return exists;
+  } catch {
+    return false;
   }
 }
 

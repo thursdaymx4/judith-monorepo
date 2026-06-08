@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import React, { useCallback } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
 
 import * as Notifications from "expo-notifications";
@@ -15,6 +15,9 @@ import { useTheme } from "@/hooks/useTheme";
 import { requestPermission } from "@/lib/notifications";
 import { PRIVACY_URL, TERMS_URL, openLegal } from "@/constants/legal";
 import { DEMO_ACCOUNTS } from "@/constants/demoAccounts";
+import { fetchSample } from "@/lib/proxy";
+import { playBase64Mp3, stopCurrentAudio } from "@/lib/audio";
+import type { PersonaId } from "@/constants/personas";
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -126,6 +129,26 @@ export default function SettingsScreen() {
     useJudith();
   const { user } = useAuth();
   const email = user?.email ?? (guest ? "Guest account" : "—");
+
+  const [speakingPersona, setSpeakingPersona] = useState<PersonaId | null>(null);
+  const speakAbortRef = useRef<boolean>(false);
+
+  const playPersonaSample = useCallback(async (id: PersonaId) => {
+    if (speakingPersona === id) return;
+    speakAbortRef.current = true;
+    stopCurrentAudio();
+    speakAbortRef.current = false;
+    setSpeakingPersona(id);
+    try {
+      const { audioBase64 } = await fetchSample(id, language);
+      if (speakAbortRef.current) return;
+      await playBase64Mp3(audioBase64);
+    } catch {
+      // ignore — failed silently
+    } finally {
+      setSpeakingPersona((cur) => (cur === id ? null : cur));
+    }
+  }, [speakingPersona, language]);
 
   const subscribed = tier !== "free";
 
@@ -697,6 +720,33 @@ export default function SettingsScreen() {
                   <Txt size={9.5} weight="semibold" color="#fff">🇵🇭 PH only</Txt>
                 </View>
               )}
+              <Pressable
+                onPress={(e) => { e.stopPropagation(); playPersonaSample(p.id); }}
+                style={({ pressed }) => ({
+                  marginTop: 10,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 4,
+                  paddingVertical: 5,
+                  paddingHorizontal: 9,
+                  borderRadius: 12,
+                  backgroundColor: speakingPersona === p.id
+                    ? t.accent
+                    : on
+                    ? mix(t.accent, t.surface2, 0.18)
+                    : t.surface1,
+                  opacity: pressed ? 0.75 : 1,
+                })}
+              >
+                <Icon
+                  name={speakingPersona === p.id ? "volume" : "play"}
+                  size={10}
+                  color={speakingPersona === p.id ? t.onAccent : t.accent}
+                />
+                <Txt size={10} weight="semibold" color={speakingPersona === p.id ? t.onAccent : t.accent}>
+                  {speakingPersona === p.id ? "Playing…" : "Hear voice"}
+                </Txt>
+              </Pressable>
             </Pressable>
           );
         })}

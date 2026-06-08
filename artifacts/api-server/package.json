@@ -9,7 +9,8 @@
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build:pregen": "node ./build-pregen.mjs",
-    "pregen-onb-voice": "pnpm run build:pregen && node --enable-source-maps ./dist-pregen/pregen-onb-voice.mjs"
+    "pregen-onb-voice": "pnpm run build:pregen && node --enable-source-maps ./dist-pregen/pregen-onb-voice.mjs",
+    "pregen-persona-samples": "pnpm run build:pregen && node --enable-source-maps ./dist-pregen/pregen-persona-samples.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.100.1",
