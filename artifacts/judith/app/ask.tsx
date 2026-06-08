@@ -7,7 +7,7 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, Modal, Pressable, ScrollView, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon } from "@/components/Icon";
@@ -951,15 +951,15 @@ export default function AskModal() {
               onLongPress={() => setDeletingQIdx(i)}
               delayLongPress={500}
               style={{
-                borderWidth: 1, borderColor: t.accent, borderRadius: 22,
+                borderRadius: 22,
                 paddingVertical: 8, paddingHorizontal: 14,
-                backgroundColor: mix(t.accent, t.canvas, 0.85),
+                backgroundColor: t.accent,
                 opacity: busy ? 0.5 : 1,
                 flexDirection: "row", alignItems: "center", gap: 6,
               }}
             >
-              <Icon name="star" size={11} color={t.accent} />
-              <Txt size={13} weight="medium" color={t.accent} style={{ maxWidth: 200 }} numberOfLines={1}>{qa}</Txt>
+              <Icon name="star" size={11} color={t.onAccent} />
+              <Txt size={13} weight="medium" color={t.onAccent} style={{ maxWidth: 200 }} numberOfLines={1}>{qa}</Txt>
             </Pressable>
           ))}
 
@@ -978,8 +978,9 @@ export default function AskModal() {
       {/* ── Add custom question sheet ── */}
       <Modal visible={addQVisible} transparent animationType="slide" onRequestClose={() => setAddQVisible(false)} statusBarTranslucent>
         <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }} onPress={() => setAddQVisible(false)}>
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ position: "absolute", bottom: 0, left: 0, right: 0 }}>
           <Pressable
-            style={{ position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: t.canvas, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 22, paddingTop: 20, paddingBottom: insets.bottom + 20 }}
+            style={{ backgroundColor: t.canvas, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 22, paddingTop: 20, paddingBottom: insets.bottom + 20 }}
           >
             <Txt size={18} weight="bold" style={{ marginBottom: 4 }}>Save a question</Txt>
             <Low size={13} style={{ marginBottom: 16 }}>It'll appear first in your chip strip — tap to send anytime.</Low>
@@ -1015,6 +1016,7 @@ export default function AskModal() {
               <Txt size={15} weight="semibold" color={newQText.trim() ? t.onAccent : t.txtLow}>Save question</Txt>
             </Pressable>
           </Pressable>
+          </KeyboardAvoidingView>
         </Pressable>
       </Modal>
 
