@@ -2260,7 +2260,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     // Fallback to group for any sample cat not in the map
     return hasGroup(s.group);
   });
-  const { saveBill, bills: storeBills } = useJudith();
+  const { saveBill, deleteBill, bills: storeBills } = useJudith();
   const cur = ctx.country.cur;
   const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
   // ── Voice Activity Detection refs ─────────────────────────────────
@@ -2310,6 +2310,9 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const [showDayPicker, setShowDayPicker] = useState(false);
   const [paidStatus, setPaidStatus] = useState<"no" | "full" | "partial">("no");
   const [paidAmount, setPaidAmount] = useState("");
+  const [dupPending, setDupPending] = useState<{ bill: OnbBill; after: () => void; dup: Bill } | null>(null);
+  const [dupStep, setDupStep] = useState<"choose" | "rename">("choose");
+  const [dupName, setDupName] = useState("");
   const formEnterAnim = useRef(new Animated.Value(0)).current;
 
   // Fallback to the first item from the unfiltered list when SAMPLES is empty
@@ -2386,14 +2389,9 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     };
     const dup = findDuplicate(storeBills, { provider: b.provider, cat: b.cat });
     if (dup) {
-      Alert.alert(
-        "Already added",
-        `"${dup.provider}" (${dup.cat}) is already in your bills. Add it again?`,
-        [
-          { text: "Skip", style: "cancel", onPress: after },
-          { text: "Add anyway", onPress: () => { persist(); after(); } },
-        ],
-      );
+      setDupPending({ bill: b, after, dup });
+      setDupStep("choose");
+      setDupName(b.provider);
       return;
     }
     persist();
@@ -3795,6 +3793,98 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       </CtaBar>
 
       {/* ── Day Picker Modal ── */}
+      {/* ── Duplicate-bill modal ── */}
+      <Modal visible={!!dupPending} transparent animationType="fade" onRequestClose={() => setDupPending(null)}>
+        <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "center", paddingHorizontal: 24 }} onPress={() => setDupPending(null)}>
+          <Pressable style={{ backgroundColor: t.surface2, borderRadius: 22, padding: 24 }}>
+            {dupStep === "choose" ? (
+              <>
+                <Txt size={17} weight="bold" style={{ marginBottom: 6 }}>Looks familiar</Txt>
+                <Low size={14} style={{ marginBottom: 22, lineHeight: 20 }}>
+                  {`You already have "${dupPending?.dup.provider}" in your ${dupPending?.dup.cat} bills.`}
+                </Low>
+                <Pressable
+                  onPress={() => {
+                    if (!dupPending) return;
+                    haptics.success();
+                    deleteBill(dupPending.dup.id);
+                    const persist = () => {
+                      addBill(dupPending.bill);
+                      saveBill(onbBillToStoreBill(dupPending.bill));
+                      if (dupPending.bill.cat === "Credit card") cardsAddedRef.current += 1;
+                    };
+                    persist();
+                    dupPending.after();
+                    setDupPending(null);
+                  }}
+                  style={{ borderRadius: 14, paddingVertical: 13, paddingHorizontal: 18, backgroundColor: t.surface3, borderWidth: 1, borderColor: t.hair, marginBottom: 10 }}
+                >
+                  <Txt size={15} weight="semibold">Overwrite existing</Txt>
+                  <Low size={12} style={{ marginTop: 2 }}>Replace the old entry with this one</Low>
+                </Pressable>
+                <Pressable
+                  onPress={() => { haptics.selection(); setDupStep("rename"); }}
+                  style={{ borderRadius: 14, paddingVertical: 13, paddingHorizontal: 18, backgroundColor: mix(t.accent, t.surface2, 0.15), borderWidth: 1, borderColor: withAlpha(t.accent, 0.4), marginBottom: 10 }}
+                >
+                  <Txt size={15} weight="semibold" color={t.accent}>It's a new bill →</Txt>
+                  <Low size={12} style={{ marginTop: 2 }}>Keep both — give it a unique name</Low>
+                </Pressable>
+                <Pressable
+                  onPress={() => { dupPending?.after(); setDupPending(null); }}
+                  style={{ alignItems: "center", paddingVertical: 10 }}
+                >
+                  <Txt size={14} color={t.txtMid}>Skip this one</Txt>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Txt size={17} weight="bold" style={{ marginBottom: 6 }}>Give it a unique name</Txt>
+                <Low size={13} style={{ marginBottom: 16, lineHeight: 19 }}>
+                  So Judith can tell them apart, give this bill a distinct name.
+                </Low>
+                <TextInput
+                  value={dupName}
+                  onChangeText={setDupName}
+                  autoFocus
+                  placeholder="e.g. BPI Rewards, BPI Gold"
+                  placeholderTextColor={t.txtLow}
+                  style={{ backgroundColor: t.surface1, borderWidth: 1, borderColor: t.accent, borderRadius: 14, paddingVertical: 11, paddingHorizontal: 13, color: t.txtHi, fontSize: 15, fontFamily: t.fonts.medium, marginBottom: 16 }}
+                  returnKeyType="done"
+                  onSubmitEditing={() => {
+                    if (!dupPending || !dupName.trim()) return;
+                    haptics.success();
+                    const renamed = { ...dupPending.bill, provider: dupName.trim() };
+                    addBill(renamed);
+                    saveBill(onbBillToStoreBill(renamed));
+                    if (renamed.cat === "Credit card") cardsAddedRef.current += 1;
+                    dupPending.after();
+                    setDupPending(null);
+                  }}
+                />
+                <Pressable
+                  onPress={() => {
+                    if (!dupPending || !dupName.trim()) return;
+                    haptics.success();
+                    const renamed = { ...dupPending.bill, provider: dupName.trim() };
+                    addBill(renamed);
+                    saveBill(onbBillToStoreBill(renamed));
+                    if (renamed.cat === "Credit card") cardsAddedRef.current += 1;
+                    dupPending.after();
+                    setDupPending(null);
+                  }}
+                  style={{ borderRadius: 14, paddingVertical: 13, alignItems: "center", backgroundColor: dupName.trim() ? t.accent : t.surface3, marginBottom: 10 }}
+                >
+                  <Txt size={15} weight="semibold" color={dupName.trim() ? t.onAccent : t.txtLow}>Add & save →</Txt>
+                </Pressable>
+                <Pressable onPress={() => setDupStep("choose")} style={{ alignItems: "center", paddingVertical: 10 }}>
+                  <Txt size={14} color={t.txtMid}>← Back</Txt>
+                </Pressable>
+              </>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       <Modal visible={showDayPicker} transparent animationType="fade" onRequestClose={() => { setShowDayPicker(false); setFocusedField(null); }}>
         <Pressable
           style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}
