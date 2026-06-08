@@ -49,7 +49,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { haptics } from "@/lib/haptics";
 import { getTierPackages, type TierPackages } from "@/lib/purchases";
 import { fileToBase64, playBase64Mp3, stopCurrentAudio } from "@/lib/audio";
-import { transcribeOnboarding, synthOnboarding, fetchSampleOnboarding, parseBillOnboarding, parseSubscriptionScreenshot, askOnboarding, RateLimitError } from "@/lib/proxy";
+import { transcribeOnboarding, synthOnboarding, fetchSampleOnboarding, parseBillOnboarding, parseSubscriptionScreenshot, askOnboarding, RateLimitError, TimeoutError } from "@/lib/proxy";
 import { requestPermission } from "@/lib/notifications";
 import type { Theme } from "@/constants/theme";
 
@@ -4466,6 +4466,7 @@ function FeatureShell({
   /* ── interactive ask state ── */
   const [messages,    setMessages]    = useState<FeatureMsg[]>([]);
   const [askMode,     setAskMode]     = useState<AskMode>("idle");
+  const lastFailedQRef = useRef<string | null>(null);
   const [askErr,      setAskErr]      = useState("");
   const [hasAnswered, setHasAnswered] = useState(false);
   const [hadError,    setHadError]    = useState(false);
@@ -4557,6 +4558,7 @@ function FeatureShell({
   const doAsk = async (text: string) => {
     const q2 = text.trim();
     if (!q2 || askMode === "thinking") return;
+    lastFailedQRef.current = null;
     setAskErr("");
     setMessages((m) => [...m, { role: "user", text: q2 }]);
     setAskMode("thinking");
@@ -4569,9 +4571,12 @@ function FeatureShell({
       setAskMode("speaking");
       if (audioBase64) await playBase64Mp3(audioBase64).catch(() => {});
     } catch (e) {
-      const msg = e instanceof RateLimitError
-        ? "You\u2019ve asked a lot — wait a moment, then tap \u201CTry again\u201D."
-        : "Sorry, I couldn\u2019t connect right now.";
+      const msg = e instanceof TimeoutError
+        ? "That took too long \u2014 my connection timed out. Tap \u201CTry again\u201D to retry."
+        : e instanceof RateLimitError
+        ? "You\u2019ve asked a lot \u2014 wait a moment, then tap \u201CTry again\u201D."
+        : "Sorry, I couldn\u2019t connect right now. Tap \u201CTry again\u201D.";
+      lastFailedQRef.current = q2;
       setMessages((m) => [...m, { role: "judith", text: msg }]);
       setHadError(true);
     } finally {
@@ -4678,7 +4683,7 @@ function FeatureShell({
             )}
             {askMode === "thinking" && (
               <JudithLine>
-                <Low size={14}>Thinking\u2026</Low>
+                <Low size={14}>{"Thinking\u2026"}</Low>
               </JudithLine>
             )}
           </ScrollView>
@@ -4786,9 +4791,10 @@ function FeatureShell({
             <Btn
               label="Try again"
               onPress={() => {
+                const q = lastFailedQRef.current ?? templateQ;
                 setMessages([]);
                 setHadError(false);
-                doAsk(templateQ);
+                doAsk(q);
               }}
             />
             <Pressable onPress={next} style={{ alignItems: "center", paddingVertical: 8 }}>

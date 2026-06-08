@@ -254,7 +254,7 @@ export async function fetchSample(
  * AI ask during onboarding — no auth required.
  * Accepts the user's bills from the onboarding store as context.
  */
-export function askOnboarding(
+export async function askOnboarding(
   text: string,
   bills?: Array<{
     provider?: string | null;
@@ -269,24 +269,36 @@ export function askOnboarding(
   persona?: PersonaId,
   language?: string,
 ): Promise<AskResult> {
-  return fetch(`${BASE}/ask-onboarding`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      text,
-      bills,
-      persona: persona ? PERSONA_MAP[persona] : "professional",
-      localDate: localDateString(),
-      language,
-    }),
-  }).then(async (res) => {
-    throwIfRateLimited(res);
-    if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      throw new Error(`Ask onboarding failed (${res.status}): ${detail}`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 45_000);
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/ask-onboarding`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        bills,
+        persona: persona ? PERSONA_MAP[persona] : "professional",
+        localDate: localDateString(),
+        language,
+      }),
+      signal: controller.signal,
+    });
+  } catch (e) {
+    if (controller.signal.aborted || (e as Error)?.name === "AbortError") {
+      throw new TimeoutError();
     }
-    return res.json() as Promise<AskResult>;
-  });
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+  throwIfRateLimited(res);
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Ask onboarding failed (${res.status}): ${detail}`);
+  }
+  return res.json() as Promise<AskResult>;
 }
 
 /**
