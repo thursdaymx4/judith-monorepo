@@ -4573,7 +4573,11 @@ function FeatureShell({
         setAskMode("idle");
       }
     } catch (e) {
-      setAskErr(String((e as Error)?.message ?? e));
+      if (e instanceof RateLimitError) {
+        setAskErr("You've asked a lot in a row — wait a moment and try again.");
+      } else {
+        setAskErr("Couldn't hear that clearly. Try again.");
+      }
       setAskMode("idle");
     }
   };
