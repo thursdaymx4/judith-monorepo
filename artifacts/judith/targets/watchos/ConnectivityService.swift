@@ -21,6 +21,14 @@ final class ConnectivityService: NSObject, WCSessionDelegate, ObservableObject {
 
     func register(store: WatchStore) {
         self.store = store
+        // Hydrate immediately from the last context the phone sent — covers the
+        // case where the Watch was asleep or backgrounded when the payload arrived.
+        // This is more up-to-date than the UserDefaults cache when the phone has
+        // pushed updates since the last Watch app launch.
+        let ctx = WCSession.default.receivedApplicationContext
+        if !ctx.isEmpty {
+            handlePayload(ctx)
+        }
     }
 
     // MARK: — WCSessionDelegate
