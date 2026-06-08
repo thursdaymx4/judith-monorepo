@@ -32,12 +32,14 @@ const ALL_PERSONAS: PersonaId[] = [
   "britney",
 ];
 
+// Britney is global (no phOnly) → include in all language groups.
+// Marites is phOnly → PH users only ever get EN or FIL, already handled above.
 const BASE_PERSONAS: PersonaId[] = [
   "professional",
   "funny",
   "sarcastic",
   "mom",
-  "marites",
+  "britney",
 ];
 
 const EN_TEXT: Record<PersonaId, string> = {
@@ -70,7 +72,7 @@ const FIL_TEXT: Record<PersonaId, string> = {
     "Judith. Bills mo, due dates, amounts — naka-track na lahat. 'Yun lang.",
 };
 
-type BasePersonaText = Record<(typeof BASE_PERSONAS)[number], string>;
+type BasePersonaText = Record<"professional" | "funny" | "sarcastic" | "mom" | "marites", string>;
 
 const OTHER_LANG_TEXT: Record<string, BasePersonaText> = {
   es: {
@@ -512,7 +514,9 @@ for (const [langCode, lines] of Object.entries(OTHER_LANG_TEXT)) {
       continue;
     }
     try {
-      const text = lines[persona];
+      // Britney has no translated lines — she speaks English regardless of locale.
+      // This matches getSampleText()'s fallback to SAMPLE_LINES_EN for britney.
+      const text = persona === "britney" ? EN_TEXT.britney : lines[persona as keyof BasePersonaText];
       const voiceId = DEFAULT_VOICE_IDS[persona];
       const audio = await synthesize(text, voiceId, {
         live: false,

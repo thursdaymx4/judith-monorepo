@@ -338,7 +338,7 @@ var BASE_PERSONAS = [
   "funny",
   "sarcastic",
   "mom",
-  "marites"
+  "britney"
 ];
 var EN_TEXT = {
   professional: "I'm Judith \u2014 your due date assistant. I track every bill so you're never hit with a late fee again.",
@@ -647,7 +647,7 @@ for (const [langCode, lines] of Object.entries(OTHER_LANG_TEXT)) {
       continue;
     }
     try {
-      const text = lines[persona];
+      const text = persona === "britney" ? EN_TEXT.britney : lines[persona];
       const voiceId = DEFAULT_VOICE_IDS[persona];
       const audio = await synthesize(text, voiceId, {
         live: false,
