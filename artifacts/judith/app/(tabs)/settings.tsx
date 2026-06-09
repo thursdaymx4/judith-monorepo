@@ -289,74 +289,57 @@ export default function SettingsScreen() {
         <Icon name="chev" size={16} color={t.txtMid} />
       </Pressable>
 
-      {/* plan */}
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 14,
-          borderWidth: 1,
-          borderColor: mix(t.accent, t.surface2, 0.3),
-          borderRadius: t.radius.md,
-          backgroundColor: mix(t.accent, t.surface2, 0.14),
-          padding: t.space.pad,
-        }}
-      >
-        <IcoBox
-          name="star"
-          size={44}
-          iconSize={20}
-          color={t.accent}
-          borderColor={mix(t.accent, t.surface2, 0.4)}
-        />
-        <View style={{ flex: 1 }}>
-          <Txt size={14} weight="semibold">
-            {tier === "voice" ? "Voice Ask" : tier === "chat" ? "Chat Ask" : "Ask Judith"}
-          </Txt>
-          <Low size={12}>
-            {subscribed
-              ? <>{tier === "voice" ? <Mono size={12}>{money(199)}</Mono> : <Mono size={12}>{money(99)}</Mono>} · Monthly · Active</>
-              : <>8 free asks included</>}
-          </Low>
-        </View>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-          <Dot kind="ok" />
-          <Txt size={12} color={t.semantic.ok}>
-            Active
-          </Txt>
-        </View>
-      </View>
-
-      {/* asks */}
+      {/* plan — single combined card */}
       <Pressable
         onPress={() => router.push("/plans")}
         style={({ pressed }) => [
-          { ...rowBase, borderRadius: t.radius.md, marginTop: 12 },
+          {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 14,
+            borderWidth: 1,
+            borderColor: subscribed ? mix(t.accent, t.surface2, 0.3) : t.hair,
+            borderRadius: t.radius.md,
+            backgroundColor: subscribed ? mix(t.accent, t.surface2, 0.14) : t.surface2,
+            padding: t.space.pad,
+          },
           pressed && { transform: [{ scale: 0.99 }] },
         ]}
       >
-        <IcoBox name={subscribed ? "star" : "spark"} iconSize={18} color={t.accent} />
-        <View style={{ flex: 1 }}>
-          <Txt size={15} weight="medium">
+        <IcoBox
+          name={subscribed ? "star" : "spark"}
+          size={44}
+          iconSize={20}
+          color={t.accent}
+          borderColor={subscribed ? mix(t.accent, t.surface2, 0.4) : t.hair}
+        />
+        <View style={{ flex: 1, gap: 2 }}>
+          <Txt size={15} weight="semibold">
             {tier === "voice" ? "Voice Ask" : tier === "chat" ? "Chat Ask" : "Ask Judith"}
           </Txt>
-          <Low size={12} style={{ marginTop: 1 }}>
+          <Low size={12}>
             {tier === "voice" ? (
-              <>Unlimited text & voice asks · <Mono size={12}>{money(199)}</Mono>/mo</>
+              <>Unlimited text & voice · <Mono size={12}>{money(199)}</Mono>/mo</>
             ) : tier === "chat" ? (
               <>Unlimited text asks · <Mono size={12}>{money(99)}</Mono>/mo</>
             ) : (
               <><Mono size={12}>{asksLeft}</Mono> free asks left</>
             )}
           </Low>
+          {subscribed && (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 1 }}>
+              <Dot kind="ok" />
+              <Txt size={11} color={t.semantic.ok}>Active</Txt>
+            </View>
+          )}
         </View>
         <View
           style={{
             flexDirection: "row",
             alignItems: "center",
-            backgroundColor: t.surface2,
+            backgroundColor: subscribed ? mix(t.accent, t.surface2, 0.22) : t.surface2,
             borderWidth: 1,
-            borderColor: t.hair,
+            borderColor: subscribed ? mix(t.accent, t.surface2, 0.35) : t.hair,
             borderRadius: 20,
             paddingVertical: 6,
             paddingHorizontal: 12,
