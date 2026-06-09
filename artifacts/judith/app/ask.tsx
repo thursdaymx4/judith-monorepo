@@ -785,17 +785,23 @@ export default function AskModal() {
               accessibilityState={{ checked: speakAloud }}
               accessibilityLabel={speakAloud ? "Mute spoken replies" : "Speak replies aloud"}
               style={{
-                width: 32,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 5,
+                paddingHorizontal: speakAloud ? 10 : 9,
                 height: 32,
                 borderRadius: 16,
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: speakAloud ? mix(t.accent, t.canvas, 0.85) : t.surface2,
+                backgroundColor: speakAloud ? t.accent : t.surface2,
                 borderWidth: 1,
                 borderColor: speakAloud ? t.accent : t.hair,
               }}
             >
-              <Icon name={speakAloud ? "volume" : "volumeOff"} size={16} color={speakAloud ? t.accent : t.txtMid} />
+              <Icon name={speakAloud ? "volume" : "volumeOff"} size={15} color={speakAloud ? t.onAccent : t.txtMid} />
+              {speakAloud && (
+                <Txt size={12} weight="semibold" color={t.onAccent} style={{ letterSpacing: 0.1 }}>
+                  {"Voice"}
+                </Txt>
+              )}
             </Pressable>
           )}
           <Pill
