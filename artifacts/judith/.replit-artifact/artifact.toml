@@ -18,10 +18,12 @@ localPort = 25567
 [services.development]
 run = "pnpm --filter @workspace/judith run dev"
 
-[services.production]
-build = [ "pnpm", "--filter", "@workspace/judith", "run", "build" ]
-run = [ "pnpm", "--filter", "@workspace/judith", "run", "serve" ]
+[services.production.build]
+args = ["pnpm", "--filter", "@workspace/judith", "run", "build"]
 
-[services.env]
+[services.production.run]
+args = ["node", "artifacts/judith/server/serve.js"]
+
+[services.production.run.env]
 PORT = "25567"
 BASE_PATH = "/"
