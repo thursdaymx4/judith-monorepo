@@ -963,7 +963,7 @@ function ScreenWelcome({ ctx }: { ctx: Ctx }) {
 /* ================================================================== */
 
 function ScreenCountry({ ctx }: { ctx: Ctx }) {
-  const { t, country, setCountry, next, name, persona, language } = ctx;
+  const { t, country, setCountry, next, name, persona, language, setLanguage } = ctx;
   const [q, setQ] = useState("");
   const list = COUNTRIES.filter((c) =>
     c.name.toLowerCase().includes(q.toLowerCase()),
@@ -1000,7 +1000,15 @@ function ScreenCountry({ ctx }: { ctx: Ctx }) {
           {list.map((c) => {
             const on = country.code === c.code;
             return (
-              <RowCard key={c.code} selected={on} onPress={() => setCountry(c.code)} showCheck>
+              <RowCard
+                key={c.code}
+                selected={on}
+                onPress={() => {
+                  setCountry(c.code);
+                  if (c.code !== "PH" && isFilipino(language)) setLanguage("en");
+                }}
+                showCheck
+              >
                 <Flag>{c.flag}</Flag>
                 <View style={{ flex: 1 }}>
                   <Txt size={14} weight="medium">{c.name}</Txt>

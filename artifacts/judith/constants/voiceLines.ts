@@ -148,6 +148,7 @@ export const JUDITH_VOICE = {
     "Phone subscription": { en: "The fastest way is to screenshot your Subscriptions list in Settings, then upload it. Or tell me each one — iCloud, Spotify, Apple Music.", fil: "Pinaka-mabilis: mag-screenshot ng iyong Subscriptions sa Settings tapos i-upload. O sabihin mo sa akin isa-isa — iCloud, Spotify, at iba pa." },
     "TV / Streaming":     { en: "Streaming — Netflix, Disney+, HBO? Which one, how much, when?", fil: "Streaming — Netflix, Disney+? Alin, magkano, kelan?" },
     "Web app":            { en: "Any web apps? Canva, Notion, ChatGPT… name it, the cost, the date.", fil: "Mga web apps — Canva, Notion, ChatGPT? Pangalan, bayad, petsa." },
+    Insurance:            { en: "Any insurance policies? Health, car, or life — tell me the provider, the monthly amount, and the due date.", fil: "May insurance ka ba? Health, car, o life — provider, halaga, at due date?" },
     "Credit card":        { en: "Now the heavy ones. A credit card — which bank, the amount due, and the date?", fil: "Yung credit cards — anong bangko, magkano ang due, at kailan?" },
     "Personal loan":      { en: "Any loans? Lender, the monthly amount, and the due date.", fil: "Mga loans — sinong nagpahiram, magkano monthly, at kailan due?" },
   }) as Record<string, VoiceLine>,
