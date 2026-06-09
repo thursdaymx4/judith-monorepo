@@ -84,17 +84,26 @@ function pesoStr(amount: number): string {
   return `₱${Math.round(amount).toLocaleString("en-US")}`;
 }
 
+/** Returns true when notifications for this persona should use Filipino copy. */
+function useFilipino(persona: PersonaId, language: string): boolean {
+  // Only deliver Filipino copy when the user has explicitly chosen Filipino.
+  // English users who pick a Filipino-flavoured persona still get English copy.
+  return language === "fil";
+}
+
 function reminderCopy(
   persona: PersonaId,
   bill: Bill,
   leadDays: number,
+  language: string,
   cardName?: string,
 ): { title: string; body: string } {
   const amt = pesoStr(bill.amount);
   const soon = leadDays === 1 ? "tomorrow" : `in ${leadDays} days`;
   // Card-linked bills are auto-charged, not paid by hand — give a heads-up with
   // a clear clue about which card it lands on.
-  if (cardName) return cardLinkedReminderCopy(persona, bill, soon, amt, cardName);
+  if (cardName) return cardLinkedReminderCopy(persona, bill, soon, amt, language, cardName);
+  const fil = useFilipino(persona, language);
   switch (persona) {
     case "funny":
       return {
@@ -107,15 +116,25 @@ function reminderCopy(
         body: `${amt} due ${soon}. Pay it before I have to remind you twice.`,
       };
     case "mama":
-      return {
-        title: `${bill.provider} is due ${soon}`,
-        body: `${amt} na lang. Bayaran mo na para wala tayong problema, ha?`,
-      };
+      return fil
+        ? {
+            title: `${bill.provider} is due ${soon}`,
+            body: `${amt} na lang. Bayaran mo na para wala tayong problema, ha?`,
+          }
+        : {
+            title: `${bill.provider} is due ${soon}`,
+            body: `${amt} — take care of it now so there's nothing to worry about!`,
+          };
     case "marites":
-      return {
-        title: `Uy, ${bill.provider}! 🤫`,
-        body: `${amt} due ${soon}. Ang chismis ko sa'yo — bayaran mo na yan!`,
-      };
+      return fil
+        ? {
+            title: `Uy, ${bill.provider}! 🤫`,
+            body: `${amt} due ${soon}. Ang chismis ko sa'yo — bayaran mo na yan!`,
+          }
+        : {
+            title: `Uy, ${bill.provider}! 🤫`,
+            body: `${amt} due ${soon}. My tip for you — pay it now, don't let it slide!`,
+          };
     default:
       return {
         title: `${bill.provider} is due ${soon}`,
@@ -124,9 +143,10 @@ function reminderCopy(
   }
 }
 
-function nudgeCopy(persona: PersonaId, bill: Bill, cardName?: string): { title: string; body: string } {
+function nudgeCopy(persona: PersonaId, bill: Bill, language: string, cardName?: string): { title: string; body: string } {
   const amt = pesoStr(bill.amount);
-  if (cardName) return cardLinkedNudgeCopy(persona, bill, amt, cardName);
+  if (cardName) return cardLinkedNudgeCopy(persona, bill, amt, language, cardName);
+  const fil = useFilipino(persona, language);
   switch (persona) {
     case "funny":
       return {
@@ -139,15 +159,25 @@ function nudgeCopy(persona: PersonaId, bill: Bill, cardName?: string): { title: 
         body: `${amt}. You knew this was coming.`,
       };
     case "mama":
-      return {
-        title: `Anak, ${bill.provider} is due today`,
-        body: `${amt} lang naman. Huwag mo nang palawigin pa.`,
-      };
+      return fil
+        ? {
+            title: `Anak, ${bill.provider} is due today`,
+            body: `${amt} lang naman. Huwag mo nang palawigin pa.`,
+          }
+        : {
+            title: `${bill.provider} is due today`,
+            body: `${amt} — pay it now, no delays!`,
+          };
     case "marites":
-      return {
-        title: `Psst! ${bill.provider} is due today! 🫣`,
-        body: `${amt} ngayon ha! Baka malate ka pa.`,
-      };
+      return fil
+        ? {
+            title: `Psst! ${bill.provider} is due today! 🫣`,
+            body: `${amt} ngayon ha! Baka malate ka pa.`,
+          }
+        : {
+            title: `Psst! ${bill.provider} is due today! 🫣`,
+            body: `${amt} — don't be late on this one!`,
+          };
     default:
       return {
         title: `${bill.provider} is due today`,
@@ -165,18 +195,24 @@ function cardLinkedReminderCopy(
   bill: Bill,
   soon: string,
   amt: string,
+  language: string,
   cardName: string,
 ): { title: string; body: string } {
   const base = `${amt} will be auto-charged to your ${cardName} card ${soon}.`;
+  const fil = useFilipino(persona, language);
   switch (persona) {
     case "funny":
       return { title: `💳 ${bill.provider} → ${cardName}`, body: `${base} Nothing to pay by hand — just keep ${cardName} happy 😉` };
     case "sib":
       return { title: `💳 ${bill.provider} hits ${cardName}`, body: `${base} You don't lift a finger — consider yourself informed.` };
     case "mama":
-      return { title: `💳 ${bill.provider} (sa ${cardName})`, body: `${base} Auto na 'to sa card mo, anak — pang-alala lang.` };
+      return fil
+        ? { title: `💳 ${bill.provider} (sa ${cardName})`, body: `${base} Auto na 'to sa card mo, anak — pang-alala lang.` }
+        : { title: `💳 ${bill.provider} (${cardName})`, body: `${base} Auto-charged to your card — just a heads-up!` };
     case "marites":
-      return { title: `💳 Psst — ${bill.provider}!`, body: `${base} Naka-charge 'to sa ${cardName} mo, ha — alam mo na!` };
+      return fil
+        ? { title: `💳 Psst — ${bill.provider}!`, body: `${base} Naka-charge 'to sa ${cardName} mo, ha — alam mo na!` }
+        : { title: `💳 Psst — ${bill.provider}!`, body: `${base} Charged to your ${cardName} — just so you know!` };
     default:
       return { title: `💳 ${bill.provider} via ${cardName}`, body: `${base} Auto-charged to your card — just a heads-up.` };
   }
@@ -186,18 +222,24 @@ function cardLinkedNudgeCopy(
   persona: PersonaId,
   bill: Bill,
   amt: string,
+  language: string,
   cardName: string,
 ): { title: string; body: string } {
   const base = `${amt} is charged to your ${cardName} card today.`;
+  const fil = useFilipino(persona, language);
   switch (persona) {
     case "funny":
       return { title: `💳 ${bill.provider} charges today`, body: `${base} Auto-pay's got it — just looping you in.` };
     case "sib":
       return { title: `💳 ${bill.provider} → ${cardName}, today`, body: `${base} No action needed. As always.` };
     case "mama":
-      return { title: `💳 ${bill.provider} ngayong araw`, body: `${base} Auto na sa card, anak — pang-alala lang.` };
+      return fil
+        ? { title: `💳 ${bill.provider} ngayong araw`, body: `${base} Auto na sa card, anak — pang-alala lang.` }
+        : { title: `💳 ${bill.provider} charges today`, body: `${base} Auto-charged to your card — just a heads-up!` };
     case "marites":
-      return { title: `💳 ${bill.provider} today!`, body: `${base} Naka-charge na sa ${cardName} — chika lang!` };
+      return fil
+        ? { title: `💳 ${bill.provider} today!`, body: `${base} Naka-charge na sa ${cardName} — chika lang!` }
+        : { title: `💳 ${bill.provider} today!`, body: `${base} Charged to your ${cardName} — just so you know!` };
     default:
       return { title: `💳 ${bill.provider} via ${cardName}`, body: `${base} Auto-charged — just so you know.` };
   }
@@ -213,6 +255,7 @@ const nudgeId    = (id: string) => `judith-nudge-${id}`;
 async function scheduleBill(
   bill: Bill,
   persona: PersonaId,
+  language: string,
   opts: { reminder: boolean; nudge: boolean; leadDays: number; cardName?: string },
 ): Promise<void> {
   const now = new Date();
@@ -233,7 +276,7 @@ async function scheduleBill(
     const fireAt = new Date(dueAt);
     fireAt.setDate(dueAt.getDate() - opts.leadDays);
     if (fireAt > now) {
-      const copy = reminderCopy(persona, liveBill, opts.leadDays, opts.cardName);
+      const copy = reminderCopy(persona, liveBill, opts.leadDays, language, opts.cardName);
       ops.push(
         Notifications.scheduleNotificationAsync({
           identifier: reminderId(bill.id),
@@ -245,7 +288,7 @@ async function scheduleBill(
   }
 
   if (opts.nudge && dueAt > now) {
-    const copy = nudgeCopy(persona, liveBill, opts.cardName);
+    const copy = nudgeCopy(persona, liveBill, language, opts.cardName);
     ops.push(
       Notifications.scheduleNotificationAsync({
         identifier: nudgeId(bill.id),
@@ -279,12 +322,13 @@ export async function cancelAllNotifications(): Promise<void> {
 
 /**
  * Full sync — cancel everything, then re-schedule for all unpaid bills.
- * Call this whenever bills, toggles, or persona change.
+ * Call this whenever bills, toggles, persona, or language change.
  * No-ops on web.
  */
 export async function syncNotifications(
   bills: Bill[],
   persona: PersonaId,
+  language: string,
   opts: { reminder: boolean; nudge: boolean },
 ): Promise<void> {
   if (Platform.OS === "web") return;
@@ -301,7 +345,7 @@ export async function syncNotifications(
       const cardName = isPaidViaCard(bill)
         ? bills.find((c) => c.id === bill.parentCardId)?.provider
         : undefined;
-      return scheduleBill(bill, persona, { ...opts, leadDays: bill.reminderDays ?? 3, cardName });
+      return scheduleBill(bill, persona, language, { ...opts, leadDays: bill.reminderDays ?? 3, cardName });
     }),
   );
 }

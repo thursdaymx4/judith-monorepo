@@ -129,6 +129,11 @@ function localDateString(): string {
   return `${y}-${m}-${day}`;
 }
 
+/** Returns the current day-of-week name from the device's local clock (e.g. "Sunday"). */
+function localWeekdayString(): string {
+  return new Date().toLocaleDateString("en-US", { weekday: "long" });
+}
+
 export function transcribe(
   audioBase64: string,
   mimeType: string,
@@ -170,6 +175,7 @@ export function askJudith(
     bills,
     persona: persona ? PERSONA_MAP[persona] : undefined,
     localDate: localDateString(),
+    localWeekday: localWeekdayString(),
     language,
     includeVoice,
     currency,

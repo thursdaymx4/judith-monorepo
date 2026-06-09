@@ -245,7 +245,7 @@ function nextPaydayDate(today: Date, cycle?: string, day?: number, semi?: [numbe
   return null;
 }
 
-function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", monthlyIncome?: number, incomeByMonth?: Record<string, number>, payCycle?: string, paydayDay?: number, paydaySemi?: [number, number], paydayWeekday?: number): string {
+function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", monthlyIncome?: number, incomeByMonth?: Record<string, number>, payCycle?: string, paydayDay?: number, paydaySemi?: [number, number], paydayWeekday?: number, localWeekday?: string): string {
   /** Effective income for a given month key — use override if set, otherwise the default. */
   const incomeFor = (monthKey: string): number | undefined => {
     const override = incomeByMonth?.[monthKey];
@@ -361,9 +361,19 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
 
   const lines = bills.map((b) => {
     const days = b.dueDays ?? 0;
+    // Compute the actual calendar date for this bill so the AI always knows the
+    // exact date+weekday without having to do mental arithmetic from "today".
+    // new Date(y, m, d + offset) handles month overflow correctly in JS.
+    const dueDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + days);
+    const dueDateStr = b.dueLabel ?? englishDate(dueDate);
+    const dueWkday = englishWeekday(dueDate);
     const when = b.isProjection
       ? `due ~${b.dueLabel ?? "next month"} (estimated — not yet billed)`
-      : days === 0 ? "due TODAY" : days < 0 ? `OVERDUE by ${Math.abs(days)} day(s)` : `due in ${days} day(s)`;
+      : days === 0
+        ? `due TODAY — ${dueDateStr} (${dueWkday})`
+        : days < 0
+          ? `OVERDUE by ${Math.abs(days)} day(s) — was due ${dueDateStr} (${dueWkday})`
+          : `due in ${days} day(s) — on ${dueDateStr} (${dueWkday})`;
     const bizTag = b.isBusiness
       ? (b.businessName ? ` [BUSINESS: ${b.businessName}]` : " [BUSINESS]")
       : " [PERSONAL]";
@@ -447,7 +457,7 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
           "",
         ]
       : []),
-    `Today is ${englishDate(today)} (${englishWeekday(today)}).`,
+    `Today is ${englishDate(today)} (${localWeekday?.trim() || englishWeekday(today)}).`,
     ...(incomeHeader ? [incomeHeader] : []),
     ...(paydayLine ? [paydayLine] : []),
     `Total still due (unpaid): ${curStr(cur, total)}.`,
@@ -603,7 +613,7 @@ router.post("/ask", askLimiter, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
-    const { text, bills: bodyBills, persona: bodyPersona, localDate, language, includeVoice, currency, countryName, countryCode, monthlyIncome, incomeByMonth, payCycle, paydayDay, paydaySemi, paydayWeekday } = req.body ?? {};
+    const { text, bills: bodyBills, persona: bodyPersona, localDate, localWeekday: rawLocalWeekday, language, includeVoice, currency, countryName, countryCode, monthlyIncome, incomeByMonth, payCycle, paydayDay, paydaySemi, paydayWeekday } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
       res.status(400).json({ error: "text is required" });
       return;
@@ -640,7 +650,8 @@ router.post("/ask", askLimiter, async (req, res) => {
         ? [paydaySemi[0] as number, paydaySemi[1] as number]
         : undefined;
     const safeWeekday: number | undefined = typeof paydayWeekday === "number" && paydayWeekday >= 0 && paydayWeekday <= 6 ? paydayWeekday : undefined;
-    const context: string = buildClientContext(bodyBills as ClientBill[], today, cur, income, incomeMo, cycle, safeDay, safeSemi, safeWeekday);
+    const safeLocalWeekday = typeof rawLocalWeekday === "string" && rawLocalWeekday.trim() ? rawLocalWeekday.trim() : undefined;
+    const context: string = buildClientContext(bodyBills as ClientBill[], today, cur, income, incomeMo, cycle, safeDay, safeSemi, safeWeekday, safeLocalWeekday);
 
     const anthropic = getAnthropic();
     const message = await anthropic.messages.create({

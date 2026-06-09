@@ -11,7 +11,7 @@ import { syncNotifications, cancelAllNotifications, getPermissionStatus } from "
  * - Cancels all Judith notifications when both toggles are off.
  */
 export function useNotificationSync() {
-  const { bills, toggles, persona } = useJudith();
+  const { bills, toggles, persona, language } = useJudith();
   const syncingRef = useRef(false);
   const { dueReminders, nudges } = toggles;
 
@@ -27,7 +27,7 @@ export function useNotificationSync() {
     getPermissionStatus()
       .then((status) => {
         if (status !== "granted") return;
-        return syncNotifications(bills, persona, {
+        return syncNotifications(bills, persona, language, {
           reminder: dueReminders,
           nudge: nudges,
         });
@@ -38,5 +38,5 @@ export function useNotificationSync() {
       });
   // Re-sync whenever any of these change
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bills, dueReminders, nudges, persona]);
+  }, [bills, dueReminders, nudges, persona, language]);
 }
