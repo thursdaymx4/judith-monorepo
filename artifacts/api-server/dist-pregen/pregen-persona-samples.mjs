@@ -298,7 +298,7 @@ function cacheLanguageGroup(lang) {
   if (lang === "fil" || lang === "ceb" || lang === "ilo" || lang === "hil") return "fil";
   return lang;
 }
-var SAMPLE_PREFIX = "persona-sample";
+var SAMPLE_PREFIX = "persona-sample-v2";
 async function setSampleAudio(persona, lang, audioBase64, countryCode) {
   const bucket = getBucket();
   if (!bucket) return;

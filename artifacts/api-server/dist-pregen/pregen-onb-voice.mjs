@@ -370,39 +370,39 @@ var EN_TEXT = {
     funny: "Ugh, late fees \u2014 the worst! I\u2019m here so you never have to deal with that again.",
     sarcastic: "Missed payment. Surprise fee. Happens to everyone. That\u2019s why I\u2019m here.",
     mom: "Anak, don\u2019t worry \u2014 it happens to everyone. I\u2019m here to make sure it doesn\u2019t happen to you again.",
-    marites: "Ay grabe, late fees! The absolute worst! But besh, that\u2019s why I\u2019m here \u2014 hindi na maulit iyon!",
-    britney: "Missed payment. Late fee. It happens. I\u2019m here to make sure it doesn\u2019t happen again."
+    marites: "Oh my gosh, late fees?! The absolute worst! But that\u2019s literally why I\u2019m here \u2014 it will never happen again!",
+    britney: "Missed payment. Late fee. Entirely avoidable. That\u2019s what I\u2019m here for."
   },
   problem: {
     professional: "Honestly, most people don\u2019t track their bills. Let\u2019s change that.",
     funny: "Surprise \u2014 most people don\u2019t track their bills. But you\u2019re not most people anymore!",
     sarcastic: "Most people don\u2019t track this. You\u2019re about to be different.",
     mom: "Anak, most people don\u2019t track their bills. But that\u2019s okay \u2014 we\u2019re changing that right now.",
-    marites: "Ay besh, most people don\u2019t track their bills! Pero tayo \u2014 we\u2019re changing that na!",
-    britney: "Most people don\u2019t track their bills. You\u2019re changing that."
+    marites: "Okay so listen \u2014 most people don\u2019t track their bills! But you? You\u2019re literally about to change all of that!",
+    britney: "Most people don\u2019t track their bills. That\u2019s a choice with a cost. Fix it."
   },
   stakes: {
     professional: "This doesn\u2019t have to be your situation. Let\u2019s change it \u2014 right now.",
     funny: "Okay! Enough of that \u2014 let\u2019s flip the script! Right now, we change this!",
     sarcastic: "This doesn\u2019t have to stay this way. Let\u2019s change it. Now.",
     mom: "Anak, we\u2019re going to change this together \u2014 starting right now.",
-    marites: "Besh! No more of this! We\u2019re changing it right now! Let\u2019s go!",
-    britney: "This doesn\u2019t have to stay this way. Change it. Now."
+    marites: "No more of this! We are changing it right now! Let\u2019s go!",
+    britney: "This changes now. Track them. Pay them. That\u2019s all there is to it."
   },
   intro: {
     professional: "This usually takes 5 to 7 minutes. Let\u2019s map out every bill \u2014 I\u2019ll walk you through it.",
     funny: "Okay! About 5 to 7 minutes and your whole bill life will make sense. Let\u2019s go!",
     sarcastic: "About 5 to 7 minutes. Just answer my questions \u2014 it\u2019ll be worth it.",
     mom: "Anak, this will only take 5 to 7 minutes. I\u2019ll walk you through everything, promise.",
-    marites: "Grabe besh, 5 to 7 minutes lang! Let\u2019s map all your bills \u2014 I cannot wait!",
-    britney: "About 5 to 7 minutes. Answer my questions. I\u2019ll walk you through it."
+    marites: "Oh my gosh, just 5 to 7 minutes! Let\u2019s map all your bills \u2014 I cannot wait!",
+    britney: "Five to seven minutes. Answer my questions. Every bill gets tracked. Let\u2019s start."
   },
   features0: {
     professional: "Tap the question below \u2014 I\u2019ll add up every bill you have this month.",
     funny: "Ooh, the big question! Tap it \u2014 I\u2019ll crunch every single bill right now!",
     sarcastic: "Tap the question. I\u2019ll total your bills for this month.",
     mom: "Go ahead anak, tap the question \u2014 I\u2019ll add everything up for you.",
-    marites: "Ay! Total bills this month?! Tap it besh \u2014 I know every single one!",
+    marites: "Oh my gosh! Total bills this month?! Tap it \u2014 I know every single one!",
     britney: "Tap the question. I\u2019ll total your bills for this month."
   },
   features1: {
@@ -410,7 +410,7 @@ var EN_TEXT = {
     funny: "Utilities AND rent?! Tap that question \u2014 I\u2019ll add it all up for you!",
     sarcastic: "Water, electricity, internet, rent. Tap the question. I\u2019ll total it.",
     mom: "Try asking about your utilities and rent anak \u2014 tap below and I\u2019ll add it all up.",
-    marites: "Water! Electric! Internet! Rent! Tap the question besh \u2014 I\u2019ll get the total!",
+    marites: "Water! Electric! Internet! Rent! Tap the question \u2014 I\u2019ll get the total!",
     britney: "Utilities and rent. Tap the question. I\u2019ll total it."
   },
   features2: {
@@ -418,7 +418,7 @@ var EN_TEXT = {
     funny: "Ooh, future planning! Tap it \u2014 I\u2019ll project your entire next month for you!",
     sarcastic: "Next month. Tap the question. I\u2019ll estimate from what you\u2019ve added.",
     mom: "Let\u2019s look at next month anak \u2014 tap the question and I\u2019ll estimate everything for you.",
-    marites: "Next month na?! Ay besh, I\u2019m already excited! Tap it \u2014 I\u2019ll project it all!",
+    marites: "Next month already?! Oh my gosh, I\u2019m so excited! Tap it \u2014 I\u2019ll project it all!",
     britney: "Tap the question. I\u2019ll project your total bill for next month."
   },
   paywall: {
@@ -434,7 +434,7 @@ var EN_TEXT = {
     funny: "Don\u2019t go anywhere \u2014 I\u2019m doing very important things back here!",
     sarcastic: "Yeah yeah, I\u2019m working on it. Give me a second.",
     mom: "Almost ready anak \u2014 I\u2019m making sure everything is just right for you.",
-    marites: "Ay grabe, so many bills! But I got you besh \u2014 almost done!",
+    marites: "Oh my gosh, so many bills! But I got you \u2014 almost done!",
     britney: "Setting up your reminders. Almost done."
   }
 };

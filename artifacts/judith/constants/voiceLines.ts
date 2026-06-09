@@ -48,7 +48,7 @@ export const JUDITH_VOICE = {
     funny:   { en: "Okay! About 5 to 7 minutes and your whole bill life will make sense. Let's go!", fil: "5 hanggang 7 minuto lang at magiging maayos na ang lahat! Tara na!" },
     sib:     { en: "About 5 to 7 minutes. Just answer my questions — it'll be worth it.", fil: "5 hanggang 7 minuto lang to. Sagutin mo lang ang mga tanong ko." },
     mama:    { en: "Anak, this will only take 5 to 7 minutes. I'll walk you through everything, promise.", fil: "Anak, 5 hanggang 7 minuto lang ito. Sasamahan kita sa lahat, promise." },
-    marites: { en: "Grabe besh, 5 to 7 minutes lang! Let's map all your bills — I cannot wait!", fil: "Grabe besh, 5 hanggang 7 minuto lang! I-map na natin ang lahat ng bills mo!" },
+    marites: { en: "Oh my gosh, just 5 to 7 minutes! Let's map all your bills — I cannot wait!", fil: "Grabe besh, 5 hanggang 7 minuto lang! I-map na natin ang lahat ng bills mo!" },
     britney: { en: "Five to seven minutes. Answer my questions. Every bill gets tracked. Let's start.", fil: "Lima hanggang pitong minuto. Sagutin ang mga tanong ko. Naka-track na lahat. Tara." },
   } satisfies PersonaLines,
 
@@ -58,7 +58,7 @@ export const JUDITH_VOICE = {
     funny:   { en: "Ugh, late fees — the worst! I'm here so you never have to deal with that again.", fil: "Ay ang sama ng late fees! Pero wag nang mag-alala — nandito na ako para hindi na maulit!" },
     sib:     { en: "Missed payment. Surprise fee. Happens to everyone. That's why I'm here.", fil: "Napalampas na bayad. Biglang multa. Nangyayari sa lahat. Kaya nandito ako." },
     mama:    { en: "Anak, don't worry — it happens to everyone. I'm here to make sure it doesn't happen to you again.", fil: "Huwag mag-alala anak. Nangyayari ito sa lahat. Nandito ako para hindi na maulit." },
-    marites: { en: "Ay grabe, late fees! The absolute worst! But besh, that's why I'm here — hindi na maulit iyon!", fil: "Ay grabe, late fees! Ang pangit! Pero besh, nandito na ako — hindi na maulit 'yan!" },
+    marites: { en: "Oh my gosh, late fees?! The absolute worst! But that's literally why I'm here — it will never happen again!", fil: "Ay grabe, late fees! Ang pangit! Pero besh, nandito na ako — hindi na maulit 'yan!" },
     britney: { en: "Missed payment. Late fee. Entirely avoidable. That's what I'm here for.", fil: "Napalampas na bayad. Multa. Maiiwasan ito. Kaya nandito ako." },
   } satisfies PersonaLines,
 
@@ -68,7 +68,7 @@ export const JUDITH_VOICE = {
     funny:   { en: "Surprise — most people don't track their bills. But you're not most people anymore!", fil: "Grabe, karamihan hindi nag-ta-track ng bills! Pero ikaw — ikaw ay magiging iba na!" },
     sib:     { en: "Most people don't track this. You're about to be different.", fil: "Karamihan hindi nag-ta-track. Ikaw ay magiging iba." },
     mama:    { en: "Anak, most people don't track their bills. But that's okay — we're changing that right now.", fil: "Anak, karamihan hindi nag-ta-track ng bills. Pero okay lang — palitan na natin iyon ngayon." },
-    marites: { en: "Ay besh, most people don't track their bills! Pero tayo — we're changing that na!", fil: "Ay besh, karamihan hindi nag-ta-track ng bills! Pero tayo — we're changing that na!" },
+    marites: { en: "Okay so listen — most people don't track their bills! But you? You're literally about to change all of that!", fil: "Ay besh, karamihan hindi nag-ta-track ng bills! Pero tayo — we're changing that na!" },
     britney: { en: "Most people don't track their bills. That's a choice with a cost. Fix it.", fil: "Karamihan hindi nag-ta-track ng bills. May epekto iyon. Ayusin na natin." },
   } satisfies PersonaLines,
 
@@ -78,7 +78,7 @@ export const JUDITH_VOICE = {
     funny:   { en: "Okay! Enough of that — let's flip the script! Right now, we change this!", fil: "Sige! Tapos na sa ganyan! Palitan na natin — ngayon na!" },
     sib:     { en: "This doesn't have to stay this way. Let's change it. Now.", fil: "Hindi na kailangang ganito. Palitan na natin. Ngayon." },
     mama:    { en: "Anak, we're going to change this together — starting right now.", fil: "Anak, magbabago na tayo — simula ngayon. Sama-sama tayo." },
-    marites: { en: "Besh! No more of this! We're changing it right now! Let's go!", fil: "Besh! Tapos na! Palitan na natin ito ngayon! Let's go!" },
+    marites: { en: "No more of this! We are changing it right now! Let's go!", fil: "Besh! Tapos na! Palitan na natin ito ngayon! Let's go!" },
     britney: { en: "This changes now. Track them. Pay them. That's all there is to it.", fil: "Nagbabago na ito ngayon. I-track. Bayaran. 'Yun lang." },
   } satisfies PersonaLines,
 
@@ -88,7 +88,7 @@ export const JUDITH_VOICE = {
     funny:   { en: "Eight free asks — on the house! Try me out, then come back when you're hooked. I'll wait.", fil: "Walong libreng tanong — regalo ko! Subukan mo ako, at kapag hooked ka na, bumalik ka!" },
     sib:     { en: "Eight free asks. Use them. If you want more, pick a plan.", fil: "Walong libreng tanong. Gamitin mo. Kung gusto mo pa, pumili ng plano." },
     mama:    { en: "Anak, you have eight free asks to start. Try them out — and when you want more, I'll be right here.", fil: "Anak, may walong libreng tanong ka. Subukan mo — at kapag gusto mo pa, nandito ako." },
-    marites: { en: "Besh! Eight free asks — try me! And when you want to keep chatting, pick a plan! I'll be waiting!", fil: "Besh! Walong libreng tanong! Subukan mo ako! At kapag gusto mo pang makipag-chat — pick a plan! Waiting ako!" },
+    marites: { en: "Oh my gosh! Eight free asks — try me! And when you want to keep chatting, pick a plan! I will be waiting!", fil: "Besh! Walong libreng tanong! Subukan mo ako! At kapag gusto mo pang makipag-chat — pick a plan! Waiting ako!" },
     britney: { en: "Eight free asks. Use them. Want more — pick a plan.", fil: "Walong libreng tanong. Gamitin. Gusto mo pa — pumili ng plano." },
   } satisfies PersonaLines,
 
@@ -100,7 +100,7 @@ export const JUDITH_VOICE = {
     funny:   "Don't go anywhere — I'm doing very important things back here!",
     sib:     "Yeah yeah, I'm working on it. Give me a second.",
     mama:    "Almost ready anak — I'm making sure everything is just right for you.",
-    marites: "Ay grabe, so many bills! But I got you besh — almost done!",
+    marites: "Oh my gosh, so many bills! But I got you — almost done!",
     britney: "Setting this up. Almost done.",
   } satisfies Record<PersonaId, string>,
 
@@ -126,7 +126,7 @@ export const JUDITH_VOICE = {
       fil: ["Sige anak, i-tap ang tanong — i-add ko lahat para sa iyo.", "Tanungin mo ang utilities at renta mo anak — i-tap sa baba at itatotal ko lahat.", "Tignan natin ang susunod na buwan anak — i-tap at i-e-estimate ko lahat para sa iyo."],
     },
     marites: {
-      en:  ["Ay! Total bills this month?! Tap it besh — I know every single one!", "Water! Electric! Internet! Rent! Tap the question besh — I'll get the total!", "Next month na?! Ay besh, I'm already excited! Tap it — I'll project it all!"],
+      en:  ["Oh my gosh! Total bills this month?! Tap it — I know every single one!", "Water! Electric! Internet! Rent! Tap the question — I'll get the total!", "Next month already?! Oh my gosh, I'm so excited! Tap it — I'll project it all!"],
       fil: ["Ay! Total bills this month?! I-tap na besh — alam ko lahat!", "Tubig! Kuryente! Internet! Renta! I-tap na besh — kukunin ko ang total!", "Susunod na buwan na?! Ay besh, excited na ako! I-tap na — iproprojekt ko lahat!"],
     },
     britney: {
@@ -271,17 +271,17 @@ export const JUDITH_VOICE = {
     },
     marites: {
       en: {
-        "Rent / Mortgage":    "Renta! Magkano at kelan?! Tell me everything!",
-        Electricity:          "Kuryente! Sino ang provider at magkano?!",
-        Water:                "Tubig bill! Provider and amount — spill na!",
-        Internet:             "Internet! Which provider and magkano?!",
-        Mobile:               "Phone plan! Anong network, magkano?!",
-        "Phone subscription": "I-screenshot mo na lang ang Subscriptions mo sa Settings! O isa-isa mo sa akin besh!",
-        "TV / Streaming":     "Streaming! Alin-alin?! Netflix?! Disney?! Spill!",
-        "Web app":            "May web apps ka pa?! Canva, Notion?! Grabe ang dami mo!",
-        Insurance:            "Insurance pa?! Ay grabe besh! Health? Car? Life?! Ilan ba talaga ang bayarin mo?!",
-        "Credit card":        "Credit card! Anong bangko at magkano ang utang?!",
-        "Personal loan":      "Utang! Sinong nagpahiram at magkano monthly?!",
+        "Rent / Mortgage":    "Rent! How much and when's it due?! Tell me everything!",
+        Electricity:          "Electric! Who's the provider and how much?!",
+        Water:                "Water bill! Provider and amount — spill it!",
+        Internet:             "Internet! Which provider and how much?!",
+        Mobile:               "Phone plan! Which network and how much?!",
+        "Phone subscription": "Screenshot your Subscriptions in Settings — easiest way! Or just list them for me!",
+        "TV / Streaming":     "Streaming! Which ones?! Netflix?! Disney?! Spill!",
+        "Web app":            "Any web apps?! Canva, Notion?! Oh my gosh, the list!",
+        Insurance:            "Insurance?! Oh my gosh! Health? Car? Life?! How many do you have?!",
+        "Credit card":        "Credit card! Which bank and how much?!",
+        "Personal loan":      "A loan?! Who's the lender and how much monthly?!",
       },
       fil: {
         "Rent / Mortgage":    "Renta! Magkano at kelan?! Tell me everything!",
