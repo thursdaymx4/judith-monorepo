@@ -75,6 +75,14 @@ export class TimeoutError extends Error {
   }
 }
 
+/** Thrown when the server responds with a 5xx status code (not a network failure). */
+export class ServerError extends Error {
+  constructor(public readonly status: number, detail: string) {
+    super(`server_error:${status}:${detail}`);
+    this.name = "ServerError";
+  }
+}
+
 async function postJson<T>(path: string, body: unknown, timeoutMs?: number): Promise<T> {
   const headers = await authHeader();
   const controller = timeoutMs != null ? new AbortController() : null;
@@ -100,6 +108,7 @@ async function postJson<T>(path: string, body: unknown, timeoutMs?: number): Pro
   throwIfRateLimited(res);
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
+    if (res.status >= 500) throw new ServerError(res.status, detail);
     throw new Error(`Request failed (${res.status}): ${detail}`);
   }
   return (await res.json()) as T;

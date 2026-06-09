@@ -22,7 +22,7 @@ import { getPersona } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { fileToBase64, playBase64Mp3 } from "@/lib/audio";
-import { type AddBillAction, type AskBill, askJudith, parseSubscriptionScreenshot, transcribe, RateLimitError, TimeoutError } from "@/lib/proxy";
+import { type AddBillAction, type AskBill, askJudith, parseSubscriptionScreenshot, transcribe, RateLimitError, TimeoutError, ServerError } from "@/lib/proxy";
 import { sttHint, isFilipino } from "@/constants/languages";
 
 /**
@@ -550,19 +550,24 @@ export default function AskModal() {
           : `You're sending too fast — please wait ${e.retryAfter} second${e.retryAfter === 1 ? "" : "s"} before asking again.`
         });
       } else {
-        // Timeout or connection failure — refund the ask, remember the question so
-        // the user can retry with one tap, and never leave them stuck on "thinking…".
+        // Timeout, server error, or connection failure — refund the ask, remember
+        // the question so the user can retry with one tap.
         if (!isPaid) addAsks(1);
         setLastFailedQ(q);
         const timedOut = e instanceof TimeoutError;
+        const serverSide = e instanceof ServerError;
         await new Promise<void>((r) => setTimeout(r, 600));
         appendAndPersist({ role: "judith", text: timedOut
           ? (isFil
             ? "Pasensya, ang tagal ng sagot — baka mahina ang connection. Pindutin ang Subukang muli sa baba."
             : "Sorry, that took too long — your connection may be slow. Tap Retry below to try again.")
-          : (isFil
-            ? "Hindi ako makakonekta sa server — i-check ang connection mo, tapos pindutin ang Subukang muli."
-            : "I can't connect to the server — check your connection, then tap Retry below.")
+          : serverSide
+            ? (isFil
+              ? "May problema sa server — hindi kasalanan ng connection mo. Pindutin ang Subukang muli."
+              : "Something went wrong on my end — not your connection. Tap Retry below.")
+            : (isFil
+              ? "Hindi ako makakonekta sa server — i-check ang connection mo, tapos pindutin ang Subukang muli."
+              : "I can't connect to the server — check your connection, then tap Retry below.")
         });
       }
     } finally {

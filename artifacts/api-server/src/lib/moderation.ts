@@ -1,4 +1,4 @@
-import { getAnthropic } from "./anthropic";
+import { getAnthropic, ANTHROPIC_MODEL } from "./anthropic";
 
 /**
  * Fast, cheap pre-TTS content moderation using Claude Haiku.
@@ -15,7 +15,7 @@ export async function isSafeForTTS(text: string): Promise<boolean> {
   try {
     const anthropic = getAnthropic();
     const msg = await anthropic.messages.create({
-      model: "claude-3-5-haiku-20241022",
+      model: ANTHROPIC_MODEL,
       max_tokens: 16,
       system: `You are a content safety filter for a personal finance bill-tracking app.
 The app helps users track bills, due dates, and payment reminders.
