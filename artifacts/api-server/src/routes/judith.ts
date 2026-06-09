@@ -1215,18 +1215,47 @@ router.get("/sample", sampleVoicesLimiter, async (req, res) => {
     const user = await requireUser(req, res);
     if (!user) return;
     const persona = coercePersona(req.query["persona"]);
-    const language = typeof req.query["language"] === "string" ? req.query["language"] : undefined;
+    const rawLanguage = typeof req.query["language"] === "string" ? req.query["language"] : undefined;
     const countryCode = typeof req.query["countryCode"] === "string" ? req.query["countryCode"] : undefined;
+
+    // Normalize: always resolve to a concrete language code so ElevenLabs receives
+    // an explicit language hint and never falls back to auto-detect (which can
+    // produce Taglish even for English requests). All English variants without a
+    // countryCode share the same pregenerated "en" cache slot via cacheLanguageGroup.
+    const language = rawLanguage ?? "en-US";
+
     const text = getSampleText(persona, language);
 
-    const cached = await getSampleAudio(persona, language ?? "en", countryCode);
+    // Fast path: return pregenerated cache hit.
+    const cached = await getSampleAudio(persona, language, countryCode);
     if (cached) {
       res.json({ text, audioBase64: cached.base64, mime: cached.mime });
       return;
     }
 
-    const audio = await synthesize(text, getVoiceId(persona, language, countryCode), { live: false, speed: getSpeakingSpeed(persona) });
-    setSampleAudio(persona, language ?? "en", audio.base64, countryCode).catch(() => {});
+    // Attempt synthesis with explicit language hint so ElevenLabs speaks the
+    // correct language. On failure, fall back to en-US rather than returning 500.
+    let audio: { base64: string; mime: string };
+    try {
+      audio = await synthesize(
+        text,
+        getVoiceId(persona, language, countryCode),
+        { live: false, speed: getSpeakingSpeed(persona), language },
+      );
+      setSampleAudio(persona, language, audio.base64, countryCode).catch(() => {});
+    } catch {
+      // Fallback: serve a plain en-US sample so the user always hears something.
+      const fallbackText = getSampleText(persona, "en-US");
+      audio = await synthesize(
+        fallbackText,
+        getVoiceId(persona, "en-US"),
+        { live: false, speed: getSpeakingSpeed(persona), language: "en-US" },
+      );
+      setSampleAudio(persona, "en-US", audio.base64).catch(() => {});
+      res.json({ text: fallbackText, audioBase64: audio.base64, mime: audio.mime });
+      return;
+    }
+
     res.json({ text, audioBase64: audio.base64, mime: audio.mime });
   } catch (err) {
     logger.error({ err }, "sample failed");
