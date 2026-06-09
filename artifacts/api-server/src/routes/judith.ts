@@ -679,7 +679,7 @@ router.post("/ask", askLimiter, async (req, res) => {
         // full moderation round-trip (~200-500ms) from the critical path.
         const [safe, audio] = await Promise.all([
           isSafeForTTS(reply),
-          synthesize(reply, voiceId, { live: true, speed: getSpeakingSpeed(persona), language: lang }).catch(() => null),
+          synthesize(reply, voiceId, { live: false, speed: getSpeakingSpeed(persona), language: lang }).catch(() => null),
         ]);
         if (!safe) {
           logger.warn("tts skipped — moderation flagged reply");
@@ -1225,7 +1225,7 @@ router.get("/sample", sampleVoicesLimiter, async (req, res) => {
       return;
     }
 
-    const audio = await synthesize(text, getVoiceId(persona, language, countryCode), { live: true, speed: getSpeakingSpeed(persona) });
+    const audio = await synthesize(text, getVoiceId(persona, language, countryCode), { live: false, speed: getSpeakingSpeed(persona) });
     setSampleAudio(persona, language ?? "en", audio.base64, countryCode).catch(() => {});
     res.json({ text, audioBase64: audio.base64, mime: audio.mime });
   } catch (err) {
