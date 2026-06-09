@@ -3,3 +3,7 @@
 
 # No need to store the pnpm store twice.
 .local
+
+# node_modules are installed fresh in the build container by pnpm install.
+# Shipping them causes a version/config mismatch that makes pnpm abort without a TTY.
+node_modules
