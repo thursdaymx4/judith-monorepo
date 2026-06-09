@@ -13,30 +13,53 @@ import { syncNotifications, cancelAllNotifications, getPermissionStatus } from "
 export function useNotificationSync() {
   const { bills, toggles, persona, language } = useJudith();
   const syncingRef = useRef(false);
+  const pendingRef = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const runIdRef = useRef(0);
   const { dueReminders, nudges } = toggles;
 
   useEffect(() => {
+    runIdRef.current += 1;
+    const runId = runIdRef.current;
+    if (timerRef.current) clearTimeout(timerRef.current);
+
     if (!dueReminders && !nudges) {
+      pendingRef.current = false;
       cancelAllNotifications().catch(() => {});
       return;
     }
 
-    if (syncingRef.current) return;
-    syncingRef.current = true;
+    const runSync = () => {
+      if (runIdRef.current !== runId) return;
+      if (syncingRef.current) {
+        pendingRef.current = true;
+        return;
+      }
 
-    getPermissionStatus()
-      .then((status) => {
-        if (status !== "granted") return;
-        return syncNotifications(bills, persona, language, {
-          reminder: dueReminders,
-          nudge: nudges,
+      syncingRef.current = true;
+      getPermissionStatus()
+        .then((status) => {
+          if (status !== "granted") return;
+          return syncNotifications(bills, persona, language, {
+            reminder: dueReminders,
+            nudge: nudges,
+          });
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (runIdRef.current !== runId) return;
+          syncingRef.current = false;
+          if (pendingRef.current) {
+            pendingRef.current = false;
+            timerRef.current = setTimeout(runSync, 400);
+          }
         });
-      })
-      .catch(() => {})
-      .finally(() => {
-        syncingRef.current = false;
-      });
-  // Re-sync whenever any of these change
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    };
+
+    timerRef.current = setTimeout(runSync, 700);
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, [bills, dueReminders, nudges, persona, language]);
 }

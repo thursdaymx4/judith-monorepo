@@ -4,6 +4,17 @@ import * as FileSystem from "expo-file-system/legacy";
 let counter = 0;
 /** The one player that is currently (or most recently) playing. */
 let _activePlayer: ReturnType<typeof createAudioPlayer> | null = null;
+let _activeUri: string | null = null;
+
+async function cleanupUri(uri: string | null) {
+  if (!uri) return;
+  try {
+    const info = await FileSystem.getInfoAsync(uri);
+    if (info.exists) await FileSystem.deleteAsync(uri, { idempotent: true });
+  } catch {
+    /* ignore */
+  }
+}
 
 /**
  * Stop and dispose whatever Judith audio is currently playing.
@@ -11,11 +22,14 @@ let _activePlayer: ReturnType<typeof createAudioPlayer> | null = null;
  */
 export function stopCurrentAudio() {
   const p = _activePlayer;
+  const uri = _activeUri;
   _activePlayer = null;
+  _activeUri = null;
   if (p) {
     try { p.pause(); } catch { /* ignore */ }
     try { p.remove(); } catch { /* ignore */ }
   }
+  void cleanupUri(uri);
 }
 
 /**
@@ -35,6 +49,7 @@ export async function playBase64Mp3(base64: string, rate = 1.0): Promise<void> {
 
   const player = createAudioPlayer(uri);
   _activePlayer = player;
+  _activeUri = uri;
 
   // Faster playback — 1.2× feels snappier without sounding rushed.
   // expo-audio's TS types don't expose `rate` yet, so we cast.
@@ -46,8 +61,13 @@ export async function playBase64Mp3(base64: string, rate = 1.0): Promise<void> {
     const sub = player.addListener("playbackStatusUpdate", (status) => {
       if (status.didJustFinish) {
         sub.remove();
-        if (_activePlayer === player) _activePlayer = null;
+        const finishedUri = _activePlayer === player ? _activeUri : uri;
+        if (_activePlayer === player) {
+          _activePlayer = null;
+          _activeUri = null;
+        }
         try { player.remove(); } catch { /* ignore */ }
+        void cleanupUri(finishedUri);
         resolve();
       }
     });

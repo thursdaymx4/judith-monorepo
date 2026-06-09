@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
 
 import * as Notifications from "expo-notifications";
@@ -131,28 +131,32 @@ export default function SettingsScreen() {
   const email = user?.email ?? (guest ? "Guest account" : "—");
 
   const [speakingPersona, setSpeakingPersona] = useState<PersonaId | null>(null);
-  const speakAbortRef = useRef<boolean>(false);
+  const speakRequestRef = useRef(0);
 
   useEffect(() => {
-    speakAbortRef.current = true;
+    speakRequestRef.current += 1;
     stopCurrentAudio();
     setSpeakingPersona(null);
   }, [language, countryCode]);
 
   const playPersonaSample = useCallback(async (id: PersonaId) => {
     if (speakingPersona === id) return;
-    speakAbortRef.current = true;
+    const requestId = speakRequestRef.current + 1;
+    speakRequestRef.current = requestId;
     stopCurrentAudio();
-    speakAbortRef.current = false;
-    setSpeakingPersona(id);
+    startTransition(() => setSpeakingPersona(id));
     try {
       const { audioBase64 } = await fetchSample(id, language, countryCode);
-      if (speakAbortRef.current) return;
+      if (speakRequestRef.current !== requestId) return;
       await playBase64Mp3(audioBase64);
     } catch {
       // ignore — failed silently
     } finally {
-      setSpeakingPersona((cur) => (cur === id ? null : cur));
+      if (speakRequestRef.current === requestId) {
+        startTransition(() => {
+          setSpeakingPersona((cur) => (cur === id ? null : cur));
+        });
+      }
     }
   }, [speakingPersona, language, countryCode]);
 

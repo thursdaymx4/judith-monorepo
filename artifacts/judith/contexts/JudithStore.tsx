@@ -300,7 +300,7 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       AsyncStorage.setItem(storageKey, json).catch(() => {});
       // Mirror to iCloud so the backup survives reinstalls and device switches.
       if (user?.id) saveToICloud(state, user.id).catch(() => {});
-    }, 250);
+    }, 800);
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };

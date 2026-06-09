@@ -241,30 +241,62 @@ export function previewVoice(
 
 /** In-memory cache for authenticated settings persona samples. */
 const _settingsSampleCache = new Map<string, { text: string; audioBase64: string; mime: string }>();
+const _settingsSampleInflight = new Map<string, Promise<{ text: string; audioBase64: string; mime: string }>>();
 
 export async function fetchSample(
   persona: PersonaId,
   language?: string,
   countryCode?: string,
 ): Promise<{ text: string; audioBase64: string; mime: string }> {
-  const cacheKey = `${persona}__${language ?? "en"}__${countryCode ?? ""}`;
+  const effectiveCountryCode =
+    countryCode && countryCode.toUpperCase() === "PH" ? countryCode.toUpperCase() : undefined;
+  const cacheKey = `${persona}__${language ?? "en"}__${effectiveCountryCode ?? ""}`;
   const hit = _settingsSampleCache.get(cacheKey);
   if (hit) return hit;
+  const inflight = _settingsSampleInflight.get(cacheKey);
+  if (inflight) return inflight;
 
-  const headers = await authHeader();
-  const lang = language ? `&language=${encodeURIComponent(language)}` : "";
-  const cc = countryCode ? `&countryCode=${encodeURIComponent(countryCode)}` : "";
-  const res = await fetch(`${BASE}/sample?persona=${PERSONA_MAP[persona]}${lang}${cc}`, {
-    headers,
-  });
-  throwIfRateLimited(res);
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(`Sample failed (${res.status}): ${detail}`);
+  const fetchWithLanguage = async (
+    langCode?: string,
+    cc?: string,
+  ): Promise<{ text: string; audioBase64: string; mime: string }> => {
+    const headers = await authHeader();
+    const lang = langCode ? `&language=${encodeURIComponent(langCode)}` : "";
+    const ccQuery = cc ? `&countryCode=${encodeURIComponent(cc)}` : "";
+    const res = await fetch(`${BASE}/sample?persona=${PERSONA_MAP[persona]}${lang}${ccQuery}`, {
+      headers,
+    });
+    throwIfRateLimited(res);
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      throw new Error(`Sample failed (${res.status}): ${detail}`);
+    }
+    const result = (await res.json()) as { text: string; audioBase64: string; mime: string };
+    if (!result.audioBase64) {
+      throw new Error("Sample failed: empty audio payload");
+    }
+    return result;
+  };
+
+  const request = (async () => {
+    try {
+      const result = await fetchWithLanguage(language, effectiveCountryCode);
+      _settingsSampleCache.set(cacheKey, result);
+      return result;
+    } catch (error) {
+      if (language === "en-US") throw error;
+      const fallback = await fetchWithLanguage("en-US");
+      _settingsSampleCache.set(cacheKey, fallback);
+      return fallback;
+    }
+  })();
+
+  _settingsSampleInflight.set(cacheKey, request);
+  try {
+    return await request;
+  } finally {
+    _settingsSampleInflight.delete(cacheKey);
   }
-  const result = (await res.json()) as { text: string; audioBase64: string; mime: string };
-  _settingsSampleCache.set(cacheKey, result);
-  return result;
 }
 
 /**
