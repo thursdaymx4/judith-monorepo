@@ -254,6 +254,15 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
     function applyParsed(parsed: Partial<PersistShape>) {
       if ((parsed.tier as string) === "plus") parsed.tier = "chat";
       if ((parsed.tier as string) === "unlimited") parsed.tier = "voice";
+      // Migration: if currency is still the PH default but the stored country was
+      // changed, the user never got a currency sync (old bug). Auto-correct it.
+      if (
+        parsed.countryCode &&
+        parsed.countryCode !== DEFAULT_COUNTRY.code &&
+        (!parsed.currency || parsed.currency === DEFAULT_COUNTRY.cur)
+      ) {
+        parsed.currency = countryByCode(parsed.countryCode).cur;
+      }
       setState({ ...DEFAULTS, ...parsed, toggles: { ...DEFAULTS.toggles, ...(parsed.toggles ?? {}) } });
     }
 
@@ -687,7 +696,7 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       toggleTheme: () =>
         patch({ theme: state.theme === "dark" ? "light" : "dark" }),
       setAccent: (a) => patch({ accent: a }),
-      setCountry: (code) => patch({ countryCode: code }),
+      setCountry: (code) => patch({ countryCode: code, currency: countryByCode(code).cur }),
       setCurrency: (sym) => patch({ currency: sym }),
       setToggle: (key, v) =>
         patch({ toggles: { ...state.toggles, [key]: v } }),
