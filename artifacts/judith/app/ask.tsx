@@ -8,7 +8,9 @@ import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
+import RA, { useSharedValue, useAnimatedStyle, withSpring, withTiming, withDelay, withRepeat, withSequence, cancelAnimation, Easing as REasing } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { haptics } from "@/lib/haptics";
 
 import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
@@ -70,6 +72,52 @@ const BILL_WORDS =
   /bill|due|owe|owed|pay|paid|payment|total|month|week|today|tomorrow|balance|card|loan|rent|mortgage|electric|water|internet|mobile|subscription|netflix|spotify|meralco|when|how much|magkano|cost|charge|fee|money|budget|afford|salary|spend/i;
 
 type Msg = AskMsg;
+
+/* ── Animated typing dot ── */
+function TypingDot({ delay }: { delay: number }) {
+  const t = useTheme();
+  const y = useSharedValue(0);
+  useEffect(() => {
+    y.value = withDelay(delay, withRepeat(
+      withSequence(
+        withTiming(-5, { duration: 280, easing: REasing.out(REasing.quad) }),
+        withTiming(0, { duration: 280, easing: REasing.in(REasing.quad) }),
+        withTiming(0, { duration: 160 }),
+      ),
+      -1,
+    ));
+    return () => cancelAnimation(y);
+  }, []);
+  const style = useAnimatedStyle(() => ({ transform: [{ translateY: y.value }] }));
+  return <RA.View style={[{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: t.txtMid, opacity: 0.65 }, style]} />;
+}
+
+function TypingDots() {
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 3 }}>
+      <TypingDot delay={0} />
+      <TypingDot delay={180} />
+      <TypingDot delay={360} />
+    </View>
+  );
+}
+
+/* ── Spring-in wrapper for new messages ── */
+function AnimMsg({ children }: { children: React.ReactNode }) {
+  const op = useSharedValue(0);
+  const ty = useSharedValue(10);
+  const sc = useSharedValue(0.95);
+  useEffect(() => {
+    op.value = withTiming(1, { duration: 200 });
+    ty.value = withSpring(0, { damping: 20, stiffness: 200 });
+    sc.value = withSpring(1, { damping: 20, stiffness: 200 });
+  }, []);
+  const style = useAnimatedStyle(() => ({
+    opacity: op.value,
+    transform: [{ translateY: ty.value }, { scale: sc.value }],
+  }));
+  return <RA.View style={style}>{children}</RA.View>;
+}
 
 export default function AskModal() {
   const t = useTheme();
@@ -825,8 +873,8 @@ export default function AskModal() {
         >
           {messages.map((m, i) =>
             m.role === "user" ? (
+              <AnimMsg key={i}>
               <View
-                key={i}
                 style={{
                   alignSelf: "flex-end",
                   maxWidth: "85%",
@@ -841,9 +889,10 @@ export default function AskModal() {
                   {m.text}
                 </Txt>
               </View>
+              </AnimMsg>
             ) : (
+              <AnimMsg key={i}>
               <View
-                key={i}
                 style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}
               >
                 <JudithAvatar persona={persona} size={30} state="idle" />
@@ -891,13 +940,14 @@ export default function AskModal() {
                   )}
                 </View>
               </View>
+              </AnimMsg>
             ),
           )}
           {busy && (
             <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
               <JudithAvatar persona={persona} size={30} state="speaking" />
               <SpeechBubble>
-                <Low size={14}>{"Judith is thinking\u2026"}</Low>
+                <TypingDots />
               </SpeechBubble>
             </View>
           )}

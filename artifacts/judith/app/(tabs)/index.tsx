@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Pressable, ScrollView, View } from "react-native";
+import Reanimated, { useSharedValue, useAnimatedStyle, withSpring as springTo } from "react-native-reanimated";
 import { Defs, LinearGradient as SvgGradient, Path, Stop, Svg } from "react-native-svg";
 
 import { Icon, type IconName } from "@/components/Icon";
@@ -151,6 +152,26 @@ function PulseDot({ color, active, reduce }: { color: string; active: boolean; r
         }}
       />
     </View>
+  );
+}
+
+/** Spring press scale wrapper for bill rows. */
+function SpringPressRow({ children, onPress, style }: {
+  children: React.ReactNode; onPress: () => void; style?: any;
+}) {
+  const sc = useSharedValue(1);
+  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: sc.value }] }));
+  return (
+    <Reanimated.View style={animStyle}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={() => { sc.value = springTo(0.97, { damping: 15, stiffness: 300 }); }}
+        onPressOut={() => { sc.value = springTo(1, { damping: 12, stiffness: 200 }); }}
+        style={style}
+      >
+        {children}
+      </Pressable>
+    </Reanimated.View>
   );
 }
 
@@ -547,12 +568,9 @@ export default function HomeScreen() {
           const last = i === visible.length - 1;
           return (
             <StaggerRow key={b.id} index={i} reduce={reduce} style={{ marginBottom: last ? 0 : 12 }}>
-            <Pressable
+            <SpringPressRow
               onPress={() => openBill(b)}
-              style={({ pressed }) => [
-                { flexDirection: "row", alignItems: "stretch", gap: 10 },
-                pressed && { opacity: 0.85 },
-              ]}
+              style={{ flexDirection: "row", alignItems: "stretch", gap: 10 }}
             >
               {/* rail */}
               <View style={{ width: 14, alignItems: "center" }}>
@@ -652,7 +670,7 @@ export default function HomeScreen() {
                   </View>
                 );
               })()}
-            </Pressable>
+            </SpringPressRow>
             </StaggerRow>
           );
         })}

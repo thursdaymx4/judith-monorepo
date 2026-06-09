@@ -1,8 +1,10 @@
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
+import RA, { useSharedValue, useAnimatedStyle, withSpring, withTiming, Easing as REasing } from "react-native-reanimated";
 import Svg, { Circle, G, Path } from "react-native-svg";
+import { haptics } from "@/lib/haptics";
 
 import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
@@ -52,23 +54,35 @@ function Donut({ segments, total, size = 130 }: { segments: CatSlice[]; total: n
   const r = (size - stroke) / 2;
   const C = 2 * Math.PI * r;
   let acc = 0;
+  const sc = useSharedValue(0.75);
+  const op = useSharedValue(0);
+  useEffect(() => {
+    sc.value = withSpring(1, { damping: 14, stiffness: 70 });
+    op.value = withTiming(1, { duration: 350 });
+  }, []);
+  const bloomStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: sc.value }],
+    opacity: op.value,
+  }));
   return (
-    <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <G rotation={-90} origin={`${size / 2}, ${size / 2}`}>
-        <Circle cx={size/2} cy={size/2} r={r} fill="none" stroke={t.surface3} strokeWidth={stroke} />
-        {segments.map((s, i) => {
-          const len = total > 0 ? (s.value / total) * C : 0;
-          const dash = Math.max(0, len - 3);
-          const seg = (
-            <Circle key={i} cx={size/2} cy={size/2} r={r} fill="none" stroke={s.color}
-              strokeWidth={stroke} strokeLinecap="round"
-              strokeDasharray={`${dash} ${C - dash}`} strokeDashoffset={-acc} />
-          );
-          acc += len;
-          return seg;
-        })}
-      </G>
-    </Svg>
+    <RA.View style={bloomStyle}>
+      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <G rotation={-90} origin={`${size / 2}, ${size / 2}`}>
+          <Circle cx={size/2} cy={size/2} r={r} fill="none" stroke={t.surface3} strokeWidth={stroke} />
+          {segments.map((s, i) => {
+            const len = total > 0 ? (s.value / total) * C : 0;
+            const dash = Math.max(0, len - 3);
+            const seg = (
+              <Circle key={i} cx={size/2} cy={size/2} r={r} fill="none" stroke={s.color}
+                strokeWidth={stroke} strokeLinecap="round"
+                strokeDasharray={`${dash} ${C - dash}`} strokeDashoffset={-acc} />
+            );
+            acc += len;
+            return seg;
+          })}
+        </G>
+      </Svg>
+    </RA.View>
   );
 }
 
@@ -109,16 +123,37 @@ function PaidBilledBar({ paidTotal, billedTotal, paidFrac, money }: {
   const paidPct   = Math.round(paidFrac * 100);
   const unpaidAmt = billedTotal - paidTotal;
   const allPaid   = unpaidAmt <= 0;
+  const barW = useSharedValue(0);
+  const containerW = useSharedValue(0);
+  const barStyle = useAnimatedStyle(() => ({ width: barW.value }));
+  useEffect(() => {
+    if (containerW.value > 0) {
+      barW.value = withTiming(containerW.value * paidFrac, {
+        duration: 900, easing: REasing.bezier(0.22, 1, 0.36, 1),
+      });
+    }
+  }, [paidFrac]);
   return (
     <View style={{ marginTop: 16, gap: 8 }}>
       {/* segmented bar */}
-      <View style={{ flexDirection: "row", height: 12, borderRadius: 6, overflow: "hidden", backgroundColor: t.semantic.err + "55" }}>
+      <View
+        style={{ flexDirection: "row", height: 12, borderRadius: 6, overflow: "hidden", backgroundColor: t.semantic.err + "55" }}
+        onLayout={(e) => {
+          const w = e.nativeEvent.layout.width;
+          containerW.value = w;
+          barW.value = withTiming(w * paidFrac, {
+            duration: 900, easing: REasing.bezier(0.22, 1, 0.36, 1),
+          });
+        }}
+      >
         {paidFrac > 0 && (
-          <LinearGradient
-            colors={[t.semantic.ok, mix(t.semantic.ok, "#00e066", 0.3)]}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-            style={{ width: `${paidPct}%`, height: "100%" }}
-          />
+          <RA.View style={barStyle}>
+            <LinearGradient
+              colors={[t.semantic.ok, mix(t.semantic.ok, "#00e066", 0.3)]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={{ flex: 1, height: "100%" }}
+            />
+          </RA.View>
         )}
       </View>
       {/* labels — paid left, unpaid right — can never overlap */}
@@ -148,19 +183,25 @@ function FChip({ active, label, badge, onPress }: {
 }) {
   const t = useTheme();
   const color = active ? t.accent : t.txtMid;
+  const sc = useSharedValue(1);
+  const chipStyle = useAnimatedStyle(() => ({ transform: [{ scale: sc.value }] }));
   return (
-    <Pressable
-      onPress={onPress}
-      style={{ flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 11, borderWidth: 1, borderColor: active ? t.accent : t.hair, backgroundColor: active ? mix(t.accent, t.surface2, 0.12) : t.surface2 }}
-    >
-      {(badge ?? 0) > 1 && (
-        <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
-          <Txt size={9} weight="bold" color={t.onAccent}>{badge}</Txt>
-        </View>
-      )}
-      <Txt size={12} weight="semibold" color={color} numberOfLines={1}>{label}</Txt>
-      <Icon name="chev" size={12} color={color} />
-    </Pressable>
+    <RA.View style={chipStyle}>
+      <Pressable
+        onPress={() => { haptics.selection(); onPress(); }}
+        onPressIn={() => { sc.value = withSpring(0.93, { damping: 15, stiffness: 350 }); }}
+        onPressOut={() => { sc.value = withSpring(1, { damping: 12, stiffness: 200 }); }}
+        style={{ flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 11, borderWidth: 1, borderColor: active ? t.accent : t.hair, backgroundColor: active ? mix(t.accent, t.surface2, 0.12) : t.surface2 }}
+      >
+        {(badge ?? 0) > 1 && (
+          <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: t.accent, alignItems: "center", justifyContent: "center" }}>
+            <Txt size={9} weight="bold" color={t.onAccent}>{badge}</Txt>
+          </View>
+        )}
+        <Txt size={12} weight="semibold" color={color} numberOfLines={1}>{label}</Txt>
+        <Icon name="chev" size={12} color={color} />
+      </Pressable>
+    </RA.View>
   );
 }
 

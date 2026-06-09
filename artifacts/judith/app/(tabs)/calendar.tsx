@@ -1,7 +1,8 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Modal, Pressable, ScrollView, View } from "react-native";
+import RA, { useSharedValue, useAnimatedStyle, withSpring, withTiming, withDelay } from "react-native-reanimated";
 
 import { Icon, type IconName } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
@@ -23,6 +24,34 @@ import { CAT_ICONS, ccOutstanding, ccProjectedFuture, dueClass, dueShort, isPaid
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { haptics } from "@/lib/haptics";
+
+/* ── Staggered bill row ── */
+function AnimRow({ children, index }: { children: React.ReactNode; index: number }) {
+  const op = useSharedValue(0);
+  const ty = useSharedValue(8);
+  useEffect(() => {
+    op.value = withDelay(index * 45, withTiming(1, { duration: 260 }));
+    ty.value = withDelay(index * 45, withSpring(0, { damping: 22, stiffness: 200 }));
+  }, []);
+  const style = useAnimatedStyle(() => ({ opacity: op.value, transform: [{ translateY: ty.value }] }));
+  return <RA.View style={style}>{children}</RA.View>;
+}
+
+/* ── Animated weekly bar ── */
+function AnimWeekBar({ fraction, maxH, colors, delay }: {
+  fraction: number; maxH: number; colors: [string, string]; delay: number;
+}) {
+  const h = useSharedValue(0);
+  useEffect(() => {
+    h.value = withDelay(delay, withSpring(Math.round(fraction * maxH), { damping: 16, stiffness: 80 }));
+  }, [fraction]);
+  const style = useAnimatedStyle(() => ({ height: Math.max(0, h.value) }));
+  return (
+    <RA.View style={[style, { width: "100%", overflow: "hidden", borderBottomLeftRadius: 8, borderBottomRightRadius: 8 }]}>
+      <LinearGradient colors={colors} start={{ x: 0, y: 1 }} end={{ x: 0, y: 0 }} style={{ flex: 1 }} />
+    </RA.View>
+  );
+}
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -120,13 +149,14 @@ function CalHeat({
                     haptics.light();
                     setSel(isSel ? null : d);
                   }}
-                  style={{
+                  style={({ pressed }) => ({
                     flex: 1, aspectRatio: 1, alignItems: "center", justifyContent: "center",
                     borderRadius: 999,
                     borderWidth: isToday ? 1.5 : 0,
                     borderColor: isToday ? t.accent : "transparent",
                     backgroundColor: isSel ? mix(t.accent, t.surface2, 0.22) : "transparent",
-                  }}
+                    transform: [{ scale: pressed && items.length > 0 ? 0.82 : 1 }],
+                  })}
                 >
                   {due.length > 0 && (
                     <View pointerEvents="none" style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" }}>
@@ -425,11 +455,11 @@ export default function CalendarScreen() {
                 {w > 0 ? country.cur + fmtK(w) : "—"}
               </Mono>
               <View style={{ width: "100%", height: 54, borderRadius: 9, backgroundColor: t.surface2, borderWidth: 1, borderColor: t.hair2, justifyContent: "flex-end", overflow: "hidden" }}>
-                <LinearGradient
+                <AnimWeekBar
+                  fraction={w / maxW}
+                  maxH={54}
                   colors={[mix(t.accent, t.surface3, 0.35), t.accent]}
-                  start={{ x: 0, y: 1 }}
-                  end={{ x: 0, y: 0 }}
-                  style={{ width: "100%", height: `${Math.round((w / maxW) * 100)}%`, borderBottomLeftRadius: 8, borderBottomRightRadius: 8 }}
+                  delay={i * 80}
                 />
               </View>
               <Low size={9}>
@@ -549,7 +579,7 @@ export default function CalendarScreen() {
         </Card>
       ) : (
         <View style={{ gap: 9 }}>
-          {agenda.map((b) => {
+          {agenda.map((b, _ai) => {
             const dd = viewedDueDays(b);
             const cls = dueClass(dd) as Urgency;
             const amt = viewedAmt(b);
@@ -574,8 +604,8 @@ export default function CalendarScreen() {
             const carriedBalance = ccPartialCarry || hasCarryOver;
             const sub = isCCEst ? " · est." : ccSettled ? " · settled" : carriedBalance ? " · carried balance" : "";
             return (
+              <AnimRow key={b.id} index={_ai}>
               <CalBillRow
-                key={b.id}
                 bill={b}
                 onPress={() => openBill(b)}
                 amtColor={ccSettled ? t.txtLow : isCCEst ? t.txtMid : t.semantic[cls]}
@@ -595,6 +625,7 @@ export default function CalendarScreen() {
                   </Low>
                 </View>
               </CalBillRow>
+              </AnimRow>
             );
           })}
         </View>
