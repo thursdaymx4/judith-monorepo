@@ -133,7 +133,7 @@ const DEFAULTS: PersistShape = {
   asksLeft: FREE_ASKS,
   tier: "free",
   name: "",
-  persona: "pro",
+  persona: "marites",
   voiceId: "rachel",
   language: "en",
   theme: "system",

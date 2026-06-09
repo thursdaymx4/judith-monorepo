@@ -45,7 +45,7 @@ export function cacheLanguageGroup(lang: string): string {
 }
 
 const PREFIX = "onb-voice";
-const SAMPLE_PREFIX = "persona-sample";
+const SAMPLE_PREFIX = "persona-sample-v2";
 
 /** Return cached onboarding audio, or null on miss / storage unavailable. */
 export async function getOnbAudio(

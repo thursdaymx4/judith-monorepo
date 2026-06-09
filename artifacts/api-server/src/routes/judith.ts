@@ -1225,7 +1225,7 @@ router.get("/sample", sampleVoicesLimiter, async (req, res) => {
       return;
     }
 
-    const audio = await synthesize(text, getVoiceId(persona, language, countryCode), { live: false, speed: getSpeakingSpeed(persona) });
+    const audio = await synthesize(text, getVoiceId(persona, language, countryCode), { live: true, speed: getSpeakingSpeed(persona) });
     setSampleAudio(persona, language ?? "en", audio.base64, countryCode).catch(() => {});
     res.json({ text, audioBase64: audio.base64, mime: audio.mime });
   } catch (err) {
