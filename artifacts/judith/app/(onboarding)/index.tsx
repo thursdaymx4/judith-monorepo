@@ -25,7 +25,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon, type IconName } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
-import { Btn, Card, Low, mix, Mono, Txt } from "@/components/ui";
+import { Btn, Card, Chip, Low, mix, Mono, Txt } from "@/components/ui";
 import {
   COUNTRIES,
   countryFood,
@@ -34,7 +34,7 @@ import {
 import { HOUSES, findDuplicate, fmtCurrency, type Bill, type BillCycleRecord } from "@/constants/data";
 import {
   getSamples, getCardTemplates, getLoanTemplates,
-  getDLocal, getProviderPlaceholder, getQuickAsks,
+  getDLocal, getProviders, getProviderPlaceholder, getQuickAsks,
 } from "@/constants/providers";
 import { LANGUAGES, langSample, langDesc, isFilipino, sttHint } from "@/constants/languages";
 import { getPaywallLocale, fmtFee } from "@/constants/paywallLocale";
@@ -3031,6 +3031,23 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                   <Icon name="chevron-right" size={13} color={t.txtLow} style={{ marginLeft: 6 }} />
                 </Pressable>
               </View>
+              {getProviders(ctx.country.code, activeFormCat.cat).length > 0 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 8, paddingRight: 16, paddingTop: 8, paddingBottom: 2 }}
+                  style={{ marginHorizontal: -16, paddingHorizontal: 16 }}
+                >
+                  {getProviders(ctx.country.code, activeFormCat.cat).map((s) => (
+                    <Chip
+                      key={s.name}
+                      label={s.name}
+                      selected={form.provider.trim() === s.name}
+                      onPress={() => { haptics.selection(); setForm((f) => ({ ...f, provider: s.name })); }}
+                    />
+                  ))}
+                </ScrollView>
+              )}
               {renderPaymentPicker(
                 parseInt(form.due, 10),
                 parseFloat(form.amount.replace(/,/g, "")) || 0,
@@ -3535,6 +3552,23 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                   onChangeText={(v) => setForm({ ...form, provider: v })}
                   placeholder={getProviderPlaceholder(ctx.country.code, formCat.cat)}
                 />
+                {getProviders(ctx.country.code, formCat.cat).length > 0 && (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ gap: 8, paddingRight: 16, paddingTop: 8, paddingBottom: 2 }}
+                    style={{ marginHorizontal: -16, paddingHorizontal: 16 }}
+                  >
+                    {getProviders(ctx.country.code, formCat.cat).map((s) => (
+                      <Chip
+                        key={s.name}
+                        label={s.name}
+                        selected={form.provider.trim() === s.name}
+                        onPress={() => { haptics.selection(); setForm({ ...form, provider: s.name }); }}
+                      />
+                    ))}
+                  </ScrollView>
+                )}
               </View>
               <View style={{ flexDirection: "row", gap: 12, marginTop: 10 }}>
                 <View style={{ flex: 1 }}>
