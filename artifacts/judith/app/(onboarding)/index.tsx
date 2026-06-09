@@ -42,6 +42,7 @@ import { PRIVACY_URL, TERMS_URL, openLegal } from "@/constants/legal";
 import { PERSONAS, type PersonaId } from "@/constants/personas";
 import { JUDITH_VOICE } from "@/constants/voiceLines";
 import { LinearGradient } from "expo-linear-gradient";
+import Svg, { Circle } from "react-native-svg";
 import { useJudith } from "@/contexts/JudithStore";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { getCategoryLabel } from "@/constants/categoryLocale";
@@ -5181,7 +5182,258 @@ function ScreenPayCycle({ ctx }: { ctx: Ctx }) {
 }
 
 /* ================================================================== */
-/* 18. Notifications                                                   */
+/* 18. Bill Summary                                                    */
+/* ================================================================== */
+
+const BILL_SUMMARY_GROUPS = [
+  { label: "Essentials",    cats: ["Rent / Mortgage", "Electricity", "Water", "Internet"],                 color: "#56d1a3" },
+  { label: "Subscriptions", cats: ["Mobile", "Phone subscription", "TV / Streaming", "Web app"],           color: "#a289f8" },
+  { label: "Insurance",     cats: ["Insurance"],                                                            color: "#f59e0b" },
+  { label: "Credit cards",  cats: ["Credit card"],                                                         color: "#f75c61" },
+  { label: "Loans",         cats: ["Personal loan"],                                                       color: "#fb923c" },
+  { label: "Other",         cats: [] as string[],                                                          color: "#909fb8" },
+] as const;
+
+function BudgetPill({
+  label, value, color, t,
+}: {
+  label: string; value: string; color: string;
+  t: ReturnType<typeof useTheme>;
+}) {
+  return (
+    <View style={{ flex: 1, borderRadius: 14, backgroundColor: t.surface1, borderWidth: 1, borderColor: t.hair, padding: 12, alignItems: "center", gap: 3 }}>
+      <Mono size={15} weight="bold" color={color}>{value}</Mono>
+      <Txt size={11} color={t.txtLow}>{label}</Txt>
+    </View>
+  );
+}
+
+function ScreenBillSummary({ ctx }: { ctx: Ctx }) {
+  const { t, bills, country, persona, next } = ctx;
+  const { monthlyIncome } = useJudith();
+  const cur = country.cur;
+
+  const total      = bills.reduce((s, b) => s + (b.amount  || 0), 0);
+  const totalPaid  = bills.reduce((s, b) => s + (b.amountPaid || 0), 0);
+  const totalDue   = Math.max(total - totalPaid, 0);
+  const income     = monthlyIncome ?? null;
+  const remaining  = income != null ? income - total : null;
+  const overdueBills = bills.filter(
+    (b) => b.dueDays < 0 && !(b.amountPaid && b.amountPaid >= b.amount),
+  );
+
+  const knownCats = new Set(BILL_SUMMARY_GROUPS.flatMap((g) => g.cats));
+  const groups = BILL_SUMMARY_GROUPS.map((g) => {
+    if (g.label === "Other") {
+      return { ...g, amount: bills.filter((b) => !knownCats.has(b.cat)).reduce((s, b) => s + (b.amount || 0), 0) };
+    }
+    return { ...g, amount: bills.filter((b) => (g.cats as readonly string[]).includes(b.cat)).reduce((s, b) => s + (b.amount || 0), 0) };
+  }).filter((g) => g.amount > 0);
+
+  const [donutProg,    setDonutProg]    = useState(0);
+  const [displayTotal, setDisplayTotal] = useState(0);
+  const MAX_G = 6;
+  const rowAnims    = useRef(Array.from({ length: MAX_G }, () => new Animated.Value(0))).current;
+  const incomeAnim  = useRef(new Animated.Value(0)).current;
+  const overdueAnim = useRef(new Animated.Value(0)).current;
+  const ctaAnim     = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    let rafId: ReturnType<typeof setTimeout>;
+    const DONUT_MS = 900;
+    const start = Date.now();
+
+    const tick = () => {
+      const elapsed = Date.now() - start;
+      const p = Math.min(elapsed / DONUT_MS, 1);
+      const eased = 1 - Math.pow(1 - p, 2.5);
+      setDonutProg(eased);
+      setDisplayTotal(Math.round(total * eased));
+
+      if (p < 1) { rafId = setTimeout(tick, 16); return; }
+
+      groups.forEach((_, i) => {
+        Animated.timing(rowAnims[i]!, {
+          toValue: 1, duration: 320, delay: i * 75,
+          easing: Easing.bezier(0.2, 0.8, 0.2, 1), useNativeDriver: true,
+        }).start();
+      });
+
+      const afterRows = groups.length * 75 + 120;
+      Animated.timing(incomeAnim, { toValue: 1, duration: 380, delay: afterRows, easing: Easing.bezier(0.2, 0.8, 0.2, 1), useNativeDriver: true }).start();
+      Animated.timing(overdueAnim, { toValue: 1, duration: 380, delay: afterRows + 100, easing: Easing.bezier(0.2, 0.8, 0.2, 1), useNativeDriver: true }).start();
+      Animated.timing(ctaAnim, { toValue: 1, duration: 300, delay: afterRows + (income != null ? 280 : 0) + 140, easing: Easing.bezier(0.2, 0.8, 0.2, 1), useNativeDriver: true }).start();
+    };
+
+    rafId = setTimeout(tick, 80);
+    return () => clearTimeout(rafId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* SVG donut */
+  const D  = 200;
+  const SW = 22;
+  const r  = (D - SW) / 2;
+  const C  = 2 * Math.PI * r;
+  const cx = D / 2;
+  const cy = D / 2;
+
+  let accumPct = 0;
+  const segments = groups.map((g) => {
+    const pct = total > 0 ? g.amount / total : 0;
+    const startPct = accumPct;
+    accumPct += pct;
+    return { ...g, pct, startPct };
+  });
+
+  return (
+    <>
+      <ScrollView
+        style={{ flex: 1, backgroundColor: t.canvas }}
+        contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 8, paddingBottom: 36 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View style={{ alignItems: "center", marginBottom: 12 }}>
+          <JudithAvatar persona={persona} size={44} state="idle" />
+          <Kicker style={{ textAlign: "center", marginTop: 8 }}>Your financial snapshot</Kicker>
+          <Txt size={24} weight="bold" color={t.txtHi} style={{ textAlign: "center", letterSpacing: -0.5, lineHeight: 29, marginTop: 2 }}>
+            {bills.length === 0 ? "No bills logged yet." : `${bills.length} bill${bills.length !== 1 ? "s" : ""} mapped.`}
+          </Txt>
+        </View>
+
+        {/* Donut + center */}
+        <View style={{ alignItems: "center", marginBottom: 20 }}>
+          <View style={{ width: D, height: D }}>
+            <Svg width={D} height={D}>
+              <Circle cx={cx} cy={cy} r={r} fill="none" stroke={t.surface3} strokeWidth={SW} />
+              {segments.map((seg) => {
+                const displayLen = donutProg * seg.pct * C;
+                if (displayLen < 2) return null;
+                return (
+                  <Circle
+                    key={seg.label}
+                    cx={cx} cy={cy} r={r}
+                    fill="none"
+                    stroke={seg.color}
+                    strokeWidth={SW - 1}
+                    strokeDasharray={`${displayLen} ${C * 2}`}
+                    strokeDashoffset={-(seg.startPct * C)}
+                    transform={`rotate(-90 ${cx} ${cy})`}
+                  />
+                );
+              })}
+            </Svg>
+            <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" }}>
+              <Mono size={22} weight="bold" color={t.txtHi} style={{ letterSpacing: -0.5 }}>
+                {cur}{fmtNum(displayTotal)}
+              </Mono>
+              <Txt size={11} color={t.txtLow} style={{ marginTop: 2 }}>per month</Txt>
+            </View>
+          </View>
+        </View>
+
+        {/* Stat pills */}
+        <View style={{ flexDirection: "row", gap: 9, marginBottom: 18 }}>
+          <BudgetPill label="Total/mo" value={`${cur}${fmtNum(total)}`} color={t.accent} t={t} />
+          {totalPaid > 0
+            ? <BudgetPill label="Paid" value={`${cur}${fmtNum(totalPaid)}`} color="#56d1a3" t={t} />
+            : null}
+          <BudgetPill
+            label={totalPaid > 0 ? "Still due" : "Bills logged"}
+            value={totalPaid > 0 ? `${cur}${fmtNum(totalDue)}` : String(bills.length)}
+            color={t.txtMid}
+            t={t}
+          />
+        </View>
+
+        {/* Category breakdown */}
+        {segments.length > 0 && (
+          <View style={{ borderRadius: 20, borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface1, overflow: "hidden", marginBottom: 14 }}>
+            {segments.map((seg, i) => {
+              const barPct = total > 0 ? (seg.amount / total) * 100 : 0;
+              return (
+                <Animated.View
+                  key={seg.label}
+                  style={{
+                    opacity: rowAnims[i],
+                    transform: [{ translateX: rowAnims[i]!.interpolate({ inputRange: [0, 1], outputRange: [-16, 0] }) }],
+                  }}
+                >
+                  <View style={{ paddingHorizontal: 16, paddingTop: 13, paddingBottom: 11, borderBottomWidth: i < segments.length - 1 ? 1 : 0, borderBottomColor: t.hair }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 9 }}>
+                      <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: seg.color + "22", alignItems: "center", justifyContent: "center" }}>
+                        <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: seg.color }} />
+                      </View>
+                      <Txt size={14} weight="medium" color={t.txtHi} style={{ flex: 1 }}>{seg.label}</Txt>
+                      <View style={{ alignItems: "flex-end" }}>
+                        <Mono size={14} weight="bold" color={t.txtHi}>{cur}{fmtNum(seg.amount)}</Mono>
+                        <Txt size={10} color={t.txtLow}>{Math.round(barPct)}% of total</Txt>
+                      </View>
+                    </View>
+                    <View style={{ height: 4, borderRadius: 2, backgroundColor: t.surface3, overflow: "hidden" }}>
+                      <View style={{ width: `${barPct}%`, height: "100%", borderRadius: 2, backgroundColor: seg.color }} />
+                    </View>
+                  </View>
+                </Animated.View>
+              );
+            })}
+          </View>
+        )}
+
+        {/* Income projection */}
+        {income != null && remaining != null && (
+          <Animated.View style={{ opacity: incomeAnim, transform: [{ translateY: incomeAnim.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }], marginBottom: 12 }}>
+            <View style={{ borderRadius: 20, borderWidth: 1, borderColor: withAlpha(remaining >= 0 ? "#56d1a3" : "#f75c61", 0.35), backgroundColor: withAlpha(remaining >= 0 ? "#56d1a3" : "#f75c61", 0.07), padding: 18 }}>
+              <Txt size={11} weight="semibold" color={t.txtLow} style={{ textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10 }}>
+                Monthly budget projection
+              </Txt>
+              <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8, marginBottom: 14 }}>
+                <Mono size={28} weight="bold" color={remaining >= 0 ? "#56d1a3" : "#f75c61"} style={{ letterSpacing: -0.5 }}>
+                  {cur}{fmtNum(Math.abs(remaining))}
+                </Mono>
+                <Txt size={14} color={t.txtMid}>{remaining >= 0 ? "left after bills" : "over budget"}</Txt>
+              </View>
+              <View style={{ height: 10, borderRadius: 5, backgroundColor: t.surface3, overflow: "hidden", marginBottom: 8 }}>
+                <View style={{ width: `${Math.min((total / income) * 100, 100)}%`, height: "100%", borderRadius: 5, backgroundColor: remaining >= 0 ? "#56d1a3" : "#f75c61" }} />
+              </View>
+              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                <Txt size={12} color={t.txtLow}>Bills: {cur}{fmtNum(total)}</Txt>
+                <Txt size={12} color={t.txtLow}>Income: {cur}{fmtNum(income)}</Txt>
+              </View>
+            </View>
+          </Animated.View>
+        )}
+
+        {/* Overdue alert */}
+        {overdueBills.length > 0 && (
+          <Animated.View style={{ opacity: overdueAnim, transform: [{ translateY: overdueAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }], marginBottom: 12 }}>
+            <View style={{ borderRadius: 16, borderWidth: 1, borderColor: withAlpha("#ea1d3b", 0.3), backgroundColor: withAlpha("#ea1d3b", 0.07), padding: 14 }}>
+              <Txt size={13} weight="semibold" color="#ea1d3b" style={{ marginBottom: 6 }}>
+                ⚠️ {overdueBills.length} bill{overdueBills.length !== 1 ? "s" : ""} may be overdue right now
+              </Txt>
+              {overdueBills.map((b, i) => (
+                <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 }}>
+                  <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: "#ea1d3b" }} />
+                  <Txt size={12} color={t.txtMid}>{b.provider || b.cat} · {cur}{fmtNum(b.amount)}</Txt>
+                </View>
+              ))}
+            </View>
+          </Animated.View>
+        )}
+      </ScrollView>
+
+      <CtaBar>
+        <Animated.View style={{ opacity: ctaAnim, transform: [{ translateY: ctaAnim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }}>
+          <Btn label="Got it, let's go →" onPress={next} />
+        </Animated.View>
+      </CtaBar>
+    </>
+  );
+}
+
+/* ================================================================== */
+/* 19. Notifications                                                   */
 /* ================================================================== */
 
 function ScreenNotifications({ ctx }: { ctx: Ctx }) {
@@ -5564,6 +5816,7 @@ const FLOW: { id: string; C: (p: { ctx: Ctx }) => React.ReactElement }[] = [
   { id: "personalizing", C: ScreenPersonalizing },
   { id: "income", C: ScreenMonthlyIncome },
   { id: "paycycle", C: ScreenPayCycle },
+  { id: "billsummary", C: ScreenBillSummary },
   { id: "feature1", C: ScreenFeature1 },
   { id: "feature2", C: ScreenFeature2 },
   { id: "feature3", C: ScreenFeature3 },
