@@ -86,3 +86,4 @@ channel = "stable-25_05"
 
 [userenv.shared]
 GITHUB_REPO = "https://github.com/thursdaymx4/judith-monorepo.git"
+CI = "true"
