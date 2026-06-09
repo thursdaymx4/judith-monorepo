@@ -3780,7 +3780,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
         {mode === "more" && (
           <>
             <Btn label="Add another bill" icon="plus" onPress={() => { setManualReturn("more"); setMode("manualCats"); }} />
-            <Btn label="That’s everything →" variant="soft" onPress={() => setMode("done")} />
+            <Btn label="That’s everything →" variant="soft" onPress={next} />
           </>
         )}
         {mode === "cardIntro" && (
@@ -5519,9 +5519,7 @@ const FLOW: { id: string; C: (p: { ctx: Ctx }) => React.ReactElement }[] = [
   { id: "intro", C: ScreenIntro },
   { id: "billpicker", C: ScreenBillPicker },
   { id: "voice", C: ScreenVoiceAdd },
-  { id: "congrats", C: ScreenCongrats },
   { id: "personalizing", C: ScreenPersonalizing },
-  { id: "summary", C: ScreenSummary },
   { id: "income", C: ScreenMonthlyIncome },
   { id: "paycycle", C: ScreenPayCycle },
   { id: "feature1", C: ScreenFeature1 },
@@ -5530,7 +5528,7 @@ const FLOW: { id: string; C: (p: { ctx: Ctx }) => React.ReactElement }[] = [
   { id: "notifications", C: ScreenNotifications },
   { id: "askpaywall", C: ScreenAskPaywall },
 ];
-const SETUP = ["name", "country", "language", "persona", "problem", "stakes", "intro", "billpicker", "voice", "congrats", "summary"];
+const SETUP = ["name", "country", "language", "persona", "problem", "stakes", "intro", "billpicker", "voice"];
 const NO_BACK = ["welcome", "personalizing"];
 const SKIPPABLE = ["country", "persona", "income", "paycycle", "notifications"];
 const SAVE_FROM = 0;
