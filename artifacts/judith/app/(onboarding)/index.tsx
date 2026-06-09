@@ -21,6 +21,17 @@ import {
   type TextStyle,
   type ViewStyle,
 } from "react-native";
+import Reanimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming as rWithTiming,
+  interpolate,
+  interpolateColor,
+  Extrapolation,
+  runOnJS,
+} from "react-native-reanimated";
+import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon, type IconName } from "@/components/Icon";
@@ -39,7 +50,7 @@ import {
 import { LANGUAGES, langSample, langDesc, isFilipino, sttHint } from "@/constants/languages";
 import { getPaywallLocale, fmtFee } from "@/constants/paywallLocale";
 import { PRIVACY_URL, TERMS_URL, openLegal } from "@/constants/legal";
-import { PERSONAS, type PersonaId } from "@/constants/personas";
+import { PERSONAS, type PersonaId, type Persona } from "@/constants/personas";
 import { JUDITH_VOICE } from "@/constants/voiceLines";
 import { LinearGradient } from "expo-linear-gradient";
 import { useJudith } from "@/contexts/JudithStore";
@@ -314,6 +325,32 @@ function withAlpha(hex: string, a: number): string {
   const b = parseInt(m.slice(4, 6), 16);
   return `rgba(${r},${g},${b},${a})`;
 }
+
+// ─── Background color per onboarding screen (used for animated orb morph) ───
+const SCREEN_COLORS: Record<string, string> = {
+  welcome:        "rgba(41,213,165,0.13)",
+  name:           "rgba(41,213,165,0.13)",
+  country:        "rgba(54,172,255,0.13)",
+  language:       "rgba(54,172,255,0.13)",
+  persona:        "rgba(244,166,205,0.14)",
+  latefee:        "rgba(247,206,130,0.13)",
+  problem:        "rgba(247,206,130,0.13)",
+  stakes:         "rgba(247,206,130,0.13)",
+  intro:          "rgba(41,213,165,0.11)",
+  billpicker:     "rgba(162,137,248,0.13)",
+  voice:          "rgba(162,137,248,0.13)",
+  congrats:       "rgba(41,213,165,0.17)",
+  personalizing:  "rgba(41,213,165,0.13)",
+  summary:        "rgba(41,213,165,0.13)",
+  income:         "rgba(247,206,130,0.12)",
+  paycycle:       "rgba(54,172,255,0.12)",
+  feature1:       "rgba(41,213,165,0.12)",
+  feature2:       "rgba(41,213,165,0.12)",
+  feature3:       "rgba(41,213,165,0.12)",
+  notifications:  "rgba(247,206,130,0.12)",
+  askpaywall:     "rgba(244,166,205,0.14)",
+};
+const DEFAULT_BG_COLOR = "rgba(41,213,165,0.12)";
 
 /* ------------------------------------------------------------------ */
 /* shared layout primitives                                            */
@@ -1210,19 +1247,238 @@ const PERSONA_FIL_SAMPLES: Record<PersonaId, (name: string) => string> = {
   britney: () => "Judith. Bills mo, due dates, amounts — naka-track na lahat. Bayaran mo sa tamang oras.",
 };
 
+/* ─────────────────────────────────────────────────────────────────── */
+/* Persona 3-D carousel card                                          */
+/* ─────────────────────────────────────────────────────────────────── */
+interface PersonaCardProps {
+  p: Persona;
+  cardIdx: number;
+  scrollX: ReturnType<typeof useSharedValue<number>>;
+  CARD_W: number;
+  CARD_STEP: number;
+  isCentered: boolean;
+  isSpeaking: boolean;
+  onTapOffCenter: () => void;
+  onPlayVoice: () => void;
+  t: Theme;
+}
+
+function PersonaCarouselCard({
+  p,
+  cardIdx,
+  scrollX,
+  CARD_W,
+  CARD_STEP,
+  isCentered,
+  isSpeaking,
+  onTapOffCenter,
+  onPlayVoice,
+  t,
+}: PersonaCardProps) {
+  const flipAnim = useSharedValue(0); // 0 = front, 1 = back
+
+  // Reset flip when this card loses focus
+  useEffect(() => {
+    if (!isCentered) {
+      flipAnim.value = rWithTiming(0, { duration: 200 });
+    }
+  }, [isCentered, flipAnim]);
+
+  // 3-D perspective tilt + scale + fade based on distance from center
+  const cardAnim = useAnimatedStyle(() => {
+    const offset = scrollX.value - cardIdx * CARD_STEP;
+    const rotY = interpolate(
+      offset,
+      [-CARD_STEP, 0, CARD_STEP],
+      [18, 0, -18],
+      Extrapolation.CLAMP,
+    );
+    const sc = interpolate(
+      Math.abs(offset),
+      [0, CARD_STEP],
+      [1.0, 0.82],
+      Extrapolation.CLAMP,
+    );
+    const op = interpolate(
+      Math.abs(offset),
+      [0, CARD_STEP],
+      [1.0, 0.55],
+      Extrapolation.CLAMP,
+    );
+    return {
+      transform: [{ perspective: 900 }, { rotateY: `${rotY}deg` }, { scale: sc }],
+      opacity: op,
+    };
+  });
+
+  // Front face: spins away at half-flip
+  const frontAnim = useAnimatedStyle(() => ({
+    backfaceVisibility: "hidden" as const,
+    transform: [
+      { perspective: 1000 },
+      { rotateY: `${interpolate(flipAnim.value, [0, 1], [0, 180])}deg` },
+    ],
+    opacity: interpolate(flipAnim.value, [0.35, 0.5], [1, 0], Extrapolation.CLAMP),
+  }));
+
+  // Back face: spins into view at half-flip (starts at -180°)
+  const backAnim = useAnimatedStyle(() => ({
+    backfaceVisibility: "hidden" as const,
+    transform: [
+      { perspective: 1000 },
+      { rotateY: `${interpolate(flipAnim.value, [0, 1], [-180, 0])}deg` },
+    ],
+    opacity: interpolate(flipAnim.value, [0.5, 0.65], [0, 1], Extrapolation.CLAMP),
+  }));
+
+  const handleTap = () => {
+    if (!isCentered) {
+      onTapOffCenter();
+    } else {
+      flipAnim.value = withSpring(flipAnim.value > 0.5 ? 0 : 1, {
+        mass: 1,
+        damping: 13,
+        stiffness: 110,
+      });
+    }
+  };
+
+  const borderCol = isCentered ? withAlpha(t.accent, 0.55) : t.hair;
+  const HALF_GAP = (CARD_STEP - CARD_W) / 2;
+
+  return (
+    <Reanimated.View
+      style={[
+        { width: CARD_W, marginHorizontal: HALF_GAP },
+        cardAnim,
+      ]}
+    >
+      <Pressable onPress={handleTap} style={{ flex: 1 }}>
+        {/* ── Front face ── */}
+        <Reanimated.View
+          style={[
+            {
+              borderRadius: t.radius.md,
+              backgroundColor: t.surface2,
+              borderWidth: 1,
+              borderColor: borderCol,
+              padding: 18,
+              shadowColor: t.accent,
+              shadowOpacity: isCentered ? 0.28 : 0,
+              shadowRadius: 18,
+              shadowOffset: { width: 0, height: 6 },
+              elevation: isCentered ? 8 : 0,
+              minHeight: 240,
+            },
+            frontAnim,
+          ]}
+        >
+          <JudithAvatar persona={p.id} size={58} state={isSpeaking ? "speaking" : "idle"} />
+          <View style={{ marginTop: 14 }}>
+            <Txt size={16} weight="semibold">{p.name}</Txt>
+            {p.phOnly && (
+              <View style={{
+                backgroundColor: "#f472b6",
+                borderRadius: 20,
+                paddingVertical: 2,
+                paddingHorizontal: 7,
+                alignSelf: "flex-start",
+                marginTop: 4,
+              }}>
+                <Txt size={10} weight="semibold" color="#fff">🇵🇭 PH only</Txt>
+              </View>
+            )}
+            <Low size={12} style={{ marginTop: 5, lineHeight: 17 }}>{p.vibe}</Low>
+            <Low size={12} style={{ marginTop: 6, lineHeight: 17 }}>{p.line}</Low>
+          </View>
+          {isCentered && (
+            <Low size={11} style={{ marginTop: 14, textAlign: "center" }}>Tap to flip ↻</Low>
+          )}
+        </Reanimated.View>
+
+        {/* ── Back face ── */}
+        <Reanimated.View
+          style={[
+            {
+              position: "absolute",
+              top: 0, left: 0, right: 0, bottom: 0,
+              borderRadius: t.radius.md,
+              backgroundColor: t.surface2,
+              borderWidth: 1,
+              borderColor: withAlpha(t.accent, 0.55),
+              padding: 18,
+              minHeight: 240,
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 16,
+            },
+            backAnim,
+          ]}
+        >
+          <JudithAvatar persona={p.id} size={64} state={isSpeaking ? "speaking" : "idle"} />
+          <Txt size={15} weight="semibold" style={{ textAlign: "center" }}>{p.name}</Txt>
+          {isSpeaking ? (
+            <VoiceBars accent={t.accent} on />
+          ) : (
+            <Pressable
+              onPress={onPlayVoice}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+                borderWidth: 1,
+                borderColor: t.accent,
+                borderRadius: 22,
+                paddingVertical: 10,
+                paddingHorizontal: 18,
+                backgroundColor: withAlpha(t.accent, 0.10),
+              }}
+            >
+              <Icon name="mic" size={14} color={t.accent} />
+              <Txt size={13} color={t.accent}>{T("play")}</Txt>
+            </Pressable>
+          )}
+          <Low size={12} style={{ textAlign: "center" }}>{p.vibe}</Low>
+        </Reanimated.View>
+      </Pressable>
+    </Reanimated.View>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
+/* Screen: Persona picker (3-D carousel)                             */
+/* ─────────────────────────────────────────────────────────────────── */
 function ScreenPersona({ ctx }: { ctx: Ctx }) {
   const { t, persona, language, name, setPersona, next } = ctx;
-  const [speakId, setSpeakId] = useState<PersonaId | null>(null);
+  const { width } = useWindowDimensions();
   const visiblePersonas = PERSONAS.filter(p => !p.phOnly || ctx.country.code === "PH");
-  const selected = visiblePersonas.find((p) => p.id === persona);
+  const numPersonas = visiblePersonas.length;
+
+  const CARD_W = Math.min(width * 0.76, 310);
+  const CARD_GAP = 18;
+  const CARD_STEP = CARD_W + CARD_GAP;
+  // Row origin so card at index 0 is centered when scrollX=0
+  const START_X = (width - CARD_W) / 2 - CARD_GAP / 2;
+
+  const initialIdx = Math.max(0, visiblePersonas.findIndex(p => p.id === persona));
+  const scrollX = useSharedValue(initialIdx * CARD_STEP);
+  const savedScrollX = useSharedValue(initialIdx * CARD_STEP);
+  const [centeredIdx, setCenteredIdx] = useState(initialIdx);
+
+  const [speakId, setSpeakId] = useState<PersonaId | null>(null);
   const personaReqId = useRef(0);
 
-  // Prefetch visible persona samples the moment this screen mounts so
-  // "Play voice" taps are instant (hits the in-memory cache, no network round-trip).
+  // Row translateX = START_X - scrollX (moves left as scrollX grows)
+  const carouselRowStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: START_X - scrollX.value }],
+  }));
+
+  // Prefetch persona samples on mount
   useEffect(() => {
     if (!isFilipino(language)) {
       visiblePersonas.forEach((p) => { fetchSampleOnboarding(p.id, language).catch(() => {}); });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const playLine = async (id: PersonaId) => {
@@ -1247,82 +1503,119 @@ function ScreenPersona({ ctx }: { ctx: Ctx }) {
     }
   };
 
+  const handleSelectIdx = useCallback((i: number) => {
+    setCenteredIdx(i);
+    const p = visiblePersonas[i];
+    if (p) setPersona(p.id);
+  }, [visiblePersonas, setPersona]);
+
+  const maxScroll = (numPersonas - 1) * CARD_STEP;
+
+  const panGesture = useMemo(() =>
+    Gesture.Pan()
+      .onBegin(() => {
+        savedScrollX.value = scrollX.value;
+      })
+      .onUpdate((e) => {
+        const next = savedScrollX.value - e.translationX;
+        if (next < 0) {
+          scrollX.value = next * 0.2;
+        } else if (next > maxScroll) {
+          scrollX.value = maxScroll + (next - maxScroll) * 0.2;
+        } else {
+          scrollX.value = next;
+        }
+      })
+      .onEnd((e) => {
+        const raw = scrollX.value - e.velocityX * 0.12;
+        const nearest = Math.round(raw / CARD_STEP);
+        const clamped = Math.max(0, Math.min(nearest, numPersonas - 1));
+        scrollX.value = withSpring(clamped * CARD_STEP, {
+          mass: 1, damping: 20, stiffness: 200,
+        });
+        runOnJS(handleSelectIdx)(clamped);
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [CARD_STEP, maxScroll, numPersonas],
+  );
+
   return (
     <>
-      <Scroll>
-        <Kicker>Step 3</Kicker>
-        <Title>{T("personaT")}</Title>
-        <Lede style={{ marginBottom: 16 }}>{T("personaL")}</Lede>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: t.space.gap }}>
-          {visiblePersonas.map((p) => {
-            const on = persona === p.id;
-            return (
+      <View style={{ flex: 1 }}>
+        <View style={{ paddingHorizontal: t.space.pad, paddingTop: 4, paddingBottom: 16 }}>
+          <Kicker>Step 3</Kicker>
+          <Title>{T("personaT")}</Title>
+          <Lede>{T("personaL")}</Lede>
+        </View>
+
+        {/* 3-D carousel */}
+        <View style={{ flex: 1, justifyContent: "center" }}>
+          <GestureDetector gesture={panGesture}>
+            <Reanimated.View
+              style={[{ flexDirection: "row" }, carouselRowStyle]}
+            >
+              {visiblePersonas.map((p, i) => (
+                <PersonaCarouselCard
+                  key={p.id}
+                  p={p}
+                  cardIdx={i}
+                  scrollX={scrollX}
+                  CARD_W={CARD_W}
+                  CARD_STEP={CARD_STEP}
+                  isCentered={centeredIdx === i}
+                  isSpeaking={speakId === p.id}
+                  onTapOffCenter={() => {
+                    scrollX.value = withSpring(i * CARD_STEP, {
+                      mass: 1, damping: 20, stiffness: 200,
+                    });
+                    handleSelectIdx(i);
+                  }}
+                  onPlayVoice={() => { playLine(p.id); }}
+                  t={t}
+                />
+              ))}
+            </Reanimated.View>
+          </GestureDetector>
+
+          {/* Dot pagination */}
+          <View style={{
+            flexDirection: "row",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: 8,
+            marginTop: 18,
+          }}>
+            {visiblePersonas.map((p, i) => (
               <Pressable
                 key={p.id}
-                onPress={() => playLine(p.id)}
-                style={{
-                  width: `${(100 - 4) / 2}%` as `${number}%`,
-                  flexDirection: "column",
-                  alignItems: "flex-start",
-                  borderWidth: 1,
-                  borderColor: on ? withAlpha(t.accent, 0.6) : t.hair,
-                  borderRadius: t.radius.md,
-                  backgroundColor: t.surface2,
-                  padding: 15,
-                  gap: 10,
-                  transform: [{ translateY: on ? -2 : 0 }],
-                  shadowColor: t.accent,
-                  shadowOpacity: on ? 0.34 : 0,
-                  shadowRadius: on ? 14 : 0,
-                  shadowOffset: { width: 0, height: 4 },
-                  elevation: on ? 6 : 0,
+                onPress={() => {
+                  scrollX.value = withSpring(i * CARD_STEP, {
+                    mass: 1, damping: 20, stiffness: 200,
+                  });
+                  handleSelectIdx(i);
                 }}
-              >
-                <JudithAvatar persona={p.id} size={52} state={speakId === p.id ? "speaking" : "idle"} />
-                <View>
-                  <Txt size={15} weight="semibold">{p.name}</Txt>
-                  {p.phOnly && (
-                    <View style={{
-                      backgroundColor: "#f472b6",
-                      borderRadius: 20,
-                      paddingVertical: 2,
-                      paddingHorizontal: 7,
-                      alignSelf: "flex-start",
-                      marginTop: 3,
-                    }}>
-                      <Txt size={10} weight="semibold" color="#fff">🇵🇭 PH only</Txt>
-                    </View>
-                  )}
-                  <Low size={12} style={{ marginTop: 2 }}>{p.vibe}</Low>
-                </View>
-                <View
-                  style={{
-                    alignSelf: "flex-start",
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 6,
-                    borderWidth: 1,
-                    borderColor: on ? t.accent : t.hair,
-                    borderRadius: 22,
-                    paddingVertical: 6,
-                    paddingHorizontal: 11,
-                  }}
-                >
-                  <Icon name="mic" size={13} color={on ? t.accent : t.txtMid} />
-                  <Txt size={12} color={on ? t.accent : t.txtMid}>{T("play")}</Txt>
-                </View>
-              </Pressable>
-            );
-          })}
+                style={{
+                  width: centeredIdx === i ? 18 : 6,
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor: centeredIdx === i ? t.accent : t.surface3,
+                }}
+              />
+            ))}
+          </View>
         </View>
-        {selected && (
-          <JudithLine style={{ marginTop: 16, alignSelf: "stretch", maxWidth: "100%" }}>
-            {selected.line}
-          </JudithLine>
+
+        {/* Judith quote for the selected persona */}
+        {visiblePersonas[centeredIdx] && (
+          <View style={{ paddingHorizontal: t.space.pad, paddingBottom: 10 }}>
+            <JudithLine style={{ alignSelf: "stretch", maxWidth: "100%" }}>
+              {visiblePersonas[centeredIdx]!.line}
+            </JudithLine>
+          </View>
         )}
-      </Scroll>
+      </View>
       <CtaBar>
-        <Btn label={T("continue")} onPress={next} style={{ opacity: persona ? 1 : 0.4 }} />
+        <Btn label={T("continue")} onPress={next} />
       </CtaBar>
     </>
   );
@@ -5538,6 +5831,8 @@ const SAVE_FROM = 0;
 export default function OnboardingScreen() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const reduce = useReducedMotion();
   const {
     persona,
     setPersona,
@@ -5552,15 +5847,31 @@ export default function OnboardingScreen() {
     setOnboarded,
   } = useJudith();
 
-  const [idx, setIdx] = useState(() =>
-    onbIdx >= SAVE_FROM && onbIdx < FLOW.length ? onbIdx : 0,
-  );
+  const initialIdx = onbIdx >= SAVE_FROM && onbIdx < FLOW.length ? onbIdx : 0;
+  const [idx, setIdx] = useState(initialIdx);
   const [bills, setBills] = useState<OnbBill[]>([]);
   const [selectedCats, setSelectedCats] = useState<string[]>([]);
 
-  // vIn: screen entrance — opacity 0→1 + translateY 8→0 (400ms, prototype vIn keyframe)
+  // Direction of travel between screens — set before each idx change
+  const dirRef = useRef<"forward" | "back">("forward");
+
+  // vIn: directional slide entrance — horizontal instead of vertical
   const vInOpacity = useRef(new Animated.Value(0)).current;
-  const vInY      = useRef(new Animated.Value(8)).current;
+  const vInX       = useRef(new Animated.Value(0)).current;
+
+  // Background color morph — Reanimated SharedValues for smooth interpolation
+  const initColor = SCREEN_COLORS[FLOW[initialIdx]?.id ?? "welcome"] ?? DEFAULT_BG_COLOR;
+  const bgProgress  = useSharedValue(0);
+  const bgColorFrom = useSharedValue(initColor);
+  const bgColorTo   = useSharedValue(initColor);
+
+  const bgStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      bgProgress.value,
+      [0, 1],
+      [bgColorFrom.value, bgColorTo.value],
+    ),
+  }));
 
   useEffect(() => {
     if (idx >= SAVE_FROM) setOnbIdx(idx);
@@ -5568,22 +5879,34 @@ export default function OnboardingScreen() {
   }, [idx]);
 
   useEffect(() => {
+    // 1. Directional slide entrance
+    const dir = dirRef.current;
     vInOpacity.setValue(0);
-    vInY.setValue(8);
+    vInX.setValue(dir === "forward" ? width * 0.6 : -width * 0.45);
     Animated.parallel([
       Animated.timing(vInOpacity, {
         toValue: 1,
-        duration: 400,
-        easing: Easing.bezier(0.2, 0.7, 0.3, 1),
+        duration: 320,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
-      Animated.timing(vInY, {
+      Animated.spring(vInX, {
         toValue: 0,
-        duration: 400,
-        easing: Easing.bezier(0.2, 0.7, 0.3, 1),
+        mass: 1,
+        damping: 22,
+        stiffness: 220,
         useNativeDriver: true,
       }),
     ]).start();
+
+    // 2. Background color morph
+    if (!reduce) {
+      const newColor = SCREEN_COLORS[FLOW[idx]?.id ?? "welcome"] ?? DEFAULT_BG_COLOR;
+      bgColorFrom.value = bgColorTo.value;
+      bgColorTo.value = newColor;
+      bgProgress.value = 0;
+      bgProgress.value = rWithTiming(1, { duration: 580 });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idx]);
 
@@ -5596,6 +5919,7 @@ export default function OnboardingScreen() {
       setOnboarded(true);
       return;
     }
+    dirRef.current = "forward";
     setIdx(toIdx);
   };
   const finishTrans = () => { setTrans(null); advance(idx + 1); };
@@ -5605,7 +5929,10 @@ export default function OnboardingScreen() {
     if (screen.id === "latefee")  { setTrans("question"); return; }
     advance(idx + 1);
   };
-  const back = () => setIdx((i) => Math.max(i - 1, 0));
+  const back = () => {
+    dirRef.current = "back";
+    setIdx((i) => Math.max(i - 1, 0));
+  };
   const addBill = (b: OnbBill) => setBills((arr) => [...arr, b]);
 
   const ctx = useMemo<Ctx>(
@@ -5622,8 +5949,27 @@ export default function OnboardingScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.canvas, paddingTop: insets.top }}>
+      {/* Animated background color orb — morphs between accent hues per screen */}
+      {!reduce && (
+        <Reanimated.View
+          pointerEvents="none"
+          style={[
+            bgStyle,
+            {
+              position: "absolute",
+              top: "20%",
+              alignSelf: "center",
+              width: 460,
+              height: 460,
+              borderRadius: 230,
+              zIndex: 0,
+            },
+          ]}
+        />
+      )}
+
       {/* nav */}
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 22, paddingTop: 6, paddingBottom: 2, minHeight: 42 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 22, paddingTop: 6, paddingBottom: 2, minHeight: 42, zIndex: 1 }}>
         {showBack ? (
           <Pressable
             onPress={back}
@@ -5668,8 +6014,9 @@ export default function OnboardingScreen() {
       <Animated.View
         style={{
           flex: 1,
+          zIndex: 1,
           opacity: vInOpacity,
-          transform: [{ translateY: vInY }],
+          transform: [{ translateX: vInX }],
         }}
       >
         <Comp ctx={ctx} key={screen.id + idx} />

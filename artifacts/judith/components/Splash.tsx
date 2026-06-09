@@ -14,7 +14,9 @@ import { Icon, type IconName } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { haptics } from "@/lib/haptics";
+import type { Theme } from "@/constants/theme";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function hexAlpha(hex: string, alpha: number): string {
@@ -25,20 +27,124 @@ function hexAlpha(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+// ─── Sonar ring ──────────────────────────────────────────────────────────────
+// Pulsing ring that emanates from behind the avatar.
+// RING_SIZE starts matching the avatar (132px) + a small border offset.
+const RING_SIZE = 148;
+
+function SonarRing({ t, delay }: { t: Theme; delay: number }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Reset to start state immediately so the delayed ring begins correctly
+    scale.setValue(1);
+    opacity.setValue(0);
+
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.parallel([
+          Animated.timing(scale, {
+            toValue: 1.78,
+            duration: 2600,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.sequence([
+            Animated.timing(opacity, {
+              toValue: 0.42,
+              duration: 160,
+              useNativeDriver: true,
+            }),
+            Animated.timing(opacity, {
+              toValue: 0,
+              duration: 2440,
+              easing: Easing.out(Easing.quad),
+              useNativeDriver: true,
+            }),
+          ]),
+        ]),
+        // Snap back before looping
+        Animated.timing(scale, { toValue: 1, duration: 0, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [scale, opacity, delay]);
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{
+        position: "absolute",
+        width: RING_SIZE,
+        height: RING_SIZE,
+        borderRadius: RING_SIZE / 2,
+        borderWidth: 1.5,
+        borderColor: t.accent,
+        // Center within parent (avatar is 132px, ring is 148px → offset -8px each axis)
+        top: -8,
+        left: -8,
+        opacity,
+        transform: [{ scale }],
+      }}
+    />
+  );
+}
+
 // ─── Bloom background ────────────────────────────────────────────────────────
-// Three blobs matching prototype .bloom-bg exactly:
-//   radial-gradient(40% 30% at 28% 32%, accent 30%, transparent 70%)
-//   radial-gradient(45% 32% at 74% 60%, purple 28%, transparent 70%)
-//   radial-gradient(40% 30% at 52% 78%, amber  26%, transparent 70%)
-// On web, GlowBlob resolves to GlowBlob.web.tsx which renders a real CSS
-// radial-gradient div — identical to the prototype. The container Animated.View
-// gets filter:blur(6px), matching .bloom-bg exactly.
-// On native, GlowBlob.tsx renders a low-opacity solid ellipse approximation.
+// Three blobs with independent breathing oscillation.
 const BLOOM_WEB_STYLE = Platform.OS === "web"
   ? ({ filter: "blur(6px)" } as object)
   : {};
 
-function BloomBg({ decoExit }: { decoExit: Animated.Value }) {
+const BLOB_DELAYS = [0, 1333, 2667] as const;
+const BLOB_CONFIGS = [
+  { cx: 0.28, cy: 0.32, rw: 0.40, rh: 0.30, color: "rgba(41,213,165,0.30)" },
+  { cx: 0.74, cy: 0.60, rw: 0.45, rh: 0.32, color: "rgba(244,166,205,0.28)" },
+  { cx: 0.52, cy: 0.78, rw: 0.40, rh: 0.30, color: "rgba(247,206,130,0.26)" },
+] as const;
+
+function BloomBg({
+  decoExit,
+  reduce,
+}: {
+  decoExit: Animated.Value;
+  reduce: boolean;
+}) {
+  // Independent scale value per blob for staggered oscillation
+  const scale0 = useRef(new Animated.Value(1)).current;
+  const scale1 = useRef(new Animated.Value(1)).current;
+  const scale2 = useRef(new Animated.Value(1)).current;
+  const blobScales = [scale0, scale1, scale2] as const;
+
+  useEffect(() => {
+    if (reduce) return;
+    const loops = blobScales.map((sv, i) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(BLOB_DELAYS[i]!),
+          Animated.timing(sv, {
+            toValue: 1.07,
+            duration: 2000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(sv, {
+            toValue: 1.0,
+            duration: 2000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ]),
+      ),
+    );
+    loops.forEach((l) => l.start());
+    return () => loops.forEach((l) => l.stop());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reduce]);
+
   return (
     <Animated.View
       style={[
@@ -50,18 +156,27 @@ function BloomBg({ decoExit }: { decoExit: Animated.Value }) {
         BLOOM_WEB_STYLE,
       ]}
     >
-      {/* blob 1 — accent/mint: radial(40% 30% at 28% 32%, accent 30%, transparent 70%) */}
-      <GlowBlob cx={0.28} cy={0.32} rw={0.40} rh={0.30} color="rgba(41,213,165,0.30)" />
-      {/* blob 2 — pink: radial(45% 32% at 74% 60%, pink 28%, transparent 70%) */}
-      <GlowBlob cx={0.74} cy={0.60} rw={0.45} rh={0.32} color="rgba(244,166,205,0.28)" />
-      {/* blob 3 — amber: radial(40% 30% at 52% 78%, amber 26%, transparent 70%) */}
-      <GlowBlob cx={0.52} cy={0.78} rw={0.40} rh={0.30} color="rgba(247,206,130,0.26)" />
+      {BLOB_CONFIGS.map((cfg, i) => (
+        // Each blob wrapped in a full-screen absolute View so the scale transform
+        // applies around the screen center (close enough to each blob center at
+        // the ±7% range used here — visually imperceptible shift).
+        <Animated.View
+          key={i}
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            top: 0, left: 0, right: 0, bottom: 0,
+            transform: [{ scale: blobScales[i]! }],
+          }}
+        >
+          <GlowBlob {...cfg} />
+        </Animated.View>
+      ))}
     </Animated.View>
   );
 }
 
 // ─── Floating pill ────────────────────────────────────────────────────────────
-// Prototype .float-pill positions: fc1-fc4 (top/bottom, left/right).
 interface FloatCat {
   icon: IconName;
   label: string;
@@ -136,7 +251,6 @@ function FloatPill({
         transform: [{ translateY: y }],
       }}
     >
-      {/* icon badge */}
       <View
         style={{
           width: 30,
@@ -171,9 +285,9 @@ function FloatPill({
  * Background layers (bottom to top):
  *   1. canvas #0a0b0e
  *   2. intro-screen base glow: large teal radial at 50% 38% (accent 22%)
- *   3. bloom-bg three blobs with filter:blur(6px)  ← fade on exit
+ *   3. bloom-bg three blobs with filter:blur(6px)  ← fade on exit + breathe oscillation
  *   4. float pills                                  ← fade on exit
- *   5. avatar (scales 1→0.7 on exit, judToAuth)
+ *   5. avatar with sonar-ping rings behind it
  *   6. "Judith" wordmark + "Due Dates, Handled." tagline
  *   7. "tap to continue" footer
  */
@@ -181,22 +295,27 @@ export function Splash({ onDone }: { onDone: () => void }) {
   const t = useTheme();
   const { persona } = useJudith();
   const insets = useSafeAreaInsets();
+  const reduce = useReducedMotion();
 
   // ── entry Animated values ─────────────────────────────────────────────────
-  const word    = useRef(new Animated.Value(0)).current; // wordmark opacity
-  const tag     = useRef(new Animated.Value(0)).current; // "Due Dates," opacity
-  const foot    = useRef(new Animated.Value(0)).current; // footer opacity
-  // "Handled." spring punch-in — handledIn 1s cubic(.18,1.5,.4,1) delay 1.9s
+  const word    = useRef(new Animated.Value(0)).current;
+  const tag     = useRef(new Animated.Value(0)).current;
+  const foot    = useRef(new Animated.Value(0)).current;
   const handled = useRef(new Animated.Value(0)).current;
 
   // ── exit Animated values ──────────────────────────────────────────────────
-  const exitOpacity = useRef(new Animated.Value(1)).current; // whole overlay
-  const wordExitY   = useRef(new Animated.Value(0)).current; // wordOut: slide -26px
-  const decoExit    = useRef(new Animated.Value(0)).current; // deco fade (0=visible,1=gone)
-  const avatarScale = useRef(new Animated.Value(1)).current; // judToAuth: 1→0.7
+  const exitOpacity = useRef(new Animated.Value(1)).current;
+  const wordExitY   = useRef(new Animated.Value(0)).current;
+  const decoExit    = useRef(new Animated.Value(0)).current;
+  const avatarScale = useRef(new Animated.Value(1)).current;
+
+  // ── sonar ring values (two rings, staggered) ──────────────────────────────
+  const ring1Scale   = useRef(new Animated.Value(1)).current;
+  const ring1Opacity = useRef(new Animated.Value(0)).current;
+  const ring2Scale   = useRef(new Animated.Value(1)).current;
+  const ring2Opacity = useRef(new Animated.Value(0)).current;
 
   const startExit = useCallback(() => {
-    // wordOut: translateY -26px + fade — 420ms
     Animated.parallel([
       Animated.timing(wordExitY, {
         toValue: -26,
@@ -206,7 +325,6 @@ export function Splash({ onDone }: { onDone: () => void }) {
       }),
     ]).start();
 
-    // deco + pills fade out — 420ms
     Animated.timing(decoExit, {
       toValue: 1,
       duration: 420,
@@ -214,7 +332,6 @@ export function Splash({ onDone }: { onDone: () => void }) {
       useNativeDriver: true,
     }).start();
 
-    // judToAuth: avatar scale 1→0.7 — 540ms
     Animated.timing(avatarScale, {
       toValue: 0.7,
       duration: 540,
@@ -222,7 +339,6 @@ export function Splash({ onDone }: { onDone: () => void }) {
       useNativeDriver: true,
     }).start();
 
-    // full overlay cross-dissolve — 480ms at 80ms delay
     Animated.timing(exitOpacity, {
       toValue: 0,
       duration: 480,
@@ -235,13 +351,10 @@ export function Splash({ onDone }: { onDone: () => void }) {
   }, [onDone, wordExitY, decoExit, avatarScale, exitOpacity]);
 
   useEffect(() => {
-    // splashWord: opacity+translateY  delay 0.5s / 1.05s
     Animated.timing(word, { toValue: 1, duration: 1000, delay: 500,  easing: Easing.ease, useNativeDriver: true }).start();
     Animated.timing(tag,  { toValue: 1, duration: 900,  delay: 1050, easing: Easing.ease, useNativeDriver: true }).start();
-    // footer: delay 2.8s
     Animated.timing(foot, { toValue: 1, duration: 800,  delay: 2800, easing: Easing.ease, useNativeDriver: true }).start();
 
-    // handledIn: spring punch-in at 1.9s
     Animated.sequence([
       Animated.delay(1900),
       Animated.spring(handled, {
@@ -252,14 +365,51 @@ export function Splash({ onDone }: { onDone: () => void }) {
       }),
     ]).start();
 
-    // haptic synced to "Handled." punch-in at 1.9s
     const t1 = setTimeout(() => haptics.heavy(), 1900);
-    // auto-advance after 4.6s
     const t2 = setTimeout(startExit, 4600);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [word, tag, foot, handled, startExit]);
 
-  // "Handled." interpolated style — scale: 2.6→0.9→1.08→1 (mirrors handledIn keyframes)
+  // ── sonar ring loops ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (reduce) return;
+
+    const makeLoop = (
+      sv: Animated.Value,
+      ov: Animated.Value,
+      delay: number,
+    ) => {
+      sv.setValue(1);
+      ov.setValue(0);
+      return Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.parallel([
+            Animated.timing(sv, {
+              toValue: 1.78,
+              duration: 2600,
+              easing: Easing.out(Easing.quad),
+              useNativeDriver: true,
+            }),
+            Animated.sequence([
+              Animated.timing(ov, { toValue: 0.4, duration: 160, useNativeDriver: true }),
+              Animated.timing(ov, { toValue: 0, duration: 2440, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+            ]),
+          ]),
+          Animated.timing(sv, { toValue: 1, duration: 0, useNativeDriver: true }),
+        ]),
+      );
+    };
+
+    const l1 = makeLoop(ring1Scale, ring1Opacity, 400);
+    const l2 = makeLoop(ring2Scale, ring2Opacity, 1800);
+    l1.start();
+    l2.start();
+    return () => { l1.stop(); l2.stop(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reduce]);
+
+  // ── derived styles ────────────────────────────────────────────────────────
   const handledOpacity = handled.interpolate({
     inputRange: [0, 0.45, 1],
     outputRange: [0, 1, 1],
@@ -269,8 +419,6 @@ export function Splash({ onDone }: { onDone: () => void }) {
     outputRange: [2.6, 1.2,  0.9,  1.08, 1.0],
     extrapolate: "clamp",
   });
-
-  // decoExit drives all deco opacity (bloom blobs handled inside BloomBg)
   const decoOpacity = decoExit.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
 
   return (
@@ -283,14 +431,13 @@ export function Splash({ onDone }: { onDone: () => void }) {
         opacity: exitOpacity,
       }}
     >
-      {/* 1. Intro-screen base glow — persists through exit cross-dissolve.
-           radial-gradient(95% 55% at 50% 38%, accent 22%, transparent 62%) */}
+      {/* 1. Intro-screen base glow */}
       <IntroScreenGlow />
 
-      {/* 2. Three bloom blobs (filter:blur 6px) — fade with deco */}
-      <BloomBg decoExit={decoExit} />
+      {/* 2. Three bloom blobs with breathing oscillation */}
+      <BloomBg decoExit={decoExit} reduce={reduce} />
 
-      {/* 3. Floating category pills — fade with deco */}
+      {/* 3. Floating category pills */}
       {FLOAT_CATS.map((c) => (
         <FloatPill key={c.label} cat={c} decoOpacity={decoOpacity} />
       ))}
@@ -301,7 +448,7 @@ export function Splash({ onDone }: { onDone: () => void }) {
         style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
       />
 
-      {/* 5. Avatar + wordmark (centred, above tap area via pointerEvents) */}
+      {/* 5. Avatar with sonar rings + wordmark (pointerEvents none so tap passes through) */}
       <View
         style={{
           position: "absolute",
@@ -312,12 +459,51 @@ export function Splash({ onDone }: { onDone: () => void }) {
           pointerEvents: "none",
         }}
       >
-        {/* Avatar — judToAuth: scale 1→0.7 on exit */}
-        <Animated.View style={{ transform: [{ scale: avatarScale }] }}>
-          <JudithAvatar persona={persona} size={132} state="listening" />
-        </Animated.View>
+        {/* Avatar area — rings are position:absolute relative to this container */}
+        <View>
+          {/* Sonar ring 1 */}
+          {!reduce && (
+            <Animated.View
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                width: RING_SIZE,
+                height: RING_SIZE,
+                borderRadius: RING_SIZE / 2,
+                borderWidth: 1.5,
+                borderColor: t.accent,
+                top: -8,
+                left: -8,
+                opacity: ring1Opacity,
+                transform: [{ scale: ring1Scale }],
+              }}
+            />
+          )}
+          {/* Sonar ring 2 */}
+          {!reduce && (
+            <Animated.View
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                width: RING_SIZE,
+                height: RING_SIZE,
+                borderRadius: RING_SIZE / 2,
+                borderWidth: 1.5,
+                borderColor: t.accent,
+                top: -8,
+                left: -8,
+                opacity: ring2Opacity,
+                transform: [{ scale: ring2Scale }],
+              }}
+            />
+          )}
+          {/* Avatar — judToAuth: scale 1→0.7 on exit */}
+          <Animated.View style={{ transform: [{ scale: avatarScale }] }}>
+            <JudithAvatar persona={persona} size={132} state="listening" />
+          </Animated.View>
+        </View>
 
-        {/* "Judith" wordmark — splashWord + wordOut */}
+        {/* "Judith" wordmark */}
         <Animated.View
           style={{
             marginTop: 30,
@@ -346,7 +532,7 @@ export function Splash({ onDone }: { onDone: () => void }) {
           </Text>
         </Animated.View>
 
-        {/* tagline — "Due Dates, " fades 1.05s; "Handled." punches 1.9s */}
+        {/* Tagline — "Due Dates," fades 1.05s; "Handled." punches 1.9s */}
         <View style={{ marginTop: 4, flexDirection: "row", alignItems: "center" }}>
           <Animated.Text
             style={{
