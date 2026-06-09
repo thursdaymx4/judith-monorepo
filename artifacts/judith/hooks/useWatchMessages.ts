@@ -19,35 +19,54 @@ import { useJudith } from "@/contexts/JudithStore";
 import { askJudith, type AskBill } from "@/lib/proxy";
 import {
   currentCycleDue,
-  isPaidViaCard,
   makeBillFromAction,
+  totalOwed,
   type Bill,
 } from "@/constants/data";
+import { amountPaidThisMonth, isPaidThisMonth, remainingThisMonth } from "@/lib/currentCycle";
 import { WatchConnectivity } from "@/lib/watch";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function billToAskBill(b: Bill, allBills: Bill[]): AskBill {
-  const { dueDays, dueLabel } = currentCycleDue(b);
+function buildAskBills(bills: Bill[]): AskBill[] {
   const today = new Date();
-  const dueDay = b.dueDate ?? 1;
-  const dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay);
-  if (dueDate < today) dueDate.setMonth(dueDate.getMonth() + 1);
-  const dueMonth = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, "0")}`;
 
-  const parentCard = b.parentCardId ? allBills.find((x) => x.id === b.parentCardId) : null;
-  return {
-    provider: b.provider,
-    cat: b.cat,
-    amount: b.amount,
-    dueDays,
-    dueLabel,
-    dueMonth,
-    status: b.status,
-    isBusiness: b.isBusiness,
-    chargedToCard: b.chargedToCard,
-    cardName: parentCard?.provider ?? null,
-  };
+  return bills.map((bill) => {
+    // Match the app Ask screen's current-cycle normalization so watch answers
+    // describe the same balances and paid state shown in the phone UI.
+    const { dueDays, dueLabel } = currentCycleDue(bill, today);
+    const dueDate = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate() + dueDays,
+    );
+    const dueMonth = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, "0")}`;
+
+    const parentCard =
+      bill.chargedToCard && bill.parentCardId
+        ? bills.find((candidate) => candidate.id === bill.parentCardId) ?? null
+        : null;
+
+    const amount = parentCard ? totalOwed(bill) : remainingThisMonth(bill, today);
+    const paidThisPeriod = amountPaidThisMonth(bill, today);
+    const isSettledThisPeriod =
+      isPaidThisMonth(bill, today) ||
+      (!parentCard && amount <= 0) ||
+      (parentCard && paidThisPeriod >= totalOwed(bill));
+
+    return {
+      provider: bill.provider,
+      cat: bill.cat,
+      amount,
+      dueDays,
+      dueLabel,
+      dueMonth,
+      status: isSettledThisPeriod ? "paid" : bill.status,
+      isBusiness: bill.isBusiness,
+      chargedToCard: bill.chargedToCard,
+      cardName: parentCard?.provider ?? null,
+    };
+  });
 }
 
 function normalizeText(value: string): string {
@@ -256,7 +275,7 @@ export function useWatchMessages() {
               return;
             }
 
-            const askBills = currentBills.map((b) => billToAskBill(b, currentBills));
+            const askBills = buildAskBills(currentBills);
             const result = await askJudith(
               query,
               askBills,
