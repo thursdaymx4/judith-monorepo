@@ -9,9 +9,12 @@
  * Identifiers are deterministic so re-scheduling replaces the old one.
  */
 import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Alert, Platform } from "react-native";
 import { isPaidViaCard, nextOccurrence, type Bill } from "@/constants/data";
 import type { PersonaId } from "@/constants/personas";
+import { supabase } from "@/lib/supabase";
 
 // ─── Notification categories ──────────────────────────────────────────────────
 // Register once on app start so iOS/Android know about the action buttons.
@@ -44,6 +47,120 @@ Notifications.setNotificationHandler({
   }),
 });
 
+const REMOTE_PUSH_STORAGE_KEY = "judith.remote-push-registration.v1";
+
+interface RemotePushRegistration {
+  expoPushToken: string | null;
+  devicePushToken: string | null;
+  devicePushType: string | null;
+  permissionStatus: "granted" | "denied" | "undetermined";
+  platform: string;
+  projectId: string | null;
+  updatedAt: string;
+}
+
+function getProjectId(): string | null {
+  const easProjectId =
+    (Constants.easConfig?.projectId as string | undefined) ??
+    ((Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)?.eas?.projectId);
+  return easProjectId ?? null;
+}
+
+async function readStoredRemotePushRegistration(): Promise<RemotePushRegistration | null> {
+  try {
+    const raw = await AsyncStorage.getItem(REMOTE_PUSH_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as RemotePushRegistration;
+  } catch {
+    return null;
+  }
+}
+
+async function writeStoredRemotePushRegistration(
+  registration: RemotePushRegistration,
+): Promise<void> {
+  try {
+    await AsyncStorage.setItem(
+      REMOTE_PUSH_STORAGE_KEY,
+      JSON.stringify(registration),
+    );
+  } catch {
+    // ignore persistence failure
+  }
+}
+
+function registrationsEqual(
+  a: RemotePushRegistration | null,
+  b: RemotePushRegistration | null,
+): boolean {
+  if (!a || !b) return false;
+  return (
+    a.expoPushToken === b.expoPushToken &&
+    a.devicePushToken === b.devicePushToken &&
+    a.devicePushType === b.devicePushType &&
+    a.permissionStatus === b.permissionStatus &&
+    a.platform === b.platform &&
+    a.projectId === b.projectId
+  );
+}
+
+async function registerRemotePushTokens(): Promise<RemotePushRegistration | null> {
+  if (Platform.OS === "web") return null;
+
+  const permissionStatus = await getPermissionStatus();
+  if (permissionStatus !== "granted") {
+    const deniedRegistration: RemotePushRegistration = {
+      expoPushToken: null,
+      devicePushToken: null,
+      devicePushType: null,
+      permissionStatus,
+      platform: Platform.OS,
+      projectId: getProjectId(),
+      updatedAt: new Date().toISOString(),
+    };
+    await writeStoredRemotePushRegistration(deniedRegistration);
+    return deniedRegistration;
+  }
+
+  let expoPushToken: string | null = null;
+  let devicePushToken: string | null = null;
+  let devicePushType: string | null = null;
+  const projectId = getProjectId();
+
+  try {
+    const token = projectId
+      ? await Notifications.getExpoPushTokenAsync({ projectId })
+      : await Notifications.getExpoPushTokenAsync();
+    expoPushToken = token.data ?? null;
+  } catch {
+    expoPushToken = null;
+  }
+
+  try {
+    const deviceToken = await Notifications.getDevicePushTokenAsync();
+    devicePushToken =
+      typeof deviceToken.data === "string"
+        ? deviceToken.data
+        : JSON.stringify(deviceToken.data);
+    devicePushType = deviceToken.type ?? null;
+  } catch {
+    devicePushToken = null;
+    devicePushType = null;
+  }
+
+  const registration: RemotePushRegistration = {
+    expoPushToken,
+    devicePushToken,
+    devicePushType,
+    permissionStatus,
+    platform: Platform.OS,
+    projectId,
+    updatedAt: new Date().toISOString(),
+  };
+  await writeStoredRemotePushRegistration(registration);
+  return registration;
+}
+
 // ─── Permission ───────────────────────────────────────────────────────────────
 
 export async function getPermissionStatus(): Promise<"granted" | "denied" | "undetermined"> {
@@ -60,7 +177,10 @@ export async function getPermissionStatus(): Promise<"granted" | "denied" | "und
 export async function requestPermission(): Promise<boolean> {
   if (Platform.OS === "web") return false;
   const { status: current } = await Notifications.getPermissionsAsync();
-  if (current === "granted") return true;
+  if (current === "granted") {
+    await syncRemotePushRegistrationToSession().catch(() => {});
+    return true;
+  }
   if (current === "denied") {
     Alert.alert(
       "Enable notifications",
@@ -70,6 +190,9 @@ export async function requestPermission(): Promise<boolean> {
     return false;
   }
   const { status } = await Notifications.requestPermissionsAsync();
+  if (status === "granted") {
+    await syncRemotePushRegistrationToSession().catch(() => {});
+  }
   return status === "granted";
 }
 
@@ -343,4 +466,41 @@ export async function syncNotifications(
       return scheduleBill(bill, persona, language, { ...opts, leadDays: bill.reminderDays ?? 3, cardName });
     }),
   );
+}
+
+export async function syncRemotePushRegistrationToSession(): Promise<void> {
+  if (Platform.OS === "web" || !supabase) return;
+
+  const previous = await readStoredRemotePushRegistration();
+  const registration = await registerRemotePushTokens();
+  if (!registration) return;
+
+  if (registrationsEqual(previous, registration)) {
+    return;
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    await writeStoredRemotePushRegistration(registration);
+    return;
+  }
+
+  const currentMetadata =
+    user.user_metadata && typeof user.user_metadata === "object"
+      ? user.user_metadata
+      : {};
+
+  const nextMetadata = {
+    ...currentMetadata,
+    judithPushNotifications: registration,
+  };
+
+  const { error } = await supabase.auth.updateUser({
+    data: nextMetadata,
+  });
+  if (error) throw error;
+
+  await writeStoredRemotePushRegistration(registration);
 }

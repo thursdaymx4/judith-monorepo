@@ -14,21 +14,20 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as Notifications from "expo-notifications";
 import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { Splash } from "@/components/Splash";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { JudithProvider, useJudith } from "@/contexts/JudithStore";
 import { useBiometricLock } from "@/hooks/useBiometricLock";
 import { useNotificationSync } from "@/hooks/useNotificationSync";
 import { useWatchSync } from "@/hooks/useWatchSync";
 import { useTheme } from "@/hooks/useTheme";
-import { registerNotificationCategories } from "@/lib/notifications";
+import { registerNotificationCategories, syncRemotePushRegistrationToSession } from "@/lib/notifications";
 import { configurePurchases, identifyUser, resetUser, getActiveTier } from "@/lib/purchases";
 import { SubscriptionProvider } from "@/lib/SubscriptionProvider";
 
@@ -108,7 +107,6 @@ function RootLayoutNav() {
   const { onboarded, hydrated, guest, faceIdLock, tier, subscribe, markPaid, snooze } = useJudith();
   const t = useTheme();
   const router = useRouter();
-  const [splashDone, setSplashDone] = useState(false);
 
   const authed = !!session || guest;
   const isOnboarded = authed && onboarded && !recoveryActive;
@@ -139,6 +137,15 @@ function RootLayoutNav() {
 
   // Keep the paired Apple Watch in sync whenever bills change.
   useWatchSync();
+
+  // Keep remote push registration in sync if iOS rotates the push token.
+  useEffect(() => {
+    if (!authed) return;
+    const sub = Notifications.addPushTokenListener(() => {
+      syncRemotePushRegistrationToSession().catch(() => {});
+    });
+    return () => sub.remove();
+  }, [authed]);
 
   // Navigate to the relevant bill when the user taps a Judith notification.
   // Handles both foreground taps and cold-start launches from a notification.
@@ -200,9 +207,7 @@ function RootLayoutNav() {
           <Stack.Screen name="(auth)" />
         </Stack.Protected>
       </Stack>
-      {!splashDone && <Splash onDone={() => setSplashDone(true)} />}
-      {/* Biometric lock overlay — sits above everything including the splash */}
-      {isOnboarded && faceIdLock && locked && splashDone && (
+      {isOnboarded && faceIdLock && locked && (
         <View style={StyleSheet.absoluteFillObject}>
           <BiometricLockScreen onUnlock={unlock} />
         </View>
