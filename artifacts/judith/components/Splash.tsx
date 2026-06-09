@@ -27,71 +27,10 @@ function hexAlpha(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-// ─── Sonar ring ──────────────────────────────────────────────────────────────
-// Pulsing ring that emanates from behind the avatar.
-// RING_SIZE starts matching the avatar (132px) + a small border offset.
+// ─── Sonar ring dimensions ────────────────────────────────────────────────────
+// Rings implemented inline in Splash component for unified loop management.
+// Avatar = 132px → ring = 148px → offset top/left = -8px to center ring on avatar.
 const RING_SIZE = 148;
-
-function SonarRing({ t, delay }: { t: Theme; delay: number }) {
-  const scale = useRef(new Animated.Value(1)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    // Reset to start state immediately so the delayed ring begins correctly
-    scale.setValue(1);
-    opacity.setValue(0);
-
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.delay(delay),
-        Animated.parallel([
-          Animated.timing(scale, {
-            toValue: 1.78,
-            duration: 2600,
-            easing: Easing.out(Easing.quad),
-            useNativeDriver: true,
-          }),
-          Animated.sequence([
-            Animated.timing(opacity, {
-              toValue: 0.42,
-              duration: 160,
-              useNativeDriver: true,
-            }),
-            Animated.timing(opacity, {
-              toValue: 0,
-              duration: 2440,
-              easing: Easing.out(Easing.quad),
-              useNativeDriver: true,
-            }),
-          ]),
-        ]),
-        // Snap back before looping
-        Animated.timing(scale, { toValue: 1, duration: 0, useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [scale, opacity, delay]);
-
-  return (
-    <Animated.View
-      pointerEvents="none"
-      style={{
-        position: "absolute",
-        width: RING_SIZE,
-        height: RING_SIZE,
-        borderRadius: RING_SIZE / 2,
-        borderWidth: 1.5,
-        borderColor: t.accent,
-        // Center within parent (avatar is 132px, ring is 148px → offset -8px each axis)
-        top: -8,
-        left: -8,
-        opacity,
-        transform: [{ scale }],
-      }}
-    />
-  );
-}
 
 // ─── Bloom background ────────────────────────────────────────────────────────
 // Three blobs with independent breathing oscillation.

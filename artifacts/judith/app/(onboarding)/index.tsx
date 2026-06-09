@@ -1258,6 +1258,7 @@ interface PersonaCardProps {
   CARD_STEP: number;
   isCentered: boolean;
   isSpeaking: boolean;
+  reduce: boolean;
   onTapOffCenter: () => void;
   onPlayVoice: () => void;
   t: Theme;
@@ -1271,6 +1272,7 @@ function PersonaCarouselCard({
   CARD_STEP,
   isCentered,
   isSpeaking,
+  reduce,
   onTapOffCenter,
   onPlayVoice,
   t,
@@ -1284,8 +1286,9 @@ function PersonaCarouselCard({
     }
   }, [isCentered, flipAnim]);
 
-  // 3-D perspective tilt + scale + fade based on distance from center
+  // 3-D perspective tilt + scale + fade — disabled when reduce-motion is on
   const cardAnim = useAnimatedStyle(() => {
+    if (reduce) return {};
     const offset = scrollX.value - cardIdx * CARD_STEP;
     const rotY = interpolate(
       offset,
@@ -1311,30 +1314,37 @@ function PersonaCarouselCard({
     };
   });
 
-  // Front face: spins away at half-flip
-  const frontAnim = useAnimatedStyle(() => ({
-    backfaceVisibility: "hidden" as const,
-    transform: [
-      { perspective: 1000 },
-      { rotateY: `${interpolate(flipAnim.value, [0, 1], [0, 180])}deg` },
-    ],
-    opacity: interpolate(flipAnim.value, [0.35, 0.5], [1, 0], Extrapolation.CLAMP),
-  }));
+  // Front face: no flip animation when reduce-motion is on (always shown)
+  const frontAnim = useAnimatedStyle(() => {
+    if (reduce) return {};
+    return {
+      backfaceVisibility: "hidden" as const,
+      transform: [
+        { perspective: 1000 },
+        { rotateY: `${interpolate(flipAnim.value, [0, 1], [0, 180])}deg` },
+      ],
+      opacity: interpolate(flipAnim.value, [0.35, 0.5], [1, 0], Extrapolation.CLAMP),
+    };
+  });
 
-  // Back face: spins into view at half-flip (starts at -180°)
-  const backAnim = useAnimatedStyle(() => ({
-    backfaceVisibility: "hidden" as const,
-    transform: [
-      { perspective: 1000 },
-      { rotateY: `${interpolate(flipAnim.value, [0, 1], [-180, 0])}deg` },
-    ],
-    opacity: interpolate(flipAnim.value, [0.5, 0.65], [0, 1], Extrapolation.CLAMP),
-  }));
+  // Back face: hidden when reduce-motion is on
+  const backAnim = useAnimatedStyle(() => {
+    if (reduce) return { opacity: 0 };
+    return {
+      backfaceVisibility: "hidden" as const,
+      transform: [
+        { perspective: 1000 },
+        { rotateY: `${interpolate(flipAnim.value, [0, 1], [-180, 0])}deg` },
+      ],
+      opacity: interpolate(flipAnim.value, [0.5, 0.65], [0, 1], Extrapolation.CLAMP),
+    };
+  });
 
   const handleTap = () => {
     if (!isCentered) {
       onTapOffCenter();
-    } else {
+    } else if (!reduce) {
+      // Flip only when motion is allowed
       flipAnim.value = withSpring(flipAnim.value > 0.5 ? 0 : 1, {
         mass: 1,
         damping: 13,
@@ -1391,12 +1401,12 @@ function PersonaCarouselCard({
             <Low size={12} style={{ marginTop: 5, lineHeight: 17 }}>{p.vibe}</Low>
             <Low size={12} style={{ marginTop: 6, lineHeight: 17 }}>{p.line}</Low>
           </View>
-          {isCentered && (
+          {isCentered && !reduce && (
             <Low size={11} style={{ marginTop: 14, textAlign: "center" }}>Tap to flip ↻</Low>
           )}
         </Reanimated.View>
 
-        {/* ── Back face ── */}
+        {/* ── Back face (hidden when reduce-motion is on) ── */}
         <Reanimated.View
           style={[
             {
@@ -1451,6 +1461,7 @@ function PersonaCarouselCard({
 function ScreenPersona({ ctx }: { ctx: Ctx }) {
   const { t, persona, language, name, setPersona, next } = ctx;
   const { width } = useWindowDimensions();
+  const reduce = useReducedMotion();
   const visiblePersonas = PERSONAS.filter(p => !p.phOnly || ctx.country.code === "PH");
   const numPersonas = visiblePersonas.length;
 
@@ -1511,6 +1522,13 @@ function ScreenPersona({ ctx }: { ctx: Ctx }) {
 
   const maxScroll = (numPersonas - 1) * CARD_STEP;
 
+  const snapTo = (targetIdx: number) => {
+    // Use timing (instant-feel) when reduce-motion is on, spring otherwise
+    scrollX.value = reduce
+      ? rWithTiming(targetIdx * CARD_STEP, { duration: 180 })
+      : withSpring(targetIdx * CARD_STEP, { mass: 1, damping: 20, stiffness: 200 });
+  };
+
   const panGesture = useMemo(() =>
     Gesture.Pan()
       .onBegin(() => {
@@ -1530,13 +1548,14 @@ function ScreenPersona({ ctx }: { ctx: Ctx }) {
         const raw = scrollX.value - e.velocityX * 0.12;
         const nearest = Math.round(raw / CARD_STEP);
         const clamped = Math.max(0, Math.min(nearest, numPersonas - 1));
-        scrollX.value = withSpring(clamped * CARD_STEP, {
-          mass: 1, damping: 20, stiffness: 200,
-        });
+        // reduce is captured by value into the worklet closure — safe for a boolean
+        scrollX.value = reduce
+          ? rWithTiming(clamped * CARD_STEP, { duration: 180 })
+          : withSpring(clamped * CARD_STEP, { mass: 1, damping: 20, stiffness: 200 });
         runOnJS(handleSelectIdx)(clamped);
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [CARD_STEP, maxScroll, numPersonas],
+    [CARD_STEP, maxScroll, numPersonas, reduce],
   );
 
   return (
@@ -1564,10 +1583,9 @@ function ScreenPersona({ ctx }: { ctx: Ctx }) {
                   CARD_STEP={CARD_STEP}
                   isCentered={centeredIdx === i}
                   isSpeaking={speakId === p.id}
+                  reduce={reduce}
                   onTapOffCenter={() => {
-                    scrollX.value = withSpring(i * CARD_STEP, {
-                      mass: 1, damping: 20, stiffness: 200,
-                    });
+                    snapTo(i);
                     handleSelectIdx(i);
                   }}
                   onPlayVoice={() => { playLine(p.id); }}
@@ -1589,9 +1607,7 @@ function ScreenPersona({ ctx }: { ctx: Ctx }) {
               <Pressable
                 key={p.id}
                 onPress={() => {
-                  scrollX.value = withSpring(i * CARD_STEP, {
-                    mass: 1, damping: 20, stiffness: 200,
-                  });
+                  snapTo(i);
                   handleSelectIdx(i);
                 }}
                 style={{
@@ -5828,6 +5844,12 @@ const NO_BACK = ["welcome", "personalizing"];
 const SKIPPABLE = ["country", "persona", "income", "paycycle", "notifications"];
 const SAVE_FROM = 0;
 
+// Blur style for the bg orb — soft glow on both web and native (RN 0.76+)
+const ORB_BLUR: object = Platform.select({
+  web: { filter: "blur(80px)" },
+  default: { filter: [{ blur: 80 }] },
+}) ?? {};
+
 export default function OnboardingScreen() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
@@ -5852,14 +5874,27 @@ export default function OnboardingScreen() {
   const [bills, setBills] = useState<OnbBill[]>([]);
   const [selectedCats, setSelectedCats] = useState<string[]>([]);
 
-  // Direction of travel between screens — set before each idx change
+  // Direction of travel between screens
   const dirRef = useRef<"forward" | "back">("forward");
 
-  // vIn: directional slide entrance — horizontal instead of vertical
+  // Enter animation values
   const vInOpacity = useRef(new Animated.Value(0)).current;
   const vInX       = useRef(new Animated.Value(0)).current;
 
-  // Background color morph — Reanimated SharedValues for smooth interpolation
+  // Exit animation values (for the outgoing screen)
+  const exitVX        = useRef(new Animated.Value(0)).current;
+  const exitOpacityAV = useRef(new Animated.Value(0)).current;
+
+  // Snapshot of the outgoing screen rendered while it slides away
+  const [exitScreen, setExitScreen] = useState<{
+    C: (p: { ctx: Ctx }) => React.ReactElement;
+    frozenCtx: Ctx;
+  } | null>(null);
+
+  // Kept in sync after every render — read in navTo before setIdx fires
+  const ctxRef = useRef<Ctx | null>(null);
+
+  // Background color morph
   const initColor = SCREEN_COLORS[FLOW[initialIdx]?.id ?? "welcome"] ?? DEFAULT_BG_COLOR;
   const bgProgress  = useSharedValue(0);
   const bgColorFrom = useSharedValue(initColor);
@@ -5879,8 +5914,28 @@ export default function OnboardingScreen() {
   }, [idx]);
 
   useEffect(() => {
-    // 1. Directional slide entrance
     const dir = dirRef.current;
+
+    // ── 1. Outgoing exit animation ──────────────────────────────────────────
+    // exitScreen was set synchronously in navTo before this effect fires.
+    // Slide the old screen out in the opposite direction and fade it away.
+    exitVX.setValue(0);
+    exitOpacityAV.setValue(1);
+    Animated.parallel([
+      Animated.timing(exitVX, {
+        toValue: dir === "forward" ? -width * 0.45 : width * 0.5,
+        duration: 280,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(exitOpacityAV, {
+        toValue: 0,
+        duration: 240,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setExitScreen(null));
+
+    // ── 2. Incoming enter animation ─────────────────────────────────────────
     vInOpacity.setValue(0);
     vInX.setValue(dir === "forward" ? width * 0.6 : -width * 0.45);
     Animated.parallel([
@@ -5899,7 +5954,7 @@ export default function OnboardingScreen() {
       }),
     ]).start();
 
-    // 2. Background color morph
+    // ── 3. Background color morph ───────────────────────────────────────────
     if (!reduce) {
       const newColor = SCREEN_COLORS[FLOW[idx]?.id ?? "welcome"] ?? DEFAULT_BG_COLOR;
       bgColorFrom.value = bgColorTo.value;
@@ -5914,25 +5969,30 @@ export default function OnboardingScreen() {
 
   const [trans, setTrans] = useState<"word" | "question" | "sweep" | null>(null);
 
-  const advance = (toIdx: number) => {
-    if (toIdx >= FLOW.length) {
+  // Navigate to a new idx, capturing the current screen for the exit animation.
+  // skipExit=true when a full-screen overlay already handled the visual transition.
+  const navTo = (newIdx: number, dir: "forward" | "back", skipExit = false) => {
+    if (!skipExit && ctxRef.current) {
+      setExitScreen({ C: FLOW[idx]!.C, frozenCtx: ctxRef.current });
+    }
+    dirRef.current = dir;
+    if (newIdx >= FLOW.length) {
       setOnboarded(true);
       return;
     }
-    dirRef.current = "forward";
-    setIdx(toIdx);
+    setIdx(newIdx);
   };
-  const finishTrans = () => { setTrans(null); advance(idx + 1); };
+
+  const advance = (toIdx: number, skipExit = false) => navTo(toIdx, "forward", skipExit);
+  // Overlay-driven transitions skip the exit screen (the overlay already handled it)
+  const finishTrans = () => { setTrans(null); advance(idx + 1, true); };
   const next = () => {
     if (screen.id === "welcome")  { setTrans("sweep");    return; }
     if (screen.id === "country")  { setTrans("word");     return; }
     if (screen.id === "latefee")  { setTrans("question"); return; }
     advance(idx + 1);
   };
-  const back = () => {
-    dirRef.current = "back";
-    setIdx((i) => Math.max(i - 1, 0));
-  };
+  const back = () => navTo(Math.max(idx - 1, 0), "back");
   const addBill = (b: OnbBill) => setBills((arr) => [...arr, b]);
 
   const ctx = useMemo<Ctx>(
@@ -5940,6 +6000,9 @@ export default function OnboardingScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [t, persona, language, country, name, bills, idx, selectedCats],
   );
+
+  // Keep ctxRef current after every render so navTo can snapshot the outgoing ctx
+  useEffect(() => { ctxRef.current = ctx; });
 
   const showProgress = SETUP.includes(screen.id);
   const showBack = !NO_BACK.includes(screen.id);
@@ -5949,7 +6012,7 @@ export default function OnboardingScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.canvas, paddingTop: insets.top }}>
-      {/* Animated background color orb — morphs between accent hues per screen */}
+      {/* Animated background color orb — soft blurred glow morphing per screen */}
       {!reduce && (
         <Reanimated.View
           pointerEvents="none"
@@ -5964,6 +6027,7 @@ export default function OnboardingScreen() {
               borderRadius: 230,
               zIndex: 0,
             },
+            ORB_BLUR,
           ]}
         />
       )}
@@ -6011,28 +6075,44 @@ export default function OnboardingScreen() {
         )}
       </View>
 
-      <Animated.View
-        style={{
-          flex: 1,
-          zIndex: 1,
-          opacity: vInOpacity,
-          transform: [{ translateX: vInX }],
-        }}
-      >
-        <Comp ctx={ctx} key={screen.id + idx} />
-      </Animated.View>
+      {/* Screen area — overflow:hidden clips slide animations to this container */}
+      <View style={{ flex: 1, overflow: "hidden" }}>
+        {/* Outgoing screen — slides away while new screen slides in */}
+        {exitScreen && (
+          <Animated.View
+            pointerEvents="none"
+            style={{
+              position: "absolute",
+              top: 0, left: 0, right: 0, bottom: 0,
+              zIndex: 2,
+              opacity: exitOpacityAV,
+              transform: [{ translateX: exitVX }],
+            }}
+          >
+            <exitScreen.C ctx={exitScreen.frozenCtx} />
+          </Animated.View>
+        )}
 
-      {/* WordTransition — stamp overlay after country selection */}
+        {/* Incoming screen */}
+        <Animated.View
+          style={{
+            flex: 1,
+            zIndex: 1,
+            opacity: vInOpacity,
+            transform: [{ translateX: vInX }],
+          }}
+        >
+          <Comp ctx={ctx} key={screen.id + idx} />
+        </Animated.View>
+      </View>
+
+      {/* Transition overlays — outside the overflow:hidden container so they cover nav too */}
       {trans === "word" && (
         <WordTransitionOverlay country={country} onDone={finishTrans} name={name} persona={persona} language={language} />
       )}
-
-      {/* QuestionTransition — ? marks bubbling up after late-fee hook */}
       {trans === "question" && (
         <QuestionTransitionOverlay onDone={finishTrans} />
       )}
-
-      {/* Sweep — light accent wipe leaving the welcome screen */}
       {trans === "sweep" && <SweepOverlay onDone={finishTrans} />}
     </View>
   );
