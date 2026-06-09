@@ -36,6 +36,10 @@
     },
     "android": {
       "package": "com.app.judith",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon-android-fg.png",
+        "backgroundColor": "#0a0b0e"
+      },
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
