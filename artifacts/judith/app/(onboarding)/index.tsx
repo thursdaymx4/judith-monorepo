@@ -5850,6 +5850,18 @@ const ORB_BLUR: object = Platform.select({
   default: { filter: [{ blur: 80 }] },
 }) ?? {};
 
+// ─── Two-slot transition engine ───────────────────────────────────────────────
+// Each navigation uses TWO persistent React slots. The exiting slot stays
+// ALIVE in its original tree position (no remount → no side-effect replay,
+// no duplicate TTS). The incoming slot is mounted fresh. After the animation
+// completes, the exited slot is nulled out (its cleanup runs normally).
+// Slots alternate on each navigation: A exits while B enters, then B exits
+// while A enters, and so on.
+type SlotData = {
+  Comp: React.ComponentType<{ ctx: Ctx }>;
+  sceneKey: string;
+};
+
 export default function OnboardingScreen() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
@@ -5873,39 +5885,33 @@ export default function OnboardingScreen() {
   const [idx, setIdx] = useState(initialIdx);
   const [bills, setBills] = useState<OnbBill[]>([]);
   const [selectedCats, setSelectedCats] = useState<string[]>([]);
-
-  // Direction of travel between screens
   const dirRef = useRef<"forward" | "back">("forward");
 
-  // Enter animation values
-  const vInOpacity = useRef(new Animated.Value(0)).current;
-  const vInX       = useRef(new Animated.Value(0)).current;
+  // ── Two rendering slots ───────────────────────────────────────────────────
+  const [slot0, setSlot0] = useState<SlotData | null>({
+    Comp: FLOW[initialIdx]!.C as React.ComponentType<{ ctx: Ctx }>,
+    sceneKey: FLOW[initialIdx]!.id + initialIdx,
+  });
+  const [slot1, setSlot1] = useState<SlotData | null>(null);
+  // Ref tracks which slot is active without triggering re-renders mid-animation
+  const activeSlot   = useRef<0 | 1>(0);
+  // State tracks the same for z-order / pointer-events (updated after animation)
+  const [uiPrimary, setUiPrimary] = useState<0 | 1>(0);
+  const animLock = useRef(false);
 
-  // Exit animation values (for the outgoing screen)
-  const exitVX        = useRef(new Animated.Value(0)).current;
-  const exitOpacityAV = useRef(new Animated.Value(0)).current;
+  // Per-slot Animated values (slot 0 starts visible, slot 1 starts off-screen)
+  const s0X  = useRef(new Animated.Value(0)).current;
+  const s0Op = useRef(new Animated.Value(1)).current;
+  const s1X  = useRef(new Animated.Value(0)).current;
+  const s1Op = useRef(new Animated.Value(0)).current;
 
-  // Snapshot of the outgoing screen rendered while it slides away
-  const [exitScreen, setExitScreen] = useState<{
-    C: (p: { ctx: Ctx }) => React.ReactElement;
-    frozenCtx: Ctx;
-  } | null>(null);
-
-  // Kept in sync after every render — read in navTo before setIdx fires
-  const ctxRef = useRef<Ctx | null>(null);
-
-  // Background color morph
-  const initColor = SCREEN_COLORS[FLOW[initialIdx]?.id ?? "welcome"] ?? DEFAULT_BG_COLOR;
+  // ── Background color morph ────────────────────────────────────────────────
+  const initColor   = SCREEN_COLORS[FLOW[initialIdx]?.id ?? "welcome"] ?? DEFAULT_BG_COLOR;
   const bgProgress  = useSharedValue(0);
   const bgColorFrom = useSharedValue(initColor);
   const bgColorTo   = useSharedValue(initColor);
-
-  const bgStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(
-      bgProgress.value,
-      [0, 1],
-      [bgColorFrom.value, bgColorTo.value],
-    ),
+  const bgStyle     = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(bgProgress.value, [0, 1], [bgColorFrom.value, bgColorTo.value]),
   }));
 
   useEffect(() => {
@@ -5913,78 +5919,95 @@ export default function OnboardingScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idx]);
 
-  useEffect(() => {
-    const dir = dirRef.current;
+  // ── Core navigation ───────────────────────────────────────────────────────
+  // skipExit=true: a full-screen overlay already provided the visual transition.
+  const navTo = (newIdx: number, dir: "forward" | "back", skipExit = false) => {
+    if (animLock.current) return;
+    if (newIdx >= FLOW.length) { setOnboarded(true); return; }
 
-    // ── 1. Outgoing exit animation ──────────────────────────────────────────
-    // exitScreen was set synchronously in navTo before this effect fires.
-    // Slide the old screen out in the opposite direction and fade it away.
-    exitVX.setValue(0);
-    exitOpacityAV.setValue(1);
-    Animated.parallel([
-      Animated.timing(exitVX, {
-        toValue: dir === "forward" ? -width * 0.45 : width * 0.5,
-        duration: 280,
-        easing: Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(exitOpacityAV, {
-        toValue: 0,
-        duration: 240,
-        useNativeDriver: true,
-      }),
-    ]).start(() => setExitScreen(null));
+    dirRef.current = dir;
 
-    // ── 2. Incoming enter animation ─────────────────────────────────────────
-    vInOpacity.setValue(0);
-    vInX.setValue(dir === "forward" ? width * 0.6 : -width * 0.45);
-    Animated.parallel([
-      Animated.timing(vInOpacity, {
-        toValue: 1,
-        duration: 320,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.spring(vInX, {
-        toValue: 0,
-        mass: 1,
-        damping: 22,
-        stiffness: 220,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    const curr = activeSlot.current;
+    const next = curr === 0 ? 1 : 0;
 
-    // ── 3. Background color morph ───────────────────────────────────────────
+    const currX  = curr === 0 ? s0X  : s1X;
+    const currOp = curr === 0 ? s0Op : s1Op;
+    const nextX  = next === 0 ? s0X  : s1X;
+    const nextOp = next === 0 ? s0Op : s1Op;
+
+    const newSlot: SlotData = {
+      Comp: FLOW[newIdx]!.C as React.ComponentType<{ ctx: Ctx }>,
+      sceneKey: FLOW[newIdx]!.id + newIdx,
+    };
+
+    // Position the incoming slot off-screen BEFORE React renders it
+    nextX.setValue(dir === "forward" ? width * 0.6 : -width * 0.45);
+    nextOp.setValue(0);
+
+    // Mount incoming slot + advance idx (batched into one render)
+    if (next === 0) setSlot0(newSlot);
+    else setSlot1(newSlot);
+    setIdx(newIdx);
+
+    // Background color morph
     if (!reduce) {
-      const newColor = SCREEN_COLORS[FLOW[idx]?.id ?? "welcome"] ?? DEFAULT_BG_COLOR;
+      const newColor = SCREEN_COLORS[FLOW[newIdx]?.id ?? "welcome"] ?? DEFAULT_BG_COLOR;
       bgColorFrom.value = bgColorTo.value;
       bgColorTo.value = newColor;
       bgProgress.value = 0;
       bgProgress.value = rWithTiming(1, { duration: 580 });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idx]);
 
-  const screen = FLOW[idx]!;
-
-  const [trans, setTrans] = useState<"word" | "question" | "sweep" | null>(null);
-
-  // Navigate to a new idx, capturing the current screen for the exit animation.
-  // skipExit=true when a full-screen overlay already handled the visual transition.
-  const navTo = (newIdx: number, dir: "forward" | "back", skipExit = false) => {
-    if (!skipExit && ctxRef.current) {
-      setExitScreen({ C: FLOW[idx]!.C, frozenCtx: ctxRef.current });
-    }
-    dirRef.current = dir;
-    if (newIdx >= FLOW.length) {
-      setOnboarded(true);
+    if (skipExit) {
+      // Instant cut: show incoming slot, hide outgoing slot
+      nextX.setValue(0);
+      nextOp.setValue(1);
+      currOp.setValue(0);
+      activeSlot.current = next;
+      setUiPrimary(next);
+      requestAnimationFrame(() => {
+        currX.setValue(0);
+        currOp.setValue(1);
+        if (curr === 0) setSlot0(null);
+        else setSlot1(null);
+      });
       return;
     }
-    setIdx(newIdx);
+
+    animLock.current = true;
+
+    // Two RAF-frames to let React paint the incoming slot before animating
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      Animated.parallel([
+        // Outgoing — current slot slides away (stays mounted, no remount)
+        Animated.timing(currX, {
+          toValue: dir === "forward" ? -width * 0.45 : width * 0.5,
+          duration: 280,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(currOp, { toValue: 0, duration: 240, useNativeDriver: true }),
+        // Incoming — new slot springs in from the opposite edge
+        Animated.spring(nextX, { toValue: 0, mass: 1, damping: 22, stiffness: 220, useNativeDriver: true }),
+        Animated.timing(nextOp, { toValue: 1, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      ]).start(() => {
+        // Swap primary slot (cleanup runs naturally when we null the exited slot)
+        activeSlot.current = next;
+        setUiPrimary(next);
+        animLock.current = false;
+        if (curr === 0) setSlot0(null);
+        else setSlot1(null);
+        // Reset exited slot's values so it's ready for the next inbound
+        currX.setValue(0);
+        currOp.setValue(1);
+      });
+    }));
   };
 
+  const screen = FLOW[idx]!;
+  const [trans, setTrans] = useState<"word" | "question" | "sweep" | null>(null);
+
   const advance = (toIdx: number, skipExit = false) => navTo(toIdx, "forward", skipExit);
-  // Overlay-driven transitions skip the exit screen (the overlay already handled it)
   const finishTrans = () => { setTrans(null); advance(idx + 1, true); };
   const next = () => {
     if (screen.id === "welcome")  { setTrans("sweep");    return; }
@@ -6001,18 +6024,14 @@ export default function OnboardingScreen() {
     [t, persona, language, country, name, bills, idx, selectedCats],
   );
 
-  // Keep ctxRef current after every render so navTo can snapshot the outgoing ctx
-  useEffect(() => { ctxRef.current = ctx; });
-
   const showProgress = SETUP.includes(screen.id);
   const showBack = !NO_BACK.includes(screen.id);
   const showSkip = SKIPPABLE.includes(screen.id);
   const myPos = SETUP.indexOf(screen.id);
-  const Comp = screen.C;
 
   return (
     <View style={{ flex: 1, backgroundColor: t.canvas, paddingTop: insets.top }}>
-      {/* Animated background color orb — soft blurred glow morphing per screen */}
+      {/* Background orb — blurred soft glow that morphs color between screens */}
       {!reduce && (
         <Reanimated.View
           pointerEvents="none"
@@ -6032,7 +6051,7 @@ export default function OnboardingScreen() {
         />
       )}
 
-      {/* nav */}
+      {/* Nav */}
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 22, paddingTop: 6, paddingBottom: 2, minHeight: 42, zIndex: 1 }}>
         {showBack ? (
           <Pressable
@@ -6075,44 +6094,46 @@ export default function OnboardingScreen() {
         )}
       </View>
 
-      {/* Screen area — overflow:hidden clips slide animations to this container */}
+      {/* Screen area — overflow:hidden clips slide animations */}
       <View style={{ flex: 1, overflow: "hidden" }}>
-        {/* Outgoing screen — slides away while new screen slides in */}
-        {exitScreen && (
+        {/* Slot 0 — exiting or entering depending on nav direction */}
+        {slot0 && (
           <Animated.View
-            pointerEvents="none"
             style={{
               position: "absolute",
               top: 0, left: 0, right: 0, bottom: 0,
-              zIndex: 2,
-              opacity: exitOpacityAV,
-              transform: [{ translateX: exitVX }],
+              zIndex: uiPrimary === 0 ? 2 : 1,
+              opacity: s0Op,
+              transform: [{ translateX: s0X }],
             }}
+            pointerEvents={uiPrimary === 0 ? "auto" : "none"}
           >
-            <exitScreen.C ctx={exitScreen.frozenCtx} />
+            <slot0.Comp ctx={ctx} key={slot0.sceneKey} />
           </Animated.View>
         )}
 
-        {/* Incoming screen */}
-        <Animated.View
-          style={{
-            flex: 1,
-            zIndex: 1,
-            opacity: vInOpacity,
-            transform: [{ translateX: vInX }],
-          }}
-        >
-          <Comp ctx={ctx} key={screen.id + idx} />
-        </Animated.View>
+        {/* Slot 1 — exiting or entering depending on nav direction */}
+        {slot1 && (
+          <Animated.View
+            style={{
+              position: "absolute",
+              top: 0, left: 0, right: 0, bottom: 0,
+              zIndex: uiPrimary === 1 ? 2 : 1,
+              opacity: s1Op,
+              transform: [{ translateX: s1X }],
+            }}
+            pointerEvents={uiPrimary === 1 ? "auto" : "none"}
+          >
+            <slot1.Comp ctx={ctx} key={slot1.sceneKey} />
+          </Animated.View>
+        )}
       </View>
 
-      {/* Transition overlays — outside the overflow:hidden container so they cover nav too */}
+      {/* Transition overlays — outside overflow:hidden so they cover nav bar too */}
       {trans === "word" && (
         <WordTransitionOverlay country={country} onDone={finishTrans} name={name} persona={persona} language={language} />
       )}
-      {trans === "question" && (
-        <QuestionTransitionOverlay onDone={finishTrans} />
-      )}
+      {trans === "question" && <QuestionTransitionOverlay onDone={finishTrans} />}
       {trans === "sweep" && <SweepOverlay onDone={finishTrans} />}
     </View>
   );
