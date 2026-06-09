@@ -1183,3 +1183,19 @@ export default function SettingsScreen() {
     </Screen>
   );
 }
+
+export function ErrorBoundary({ error, retry }: { error: Error; retry: () => void }) {
+  return (
+    <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 16 }}>
+      <Text style={{ color: "#ea1d3b", fontSize: 16, fontWeight: "600", textAlign: "center" }}>
+        Settings failed to load
+      </Text>
+      <Text style={{ color: "#888", fontSize: 12, textAlign: "center" }}>
+        {__DEV__ ? error.message : "Please restart the app."}
+      </Text>
+      <Pressable onPress={retry} style={{ backgroundColor: "#29d5a5", borderRadius: 10, paddingVertical: 10, paddingHorizontal: 24 }}>
+        <Text style={{ color: "#000", fontWeight: "600" }}>Try Again</Text>
+      </Pressable>
+    </View>
+  );
+}

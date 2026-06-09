@@ -19,21 +19,16 @@ import type { PersonaId } from "@/constants/personas";
 
 export async function registerNotificationCategories(): Promise<void> {
   if (Platform.OS === "web") return;
-  await Notifications.setNotificationCategoriesAsync([
+  await Notifications.setNotificationCategoryAsync("BILL_REMINDER", [
     {
-      identifier: "BILL_REMINDER",
-      actions: [
-        {
-          identifier: "pay-now",
-          buttonTitle: "Mark Paid",
-          options: { opensAppToForeground: true },
-        },
-        {
-          identifier: "remind-tomorrow",
-          buttonTitle: "Remind Tomorrow",
-          options: { opensAppToForeground: false },
-        },
-      ],
+      identifier: "pay-now",
+      buttonTitle: "Mark Paid",
+      options: { opensAppToForeground: true },
+    },
+    {
+      identifier: "remind-tomorrow",
+      buttonTitle: "Remind Tomorrow",
+      options: { opensAppToForeground: false },
     },
   ]);
 }

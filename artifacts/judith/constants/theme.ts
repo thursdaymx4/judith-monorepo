@@ -20,6 +20,8 @@ export const SEMANTIC = {
   urgent: "#ff645f", // oklch(0.7 0.19 25)  — due ≤3 days
   near: "#f7b83d", // oklch(0.82 0.15 80) — due ≤7 days
   ok: "#56d1a3", // oklch(0.78 0.13 165) — upcoming / paid
+  err: "#ff645f", // alias for urgent — unpaid/error state
+  warning: "#f7b83d", // alias for near — caution/warning state
 };
 
 /** Category accent palette (for charts/logos, independent of brand accent). */
