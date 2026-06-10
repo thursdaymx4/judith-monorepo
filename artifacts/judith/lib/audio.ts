@@ -5,6 +5,8 @@ let counter = 0;
 /** The one player that is currently (or most recently) playing. */
 let _activePlayer: ReturnType<typeof createAudioPlayer> | null = null;
 let _activeUri: string | null = null;
+/** Subscription for the active player — must be removed before disposing the player. */
+let _activeSub: { remove: () => void } | null = null;
 
 async function cleanupUri(uri: string | null) {
   if (!uri) return;
@@ -23,8 +25,13 @@ async function cleanupUri(uri: string | null) {
 export function stopCurrentAudio() {
   const p = _activePlayer;
   const uri = _activeUri;
+  const sub = _activeSub;
   _activePlayer = null;
   _activeUri = null;
+  _activeSub = null;
+  // Remove the subscription BEFORE removing the player so no stale
+  // playbackStatusUpdate callbacks accumulate across multiple audio plays.
+  if (sub) { try { sub.remove(); } catch { /* ignore */ } }
   if (p) {
     try { p.pause(); } catch { /* ignore */ }
     try { p.remove(); } catch { /* ignore */ }
@@ -39,7 +46,7 @@ export function stopCurrentAudio() {
  */
 export async function playFromUrl(url: string, rate = 1.0): Promise<void> {
   stopCurrentAudio();
-  await setAudioModeAsync({ playsInSilentMode: true });
+  await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false });
   const player = createAudioPlayer(url);
   _activePlayer = player;
   _activeUri = null;
@@ -48,12 +55,14 @@ export async function playFromUrl(url: string, rate = 1.0): Promise<void> {
   return new Promise<void>((resolve) => {
     const sub = player.addListener("playbackStatusUpdate", (status) => {
       if (status.didJustFinish) {
+        if (_activeSub === sub) _activeSub = null;
         sub.remove();
         if (_activePlayer === player) _activePlayer = null;
         try { player.remove(); } catch { /* ignore */ }
         resolve();
       }
     });
+    _activeSub = sub;
   });
 }
 
@@ -70,7 +79,7 @@ export async function playBase64Mp3(base64: string, rate = 1.0): Promise<void> {
   await FileSystem.writeAsStringAsync(uri, base64, {
     encoding: FileSystem.EncodingType.Base64,
   });
-  await setAudioModeAsync({ playsInSilentMode: true });
+  await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false });
 
   const player = createAudioPlayer(uri);
   _activePlayer = player;
@@ -85,6 +94,7 @@ export async function playBase64Mp3(base64: string, rate = 1.0): Promise<void> {
   return new Promise<void>((resolve) => {
     const sub = player.addListener("playbackStatusUpdate", (status) => {
       if (status.didJustFinish) {
+        if (_activeSub === sub) _activeSub = null;
         sub.remove();
         const finishedUri = _activePlayer === player ? _activeUri : uri;
         if (_activePlayer === player) {
@@ -96,6 +106,7 @@ export async function playBase64Mp3(base64: string, rate = 1.0): Promise<void> {
         resolve();
       }
     });
+    _activeSub = sub;
   });
 }
 
