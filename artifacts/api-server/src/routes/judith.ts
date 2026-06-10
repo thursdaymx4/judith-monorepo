@@ -728,6 +728,7 @@ router.post("/ask", askLimiter, async (req, res) => {
     };
 
     const doLog = (reply: string, ttsOk: boolean, ttsChars: number, inputTokens: number, outputTokens: number, llmMs: number, ttsMs: number, totalMs: number, usedModel: string) => {
+      if (user.id === "guest") return;
       getSupabaseAdmin()
         .from("ask_logs")
         .insert({
