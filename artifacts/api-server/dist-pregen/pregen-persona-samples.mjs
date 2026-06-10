@@ -332,9 +332,12 @@ async function setSampleAudio(persona, lang, audioBase64, countryCode) {
     const langSlot = sampleLangKey(lang, countryCode);
     const key = `${SAMPLE_PREFIX}/${persona}/${langSlot}.mp3`;
     const buf = Buffer.from(audioBase64, "base64");
-    await bucket.file(key).save(buf, {
+    const file = bucket.file(key);
+    await file.save(buf, {
       resumable: false,
       metadata: { contentType: "audio/mpeg" }
+    });
+    await file.makePublic().catch(() => {
     });
   } catch {
   }
