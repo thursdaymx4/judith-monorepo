@@ -836,7 +836,7 @@ export default function AskModal() {
       >
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => { if (router.canGoBack()) router.back(); else router.replace("/(tabs)"); }}
             hitSlop={10}
             style={{
               width: 32,
