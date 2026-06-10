@@ -695,16 +695,9 @@ router.post("/ask", askLimiter, async (req, res) => {
 
     const anthropic = getAnthropic();
     const model = pickModel(text, historyMessages.length);
-    // Split system prompt into a static (cacheable) persona block + a dynamic
-    // bill-context block. Marking the static block with `ephemeral` cache
-    // control lets repeat asks from the same user reuse the prefix instead of
-    // re-tokenizing it — measurably lower TTFT and cheaper input tokens.
-    const systemStatic = systemPrompt(persona, typeof language === "string" ? language : undefined, country, cur, cCode);
-    const systemDynamic = `\n\nBILL CONTEXT (the only source of truth):\n${context}`;
-    const systemBlocks = [
-      { type: "text" as const, text: systemStatic, cache_control: { type: "ephemeral" as const } },
-      { type: "text" as const, text: systemDynamic },
-    ];
+    // Plain string system prompt. Prompt caching reverted — could be
+    // breaking the Anthropic SDK response shape. Restore later behind a flag.
+    const systemStr = `${systemPrompt(persona, typeof language === "string" ? language : undefined, country, cur, cCode)}\n\nBILL CONTEXT (the only source of truth):\n${context}`;
     const msgs: AnthropicMessage[] = [...historyMessages, { role: "user", content: text.trim() }];
     const ttsLang = typeof language === "string" ? language : undefined;
 
@@ -767,27 +760,13 @@ router.post("/ask", askLimiter, async (req, res) => {
       let rawText = "";
       let inputTokens = 0;
       let outputTokens = 0;
-      // Sentence-chunked TTS: kick off TTS for the first complete sentence
-      // while Claude is still streaming the rest. First audio plays ~500ms
-      // sooner than waiting for the full reply. Boundary must land at least
-      // 20 chars in so single-word fragments don't trip it.
-      let firstSentenceText: string | null = null;
-      let firstSentenceTtsP: Promise<{ audioBase64: string | null; mime: string; ttsOk: boolean; ttsChars: number; ttsMs: number }> | null = null;
-      const sentenceBoundary = /[.!?](?:\s|$)/;
       try {
-        const stream = anthropic.messages.stream({ model, max_tokens: 200, system: systemBlocks, messages: msgs });
+        const stream = anthropic.messages.stream({ model, max_tokens: 200, system: systemStr, messages: msgs });
         for await (const event of stream) {
           if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
             const chunk = event.delta.text;
             rawText += chunk;
             res.write(`data: ${JSON.stringify({ type: "delta", text: chunk })}\n\n`);
-            if (firstSentenceText == null && includeVoice !== false) {
-              const m = rawText.match(sentenceBoundary);
-              if (m && m.index != null && m.index >= 20) {
-                firstSentenceText = rawText.slice(0, m.index + 1).trim();
-                firstSentenceTtsP = doTts(firstSentenceText);
-              }
-            }
           }
         }
         const final = await stream.finalMessage();
@@ -802,31 +781,6 @@ router.post("/ask", askLimiter, async (req, res) => {
       const llmMs = Date.now() - llmStart;
 
       const { cleanText: reply, action } = parseAction(rawText.trim());
-
-      if (firstSentenceTtsP && firstSentenceText && reply.startsWith(firstSentenceText)) {
-        // Kick off the remainder TTS in parallel; await each separately so the
-        // first chunk flushes the moment it's ready, regardless of remainder time.
-        const remainder = reply.slice(firstSentenceText.length).trim();
-        const restTtsP = remainder ? doTts(remainder) : Promise.resolve(null);
-        const first = await firstSentenceTtsP;
-        if (first.audioBase64) {
-          res.write(`data: ${JSON.stringify({ type: "audio", audioBase64: first.audioBase64, mime: first.mime, seq: 0 })}\n\n`);
-        }
-        const rest = await restTtsP;
-        if (rest?.audioBase64) {
-          res.write(`data: ${JSON.stringify({ type: "audio", audioBase64: rest.audioBase64, mime: rest.mime, seq: 1 })}\n\n`);
-        }
-        res.write(`data: ${JSON.stringify({ type: "done", reply, action: action ?? null })}\n\n`);
-        res.end();
-        const totalMs = Date.now() - llmStart;
-        const ttsOk = first.ttsOk || (rest?.ttsOk ?? false);
-        const ttsChars = first.ttsChars + (rest?.ttsChars ?? 0);
-        const ttsMs = Math.max(first.ttsMs, rest?.ttsMs ?? 0);
-        doLog(reply, ttsOk, ttsChars, inputTokens, outputTokens, llmMs, ttsMs, totalMs, model);
-        return;
-      }
-
-      // No sentence boundary found mid-stream (or voice off) — single TTS pass.
       const { audioBase64, mime, ttsOk, ttsChars, ttsMs } = await doTts(reply);
       const totalMs = Date.now() - llmStart;
       res.write(`data: ${JSON.stringify({ type: "done", reply, action: action ?? null, audioBase64, mime })}\n\n`);
@@ -837,7 +791,7 @@ router.post("/ask", askLimiter, async (req, res) => {
 
     // Non-streaming path — used by Watch and clients that don't support SSE.
     const llmStart = Date.now();
-    const message = await anthropic.messages.create({ model, max_tokens: 200, system: systemBlocks, messages: msgs });
+    const message = await anthropic.messages.create({ model, max_tokens: 200, system: systemStr, messages: msgs });
     const llmMs = Date.now() - llmStart;
 
     const rawReply = message.content
