@@ -7,6 +7,10 @@ let _activePlayer: ReturnType<typeof createAudioPlayer> | null = null;
 let _activeUri: string | null = null;
 /** Subscription for the active player — must be removed before disposing the player. */
 let _activeSub: { remove: () => void } | null = null;
+/** Resolve fn of the in-flight playback promise. Calling it unblocks the queue
+ *  pump when audio is force-stopped externally — otherwise the await hangs
+ *  forever, the pump never exits, and closures leak per-clip. */
+let _activeResolve: (() => void) | null = null;
 /** FIFO of base64 MP3 chunks waiting to be played sequentially. */
 let _audioQueue: string[] = [];
 let _audioPumpRunning = false;
@@ -40,9 +44,11 @@ export function stopCurrentAudio(opts?: { keepQueue?: boolean }) {
   const p = _activePlayer;
   const uri = _activeUri;
   const sub = _activeSub;
+  const resolveFn = _activeResolve;
   _activePlayer = null;
   _activeUri = null;
   _activeSub = null;
+  _activeResolve = null;
   // Remove the subscription BEFORE removing the player so no stale
   // playbackStatusUpdate callbacks accumulate across multiple audio plays.
   if (sub) { try { sub.remove(); } catch { /* ignore */ } }
@@ -50,6 +56,9 @@ export function stopCurrentAudio(opts?: { keepQueue?: boolean }) {
     try { p.pause(); } catch { /* ignore */ }
     try { p.remove(); } catch { /* ignore */ }
   }
+  // Resolve the in-flight playback promise so its caller (e.g. the queue pump
+  // or an awaited playFromUrl) can advance and release its closure.
+  if (resolveFn) { try { resolveFn(); } catch { /* ignore */ } }
   void cleanupUri(uri);
 }
 
@@ -67,9 +76,11 @@ export async function playFromUrl(url: string, rate = 1.0): Promise<void> {
   try { (player as unknown as { rate: number }).rate = rate; } catch { /* unsupported */ }
   player.play();
   return new Promise<void>((resolve) => {
+    _activeResolve = resolve;
     const sub = player.addListener("playbackStatusUpdate", (status) => {
       if (status.didJustFinish) {
         if (_activeSub === sub) _activeSub = null;
+        if (_activeResolve === resolve) _activeResolve = null;
         sub.remove();
         if (_activePlayer === player) _activePlayer = null;
         try { player.remove(); } catch { /* ignore */ }
@@ -107,9 +118,11 @@ export async function playBase64Mp3(base64: string, rate = 1.0): Promise<void> {
   player.play();
 
   return new Promise<void>((resolve) => {
+    _activeResolve = resolve;
     const sub = player.addListener("playbackStatusUpdate", (status) => {
       if (status.didJustFinish) {
         if (_activeSub === sub) _activeSub = null;
+        if (_activeResolve === resolve) _activeResolve = null;
         sub.remove();
         const finishedUri = _activePlayer === player ? _activeUri : uri;
         if (_activePlayer === player) {
