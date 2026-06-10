@@ -3464,16 +3464,6 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                     ))}
                   </View>
                 )}
-                {(["Subscriptions", "Insurance", "Loans"] as const)[breatherGroup] && (
-                  <View style={{
-                    flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14,
-                    alignSelf: "stretch", paddingVertical: 9, paddingHorizontal: 12,
-                    borderRadius: 12, borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface2,
-                  }}>
-                    <Low size={12}>Next up:</Low>
-                    <Txt size={12} weight="semibold">{(["Subscriptions", "Insurance", "Loans"] as const)[breatherGroup]}</Txt>
-                  </View>
-                )}
               </View>
             );
           })()}
