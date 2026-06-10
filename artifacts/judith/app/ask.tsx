@@ -560,14 +560,20 @@ export default function AskModal() {
         Object.keys(incomeByMonth).length > 0 ? incomeByMonth : undefined,
         payCycle, paydayDay, paydaySemi, paydayWeekday,
         historyMsgs.length > 0 ? historyMsgs : undefined,
-        (delta) => {
-          streamedText += delta;
-          updateLatestMsg(streamedText.replace(/<<ACTION:.*$/s, "").trimEnd());
-          requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: false }));
-        },
+        // When voice is on, hold back text until the "done" event so text and
+        // audio appear simultaneously.  When voice is off, stream text tokens
+        // as they arrive for a snappier feel.
+        wantVoice
+          ? undefined
+          : (delta) => {
+              streamedText += delta;
+              updateLatestMsg(streamedText.replace(/<<ACTION:.*$/s, "").trimEnd());
+              requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: false }));
+            },
       );
       const finalReply = reply?.trim() || await fallbackWithDelay(q);
       updateLatestMsg(finalReply);
+      requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: false }));
       setAskHistory([...messagesRef.current]);
       if (audioBase64) {
         playBase64Mp3(audioBase64).catch(() => {});
