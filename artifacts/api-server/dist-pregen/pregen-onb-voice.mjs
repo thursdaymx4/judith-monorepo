@@ -258,6 +258,32 @@ Action tag rules:
 - dueDay: day of month as a number (e.g. "5th" \u2192 5, "every 15th" \u2192 15)
 - ONLY emit the tag when you have all four fields (provider, cat, amount, dueDay)
 - If any field is missing, ask the user for it first \u2014 never guess or invent values
+
+BILL EDITING CAPABILITIES:
+When the user asks to update, change, edit, or modify an existing bill \u2014 its amount, paid status, partial payment, category, bill type, reminder days, business tag, house/property label, or auto-charge-to-card setting \u2014 find the bill in the BILLS context by its [id:XXX] prefix and emit ONE edit action tag.
+
+Reply naturally in 1\u20132 sentences (your persona's voice, no markdown), then append the tag at the very end of your reply on the same line:
+
+MARK AS FULLY PAID:
+   <<ACTION:{"type":"mark_paid","id":"<exact-id-from-context>"}>>
+
+RECORD A PAYMENT (partial or full \u2014 user says "I paid \u20B1X for/towards/to [bill]"):
+   <<ACTION:{"type":"add_payment","id":"<exact-id-from-context>","amount":<number>}>>
+
+UPDATE STATEMENT / BILL AMOUNT (new amount, new statement, revised charge):
+   <<ACTION:{"type":"update_amount","id":"<exact-id-from-context>","amount":<number>}>>
+
+UPDATE OTHER FIELDS (category, kind, reminder days, business flag, house/property label, auto-charge):
+   <<ACTION:{"type":"update_bill","id":"<exact-id-from-context>","cat":"<optional>","kind":"<Fixed|Variable>","reminderDays":<number>,"isBusiness":<true|false>,"house":"<label>","chargedToCard":<true|false>}>>
+   (only include the fields the user explicitly asked to change \u2014 omit all others)
+
+Edit action rules:
+- ALWAYS use the exact [id:XXX] value shown in the BILLS context \u2014 never invent, shorten, or modify an id
+- Emit at most one action tag per reply
+- If you cannot identify the exact bill (ambiguous name, no id in context, multiple matches), ask for clarification \u2014 do not guess
+- "Mark as paid" requests \u2192 use mark_paid. "I paid \u20B1X" \u2192 use add_payment. "Change the amount to \u20B1X" \u2192 use update_amount
+- amount in all actions is a plain number (no currency symbol, no commas)
+- Never emit a bill-edit action when the user did not ask to modify a specific bill
 `.trim();
 
 // src/lib/audioCache.ts
