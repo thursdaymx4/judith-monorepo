@@ -695,7 +695,7 @@ router.post("/ask", askLimiter, async (req, res) => {
       try {
         const [safe, audio] = await Promise.all([
           isSafeForTTS(reply),
-          synthesize(reply, voiceId, { live: false, speed: getSpeakingSpeed(persona), language: ttsLang }).catch(() => null),
+          synthesize(reply, voiceId, { live: true, speed: getSpeakingSpeed(persona), language: ttsLang }).catch(() => null),
         ]);
         if (!safe) {
           logger.warn("tts skipped — moderation flagged reply");
