@@ -686,7 +686,8 @@ router.post("/ask", askLimiter, async (req, res) => {
     const ttsLang = typeof language === "string" ? language : undefined;
 
     const doTts = async (reply: string) => {
-      if (includeVoice === false) return { audioBase64: null as string | null, mime: "audio/mpeg", ttsOk: false, ttsChars: 0 };
+      if (includeVoice === false) return { audioBase64: null as string | null, mime: "audio/mpeg", ttsOk: false, ttsChars: 0, ttsMs: 0 };
+      const ttsStart = Date.now();
       let audioBase64: string | null = null;
       let mime = "audio/mpeg";
       let ttsOk = false;
@@ -707,10 +708,10 @@ router.post("/ask", askLimiter, async (req, res) => {
       } catch (ttsErr) {
         logger.error({ err: ttsErr }, "tts failed during ask");
       }
-      return { audioBase64, mime, ttsOk, ttsChars };
+      return { audioBase64, mime, ttsOk, ttsChars, ttsMs: Date.now() - ttsStart };
     };
 
-    const doLog = (reply: string, ttsOk: boolean, ttsChars: number, inputTokens: number, outputTokens: number) => {
+    const doLog = (reply: string, ttsOk: boolean, ttsChars: number, inputTokens: number, outputTokens: number, llmMs: number, ttsMs: number, totalMs: number, usedModel: string) => {
       getSupabaseAdmin()
         .from("ask_logs")
         .insert({
@@ -722,6 +723,10 @@ router.post("/ask", askLimiter, async (req, res) => {
           tts_ok: ttsOk,
           input_tokens: inputTokens,
           output_tokens: outputTokens,
+          llm_ms: llmMs,
+          tts_ms: ttsMs,
+          total_ms: totalMs,
+          model: usedModel,
         })
         .then(({ error }) => {
           if (error) logger.warn({ err: error }, "ask_logs insert failed");
