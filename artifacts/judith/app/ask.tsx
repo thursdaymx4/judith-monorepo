@@ -123,7 +123,7 @@ export default function AskModal() {
   const t = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { bills, asksLeft, tier, persona, language, country, currency, monthlyIncome, incomeByMonth, payCycle, paydayDay, paydaySemi, paydayWeekday, consumeAsk, addAsks, canUseVoice, saveBill, showToast, toggles, setToggle, askHistory, setAskHistory, clearAskHistory, hydrated, customQuestions, addCustomQuestion, deleteCustomQuestion } = useJudith();
+  const { bills, asksLeft, tier, persona, language, country, currency, monthlyIncome, incomeByMonth, payCycle, paydayDay, paydaySemi, paydayWeekday, consumeAsk, addAsks, canUseVoice, saveBill, markPaid, payPartial, updateBillAmount, showToast, toggles, setToggle, askHistory, setAskHistory, clearAskHistory, hydrated, customQuestions, addCustomQuestion, deleteCustomQuestion } = useJudith();
   // Voice tier can mute spoken replies (e.g. in public) and get text-only answers.
   const speakAloud = toggles.voiceReplies;
   const voiceTier = tier === "voice";
@@ -327,6 +327,7 @@ export default function AskModal() {
         ? totalOwed(b)
         : Math.max(0, totalOwed(b) - paidThisPeriod);
       return {
+        id: b.id,
         provider: b.provider,
         cat: b.cat,
         amount,
@@ -393,6 +394,7 @@ export default function AskModal() {
           : null;
 
         return {
+          id: b.id,
           provider: b.provider,
           cat: b.cat,
           amount,
@@ -544,6 +546,45 @@ export default function AskModal() {
         const bill = makeBillFromAction(action as AddBillAction);
         saveBill(bill);
         showToast(`Added: ${bill.provider}`);
+      } else if (action?.type === "mark_paid") {
+        const id = action.id as string | undefined;
+        if (id) {
+          markPaid(id);
+          const b = bills.find((x) => x.id === id);
+          showToast(`Paid: ${b?.provider ?? "Bill"}`);
+        }
+      } else if (action?.type === "add_payment") {
+        const id = action.id as string | undefined;
+        const amount = typeof action.amount === "number" ? action.amount : 0;
+        if (id && amount > 0) {
+          payPartial(id, amount);
+          const b = bills.find((x) => x.id === id);
+          showToast(`Payment recorded: ${b?.provider ?? "Bill"}`);
+        }
+      } else if (action?.type === "update_amount") {
+        const id = action.id as string | undefined;
+        const amount = typeof action.amount === "number" ? action.amount : 0;
+        if (id && amount > 0) {
+          updateBillAmount(id, amount);
+          const b = bills.find((x) => x.id === id);
+          showToast(`Updated: ${b?.provider ?? "Bill"}`);
+        }
+      } else if (action?.type === "update_bill") {
+        const id = action.id as string | undefined;
+        const existing = id ? bills.find((x) => x.id === id) : undefined;
+        if (existing) {
+          const updated = {
+            ...existing,
+            ...(typeof action.cat === "string" && action.cat ? { cat: action.cat } : {}),
+            ...(action.kind === "Fixed" || action.kind === "Variable" ? { kind: action.kind as "Fixed" | "Variable" } : {}),
+            ...(typeof action.reminderDays === "number" ? { reminderDays: action.reminderDays } : {}),
+            ...(typeof action.isBusiness === "boolean" ? { isBusiness: action.isBusiness } : {}),
+            ...(typeof action.house === "string" && action.house ? { house: action.house } : {}),
+            ...(typeof action.chargedToCard === "boolean" ? { chargedToCard: action.chargedToCard } : {}),
+          };
+          saveBill(updated);
+          showToast(`Updated: ${existing.provider}`);
+        }
       }
     } catch (e) {
       const isFil = isFilipino(language ?? "fil");

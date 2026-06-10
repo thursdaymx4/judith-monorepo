@@ -15,6 +15,8 @@ const PERSONA_MAP: Record<PersonaId, string> = {
 
 /** Bill shape sent to the /ask endpoint as context. */
 export interface AskBill {
+  /** Stable bill id — used by bill-editing actions to target the right bill. */
+  id?: string;
   provider: string;
   cat: string;
   amount: number;
@@ -122,11 +124,46 @@ export interface AddBillAction {
   dueDay: number;
 }
 
+export interface MarkPaidAction {
+  type: "mark_paid";
+  id: string;
+}
+
+export interface AddPaymentAction {
+  type: "add_payment";
+  id: string;
+  amount: number;
+}
+
+export interface UpdateAmountAction {
+  type: "update_amount";
+  id: string;
+  amount: number;
+}
+
+export interface UpdateBillAction {
+  type: "update_bill";
+  id: string;
+  cat?: string;
+  kind?: "Fixed" | "Variable";
+  reminderDays?: number;
+  isBusiness?: boolean;
+  house?: string;
+  chargedToCard?: boolean;
+}
+
+export type JudithAction =
+  | AddBillAction
+  | MarkPaidAction
+  | AddPaymentAction
+  | UpdateAmountAction
+  | UpdateBillAction;
+
 export interface AskResult {
   reply: string;
   audioBase64: string | null;
   mime: string;
-  action?: AddBillAction | null;
+  action?: JudithAction | null;
 }
 
 /** Returns today's date as YYYY-MM-DD in the device's local timezone. */

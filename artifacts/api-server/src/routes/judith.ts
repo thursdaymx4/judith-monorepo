@@ -188,6 +188,8 @@ function buildBillsContext(bills: BillRow[], today: Date, cur = "₱"): string {
 }
 
 interface ClientBill {
+  /** Stable bill id — used to identify the exact bill for edit actions. */
+  id?: string | null;
   provider?: string | null;
   cat?: string | null;
   amount?: number | null;
@@ -381,7 +383,8 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     // link). A dangling link is still counted, so tagging it would mislead.
     const cardTag = isViaCard(b) ? ` [AUTO-CHARGED to ${b.cardName}]` : "";
     const estTag = b.isProjection ? " [ESTIMATED NEXT MONTH]" : "";
-    return `- ${b.provider ?? "Bill"} (${b.cat ?? "Other"})${bizTag}${cardTag}${estTag}: ${curStr(cur, b.amount ?? 0)}, ${when}, ${b.status ?? "upcoming"}.`;
+    const idTag = b.id ? `[id:${b.id}] ` : "";
+    return `- ${idTag}${b.provider ?? "Bill"} (${b.cat ?? "Other"})${bizTag}${cardTag}${estTag}: ${curStr(cur, b.amount ?? 0)}, ${when}, ${b.status ?? "upcoming"}.`;
   });
 
   // ── Pre-computed income-remaining figures ──────────────────────────────
@@ -671,7 +674,7 @@ router.post("/ask", askLimiter, async (req, res) => {
     const anthropic = getAnthropic();
     const message = await anthropic.messages.create({
       model: ANTHROPIC_MODEL,
-      max_tokens: 120,
+      max_tokens: 200,
       system: `${systemPrompt(persona, typeof language === "string" ? language : undefined, country, cur, cCode)}\n\nBILL CONTEXT (the only source of truth):\n${context}`,
       messages: [...historyMessages, { role: "user", content: text.trim() }],
     });

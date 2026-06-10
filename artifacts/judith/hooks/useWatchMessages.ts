@@ -23,7 +23,11 @@ import {
   totalOwed,
   type Bill,
 } from "@/constants/data";
-import { amountPaidThisMonth, isPaidThisMonth, remainingThisMonth } from "@/lib/currentCycle";
+import {
+  amountPaidThisMonth,
+  isPaidThisMonth,
+  remainingThisMonth,
+} from "@/lib/currentCycle";
 import { WatchConnectivity } from "@/lib/watch";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -38,35 +42,33 @@ function buildAskBills(bills: Bill[]): AskBill[] {
     const dueDate = new Date(
       today.getFullYear(),
       today.getMonth(),
-      today.getDate() + dueDays,
+      bill.dueDate ?? 1,
     );
-    const dueMonth = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, "0")}`;
+    if (dueDate < today) dueDate.setMonth(dueDate.getMonth() + 1);
+    const dueMonth = `${dueDate.getFullYear()}-${String(
+      dueDate.getMonth() + 1,
+    ).padStart(2, "0")}`;
 
-    const parentCard =
-      bill.chargedToCard && bill.parentCardId
-        ? bills.find((candidate) => candidate.id === bill.parentCardId) ?? null
-        : null;
-
-    const amount = parentCard ? totalOwed(bill) : remainingThisMonth(bill, today);
-    const paidThisPeriod = amountPaidThisMonth(bill, today);
-    const isSettledThisPeriod =
-      isPaidThisMonth(bill, today) ||
-      (!parentCard && amount <= 0) ||
-      (parentCard && paidThisPeriod >= totalOwed(bill));
+    const paidThisMonth = isPaidThisMonth(bill, today);
+    const remaining = remainingThisMonth(bill, today);
+    const paidAmount = amountPaidThisMonth(bill, today);
 
     return {
+      id: bill.id,
       provider: bill.provider,
       cat: bill.cat,
-      amount,
+      amount: bill.cat === "Credit card" ? totalOwed(bill) : remaining,
       dueDays,
       dueLabel,
       dueMonth,
-      status: isSettledThisPeriod ? "paid" : bill.status,
+      status: paidThisMonth ? "paid" : bill.status,
       isBusiness: bill.isBusiness,
       chargedToCard: bill.chargedToCard,
-      cardName: parentCard?.provider ?? null,
+      cardName: null,
+      amountPaid: paidAmount,
     };
   });
+}
 }
 
 function normalizeText(value: string): string {
@@ -195,6 +197,7 @@ export function useWatchMessages() {
     incomeByMonth,
     markPaid,
     payPartial,
+    updateBillAmount,
     saveBill,
   } =
     useJudith();
@@ -208,6 +211,7 @@ export function useWatchMessages() {
   const incomeByMonthRef = useRef(incomeByMonth);
   const markPaidRef = useRef(markPaid);
   const payPartialRef = useRef(payPartial);
+  const updateBillAmountRef = useRef(updateBillAmount);
   const saveBillRef = useRef(saveBill);
 
   useEffect(() => { billsRef.current = bills; }, [bills]);
@@ -218,6 +222,7 @@ export function useWatchMessages() {
   useEffect(() => { incomeByMonthRef.current = incomeByMonth; }, [incomeByMonth]);
   useEffect(() => { markPaidRef.current = markPaid; }, [markPaid]);
   useEffect(() => { payPartialRef.current = payPartial; }, [payPartial]);
+  useEffect(() => { updateBillAmountRef.current = updateBillAmount; }, [updateBillAmount]);
   useEffect(() => { saveBillRef.current = saveBill; }, [saveBill]);
 
   useEffect(() => {
@@ -291,6 +296,33 @@ export function useWatchMessages() {
             if (result.action?.type === "add_bill") {
               const bill = makeBillFromAction(result.action);
               saveBillRef.current(bill);
+            } else if (result.action?.type === "mark_paid") {
+              const id = result.action.id as string | undefined;
+              if (id) markPaidRef.current(id);
+            } else if (result.action?.type === "add_payment") {
+              const id = result.action.id as string | undefined;
+              const amount = typeof result.action.amount === "number" ? result.action.amount : 0;
+              if (id && amount > 0) payPartialRef.current(id, amount);
+            } else if (result.action?.type === "update_amount") {
+              const id = result.action.id as string | undefined;
+              const amount = typeof result.action.amount === "number" ? result.action.amount : 0;
+              if (id && amount > 0) updateBillAmountRef.current(id, amount);
+            } else if (result.action?.type === "update_bill") {
+              const id = result.action.id as string | undefined;
+              const existing = id ? billsRef.current.find((b) => b.id === id) : undefined;
+              if (existing) {
+                const a = result.action;
+                const updated = {
+                  ...existing,
+                  ...(typeof a.cat === "string" && a.cat ? { cat: a.cat } : {}),
+                  ...(a.kind === "Fixed" || a.kind === "Variable" ? { kind: a.kind as "Fixed" | "Variable" } : {}),
+                  ...(typeof a.reminderDays === "number" ? { reminderDays: a.reminderDays } : {}),
+                  ...(typeof a.isBusiness === "boolean" ? { isBusiness: a.isBusiness } : {}),
+                  ...(typeof a.house === "string" && a.house ? { house: a.house } : {}),
+                  ...(typeof a.chargedToCard === "boolean" ? { chargedToCard: a.chargedToCard } : {}),
+                };
+                saveBillRef.current(updated);
+              }
             }
             reply?.({ answer: result.reply });
           } catch {
