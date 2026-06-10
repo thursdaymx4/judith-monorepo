@@ -1374,22 +1374,23 @@ router.get("/sample", sampleVoicesLimiter, async (req, res) => {
 // No auth required — interactive AI ask during onboarding feature screens.
 router.post("/ask-onboarding", askOnboardingLimiter, async (req, res) => {
   try {
-    const { text, bills: bodyBills, persona: bodyPersona, localDate, language } = req.body ?? {};
+    const { text, bills: bodyBills, persona: bodyPersona, localDate, language, currency } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
       res.status(400).json({ error: "text is required" });
       return;
     }
     const persona = coercePersona(bodyPersona);
     const lang = typeof language === "string" ? language : undefined;
+    const cur: string = typeof currency === "string" && currency.trim() ? currency.trim() : "₱";
     const voiceId = getVoiceId(persona, lang);
     const bills = Array.isArray(bodyBills) ? (bodyBills as ClientBill[]) : [];
-    const context = buildClientContext(bills, parseLocalDate(localDate));
+    const context = buildClientContext(bills, parseLocalDate(localDate), cur);
 
     const anthropic = getAnthropic();
     const message = await anthropic.messages.create({
       model: ANTHROPIC_MODEL,
       max_tokens: 250,
-      system: `${systemPrompt(persona, lang)}\n\nBILL CONTEXT (the only source of truth):\n${context}`,
+      system: `${systemPrompt(persona, lang, undefined, cur)}\n\nBILL CONTEXT (the only source of truth):\n${context}`,
       messages: [{ role: "user", content: text.trim() }],
     });
     const rawReply = message.content

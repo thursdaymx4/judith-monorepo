@@ -473,6 +473,7 @@ export async function askOnboarding(
   }>,
   persona?: PersonaId,
   language?: string,
+  currency?: string,
 ): Promise<AskResult> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 45_000);
@@ -487,6 +488,7 @@ export async function askOnboarding(
         persona: persona ? PERSONA_MAP[persona] : "professional",
         localDate: localDateString(),
         language,
+        currency,
       }),
       signal: controller.signal,
     });

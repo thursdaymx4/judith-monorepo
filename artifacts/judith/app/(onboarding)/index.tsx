@@ -4606,7 +4606,7 @@ function FeatureShell({
     setAskMode("thinking");
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
     try {
-      const { reply, audioBase64 } = await askOnboarding(q2, billsCtx, persona, language);
+      const { reply, audioBase64 } = await askOnboarding(q2, billsCtx, persona, language, ctx.country.cur);
       const finalReply = reply?.trim() || "Hmm, I couldn\u2019t answer that just now.";
       setMessages((m) => [...m, { role: "judith", text: finalReply }]);
       setHasAnswered(true);
