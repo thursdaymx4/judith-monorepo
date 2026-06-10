@@ -19,11 +19,9 @@ Anthropic, crashing every question routed to Haiku (all short/simple ones).
 `claude-sonnet-4-20250514` had the same issue earlier. Confirmed pattern: EOL
 defaults return `not_found_error` 404 silently on the EOL date.
 
-**Current models (Jun 2026):**
-- `ANTHROPIC_MODEL` (Sonnet): `claude-sonnet-4-5-20250929` — confirmed working
-- `ANTHROPIC_HAIKU_MODEL`: now falls back to `ANTHROPIC_MODEL` since no current
-  Haiku model ID is confirmed; set `ANTHROPIC_HAIKU_MODEL` env var when a new
-  Haiku is available to restore cost savings on short questions
+**Current models (Jun 2026, both verified live via API):**
+- `ANTHROPIC_MODEL` (Sonnet): `claude-sonnet-4-5-20250929`
+- `ANTHROPIC_HAIKU_MODEL` (Haiku): `claude-haiku-4-5-20251001`
 
 **How to apply:** to verify quickly, call the Anthropic SDK with the candidate
 model id; a deprecated/removed model returns a 404 `not_found_error`. A healthy
