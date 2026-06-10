@@ -6,6 +6,7 @@ final class JudithWidgetBridge: NSObject {
     private enum Config {
         static let appGroupID = "group.com.app.judith"
         static let payloadCacheKey = "judith.payload_v2"
+        static let legacyPayloadStringCacheKey = "judith.payload_v2.string"
     }
 
     @objc
@@ -22,9 +23,7 @@ final class JudithWidgetBridge: NSObject {
         }
 
         defaults.set(data, forKey: Config.payloadCacheKey)
-        defaults.set(json, forKey: "\(Config.payloadCacheKey).string")
-        defaults.synchronize()
-        NSLog("JudithWidgetBridge: wrote payload (%d bytes) to app group %@", data.count, Config.appGroupID)
+        defaults.removeObject(forKey: Config.legacyPayloadStringCacheKey)
         WidgetCenter.shared.reloadAllTimelines()
     }
 }

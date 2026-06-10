@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { loadFromICloud, saveToICloud } from "@/lib/icloud-backup";
+import { parseProtectedObject, serializeProtectedObject } from "@/lib/securePersist";
 import React, {
   createContext,
   useCallback,
@@ -270,7 +271,12 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       .then(async (raw) => {
         if (!active) return;
         if (raw) {
-          try { applyParsed(JSON.parse(raw) as Partial<PersistShape>); } catch { /* ignore corrupt */ }
+          try {
+            const parsed = await parseProtectedObject<Partial<PersistShape>>(raw);
+            if (parsed) applyParsed(parsed);
+          } catch {
+            /* ignore corrupt */
+          }
           setHydrated(true);
           return;
         }
@@ -296,8 +302,9 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
     if (!hydrated) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      const json = JSON.stringify(state);
-      AsyncStorage.setItem(storageKey, json).catch(() => {});
+      serializeProtectedObject(state)
+        .then((json) => AsyncStorage.setItem(storageKey, json))
+        .catch(() => {});
       // Mirror to iCloud so the backup survives reinstalls and device switches.
       if (user?.id) saveToICloud(state, user.id).catch(() => {});
     }, 800);

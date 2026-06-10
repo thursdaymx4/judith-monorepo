@@ -2,8 +2,8 @@
  * iCloud Documents backup for Judith.
  *
  * Backs up the persisted store to the user's private iCloud container
- * (iCloud.com.app.judith). Apple encrypts iCloud Documents at rest with
- * AES-128 and in transit with TLS — only the user's Apple ID can access them.
+ * (iCloud.com.app.judith). The app encrypts the backup payload before writing
+ * it, so the iCloud file never contains plaintext bill data.
  *
  * - Backup is best-effort: all failures are silently swallowed.
  * - Restore only runs when local AsyncStorage is empty (fresh install / reinstall).
@@ -11,6 +11,7 @@
  */
 
 import { NativeModules, Platform } from "react-native";
+import { parseProtectedObject, serializeProtectedObject } from "@/lib/securePersist";
 
 const BACKUP_FILENAME = "judith_backup_v1.json";
 
@@ -86,7 +87,8 @@ export async function saveToICloud(
       savedAt: new Date().toISOString(),
       data,
     };
-    await cs.writeFile(path, JSON.stringify(envelope), { override: true });
+    const payload = await serializeProtectedObject(envelope);
+    await cs.writeFile(path, payload, { override: true });
   } catch {
     // Best-effort — never block the app
   }
@@ -107,7 +109,8 @@ export async function loadFromICloud(userId: string): Promise<object | null> {
     const exists = await cs.exist(path);
     if (!exists) return null;
     const raw = await cs.readFile(path);
-    const envelope = JSON.parse(raw) as BackupEnvelope;
+    const envelope = await parseProtectedObject<BackupEnvelope>(raw);
+    if (!envelope) return null;
     if (envelope.userId !== userId) return null;
     if (typeof envelope.data !== "object" || !envelope.data) return null;
     return envelope.data as object;
