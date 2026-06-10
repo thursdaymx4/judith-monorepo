@@ -178,6 +178,7 @@ export function askJudith(
   paydayDay?: number,
   paydaySemi?: [number, number],
   paydayWeekday?: number,
+  history?: Array<{ role: "user" | "assistant"; text: string }>,
 ): Promise<AskResult> {
   return postJson("/ask", {
     text,
@@ -196,6 +197,7 @@ export function askJudith(
     paydayDay,
     paydaySemi,
     paydayWeekday,
+    history: history?.length ? history : undefined,
   }, 45_000); // never let the chat hang forever — abort + surface a retry after 45s
 }
 

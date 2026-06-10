@@ -261,15 +261,15 @@ Action tag rules:
 `.trim();
 
 // src/lib/audioCache.ts
-import { Storage } from "@google-cloud/storage";
 var BUCKET_ID = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
 var REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
 var _bucket = null;
-function getBucket() {
+async function getBucket() {
   if (!BUCKET_ID) return null;
   try {
     if (!_bucket) {
-      const storage = new Storage({
+      const { Storage: StorageCls } = await import("@google-cloud/storage");
+      const storage = new StorageCls({
         credentials: {
           audience: "replit",
           subject_token_type: "access_token",
@@ -300,7 +300,7 @@ function cacheLanguageGroup(lang) {
 }
 var PREFIX = "onb-voice";
 async function setOnbAudio(concept, persona, lang, audioBase64) {
-  const bucket = getBucket();
+  const bucket = await getBucket();
   if (!bucket) return;
   try {
     const key = `${PREFIX}/${concept}/${persona}/${cacheLanguageGroup(lang)}.mp3`;
@@ -313,7 +313,7 @@ async function setOnbAudio(concept, persona, lang, audioBase64) {
   }
 }
 async function hasOnbAudio(concept, persona, lang) {
-  const bucket = getBucket();
+  const bucket = await getBucket();
   if (!bucket) return false;
   try {
     const key = `${PREFIX}/${concept}/${persona}/${cacheLanguageGroup(lang)}.mp3`;

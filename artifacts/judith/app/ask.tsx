@@ -528,7 +528,13 @@ export default function AskModal() {
       // Speak aloud only when the user hasn't muted replies (voice tier) — saves TTS cost and stays silent in public.
       // The mute only applies to the voice tier; other tiers (e.g. free with asks left) are unaffected.
       const wantVoice = canUseVoice() && (!voiceTier || speakAloud);
-      const { reply, audioBase64, action } = await askJudith(q, askBills(), persona, language, wantVoice, currency, country.name, monthlyIncome, country.code, Object.keys(incomeByMonth).length > 0 ? incomeByMonth : undefined, payCycle, paydayDay, paydaySemi, paydayWeekday);
+      // Send the last 10 messages as conversation history (excluding the just-appended user turn).
+      const MAX_HISTORY = 10;
+      const historyMsgs = messagesRef.current.slice(0, -1).slice(-MAX_HISTORY).map((m) => ({
+        role: m.role === "user" ? "user" : "assistant" as "user" | "assistant",
+        text: m.text,
+      }));
+      const { reply, audioBase64, action } = await askJudith(q, askBills(), persona, language, wantVoice, currency, country.name, monthlyIncome, country.code, Object.keys(incomeByMonth).length > 0 ? incomeByMonth : undefined, payCycle, paydayDay, paydaySemi, paydayWeekday, historyMsgs.length > 0 ? historyMsgs : undefined);
       const finalReply = reply?.trim() || await fallbackWithDelay(q);
       appendAndPersist({ role: "judith", text: finalReply });
       if (audioBase64) {

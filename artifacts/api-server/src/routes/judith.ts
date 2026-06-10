@@ -613,7 +613,7 @@ router.post("/ask", askLimiter, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
-    const { text, bills: bodyBills, persona: bodyPersona, localDate, localWeekday: rawLocalWeekday, language, includeVoice, currency, countryName, countryCode, monthlyIncome, incomeByMonth, payCycle, paydayDay, paydaySemi, paydayWeekday } = req.body ?? {};
+    const { text, bills: bodyBills, persona: bodyPersona, localDate, localWeekday: rawLocalWeekday, language, includeVoice, currency, countryName, countryCode, monthlyIncome, incomeByMonth, payCycle, paydayDay, paydaySemi, paydayWeekday, history: bodyHistory } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
       res.status(400).json({ error: "text is required" });
       return;
@@ -653,12 +653,27 @@ router.post("/ask", askLimiter, async (req, res) => {
     const safeLocalWeekday = typeof rawLocalWeekday === "string" && rawLocalWeekday.trim() ? rawLocalWeekday.trim() : undefined;
     const context: string = buildClientContext(bodyBills as ClientBill[], today, cur, income, incomeMo, cycle, safeDay, safeSemi, safeWeekday, safeLocalWeekday);
 
+    // Sanitize conversation history sent by the client. Cap at 10 turns to control cost.
+    type AnthropicMessage = { role: "user" | "assistant"; content: string };
+    const historyMessages: AnthropicMessage[] = [];
+    if (Array.isArray(bodyHistory)) {
+      for (const turn of bodyHistory.slice(-10)) {
+        if (
+          turn && typeof turn === "object" &&
+          (turn.role === "user" || turn.role === "assistant") &&
+          typeof turn.text === "string" && turn.text.trim()
+        ) {
+          historyMessages.push({ role: turn.role as "user" | "assistant", content: turn.text.trim() });
+        }
+      }
+    }
+
     const anthropic = getAnthropic();
     const message = await anthropic.messages.create({
       model: ANTHROPIC_MODEL,
       max_tokens: 120,
       system: `${systemPrompt(persona, typeof language === "string" ? language : undefined, country, cur, cCode)}\n\nBILL CONTEXT (the only source of truth):\n${context}`,
-      messages: [{ role: "user", content: text.trim() }],
+      messages: [...historyMessages, { role: "user", content: text.trim() }],
     });
 
     const rawReply = message.content
