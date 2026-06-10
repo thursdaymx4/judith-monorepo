@@ -15,7 +15,8 @@ import * as Notifications from "expo-notifications";
 import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
-import { ActivityIndicator, LogBox, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, AppState, LogBox, Pressable, StyleSheet, Text, View } from "react-native";
+import { resetAudioToPlayback, stopCurrentAudio } from "@/lib/audio";
 
 // expo-notifications logs this on every push-token call on the iOS simulator —
 // harmless and won't appear on real devices.
@@ -132,6 +133,20 @@ function RootLayoutNav() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user?.id]);
+
+  // Defensive: whenever the app returns to the foreground (or first activates),
+  // hard-reset the audio system. Tears down any orphaned player, drains the
+  // playback queue, and flips the iOS audio session out of PlayAndRecord. This
+  // prevents audio-state leaks from compounding into systemic UI slowness.
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        stopCurrentAudio();
+        resetAudioToPlayback().catch(() => {});
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   // Register notification action categories (Mark Paid / Remind Tomorrow buttons).
   useEffect(() => { registerNotificationCategories().catch(() => {}); }, []);
