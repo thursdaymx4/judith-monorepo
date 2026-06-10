@@ -22,7 +22,7 @@ import { getPersona } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { fileToBase64, playBase64Mp3 } from "@/lib/audio";
-import { type AddBillAction, type AskBill, askJudith, parseSubscriptionScreenshot, transcribe, RateLimitError, TimeoutError, ServerError } from "@/lib/proxy";
+import { type AddBillAction, type AskBill, askJudithStream, parseSubscriptionScreenshot, transcribe, RateLimitError, TimeoutError, ServerError } from "@/lib/proxy";
 import { sttHint, isFilipino } from "@/constants/languages";
 
 /**
@@ -167,6 +167,22 @@ export default function AskModal() {
     messagesRef.current = next;
     setMessages(next);
     setAskHistory(next);
+  };
+
+  /** Append a message to local state only — used for streaming placeholders. */
+  const appendNoPersist = (msg: Msg) => {
+    const next = [...messagesRef.current, msg].slice(-100);
+    messagesRef.current = next;
+    setMessages(next);
+  };
+
+  /** Update the text of the last judith message in-place — used during streaming. */
+  const updateLatestMsg = (text: string) => {
+    const msgs = messagesRef.current;
+    if (!msgs.length || msgs[msgs.length - 1].role !== "judith") return;
+    const next = [...msgs.slice(0, -1), { ...msgs[msgs.length - 1], text }];
+    messagesRef.current = next;
+    setMessages(next);
   };
 
   const [input, setInput] = useState("");
@@ -530,15 +546,29 @@ export default function AskModal() {
       // Speak aloud only when the user hasn't muted replies (voice tier) — saves TTS cost and stays silent in public.
       // The mute only applies to the voice tier; other tiers (e.g. free with asks left) are unaffected.
       const wantVoice = canUseVoice() && (!voiceTier || speakAloud);
-      // Send the last 10 messages as conversation history (excluding the just-appended user turn).
-      const MAX_HISTORY = 10;
+      // Send the last 5 messages as conversation history (excluding the just-appended user turn).
+      const MAX_HISTORY = 5;
       const historyMsgs = messagesRef.current.slice(0, -1).slice(-MAX_HISTORY).map((m) => ({
         role: m.role === "user" ? "user" : "assistant" as "user" | "assistant",
         text: m.text,
       }));
-      const { reply, audioBase64, action } = await askJudith(q, askBills(), persona, language, wantVoice, currency, country.name, monthlyIncome, country.code, Object.keys(incomeByMonth).length > 0 ? incomeByMonth : undefined, payCycle, paydayDay, paydaySemi, paydayWeekday, historyMsgs.length > 0 ? historyMsgs : undefined);
+      appendNoPersist({ role: "judith", text: "" });
+      let streamedText = "";
+      const { reply, audioBase64, action } = await askJudithStream(
+        q, askBills(), persona, language, wantVoice, currency, country.name,
+        monthlyIncome, country.code,
+        Object.keys(incomeByMonth).length > 0 ? incomeByMonth : undefined,
+        payCycle, paydayDay, paydaySemi, paydayWeekday,
+        historyMsgs.length > 0 ? historyMsgs : undefined,
+        (delta) => {
+          streamedText += delta;
+          updateLatestMsg(streamedText.replace(/<<ACTION:.*$/s, "").trimEnd());
+          requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: false }));
+        },
+      );
       const finalReply = reply?.trim() || await fallbackWithDelay(q);
-      appendAndPersist({ role: "judith", text: finalReply });
+      updateLatestMsg(finalReply);
+      setAskHistory([...messagesRef.current]);
       if (audioBase64) {
         playBase64Mp3(audioBase64).catch(() => {});
       }
@@ -588,14 +618,23 @@ export default function AskModal() {
       }
     } catch (e) {
       const isFil = isFilipino(language ?? "fil");
+      const showJudithMsg = (text: string) => {
+        const last = messagesRef.current[messagesRef.current.length - 1];
+        if (last?.role === "judith" && last.text === "") {
+          updateLatestMsg(text);
+          setAskHistory([...messagesRef.current]);
+        } else {
+          appendAndPersist({ role: "judith", text });
+        }
+      };
       if (e instanceof RateLimitError) {
         // Server rejected before answering — refund the ask for free-tier users.
         if (!isPaid) addAsks(1);
         setRateLimitSecs(Math.min(e.retryAfter, 3600));
-        appendAndPersist({ role: "judith", text: isFil
+        showJudithMsg(isFil
           ? `Sandali lang — maghintay ka ng ${e.retryAfter} segundo bago magtanong ulit.`
           : `You're sending too fast — please wait ${e.retryAfter} second${e.retryAfter === 1 ? "" : "s"} before asking again.`
-        });
+        );
       } else {
         // Timeout, server error, or connection failure — refund the ask, remember
         // the question so the user can retry with one tap.
@@ -604,7 +643,7 @@ export default function AskModal() {
         const timedOut = e instanceof TimeoutError;
         const serverSide = e instanceof ServerError;
         await new Promise<void>((r) => setTimeout(r, 600));
-        appendAndPersist({ role: "judith", text: timedOut
+        showJudithMsg(timedOut
           ? (isFil
             ? "Pasensya, ang tagal ng sagot — baka mahina ang connection. Pindutin ang Subukang muli sa baba."
             : "Sorry, that took too long — your connection may be slow. Tap Retry below to try again.")
@@ -615,7 +654,7 @@ export default function AskModal() {
             : (isFil
               ? "Hindi ako makakonekta sa server — i-check ang connection mo, tapos pindutin ang Subukang muli."
               : "I can't connect to the server — check your connection, then tap Retry below.")
-        });
+        );
       }
     } finally {
       setBusy(false);

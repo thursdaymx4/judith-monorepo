@@ -238,6 +238,121 @@ export function askJudith(
   }, 45_000); // never let the chat hang forever — abort + surface a retry after 45s
 }
 
+/**
+ * Streaming variant of askJudith. Calls the server with stream:true and delivers
+ * text deltas via onDelta() as they arrive. Resolves with the final {reply, audioBase64,
+ * mime, action} once the server sends the "done" event (after TTS completes server-side).
+ * Falls back to a regular askJudith call if the environment does not support fetch streams
+ * (e.g. older React Native without ReadableStream support).
+ */
+export async function askJudithStream(
+  text: string,
+  bills?: AskBill[],
+  persona?: PersonaId,
+  language?: string,
+  includeVoice?: boolean,
+  currency?: string,
+  countryName?: string,
+  monthlyIncome?: number,
+  countryCode?: string,
+  incomeByMonth?: Record<string, number>,
+  payCycle?: "monthly" | "semi-monthly" | "weekly",
+  paydayDay?: number,
+  paydaySemi?: [number, number],
+  paydayWeekday?: number,
+  history?: Array<{ role: "user" | "assistant"; text: string }>,
+  onDelta?: (delta: string) => void,
+): Promise<AskResult> {
+  const body = {
+    text,
+    bills,
+    persona: persona ? PERSONA_MAP[persona] : undefined,
+    localDate: localDateString(),
+    localWeekday: localWeekdayString(),
+    language,
+    includeVoice,
+    currency,
+    countryName,
+    countryCode,
+    monthlyIncome,
+    incomeByMonth,
+    payCycle,
+    paydayDay,
+    paydaySemi,
+    paydayWeekday,
+    history: history?.length ? history : undefined,
+    stream: true,
+  };
+
+  const headers = await authHeader();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 45_000);
+
+  let resp: Response;
+  try {
+    resp = await fetch(`${BASE}/ask`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (err: unknown) {
+    clearTimeout(timeout);
+    if (controller.signal.aborted || (err as Error)?.name === "AbortError") throw new TimeoutError();
+    throw err;
+  }
+
+  throwIfRateLimited(resp);
+  if (!resp.ok) {
+    clearTimeout(timeout);
+    const detail = await resp.text().catch(() => "");
+    throw new ServerError(resp.status, detail);
+  }
+
+  if (!resp.body) {
+    clearTimeout(timeout);
+    throw new ServerError(500, "no_body");
+  }
+
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  let doneResult: AskResult | null = null;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        let evt: Record<string, unknown>;
+        try { evt = JSON.parse(line.slice(6)); } catch { continue; }
+        if (evt.type === "delta" && typeof evt.text === "string") {
+          onDelta?.(evt.text);
+        } else if (evt.type === "done") {
+          doneResult = {
+            reply: typeof evt.reply === "string" ? evt.reply : "",
+            audioBase64: typeof evt.audioBase64 === "string" ? evt.audioBase64 : null,
+            mime: typeof evt.mime === "string" ? evt.mime : "audio/mpeg",
+            action: evt.action as AskResult["action"] ?? null,
+          };
+        } else if (evt.type === "error") {
+          throw new ServerError(500, "stream_error");
+        }
+      }
+    }
+  } finally {
+    clearTimeout(timeout);
+    reader.releaseLock();
+  }
+
+  if (!doneResult) throw new ServerError(500, "no_done_event");
+  return doneResult;
+}
+
 export function synthesize(
   text: string,
   persona?: PersonaId,

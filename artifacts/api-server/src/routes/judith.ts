@@ -4,7 +4,7 @@ import {
   getSupabaseAdmin,
   getUserFromToken,
 } from "../lib/supabaseAdmin";
-import { getAnthropic, ANTHROPIC_MODEL } from "../lib/anthropic";
+import { getAnthropic, ANTHROPIC_MODEL, ANTHROPIC_HAIKU_MODEL } from "../lib/anthropic";
 import { transcribe, synthesize, listVoices } from "../lib/elevenlabs";
 import { isSafeForTTS } from "../lib/moderation";
 import {
@@ -612,6 +612,13 @@ router.post("/stt", sttTtsLimiter, async (req, res) => {
 });
 
 // POST /api/judith/ask  { text } -> { reply, audioBase64, mime }
+function pickModel(question: string, historyLen: number): string {
+  const isComplex = historyLen > 3
+    || question.length > 120
+    || /compare|project|forecast|breakdown|trend|analysis|next.{0,10}month|across|budget|pattern|versus|\bvs\b/i.test(question);
+  return isComplex ? ANTHROPIC_MODEL : ANTHROPIC_HAIKU_MODEL;
+}
+
 router.post("/ask", askLimiter, async (req, res) => {
   try {
     const user = await requireUser(req, res);
@@ -656,11 +663,11 @@ router.post("/ask", askLimiter, async (req, res) => {
     const safeLocalWeekday = typeof rawLocalWeekday === "string" && rawLocalWeekday.trim() ? rawLocalWeekday.trim() : undefined;
     const context: string = buildClientContext(bodyBills as ClientBill[], today, cur, income, incomeMo, cycle, safeDay, safeSemi, safeWeekday, safeLocalWeekday);
 
-    // Sanitize conversation history sent by the client. Cap at 10 turns to control cost.
+    // Sanitize conversation history sent by the client. Cap at 5 turns to control cost.
     type AnthropicMessage = { role: "user" | "assistant"; content: string };
     const historyMessages: AnthropicMessage[] = [];
     if (Array.isArray(bodyHistory)) {
-      for (const turn of bodyHistory.slice(-10)) {
+      for (const turn of bodyHistory.slice(-5)) {
         if (
           turn && typeof turn === "object" &&
           (turn.role === "user" || turn.role === "assistant") &&
@@ -672,32 +679,21 @@ router.post("/ask", askLimiter, async (req, res) => {
     }
 
     const anthropic = getAnthropic();
-    const message = await anthropic.messages.create({
-      model: ANTHROPIC_MODEL,
-      max_tokens: 200,
-      system: `${systemPrompt(persona, typeof language === "string" ? language : undefined, country, cur, cCode)}\n\nBILL CONTEXT (the only source of truth):\n${context}`,
-      messages: [...historyMessages, { role: "user", content: text.trim() }],
-    });
+    const model = pickModel(text, historyMessages.length);
+    const systemStr = `${systemPrompt(persona, typeof language === "string" ? language : undefined, country, cur, cCode)}\n\nBILL CONTEXT (the only source of truth):\n${context}`;
+    const msgs: AnthropicMessage[] = [...historyMessages, { role: "user", content: text.trim() }];
+    const ttsLang = typeof language === "string" ? language : undefined;
 
-    const rawReply = message.content
-      .map((b) => (b.type === "text" ? b.text : ""))
-      .join(" ")
-      .trim();
-    const { cleanText: reply, action } = parseAction(rawReply);
-
-    let audioBase64: string | null = null;
-    let mime = "audio/mpeg";
-    let ttsOk = false;
-    let ttsChars = 0;
-    if (includeVoice !== false) {
+    const doTts = async (reply: string) => {
+      if (includeVoice === false) return { audioBase64: null as string | null, mime: "audio/mpeg", ttsOk: false, ttsChars: 0 };
+      let audioBase64: string | null = null;
+      let mime = "audio/mpeg";
+      let ttsOk = false;
+      let ttsChars = 0;
       try {
-        const lang = typeof language === "string" ? language : undefined;
-        // Run moderation and TTS in parallel — moderation almost never blocks a bill
-        // reply, so we start TTS speculatively and discard if flagged. Removes the
-        // full moderation round-trip (~200-500ms) from the critical path.
         const [safe, audio] = await Promise.all([
           isSafeForTTS(reply),
-          synthesize(reply, voiceId, { live: false, speed: getSpeakingSpeed(persona), language: lang }).catch(() => null),
+          synthesize(reply, voiceId, { live: false, speed: getSpeakingSpeed(persona), language: ttsLang }).catch(() => null),
         ]);
         if (!safe) {
           logger.warn("tts skipped — moderation flagged reply");
@@ -710,26 +706,77 @@ router.post("/ask", askLimiter, async (req, res) => {
       } catch (ttsErr) {
         logger.error({ err: ttsErr }, "tts failed during ask");
       }
+      return { audioBase64, mime, ttsOk, ttsChars };
+    };
+
+    const doLog = (reply: string, ttsOk: boolean, ttsChars: number, inputTokens: number, outputTokens: number) => {
+      getSupabaseAdmin()
+        .from("ask_logs")
+        .insert({
+          user_id: user.id,
+          persona,
+          language: typeof language === "string" ? language : "en",
+          input_chars: text.trim().length,
+          reply_chars: reply.length,
+          tts_ok: ttsOk,
+          tts_chars: ttsChars,
+          input_tokens: inputTokens,
+          output_tokens: outputTokens,
+        })
+        .then(({ error }) => {
+          if (error) logger.warn({ err: error }, "ask_logs insert failed");
+        });
+    };
+
+    if (req.body?.stream === true) {
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("X-Accel-Buffering", "no");
+      res.flushHeaders();
+
+      let rawText = "";
+      let inputTokens = 0;
+      let outputTokens = 0;
+      try {
+        const stream = anthropic.messages.stream({ model, max_tokens: 200, system: systemStr, messages: msgs });
+        for await (const event of stream) {
+          if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+            const chunk = event.delta.text;
+            rawText += chunk;
+            res.write(`data: ${JSON.stringify({ type: "delta", text: chunk })}\n\n`);
+          }
+        }
+        const final = await stream.finalMessage();
+        inputTokens = final.usage.input_tokens;
+        outputTokens = final.usage.output_tokens;
+      } catch (streamErr) {
+        logger.error({ err: streamErr }, "ask stream failed");
+        try { res.write(`data: ${JSON.stringify({ type: "error" })}\n\n`); } catch {}
+        res.end();
+        return;
+      }
+
+      const { cleanText: reply, action } = parseAction(rawText.trim());
+      const { audioBase64, mime, ttsOk, ttsChars } = await doTts(reply);
+      res.write(`data: ${JSON.stringify({ type: "done", reply, action: action ?? null, audioBase64, mime })}\n\n`);
+      res.end();
+      doLog(reply, ttsOk, ttsChars, inputTokens, outputTokens);
+      return;
     }
 
-    res.json({ reply, audioBase64, mime, action });
+    // Non-streaming path — used by Watch and clients that don't support SSE.
+    const message = await anthropic.messages.create({ model, max_tokens: 200, system: systemStr, messages: msgs });
 
-    getSupabaseAdmin()
-      .from("ask_logs")
-      .insert({
-        user_id: user.id,
-        persona,
-        language: typeof language === "string" ? language : "en",
-        input_chars: text.trim().length,
-        reply_chars: reply.length,
-        tts_ok: ttsOk,
-        tts_chars: ttsChars,
-        input_tokens: message.usage.input_tokens,
-        output_tokens: message.usage.output_tokens,
-      })
-      .then(({ error }) => {
-        if (error) logger.warn({ err: error }, "ask_logs insert failed");
-      });
+    const rawReply = message.content
+      .map((b) => (b.type === "text" ? b.text : ""))
+      .join(" ")
+      .trim();
+    const { cleanText: reply, action } = parseAction(rawReply);
+    const { audioBase64, mime, ttsOk, ttsChars } = await doTts(reply);
+
+    res.json({ reply, audioBase64, mime, action });
+    doLog(reply, ttsOk, ttsChars, message.usage.input_tokens, message.usage.output_tokens);
   } catch (err) {
     logger.error({ err }, "ask failed");
     res.status(500).json({ error: "Judith could not respond right now" });
@@ -799,6 +846,33 @@ const SAMPLE_LINES_EN: Record<PersonaId, string> = {
     "Oh my gosh, hi! It's Judith! I literally know everything about your bills — and trust me, we need to talk!",
   britney:
     "Judith. Bills, amounts, due dates — tracked. Pay them on time. That's the deal.",
+};
+
+const SAMPLE_LINES_ILO: Record<PersonaId, string> = {
+  professional: "Kablaaw, siak ni Judith. Ipalagipko kenka sakbay ti aldaw ti panagbayadmo.",
+  funny: "Kablaaw! Siak ni Judith — ti pinaka-responsible nga kaibigan pagdating iti bills. Adda ak ditoy!",
+  sarcastic: "Siak ni Judith. Ilagiputek dagiti bills mo. Wen, kasapulan ti maysa.",
+  mom: "Ading, siak ni Judith. Bantayan ko dagiti bills mo — saan ka ag-alaala.",
+  marites: "Hoy! Siak ni Judith — amok amin dagiti bills mo! Nakakaingganyo, 'di ba?",
+  britney: "Judith. Bills mo, due dates — naka-track amin.",
+};
+
+const SAMPLE_LINES_CEB: Record<PersonaId, string> = {
+  professional: "Uy, si Judith ni. Pahinumduman tika sa dili pa ma-due ang imong bayranan.",
+  funny: "Uy! Si Judith ni — ang pinaka-responsible nimong amigo sa bills. Naa ko, promise!",
+  sarcastic: "Si Judith ni. Pahinumduman tika sa imong bills. Kay ikaw? Kinahanglan nimo.",
+  mom: "Anak, si Judith ni. Bantayan ko ang imong mga bayad — ayaw kabalaka.",
+  marites: "Hoy! Si Judith ni — nahibal-an nako tanan imong bills! Grabe, 'di ba?",
+  britney: "Judith. Imong bills, due dates — tracked.",
+};
+
+const SAMPLE_LINES_HIL: Record<PersonaId, string> = {
+  professional: "Kumusta, si Judith ko. Pahibaluon ko ikaw antes mag-due ang imo bayaron.",
+  funny: "Kumusta! Si Judith ko — ang pinaka-responsible nga abyan mo sa bills. Nag-abot na!",
+  sarcastic: "Si Judith ko. Pahibaluon ko ikaw sa imo mga bayad. Oo, kinahanglan nimo.",
+  mom: "Anak, si Judith ko. Bantayan ko ang imo mga bayad — indi mag-alala.",
+  marites: "Hoy! Si Judith ko — nahibaluan ko na tanan imo bills! Makapainteres, 'di ba?",
+  britney: "Judith. Imo bills, due dates — tracked.",
 };
 
 const FILIPINO_LANG_CODES = new Set(["fil", "ceb", "ilo", "hil"]);
@@ -1206,6 +1280,9 @@ const SAMPLE_LINES_BY_LANG: Record<string, PersonaSamples> = {
 
 function getSampleText(persona: PersonaId, language?: string): string {
   const lang = language ?? "en-US";
+  if (lang === "ilo") return SAMPLE_LINES_ILO[persona] ?? SAMPLE_LINES_FIL[persona];
+  if (lang === "ceb") return SAMPLE_LINES_CEB[persona] ?? SAMPLE_LINES_FIL[persona];
+  if (lang === "hil") return SAMPLE_LINES_HIL[persona] ?? SAMPLE_LINES_FIL[persona];
   if (FILIPINO_LANG_CODES.has(lang)) return SAMPLE_LINES_FIL[persona] ?? SAMPLE_LINES_EN[persona];
   const lines =
     SAMPLE_LINES_BY_LANG[lang] ??

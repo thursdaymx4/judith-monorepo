@@ -15,3 +15,6 @@ export function getAnthropic(): Anthropic {
 
 export const ANTHROPIC_MODEL =
   process.env["ANTHROPIC_MODEL"] ?? "claude-sonnet-4-5-20250929";
+
+export const ANTHROPIC_HAIKU_MODEL =
+  process.env["ANTHROPIC_HAIKU_MODEL"] ?? "claude-3-5-haiku-20241022";

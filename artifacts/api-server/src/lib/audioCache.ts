@@ -39,11 +39,22 @@ async function getBucket(): Promise<BucketType | null> {
 /**
  * Collapse a language code to its cache group key.
  * All English variants share "en"; all Filipino dialects share "fil".
+ * Used for ONBOARDING audio (dialects share the same Tagalog onboarding content).
  */
 export function cacheLanguageGroup(lang: string): string {
   if (lang.startsWith("en")) return "en";
   if (lang === "fil" || lang === "ceb" || lang === "ilo" || lang === "hil") return "fil";
   return lang;
+}
+
+/**
+ * Cache slot key for PERSONA SAMPLE audio.
+ * English variants share "en", but Philippine dialects (ceb/ilo/hil) each get
+ * their own slot so they serve dialect-specific text, not the generic Tagalog audio.
+ */
+function sampleLangKey(lang: string, countryCode?: string): string {
+  const base = lang.startsWith("en") ? "en" : lang;
+  return countryCode ? `${base}_${countryCode}` : base;
 }
 
 const PREFIX = "onb-voice";
@@ -99,7 +110,7 @@ export async function getSampleAudio(
   const bucket = await getBucket();
   if (!bucket) return null;
   try {
-    const langSlot = `${cacheLanguageGroup(lang)}${countryCode ? `_${countryCode}` : ""}`;
+    const langSlot = sampleLangKey(lang, countryCode);
     const key = `${SAMPLE_PREFIX}/${persona}/${langSlot}.mp3`;
     const file = bucket.file(key);
     const [exists] = await file.exists();
@@ -121,7 +132,7 @@ export async function setSampleAudio(
   const bucket = await getBucket();
   if (!bucket) return;
   try {
-    const langSlot = `${cacheLanguageGroup(lang)}${countryCode ? `_${countryCode}` : ""}`;
+    const langSlot = sampleLangKey(lang, countryCode);
     const key = `${SAMPLE_PREFIX}/${persona}/${langSlot}.mp3`;
     const buf = Buffer.from(audioBase64, "base64");
     await bucket.file(key).save(buf, {
