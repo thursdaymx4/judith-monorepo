@@ -39,8 +39,19 @@ app.use(cors({
     return callback(new Error("Not allowed by CORS"));
   },
 }));
-app.use(express.json({ limit: "25mb" }));
-app.use(express.urlencoded({ extended: true, limit: "25mb" }));
+// Most endpoints handle small JSON payloads; only the vision-based parse routes
+// need room for a screenshot. Path-routed limits cap ingress on every other
+// endpoint to a few MB so attackers can't bloat unrelated requests.
+const parseJsonStandard = express.json({ limit: "3mb" });
+const parseJsonLarge = express.json({ limit: "8mb" });
+const PARSE_PATHS = new Set([
+  "/api/judith/parse-bill",
+  "/api/judith/parse-subscription-screenshot",
+]);
+app.use((req, res, next) =>
+  PARSE_PATHS.has(req.path) ? parseJsonLarge(req, res, next) : parseJsonStandard(req, res, next),
+);
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
 app.use("/api", router);
 

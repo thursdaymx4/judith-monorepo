@@ -6,7 +6,7 @@ private enum JudithComplicationConfig {
     static let payloadKey = "judith.payload_v2"
 }
 
-private enum JudithComplicationMode {
+enum JudithComplicationMode {
     case nextDue
     case monthlyTotal
 }
@@ -43,6 +43,58 @@ private func nextDueInlineSummary(_ payload: ComplicationPayload) -> String {
 }
 
 struct ComplicationPayload: Decodable {
+    let generatedAt: String
+    let currency: String
+    let totalOwed: Double
+    let unpaidCount: Int
+    let nextProvider: String
+    let nextAmount: Double
+    let nextDueDays: Int
+    let nextDueLabel: String
+    let paidCount: Int
+    let totalCount: Int
+
+    init(
+        generatedAt: String,
+        currency: String,
+        totalOwed: Double,
+        unpaidCount: Int,
+        nextProvider: String,
+        nextAmount: Double,
+        nextDueDays: Int,
+        nextDueLabel: String,
+        paidCount: Int,
+        totalCount: Int
+    ) {
+        self.generatedAt = generatedAt
+        self.currency = currency
+        self.totalOwed = totalOwed
+        self.unpaidCount = unpaidCount
+        self.nextProvider = nextProvider
+        self.nextAmount = nextAmount
+        self.nextDueDays = nextDueDays
+        self.nextDueLabel = nextDueLabel
+        self.paidCount = paidCount
+        self.totalCount = totalCount
+    }
+
+    fileprivate init(from storedWatchPayload: StoredWatchPayload) {
+        self.init(
+            generatedAt: storedWatchPayload.generatedAt,
+            currency: storedWatchPayload.currency,
+            totalOwed: storedWatchPayload.totalOwed,
+            unpaidCount: storedWatchPayload.unpaidCount,
+            nextProvider: storedWatchPayload.nextProvider,
+            nextAmount: storedWatchPayload.nextAmount,
+            nextDueDays: storedWatchPayload.nextDueDays,
+            nextDueLabel: storedWatchPayload.nextDueLabel,
+            paidCount: storedWatchPayload.paidCount,
+            totalCount: storedWatchPayload.totalCount
+        )
+    }
+}
+
+private struct StoredWatchPayload: Decodable {
     let generatedAt: String
     let currency: String
     let totalOwed: Double
@@ -96,7 +148,11 @@ struct JudithComplicationProvider: TimelineProvider {
         let payload: ComplicationPayload?
 
         if let data = defaults?.data(forKey: JudithComplicationConfig.payloadKey) {
-            payload = try? JSONDecoder().decode(ComplicationPayload.self, from: data)
+            if let watchPayload = try? JSONDecoder().decode(StoredWatchPayload.self, from: data) {
+                payload = ComplicationPayload(from: watchPayload)
+            } else {
+                payload = try? JSONDecoder().decode(ComplicationPayload.self, from: data)
+            }
         } else {
             payload = nil
         }

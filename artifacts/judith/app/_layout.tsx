@@ -15,7 +15,11 @@ import * as Notifications from "expo-notifications";
 import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, LogBox, Pressable, StyleSheet, Text, View } from "react-native";
+
+// expo-notifications logs this on every push-token call on the iOS simulator —
+// harmless and won't appear on real devices.
+LogBox.ignoreLogs([/expo-notifications: obtaining a push token may not work on iOS simulators/]);
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";

@@ -7,6 +7,17 @@ let _activePlayer: ReturnType<typeof createAudioPlayer> | null = null;
 let _activeUri: string | null = null;
 /** Subscription for the active player — must be removed before disposing the player. */
 let _activeSub: { remove: () => void } | null = null;
+/** FIFO of base64 MP3 chunks waiting to be played sequentially. */
+let _audioQueue: string[] = [];
+let _audioPumpRunning = false;
+
+/**
+ * Switch the iOS audio session back to playback-only. Call after `recorder.stop()`
+ * — the PlayAndRecord category persists across recorder lifecycle and a leftover
+ * record session degrades subsequent playback latency.
+ */
+export const resetAudioToPlayback = () =>
+  setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
 
 async function cleanupUri(uri: string | null) {
   if (!uri) return;
@@ -19,10 +30,13 @@ async function cleanupUri(uri: string | null) {
 }
 
 /**
- * Stop and dispose whatever Judith audio is currently playing.
+ * Stop and dispose whatever Judith audio is currently playing, and clear any
+ * queued chunks waiting behind it. Pass `{ keepQueue: true }` from the queue
+ * pump itself so playing the next chunk doesn't erase its own siblings.
  * Safe to call even when nothing is active.
  */
-export function stopCurrentAudio() {
+export function stopCurrentAudio(opts?: { keepQueue?: boolean }) {
+  if (!opts?.keepQueue) _audioQueue = [];
   const p = _activePlayer;
   const uri = _activeUri;
   const sub = _activeSub;
@@ -46,7 +60,7 @@ export function stopCurrentAudio() {
  */
 export async function playFromUrl(url: string, rate = 1.0): Promise<void> {
   stopCurrentAudio();
-  await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false });
+  await resetAudioToPlayback();
   const player = createAudioPlayer(url);
   _activePlayer = player;
   _activeUri = null;
@@ -72,14 +86,15 @@ export async function playFromUrl(url: string, rate = 1.0): Promise<void> {
  * Resolves when playback finishes (or the player is replaced).
  */
 export async function playBase64Mp3(base64: string, rate = 1.0): Promise<void> {
-  // Immediately stop whatever was playing so voices never overlap.
-  stopCurrentAudio();
+  // Stop the active player so clips never overlap — but keep any queued
+  // chunks so the next `enqueueAudio` chunk still gets a turn.
+  stopCurrentAudio({ keepQueue: true });
 
   const uri = `${FileSystem.cacheDirectory}judith-${Date.now()}-${counter++}.mp3`;
   await FileSystem.writeAsStringAsync(uri, base64, {
     encoding: FileSystem.EncodingType.Base64,
   });
-  await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false });
+  await resetAudioToPlayback();
 
   const player = createAudioPlayer(uri);
   _activePlayer = player;
@@ -108,6 +123,29 @@ export async function playBase64Mp3(base64: string, rate = 1.0): Promise<void> {
     });
     _activeSub = sub;
   });
+}
+
+/**
+ * Append a base64 MP3 to the playback queue and start draining if idle.
+ * Chunks play strictly in order, end-to-end. Used by the streaming Ask reply
+ * so first-sentence audio starts before the full reply is synthesized.
+ */
+export function enqueueAudio(base64: string) {
+  _audioQueue.push(base64);
+  if (!_audioPumpRunning) void pumpAudioQueue();
+}
+
+async function pumpAudioQueue() {
+  _audioPumpRunning = true;
+  try {
+    while (_audioQueue.length > 0) {
+      const next = _audioQueue.shift();
+      if (!next) continue;
+      try { await playBase64Mp3(next); } catch { /* skip and continue */ }
+    }
+  } finally {
+    _audioPumpRunning = false;
+  }
 }
 
 /** Reads a recorded file URI and returns its base64 contents. */

@@ -37,6 +37,11 @@ export interface AskBill {
    * the per-bill list and "(estimated)" in the monthly totals.
    */
   isProjection?: boolean;
+  /** Amount already paid toward this bill in the current cycle. Omit when 0. */
+  paidThisPeriod?: number;
+  /** Original full amount before partial payment was subtracted. Required
+   *  alongside paidThisPeriod so the server can render "X paid of Y total". */
+  originalTotal?: number;
 }
 
 /** Returns Authorization header with the current Supabase session token. */
@@ -85,6 +90,22 @@ export class ServerError extends Error {
   }
 }
 
+/** Thrown when the server responds with 401 — the user has no valid session. */
+export class UnauthorizedError extends Error {
+  constructor() {
+    super("unauthorized");
+    this.name = "UnauthorizedError";
+  }
+}
+
+/** Thrown when the caller cancelled the request (e.g. user closed the screen). */
+export class AbortedError extends Error {
+  constructor() {
+    super("aborted");
+    this.name = "AbortedError";
+  }
+}
+
 async function postJson<T>(path: string, body: unknown, timeoutMs?: number): Promise<T> {
   const headers = await authHeader();
   const controller = timeoutMs != null ? new AbortController() : null;
@@ -109,6 +130,7 @@ async function postJson<T>(path: string, body: unknown, timeoutMs?: number): Pro
   }
   throwIfRateLimited(res);
   if (!res.ok) {
+    if (res.status === 401) throw new UnauthorizedError();
     const detail = await res.text().catch(() => "");
     if (res.status >= 500) throw new ServerError(res.status, detail);
     throw new Error(`Request failed (${res.status}): ${detail}`);
@@ -262,6 +284,8 @@ export async function askJudithStream(
   paydayWeekday?: number,
   history?: Array<{ role: "user" | "assistant"; text: string }>,
   onDelta?: (delta: string) => void,
+  onAudio?: (audioBase64: string) => void,
+  signal?: AbortSignal,
 ): Promise<AskResult> {
   const body = {
     text,
@@ -287,6 +311,15 @@ export async function askJudithStream(
   const headers = await authHeader();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 45_000);
+  // Bridge the caller-supplied signal into our internal controller so unmounting
+  // the screen kills the fetch immediately instead of waiting on the 45s timeout.
+  const propagateAbort = () => controller.abort();
+  if (signal?.aborted) controller.abort();
+  else signal?.addEventListener("abort", propagateAbort);
+  const cleanup = () => {
+    clearTimeout(timeout);
+    signal?.removeEventListener("abort", propagateAbort);
+  };
 
   let resp: Response;
   try {
@@ -297,20 +330,22 @@ export async function askJudithStream(
       signal: controller.signal,
     });
   } catch (err: unknown) {
-    clearTimeout(timeout);
+    cleanup();
+    if (signal?.aborted) throw new AbortedError();
     if (controller.signal.aborted || (err as Error)?.name === "AbortError") throw new TimeoutError();
     throw err;
   }
 
   throwIfRateLimited(resp);
   if (!resp.ok) {
-    clearTimeout(timeout);
+    cleanup();
+    if (resp.status === 401) throw new UnauthorizedError();
     const detail = await resp.text().catch(() => "");
     throw new ServerError(resp.status, detail);
   }
 
   if (!resp.body) {
-    clearTimeout(timeout);
+    cleanup();
     throw new ServerError(500, "no_body");
   }
 
@@ -332,6 +367,8 @@ export async function askJudithStream(
         try { evt = JSON.parse(line.slice(6)); } catch { continue; }
         if (evt.type === "delta" && typeof evt.text === "string") {
           onDelta?.(evt.text);
+        } else if (evt.type === "audio" && typeof evt.audioBase64 === "string") {
+          onAudio?.(evt.audioBase64);
         } else if (evt.type === "done") {
           doneResult = {
             reply: typeof evt.reply === "string" ? evt.reply : "",
@@ -344,8 +381,11 @@ export async function askJudithStream(
         }
       }
     }
+  } catch (err: unknown) {
+    if (signal?.aborted) throw new AbortedError();
+    throw err;
   } finally {
-    clearTimeout(timeout);
+    cleanup();
     reader.releaseLock();
   }
 

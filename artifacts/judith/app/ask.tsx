@@ -21,8 +21,9 @@ import { getQuickAsks } from "@/constants/providers";
 import { getPersona } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
-import { fileToBase64, playBase64Mp3 } from "@/lib/audio";
-import { type AddBillAction, type AskBill, askJudithStream, parseSubscriptionScreenshot, transcribe, RateLimitError, TimeoutError, ServerError } from "@/lib/proxy";
+import { enqueueAudio, fileToBase64, resetAudioToPlayback, stopCurrentAudio } from "@/lib/audio";
+import { safeBack } from "@/lib/navigation";
+import { type AddBillAction, type AskBill, askJudithStream, parseSubscriptionScreenshot, transcribe, RateLimitError, TimeoutError, ServerError, UnauthorizedError, AbortedError } from "@/lib/proxy";
 import { sttHint, isFilipino } from "@/constants/languages";
 
 /**
@@ -204,6 +205,23 @@ export default function AskModal() {
   };
   useEffect(() => clearVad, []);
 
+  // Tracks the AbortController for the in-flight ask request so the unmount
+  // effect (and the next ask) can cancel it instead of waiting on the 45s
+  // server-side timeout. Without this, closing the screen mid-request leaves
+  // the fetch + SSE reader alive on the JS thread — the UI feels frozen.
+  const inFlightAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      inFlightAbortRef.current?.abort();
+      inFlightAbortRef.current = null;
+      stopCurrentAudio();
+      recorder.stop().catch(() => {});
+      resetAudioToPlayback().catch(() => {});
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [scanBusy, setScanBusy] = useState(false);
   const [scanRows, setScanRows] = useState<ScanRow[] | null>(null);
   const [addQVisible, setAddQVisible] = useState(false);
@@ -342,6 +360,10 @@ export default function AskModal() {
       const amount = isResolvedViaCard
         ? totalOwed(b)
         : Math.max(0, totalOwed(b) - paidThisPeriod);
+      // Only ship partial-payment context for non-via-card payable bills with
+      // an actual partial payment recorded. Via-card amounts don't reduce
+      // `amount`, so a "paid" tag would be misleading there.
+      const showPartial = !isResolvedViaCard && !isPaidThisPeriod && paidThisPeriod > 0;
       return {
         id: b.id,
         provider: b.provider,
@@ -355,6 +377,7 @@ export default function AskModal() {
         businessName: b.businessName,
         chargedToCard: b.chargedToCard,
         cardName,
+        ...(showPartial ? { paidThisPeriod, originalTotal: totalOwed(b) } : {}),
       };
     });
     // NOTE on status: we send "paid" whenever THIS period is settled
@@ -542,6 +565,11 @@ export default function AskModal() {
     if (!isPaid) consumeAsk();
     setBusy(true);
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
+    // Cancel any prior in-flight ask before starting a new one, then track this
+    // request so unmount can abort it cleanly.
+    inFlightAbortRef.current?.abort();
+    const abortCtrl = new AbortController();
+    inFlightAbortRef.current = abortCtrl;
     try {
       // Speak aloud only when the user hasn't muted replies (voice tier) — saves TTS cost and stays silent in public.
       // The mute only applies to the voice tier; other tiers (e.g. free with asks left) are unaffected.
@@ -560,24 +588,21 @@ export default function AskModal() {
         Object.keys(incomeByMonth).length > 0 ? incomeByMonth : undefined,
         payCycle, paydayDay, paydaySemi, paydayWeekday,
         historyMsgs.length > 0 ? historyMsgs : undefined,
-        // When voice is on, hold back text until the "done" event so text and
-        // audio appear simultaneously.  When voice is off, stream text tokens
-        // as they arrive for a snappier feel.
-        wantVoice
-          ? undefined
-          : (delta) => {
-              streamedText += delta;
-              updateLatestMsg(streamedText.replace(/<<ACTION:.*$/s, "").trimEnd());
-              requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: false }));
-            },
+        (delta) => {
+          streamedText += delta;
+          updateLatestMsg(streamedText.replace(/<<ACTION:.*$/s, "").trimEnd());
+          requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: false }));
+        },
+        (chunk) => enqueueAudio(chunk),
+        abortCtrl.signal,
       );
       const finalReply = reply?.trim() || await fallbackWithDelay(q);
       updateLatestMsg(finalReply);
       requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: false }));
       setAskHistory([...messagesRef.current]);
-      if (audioBase64) {
-        playBase64Mp3(audioBase64).catch(() => {});
-      }
+      // Server's fallback path (no sentence-boundary found mid-stream) sends
+      // audio in the `done` event rather than as separate chunks.
+      if (audioBase64) enqueueAudio(audioBase64);
       if (action?.type === "add_bill") {
         const bill = makeBillFromAction(action as AddBillAction);
         saveBill(bill);
@@ -623,6 +648,9 @@ export default function AskModal() {
         }
       }
     } catch (e) {
+      // Screen unmounted or a newer ask superseded this one — silently bail.
+      // No state updates: the component is gone or about to be.
+      if (e instanceof AbortedError) return;
       const isFil = isFilipino(language ?? "fil");
       const showJudithMsg = (text: string) => {
         const last = messagesRef.current[messagesRef.current.length - 1];
@@ -640,6 +668,13 @@ export default function AskModal() {
         showJudithMsg(isFil
           ? `Sandali lang — maghintay ka ng ${e.retryAfter} segundo bago magtanong ulit.`
           : `You're sending too fast — please wait ${e.retryAfter} second${e.retryAfter === 1 ? "" : "s"} before asking again.`
+        );
+      } else if (e instanceof UnauthorizedError) {
+        // Signed-out / expired session — retrying won't help, so don't offer Retry.
+        if (!isPaid) addAsks(1);
+        showJudithMsg(isFil
+          ? "Naka-sign out ka — i-sign in ulit sa Account para magamit ang Ask Judith."
+          : "You're signed out — please sign back in from Account to use Ask Judith."
         );
       } else {
         // Timeout, server error, or connection failure — refund the ask, remember
@@ -663,6 +698,7 @@ export default function AskModal() {
         );
       }
     } finally {
+      if (inFlightAbortRef.current === abortCtrl) inFlightAbortRef.current = null;
       setBusy(false);
       requestAnimationFrame(() =>
         scrollRef.current?.scrollToEnd({ animated: true }),
@@ -768,12 +804,14 @@ export default function AskModal() {
     // tell the user clearly so they know to try again.
     if (!hadSpeech) {
       await recorder.stop().catch(() => {});
+      resetAudioToPlayback().catch(() => {});
       setErr("I didn't catch anything — tap the mic and speak clearly.");
       return;
     }
     setBusy(true);
     try {
       await recorder.stop();
+      resetAudioToPlayback().catch(() => {});
       const uri = recorder.uri;
       if (!uri) throw new Error("no_audio");
       const base64 = await fileToBase64(uri);
@@ -836,7 +874,7 @@ export default function AskModal() {
       >
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <Pressable
-            onPress={() => { if (router.canGoBack()) router.back(); else router.replace("/(tabs)"); }}
+            onPress={() => safeBack(router)}
             hitSlop={10}
             style={{
               width: 32,

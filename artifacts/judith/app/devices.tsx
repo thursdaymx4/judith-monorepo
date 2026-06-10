@@ -8,6 +8,7 @@ import { Dot, Low, Mono, Screen, SheetHeader, Txt, mix } from "@/components/ui";
 import { currentCycleDue, dueClass, dueShort, dueText, isPaidViaCard, type Bill } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
+import { safeBack } from "@/lib/navigation";
 import { isPaidThisMonth, remainingThisMonth } from "@/lib/currentCycle";
 
 type NextBill = { provider: string; amount: number; dueDays: number; cat: string };
@@ -211,7 +212,7 @@ export default function DevicesModal() {
 
   return (
     <Screen contentStyle={{ paddingTop: 14, paddingBottom: 28 }}>
-      <SheetHeader title="On your devices" onClose={() => router.back()} />
+      <SheetHeader title="On your devices" onClose={() => safeBack(router)} />
       <Txt size={14} color={t.txtMid} style={{ marginTop: 8, marginBottom: 18 }}>
         A preview of where Judith shows up — concepts for what’s coming next.
       </Txt>

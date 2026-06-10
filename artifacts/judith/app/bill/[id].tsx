@@ -17,6 +17,7 @@ import {
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { haptics } from "@/lib/haptics";
+import { safeBack } from "@/lib/navigation";
 
 /* ─── helpers ────────────────────────────────────────────────────── */
 
@@ -289,7 +290,7 @@ export default function BillDetailModal() {
   if (!bill) {
     return (
       <Screen contentStyle={{ paddingTop: 14 }}>
-        <SheetHeader title="Bill" onClose={() => router.back()} />
+        <SheetHeader title="Bill" onClose={() => safeBack(router)} />
         <View style={{ height: 20 }} />
         <Low>Bill not found.</Low>
       </Screen>
@@ -372,16 +373,16 @@ export default function BillDetailModal() {
       Alert.alert(
         "Payment recorded",
         `${money(rem)} remaining will roll over to next month automatically — nothing else for you to do.`,
-        [{ text: "Got it", onPress: () => router.back() }],
+        [{ text: "Got it", onPress: () => safeBack(router) }],
       );
     } else {
-      router.back();
+      safeBack(router);
     }
   };
 
   return (
     <Screen contentStyle={{ paddingTop: 14 }}>
-      <SheetHeader title={bill.provider} onClose={() => router.back()} />
+      <SheetHeader title={bill.provider} onClose={() => safeBack(router)} />
 
       {/* ── MONTH NAVIGATOR ──────────────────────────────────── */}
       <View
@@ -639,7 +640,7 @@ export default function BillDetailModal() {
                 `Mark linked ${count === 1 ? "bill" : "bills"} paid too?`,
                 `${count === 1 ? "1 bill is" : `${count} bills are`} charged to this card (${names}). Mark ${count === 1 ? "it" : "them"} paid for ${periodLabel(viewedPeriod)} as well?`,
                 [
-                  { text: "Just the card", style: "cancel", onPress: () => router.back() },
+                  { text: "Just the card", style: "cancel", onPress: () => safeBack(router) },
                   {
                     text: "Yes, mark all paid",
                     onPress: () => {
@@ -648,14 +649,14 @@ export default function BillDetailModal() {
                       linkedUnpaid.forEach((c) => {
                         if (!isPaidForPeriod(c, viewedPeriod)) togglePaid(c.id, viewedPeriod);
                       });
-                      router.back();
+                      safeBack(router);
                     },
                   },
                 ],
               );
               return;
             }
-            router.back();
+            safeBack(router);
           }}
         />
         )}
