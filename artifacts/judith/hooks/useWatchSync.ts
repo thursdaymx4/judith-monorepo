@@ -32,11 +32,11 @@ export function useWatchSync() {
   const scheduleSync = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
-      syncBillsToWatch(
+        syncBillsToWatch(
         billsRef.current,
         personaRef.current,
         currencyRef.current,
-        togglesRef.current.watch,
+        true,
       ).catch(() => {});
     }, 500);
   };

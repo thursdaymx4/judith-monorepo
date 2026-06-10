@@ -22,6 +22,7 @@ import type { PersonaId } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { isPaidThisMonth } from "@/lib/currentCycle";
+import { safeBack } from "@/lib/navigation";
 import { getPermissionStatus } from "@/lib/notifications";
 
 /* persona + country flavored notification copy for a given bill */
@@ -280,7 +281,7 @@ export default function RemindersModal() {
 
   return (
     <Screen contentStyle={{ paddingTop: 14, paddingBottom: 24 }}>
-      <SheetHeader title="Reminders" onClose={() => router.back()} />
+      <SheetHeader title="Reminders" onClose={() => safeBack(router)} />
       <Muted size={14} style={{ marginTop: 4, marginBottom: 16 }}>
         Here’s how Judith will nudge you — and when.
       </Muted>

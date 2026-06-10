@@ -82,6 +82,22 @@ export function ipLimiter(windowMs: number, max: number) {
   });
 }
 
+/**
+ * Global ceiling shared across all callers. Stacks on top of per-IP limits as a
+ * cost-circuit-breaker — a proxy pool with thousands of unique IPs still gets
+ * stopped here. Caps default conservatively; raise via env if real traffic hits them.
+ */
+export function globalLimiter(windowMs: number, max: number) {
+  return rateLimit({
+    windowMs,
+    max,
+    keyGenerator: () => "global",
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    handler: HANDLER,
+  });
+}
+
 const HOUR = 60 * 60 * 1000;
 
 export const askLimiter              = userLimiter(HOUR, 40);
@@ -95,3 +111,17 @@ export const askOnboardingLimiter    = ipLimiter(HOUR, isDev ? 500 : 60);
 // run) and developers re-test repeatedly; 20/hr was too easy to exhaust.
 export const sttTtsOnboardingLimiter = ipLimiter(HOUR, 80);
 export const sampleOnboardingLimiter = ipLimiter(HOUR, 60);
+
+const envInt = (key: string, fallback: number) => {
+  const n = Number(process.env[key]);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
+};
+
+// Global hourly caps on the unauthenticated, AI-backed onboarding endpoints.
+// Sized to cover plausible real onboarding traffic with headroom; tune via env
+// (CAP_ASK_ONBOARDING_HOURLY, CAP_PARSE_HOURLY, CAP_STT_TTS_ONBOARDING_HOURLY,
+// CAP_SAMPLE_ONBOARDING_HOURLY) if you start hitting them.
+export const askOnboardingGlobalCap     = globalLimiter(HOUR, envInt("CAP_ASK_ONBOARDING_HOURLY", isDev ? 5000 : 500));
+export const parseGlobalCap             = globalLimiter(HOUR, envInt("CAP_PARSE_HOURLY", isDev ? 1000 : 100));
+export const sttTtsOnboardingGlobalCap  = globalLimiter(HOUR, envInt("CAP_STT_TTS_ONBOARDING_HOURLY", isDev ? 3000 : 300));
+export const sampleOnboardingGlobalCap  = globalLimiter(HOUR, envInt("CAP_SAMPLE_ONBOARDING_HOURLY", isDev ? 3000 : 300));

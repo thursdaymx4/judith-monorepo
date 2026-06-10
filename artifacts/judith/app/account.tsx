@@ -9,6 +9,7 @@ import { fmtCurrency } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
 import { verifyBiometricsNow } from "@/hooks/useBiometricLock";
 import { useTheme } from "@/hooks/useTheme";
+import { safeBack } from "@/lib/navigation";
 import { deleteAccount as deleteAccountRemote } from "@/lib/proxy";
 import { restorePurchases as restorePurchasesRemote } from "@/lib/purchases";
 
@@ -377,7 +378,7 @@ export default function AccountScreen() {
 
   return (
     <Screen contentStyle={{ paddingTop: 14, paddingBottom: 32 }}>
-      <SheetHeader title="Account" onClose={() => router.back()} />
+      <SheetHeader title="Account" onClose={() => safeBack(router)} />
 
       {/* profile card */}
       <View

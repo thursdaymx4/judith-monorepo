@@ -267,6 +267,8 @@ struct AskView: View {
                 speak(answer)
             } catch ConnectivityService.AskError.phoneNotReachable {
                 viewState = .error("iPhone not reachable. Keep your phone nearby and open Judith.")
+            } catch ConnectivityService.AskError.serverError(let message) {
+                viewState = .error(message.isEmpty ? "Judith couldn't respond right now. Try again in a moment." : message)
             } catch {
                 viewState = .error("Judith couldn't respond right now. Try again in a moment.")
             }

@@ -30,7 +30,16 @@ export async function getUserFromToken(
   if (!token) return null;
   const admin = getSupabaseAdmin();
   const { data, error } = await admin.auth.getUser(token);
-  if (error || !data.user) return null;
+  if (error) {
+    // Surface the actual Supabase rejection reason — token-issuer mismatch,
+    // expired token, wrong project, etc. all look identical to callers
+    // otherwise. Truncated prefix only; never log the full token.
+    console.warn(
+      `[auth] getUser rejected token (${(error as { status?: number }).status ?? "?"}): ${error.message} — token prefix=${token.slice(0, 12)}…`,
+    );
+    return null;
+  }
+  if (!data.user) return null;
   return data.user;
 }
 

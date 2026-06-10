@@ -18,6 +18,7 @@ import { Low, Mono, Txt, mix } from "@/components/ui";
 import { getPaywallLocale, fmtFee } from "@/constants/paywallLocale";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
+import { safeBack } from "@/lib/navigation";
 import { getTierPackages, purchaseForTier, restorePurchases, type TierPackages } from "@/lib/purchases";
 import type { PurchasesPackage } from "react-native-purchases";
 
@@ -217,7 +218,7 @@ export default function PlansModal() {
     if (!pkg) {
       subscribe(targetTier);
       showToast(targetTier === "chat" ? "Chat Ask activated ✓" : "Voice Ask activated ✓");
-      router.back();
+      safeBack(router);
       return;
     }
     setBuyingTier(targetTier);
@@ -226,7 +227,7 @@ export default function PlansModal() {
       if (newTier !== "free") {
         subscribe(newTier);
         showToast(newTier === "voice" ? "Voice Ask activated ✓" : "Chat Ask activated ✓");
-        router.back();
+        safeBack(router);
       } else {
         showToast("Purchase cancelled");
       }
@@ -252,7 +253,7 @@ export default function PlansModal() {
       if (restoredTier !== "free") {
         subscribe(restoredTier);
         showToast(restoredTier === "voice" ? "Voice Ask restored ✓" : "Chat Ask restored ✓");
-        router.back();
+        safeBack(router);
       } else {
         showToast("No active subscription found");
       }
@@ -288,7 +289,7 @@ export default function PlansModal() {
       {/* close */}
       <View style={{ flexDirection: "row", justifyContent: "flex-end", marginBottom: 24 }}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => safeBack(router)}
           hitSlop={10}
           style={{
             width: 32, height: 32, borderRadius: 16,

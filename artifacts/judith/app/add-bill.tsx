@@ -10,6 +10,7 @@ import { getCategoryLabel, getVisibleCategories } from "@/constants/categoryLoca
 import { getProviders, getProviderPlaceholder } from "@/constants/providers";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
+import { safeBack } from "@/lib/navigation";
 import { haptics } from "@/lib/haptics";
 
 // CATEGORIES is computed per-render from country — see inside the component
@@ -123,7 +124,7 @@ export default function AddBillScreen() {
                 saveBill(base);
                 haptics.success();
                 showToast(`Added: ${base.provider}`);
-                router.back();
+                safeBack(router);
               },
             },
           ],
@@ -134,7 +135,7 @@ export default function AddBillScreen() {
       haptics.success();
       showToast(`Added: ${base.provider}`);
     }
-    router.back();
+    safeBack(router);
   };
 
   const confirmDelete = () => {
@@ -150,7 +151,7 @@ export default function AddBillScreen() {
             deleteBill(existing!.id);
             haptics.success();
             showToast("Bill deleted");
-            router.back();
+            safeBack(router);
           },
         },
       ],
@@ -255,7 +256,7 @@ export default function AddBillScreen() {
           borderBottomColor: t.hair2,
         }}
       >
-        <RoundBtn icon="x" size={34} onPress={() => router.back()} />
+        <RoundBtn icon="x" size={34} onPress={() => safeBack(router)} />
         <View style={{ flex: 1 }}>
           <Txt size={21} weight="bold">{isEdit ? "Edit bill" : "Add a bill"}</Txt>
           <Low size={12} style={{ marginTop: 1 }}>

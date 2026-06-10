@@ -8,6 +8,7 @@ import { getCategoryLabel } from "@/constants/categoryLocale";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { isPaidThisMonth, remainingThisMonth } from "@/lib/currentCycle";
+import { safeBack } from "@/lib/navigation";
 
 type SortKey = "due" | "amount" | "name";
 
@@ -62,7 +63,7 @@ export default function BillsModal() {
 
   return (
     <Screen contentStyle={{ paddingTop: 14 }}>
-      <SheetHeader title="All bills" onClose={() => router.back()} />
+      <SheetHeader title="All bills" onClose={() => safeBack(router)} />
       <Low size={12} style={{ marginTop: 6 }}>
         {list.length} shown · <Mono size={12}>{money(total)}</Mono> due
       </Low>
