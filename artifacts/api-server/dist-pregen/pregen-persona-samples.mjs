@@ -223,7 +223,7 @@ ACCURACY (absolute \u2014 the top priority):
 OVERDUE BILLS \u2014 urgent context, but NEVER hijack the first sentence:
 - If the context contains a "\u26A0\uFE0F OVERDUE ALERT" block, you MUST mention it in the reply \u2014 but ONLY after you have answered the user's question first (see ANSWER SEQUENCING above).
 - Answer the question \u2192 then immediately flag the overdue situation in the next sentence.
-- Example: user asks "what's due this week?" and there are 4 overdue bills \u2192 CORRECT: "Nothing new due this week. But you've got \u20B113,000 overdue \u2014 4 bills that already passed their due dates." WRONG: "May \u20B113,000 kang overdue \u2014 4 bills... nothing new this week."
+- Example: user asks "what's due this week?" and 4 bills are overdue \u2192 CORRECT: "Nothing new due this week. But you've got \u20B113,000 overdue \u2014 4 bills past due."
 - FORBIDDEN when any overdue bills exist \u2014 never use these or anything that conveys the same relief/safety/celebration:
   "Ligtas ka", "Ligtas ka naman", "Wala naman", "Clear ka", "Pahinga muna", "You're safe", "Nothing to worry about", "You're good", "All clear", "haha", "hehe", "\u{1F389}", "\u2705", or any equivalent phrase in any language.
 - "The due dates have passed" is NOT a safe framing \u2014 past-due = overdue = alarm, never relief.
@@ -238,9 +238,6 @@ INCOME REMAINING QUESTIONS (how much left after bills?):
 - The context contains a pre-computed "INCOME REMAINING" section. Use those exact figures \u2014 never subtract bill totals from income yourself.
 - For next-month questions, always mention the overdue carry-forward note if it appears in the context.
 - If no income is on file (no INCOME REMAINING section), tell the user to add their income in Settings.
-
-WELLBEING OVERRIDE:
-- If the user expresses real financial stress or worry, immediately drop all humor and sarcasm. Respond plainly, kindly, briefly.
 
 ADD BILL CAPABILITY:
 When the user asks you to add, track, save, or remember a new bill or recurring payment:
@@ -279,11 +276,9 @@ UPDATE OTHER FIELDS (category, kind, reminder days, business flag, house/propert
 
 Edit action rules:
 - ALWAYS use the exact [id:XXX] value shown in the BILLS context \u2014 never invent, shorten, or modify an id
-- Emit at most one action tag per reply
 - If you cannot identify the exact bill (ambiguous name, no id in context, multiple matches), ask for clarification \u2014 do not guess
-- "Mark as paid" requests \u2192 use mark_paid. "I paid \u20B1X" \u2192 use add_payment. "Change the amount to \u20B1X" \u2192 use update_amount
+- "Mark as paid" \u2192 use mark_paid. "I paid \u20B1X" \u2192 use add_payment. "Change amount to \u20B1X" \u2192 use update_amount
 - amount in all actions is a plain number (no currency symbol, no commas)
-- Never emit a bill-edit action when the user did not ask to modify a specific bill
 `.trim();
 
 // src/lib/audioCache.ts
@@ -324,12 +319,16 @@ function cacheLanguageGroup(lang) {
   if (lang === "fil" || lang === "ceb" || lang === "ilo" || lang === "hil") return "fil";
   return lang;
 }
+function sampleLangKey(lang, countryCode) {
+  const base = lang.startsWith("en") ? "en" : lang;
+  return countryCode ? `${base}_${countryCode}` : base;
+}
 var SAMPLE_PREFIX = "persona-sample-v2";
 async function setSampleAudio(persona, lang, audioBase64, countryCode) {
   const bucket = await getBucket();
   if (!bucket) return;
   try {
-    const langSlot = `${cacheLanguageGroup(lang)}${countryCode ? `_${countryCode}` : ""}`;
+    const langSlot = sampleLangKey(lang, countryCode);
     const key = `${SAMPLE_PREFIX}/${persona}/${langSlot}.mp3`;
     const buf = Buffer.from(audioBase64, "base64");
     await bucket.file(key).save(buf, {
