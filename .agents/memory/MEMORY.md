@@ -33,5 +33,6 @@
 - [Judith RevenueCat seed](judith-revenuecat-seed.md) — idempotent dual-tier seed script; addIntegration+proposeIntegration both required; custom fetch bridges connectors proxy into RC SDK createClient.
 - [Judith TTS currency](judith-tts-currency.md) — prepareForTTS must normalize ALL currency symbols (A$, CA$, £, ¥, ﷼…) to spoken words; ElevenLabs reads prefix letters literally without this.
 - [Judith OTA setup](judith-ota-setup.md) — eas update needs babel-preset-expo pinned as direct dep (@54.0.11) + metro transformIgnorePatterns to prevent hermesc private-field errors.
+- [Judith Supabase storage key](judith-supabase-storage-key.md) — storageKey:"judith-auth-token" must stay pinned; removing it causes OTA bundles to look in a different slot than the native build → silent sign-out on every update.
 - [Judith onboarding voice lockstep](judith-onb-voice-lockstep.md) — voiceLines.ts + pregen EN_TEXT + ONB_LINE_TO_CONCEPT must stay in sync; britney must be in all three; file uses literal \\\uXXXX escapes (not UTF-8 chars) — match carefully.
 - [GCS static import blocks Cloud Run startup](gcs-cloud-run-startup.md) — @google-cloud/* static imports hang in Cloud Run; always use lazy await import() inside getBucket().

@@ -82,6 +82,14 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
         persistSession: true,
         detectSessionInUrl: false,
         flowType: "pkce",
+        // Pin the storage key so it never changes if the Supabase URL is
+        // swapped between the raw project URL and the custom domain
+        // (https://login.judithforduedates.com vs https://<ref>.supabase.co).
+        // Without this, each URL produces a different storage-key prefix and
+        // OTA bundles built from Replit end up looking in a different slot than
+        // the native EAS build, causing the session to appear missing on every
+        // OTA update.
+        storageKey: "judith-auth-token",
       },
     })
   : null;
