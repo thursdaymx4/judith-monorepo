@@ -996,7 +996,9 @@ export default function AskModal() {
                 <View style={{ flex: 1, gap: 5 }}>
                   <SpeechBubble>
                     <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 6 }}>
-                      <Txt size={14.5} style={{ flex: 1 }}>{m.text}</Txt>
+                      {m.text === "" && busy && i === messages.length - 1
+                        ? <View style={{ flex: 1 }}><TypingDots /></View>
+                        : <Txt size={14.5} style={{ flex: 1 }}>{m.text}</Txt>}
                       <Pressable
                         onPress={() => {
                           const next = messagesRef.current.map((msg, j) =>
@@ -1040,7 +1042,7 @@ export default function AskModal() {
               </AnimMsg>
             ),
           )}
-          {busy && (
+          {busy && !(messages[messages.length - 1]?.role === "judith" && messages[messages.length - 1]?.text === "") && (
             <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
               <JudithAvatar persona={persona} size={30} state="speaking" />
               <SpeechBubble>
