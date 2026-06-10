@@ -203,6 +203,7 @@ const SAMPLE_CAT_TO_ID: Record<string, string> = {
   "Water":              "water",
   "Internet":           "internet",
   "Mobile":             "mobile",
+  "TV / Streaming":     "streaming",
   "Phone subscription": "appsubs",
   "Web app":            "webapps",
   "Insurance":          "insurance",
@@ -2299,11 +2300,19 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     const fromStore = storeBills.filter((b) => b.isBusiness && b.businessName).map((b) => b.businessName!);
     return [...new Set([...fromOnb, ...fromStore])];
   }, [bills, storeBills]);
-  const [phase, setPhase] = useState<"scripted" | "cards" | "loans">(() => skipCards ? "scripted" : "cards");
-  // When starting in scripted phase, begin at "prompt". If SAMPLES is empty
-  // (the selected categories didn't match any sample in the list), jump straight
-  // to "more" so the user can add bills manually rather than hitting a crash.
-  const [mode, setMode] = useState<VMode>(() => skipCards ? (SAMPLES.length > 0 ? "prompt" : "more") : "count");
+  // When only loans are selected (no scripted samples, cards skipped), start
+  // directly in the loans count phase so they aren't sent to "more" immediately.
+  const [phase, setPhase] = useState<"scripted" | "cards" | "loans">(() => {
+    if (!skipCards) return "cards";
+    if (SAMPLES.length === 0 && !skipLoans) return "loans";
+    return "scripted";
+  });
+  const [mode, setMode] = useState<VMode>(() => {
+    if (!skipCards) return "count";
+    if (SAMPLES.length > 0) return "prompt";
+    if (!skipLoans) return "count";
+    return "more";
+  });
   const [breatherGroup, setBreatherGroup] = useState(0);
   const [cardN, setCardN] = useState(0);
   const [cardDone, setCardDone] = useState(0);
