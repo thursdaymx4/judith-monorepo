@@ -169,7 +169,8 @@ var DEFAULT_VOICE_IDS = {
   // Alice — sharp, crisp, British (british)
 };
 var FILIPINO_VOICE_IDS = {
-  professional: "n6WaB3rOlZSC9y8yEPEz",
+  professional: "P1hTNpVDMG973fukK9V2",
+  // Ate Ada — warm, wise, middle-aged, formal (fil)
   funny: "cvnP6nKXpiWGFASDWN3Y",
   mom: "gILcvhAz18uV9ARSsU4u",
   sarcastic: "RGymW84CSmfVugnA5tvA",

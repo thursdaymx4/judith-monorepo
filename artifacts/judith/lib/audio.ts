@@ -33,6 +33,31 @@ export function stopCurrentAudio() {
 }
 
 /**
+ * Plays audio directly from a remote URL (e.g. a public GCS URL).
+ * Faster than base64 — no file write step, player streams directly.
+ * Resolves when playback finishes (or the player is replaced).
+ */
+export async function playFromUrl(url: string, rate = 1.0): Promise<void> {
+  stopCurrentAudio();
+  await setAudioModeAsync({ playsInSilentMode: true });
+  const player = createAudioPlayer(url);
+  _activePlayer = player;
+  _activeUri = null;
+  try { (player as unknown as { rate: number }).rate = rate; } catch { /* unsupported */ }
+  player.play();
+  return new Promise<void>((resolve) => {
+    const sub = player.addListener("playbackStatusUpdate", (status) => {
+      if (status.didJustFinish) {
+        sub.remove();
+        if (_activePlayer === player) _activePlayer = null;
+        try { player.remove(); } catch { /* ignore */ }
+        resolve();
+      }
+    });
+  });
+}
+
+/**
  * Writes base64 mp3 to cache, stops any currently playing audio,
  * then plays the new clip at the requested rate.
  * Resolves when playback finishes (or the player is replaced).

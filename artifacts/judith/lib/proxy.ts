@@ -393,15 +393,17 @@ export function previewVoice(
   return postJson("/tts", { text, voiceId });
 }
 
+export type SampleResult = { text: string; url: string | null; audioBase64: string | null; mime: string };
+
 /** In-memory cache for authenticated settings persona samples. */
-const _settingsSampleCache = new Map<string, { text: string; audioBase64: string; mime: string }>();
-const _settingsSampleInflight = new Map<string, Promise<{ text: string; audioBase64: string; mime: string }>>();
+const _settingsSampleCache = new Map<string, SampleResult>();
+const _settingsSampleInflight = new Map<string, Promise<SampleResult>>();
 
 export async function fetchSample(
   persona: PersonaId,
   language?: string,
   countryCode?: string,
-): Promise<{ text: string; audioBase64: string; mime: string }> {
+): Promise<SampleResult> {
   const effectiveCountryCode =
     countryCode && countryCode.toUpperCase() === "PH" ? countryCode.toUpperCase() : undefined;
   const cacheKey = `${persona}__${language ?? "en"}__${effectiveCountryCode ?? ""}`;
@@ -410,10 +412,7 @@ export async function fetchSample(
   const inflight = _settingsSampleInflight.get(cacheKey);
   if (inflight) return inflight;
 
-  const fetchWithLanguage = async (
-    langCode?: string,
-    cc?: string,
-  ): Promise<{ text: string; audioBase64: string; mime: string }> => {
+  const fetchWithLanguage = async (langCode?: string, cc?: string): Promise<SampleResult> => {
     const headers = await authHeader();
     const lang = langCode ? `&language=${encodeURIComponent(langCode)}` : "";
     const ccQuery = cc ? `&countryCode=${encodeURIComponent(cc)}` : "";
@@ -425,11 +424,14 @@ export async function fetchSample(
       const detail = await res.text().catch(() => "");
       throw new Error(`Sample failed (${res.status}): ${detail}`);
     }
-    const result = (await res.json()) as { text: string; audioBase64: string; mime: string };
-    if (!result.audioBase64) {
-      throw new Error("Sample failed: empty audio payload");
-    }
-    return result;
+    const raw = (await res.json()) as { text: string; url?: string; audioBase64?: string; mime?: string };
+    if (!raw.url && !raw.audioBase64) throw new Error("Sample failed: empty audio payload");
+    return {
+      text: raw.text,
+      url: raw.url ?? null,
+      audioBase64: raw.audioBase64 ?? null,
+      mime: raw.mime ?? "audio/mpeg",
+    };
   };
 
   const request = (async () => {

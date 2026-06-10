@@ -135,12 +135,42 @@ export async function setSampleAudio(
     const langSlot = sampleLangKey(lang, countryCode);
     const key = `${SAMPLE_PREFIX}/${persona}/${langSlot}.mp3`;
     const buf = Buffer.from(audioBase64, "base64");
-    await bucket.file(key).save(buf, {
+    const file = bucket.file(key);
+    await file.save(buf, {
       resumable: false,
       metadata: { contentType: "audio/mpeg" },
     });
+    // Best-effort: make public so clients can stream directly from GCS.
+    await file.makePublic().catch(() => {});
   } catch {
     // Non-critical — live ElevenLabs generation still serves the response.
+  }
+}
+
+/**
+ * Return the public GCS URL for a cached persona-sample, or null if the file
+ * doesn't exist or couldn't be made public.
+ * Fast path — no download, just a URL string.
+ */
+export async function getSampleUrl(
+  persona: string,
+  lang: string,
+  countryCode?: string,
+): Promise<string | null> {
+  const bucket = await getBucket();
+  if (!bucket) return null;
+  try {
+    const langSlot = sampleLangKey(lang, countryCode);
+    const key = `${SAMPLE_PREFIX}/${persona}/${langSlot}.mp3`;
+    const file = bucket.file(key);
+    const [exists] = await file.exists();
+    if (!exists) return null;
+    // Ensure object is public (idempotent; throws if uniform bucket-level
+    // access is enabled — caught below and we fall back to base64 path).
+    await file.makePublic();
+    return `https://storage.googleapis.com/${BUCKET_ID}/${key}`;
+  } catch {
+    return null;
   }
 }
 

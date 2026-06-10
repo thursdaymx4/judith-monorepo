@@ -19,7 +19,7 @@ import {
   englishWeekday,
 } from "../lib/normalize";
 import { logger } from "../lib/logger";
-import { getOnbAudio, setOnbAudio, getSampleAudio, setSampleAudio } from "../lib/audioCache";
+import { getOnbAudio, setOnbAudio, getSampleAudio, getSampleUrl, setSampleAudio } from "../lib/audioCache";
 import {
   askLimiter,
   sttTtsLimiter,
@@ -1332,15 +1332,16 @@ router.get("/sample", sampleVoicesLimiter, async (req, res) => {
 
     const text = getSampleText(persona, language);
 
-    // Fast path: return pregenerated cache hit.
-    const cached = await getSampleAudio(persona, language, countryCode);
-    if (cached) {
-      res.json({ text, audioBase64: cached.base64, mime: cached.mime });
+    // Fast path: public GCS URL — client streams directly, no base64 overhead.
+    const cachedUrl = await getSampleUrl(persona, language, countryCode);
+    if (cachedUrl) {
+      res.json({ text, url: cachedUrl });
       return;
     }
 
-    // Attempt synthesis with explicit language hint so ElevenLabs speaks the
-    // correct language. On failure, fall back to en-US rather than returning 500.
+    // Cache miss — synthesize live, save to GCS (makePublic is called inside
+    // setSampleAudio), then return base64 for this first request. Subsequent
+    // requests will hit the fast URL path above.
     let audio: { base64: string; mime: string };
     try {
       audio = await synthesize(

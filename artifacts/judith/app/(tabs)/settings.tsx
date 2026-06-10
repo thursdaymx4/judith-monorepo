@@ -16,7 +16,7 @@ import { requestPermission } from "@/lib/notifications";
 import { PRIVACY_URL, TERMS_URL, openLegal } from "@/constants/legal";
 import { DEMO_ACCOUNTS } from "@/constants/demoAccounts";
 import { fetchSample } from "@/lib/proxy";
-import { playBase64Mp3, stopCurrentAudio } from "@/lib/audio";
+import { playBase64Mp3, playFromUrl, stopCurrentAudio } from "@/lib/audio";
 import type { PersonaId } from "@/constants/personas";
 
 function initialsOf(name: string): string {
@@ -146,9 +146,13 @@ export default function SettingsScreen() {
     stopCurrentAudio();
     startTransition(() => setSpeakingPersona(id));
     try {
-      const { audioBase64 } = await fetchSample(id, language, countryCode);
+      const { url, audioBase64 } = await fetchSample(id, language, countryCode);
       if (speakRequestRef.current !== requestId) return;
-      await playBase64Mp3(audioBase64);
+      if (url) {
+        await playFromUrl(url);
+      } else if (audioBase64) {
+        await playBase64Mp3(audioBase64);
+      }
     } catch {
       // ignore — failed silently
     } finally {
