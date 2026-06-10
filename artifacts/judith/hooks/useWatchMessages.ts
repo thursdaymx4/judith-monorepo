@@ -69,7 +69,6 @@ function buildAskBills(bills: Bill[]): AskBill[] {
     };
   });
 }
-}
 
 function normalizeText(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
