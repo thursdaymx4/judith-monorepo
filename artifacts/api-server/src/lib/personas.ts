@@ -13,7 +13,7 @@ export const DEFAULT_VOICE_IDS: Record<PersonaId, string> = {
 
 /** Filipino/Taglish voice IDs — used when the user's language is "fil". */
 export const FILIPINO_VOICE_IDS: Record<PersonaId, string> = {
-  professional: "n6WaB3rOlZSC9y8yEPEz",
+  professional: "P1hTNpVDMG973fukK9V2", // Ate Ada — warm, wise, middle-aged, formal (fil)
   funny: "cvnP6nKXpiWGFASDWN3Y",
   mom: "gILcvhAz18uV9ARSsU4u",
   sarcastic: "RGymW84CSmfVugnA5tvA",
@@ -28,7 +28,7 @@ export const FILIPINO_VOICE_IDS: Record<PersonaId, string> = {
  * English when given English text, so no separate voice generation is needed.
  */
 export const PHILIPPINE_ENGLISH_VOICE_IDS: Record<PersonaId, string> = {
-  professional: "n6WaB3rOlZSC9y8yEPEz",
+  professional: "P1hTNpVDMG973fukK9V2", // Ate Ada — warm, wise, middle-aged, formal (fil)
   funny: "cvnP6nKXpiWGFASDWN3Y",
   mom: "gILcvhAz18uV9ARSsU4u",
   sarcastic: "RGymW84CSmfVugnA5tvA",
