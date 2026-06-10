@@ -16,5 +16,7 @@ export function getAnthropic(): Anthropic {
 export const ANTHROPIC_MODEL =
   process.env["ANTHROPIC_MODEL"] ?? "claude-sonnet-4-5-20250929";
 
+// claude-3-5-haiku-20241022 reached EOL Feb 2026 — fall back to Sonnet until a
+// new Haiku model is confirmed and pinned via the ANTHROPIC_HAIKU_MODEL env var.
 export const ANTHROPIC_HAIKU_MODEL =
-  process.env["ANTHROPIC_HAIKU_MODEL"] ?? "claude-3-5-haiku-20241022";
+  process.env["ANTHROPIC_HAIKU_MODEL"] ?? ANTHROPIC_MODEL;

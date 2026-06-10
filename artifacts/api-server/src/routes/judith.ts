@@ -720,7 +720,6 @@ router.post("/ask", askLimiter, async (req, res) => {
           input_chars: text.trim().length,
           reply_chars: reply.length,
           tts_ok: ttsOk,
-          tts_chars: ttsChars,
           input_tokens: inputTokens,
           output_tokens: outputTokens,
         })
