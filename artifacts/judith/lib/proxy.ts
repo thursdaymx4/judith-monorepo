@@ -39,10 +39,23 @@ export interface AskBill {
   isProjection?: boolean;
 }
 
-/** Returns Authorization header with the current Supabase session token. */
+/**
+ * Thrown when the user is not authenticated (no session token) or the server
+ * returns 401 Unauthorized.  The ask screen catches this and shows a sign-in
+ * prompt instead of the generic "something went wrong" message.
+ */
+export class AuthError extends Error {
+  constructor() {
+    super("auth_required");
+    this.name = "AuthError";
+  }
+}
+
+/** Returns Authorization header with the current Supabase session token.
+ *  Throws AuthError if there is no active session. */
 async function authHeader(): Promise<Record<string, string>> {
   const session = (await supabase?.auth.getSession())?.data.session;
-  if (!session?.access_token) return {};
+  if (!session?.access_token) throw new AuthError();
   return { Authorization: `Bearer ${session.access_token}` };
 }
 
@@ -109,6 +122,7 @@ async function postJson<T>(path: string, body: unknown, timeoutMs?: number): Pro
   }
   throwIfRateLimited(res);
   if (!res.ok) {
+    if (res.status === 401) throw new AuthError();
     const detail = await res.text().catch(() => "");
     if (res.status >= 500) throw new ServerError(res.status, detail);
     throw new Error(`Request failed (${res.status}): ${detail}`);
@@ -305,6 +319,7 @@ export async function askJudithStream(
   throwIfRateLimited(resp);
   if (!resp.ok) {
     clearTimeout(timeout);
+    if (resp.status === 401) throw new AuthError();
     const detail = await resp.text().catch(() => "");
     throw new ServerError(resp.status, detail);
   }

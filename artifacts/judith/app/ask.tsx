@@ -22,7 +22,7 @@ import { getPersona } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { fileToBase64, playBase64Mp3 } from "@/lib/audio";
-import { type AddBillAction, type AskBill, askJudithStream, parseSubscriptionScreenshot, transcribe, RateLimitError, TimeoutError, ServerError } from "@/lib/proxy";
+import { type AddBillAction, type AskBill, askJudithStream, parseSubscriptionScreenshot, transcribe, RateLimitError, TimeoutError, ServerError, AuthError } from "@/lib/proxy";
 import { sttHint, isFilipino } from "@/constants/languages";
 
 /**
@@ -641,6 +641,14 @@ export default function AskModal() {
           ? `Sandali lang — maghintay ka ng ${e.retryAfter} segundo bago magtanong ulit.`
           : `You're sending too fast — please wait ${e.retryAfter} second${e.retryAfter === 1 ? "" : "s"} before asking again.`
         );
+      } else if (e instanceof AuthError) {
+        // Not signed in (or session expired) — refund the ask and prompt sign-in.
+        if (!isPaid) addAsks(1);
+        await new Promise<void>((r) => setTimeout(r, 600));
+        showJudithMsg(isFil
+          ? "Kailangan mong mag-sign in ulit bago makapagtanong."
+          : "You need to sign in again before asking."
+        );
       } else {
         // Timeout, server error, or connection failure — refund the ask, remember
         // the question so the user can retry with one tap.
@@ -791,11 +799,11 @@ export default function AskModal() {
       if (e instanceof RateLimitError) {
         setRateLimitSecs(Math.min(e.retryAfter, 3600));
         setErr(`You're going too fast — wait ${e.retryAfter} second${e.retryAfter === 1 ? "" : "s"} then try again.`);
+      } else if (e instanceof AuthError) {
+        setErr("You need to sign in again before asking.");
       } else {
         const msg = String((e as Error)?.message ?? e);
-        if (msg.includes("401") || msg.includes("session")) {
-          setErr("Session expired — close and reopen the app to sign back in.");
-        } else if (msg === "no_audio") {
+        if (msg === "no_audio") {
           setErr("Nothing was recorded — make sure your microphone is working and try again.");
         } else {
           setErr("Couldn't process your voice — check your connection and try again.");
