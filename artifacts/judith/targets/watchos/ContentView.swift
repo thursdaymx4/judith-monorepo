@@ -4,12 +4,12 @@ import SwiftUI
 // Tab order: Face (paid ring + summary) → Bills → Ask Judith
 
 struct ContentView: View {
-    @EnvironmentObject var store:        WatchStore
+    @EnvironmentObject var store: WatchStore
     @EnvironmentObject var connectivity: ConnectivityService
 
     var body: some View {
         Group {
-            if store.isReady {
+            if shouldShowMainUI {
                 TabView {
                     FaceView()
                     UpNextView()
@@ -21,5 +21,9 @@ struct ContentView: View {
             }
         }
         .background(Color.black)
+    }
+
+    private var shouldShowMainUI: Bool {
+        store.isReady || connectivity.isPhoneReachable
     }
 }

@@ -27,7 +27,18 @@ app.use(
     },
   }),
 );
-app.use(cors());
+const allowedOrigins = [
+  "https://judith.thursday.mx",
+  "https://www.judith.thursday.mx",
+];
+
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error("Not allowed by CORS"));
+  },
+}));
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 

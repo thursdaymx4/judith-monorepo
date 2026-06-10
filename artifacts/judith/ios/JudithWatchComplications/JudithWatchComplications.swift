@@ -6,6 +6,11 @@ private enum JudithComplicationConfig {
     static let payloadKey = "judith.payload_v2"
 }
 
+private enum JudithComplicationMode {
+    case nextDue
+    case monthlyTotal
+}
+
 private func compactPesoAmount(_ amount: Double, currency: String) -> String {
     let rounded = Int(amount.rounded())
     if rounded >= 1_000_000 {
@@ -18,7 +23,23 @@ private func compactPesoAmount(_ amount: Double, currency: String) -> String {
 }
 
 private func dueSummary(unpaidCount: Int, totalOwed: Double, currency: String) -> String {
-    "\(unpaidCount) Due - \(compactPesoAmount(totalOwed, currency: currency))"
+    "\(unpaidCount) Due · \(compactPesoAmount(totalOwed, currency: currency))"
+}
+
+private func nextDueAmountSummary(_ payload: ComplicationPayload) -> String {
+    compactPesoAmount(payload.nextAmount, currency: payload.currency)
+}
+
+private func nextDueCountdown(_ payload: ComplicationPayload) -> String {
+    if payload.nextDueDays <= 0 {
+        return "Now"
+    }
+    return payload.nextDueLabel
+}
+
+private func nextDueInlineSummary(_ payload: ComplicationPayload) -> String {
+    let provider = payload.nextProvider.isEmpty ? "Next bill" : payload.nextProvider
+    return "\(provider) \(nextDueAmountSummary(payload)) · \(nextDueCountdown(payload))"
 }
 
 struct ComplicationPayload: Decodable {
@@ -86,6 +107,7 @@ struct JudithComplicationProvider: TimelineProvider {
 
 private struct CircularComplicationView: View {
     let entry: JudithComplicationEntry
+    let mode: JudithComplicationMode
 
     private var fraction: Double {
         guard let payload = entry.payload, payload.totalCount > 0 else { return 0 }
@@ -93,31 +115,57 @@ private struct CircularComplicationView: View {
     }
 
     var body: some View {
-        if let payload = entry.payload, payload.totalCount > 0 {
-            Gauge(value: fraction) {
-                Image(systemName: payload.unpaidCount == 0 ? "checkmark.circle.fill" : "creditcard.fill")
-            } currentValueLabel: {
-                Text(payload.unpaidCount == 0 ? "OK" : "\(payload.unpaidCount)")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+        switch mode {
+        case .monthlyTotal:
+            if let payload = entry.payload, payload.totalCount > 0 {
+                Gauge(value: fraction) {
+                    Image(systemName: payload.unpaidCount == 0 ? "checkmark.circle.fill" : "creditcard.fill")
+                } currentValueLabel: {
+                    Text(payload.unpaidCount == 0 ? "OK" : "\(payload.unpaidCount)")
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                }
+                .gaugeStyle(.accessoryCircular)
+                .tint(payload.unpaidCount == 0 ? .green : .mint)
+            } else {
+                Image(systemName: "creditcard.fill")
+                    .foregroundStyle(.mint)
             }
-            .gaugeStyle(.accessoryCircular)
-            .tint(payload.unpaidCount == 0 ? .green : .mint)
-        } else {
-            Image(systemName: "creditcard.fill")
-                .foregroundStyle(.mint)
+
+        case .nextDue:
+            if let payload = entry.payload, payload.unpaidCount > 0 {
+                ZStack {
+                    Circle()
+                        .fill(.mint.opacity(0.18))
+                    VStack(spacing: 1) {
+                        Image(systemName: "calendar")
+                            .font(.system(size: 10, weight: .bold))
+                        Text(nextDueCountdown(payload))
+                            .font(.system(size: 8, weight: .bold, design: .rounded))
+                    }
+                    .foregroundStyle(.mint)
+                }
+            } else {
+                ZStack {
+                    Circle()
+                        .fill(.green.opacity(0.18))
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                }
+            }
         }
     }
 }
 
 private struct CornerComplicationView: View {
     let entry: JudithComplicationEntry
+    let mode: JudithComplicationMode
 
     var body: some View {
         ZStack {
             Circle()
-                .fill(.mint.opacity(0.18))
+                .fill(accentColor.opacity(0.18))
             Image(systemName: iconName)
-                .foregroundStyle(iconColor)
+                .foregroundStyle(accentColor)
         }
         .widgetLabel {
             Text(labelText)
@@ -125,50 +173,97 @@ private struct CornerComplicationView: View {
     }
 
     private var iconName: String {
-        guard let payload = entry.payload else { return "creditcard.fill" }
-        return payload.unpaidCount == 0 ? "checkmark.circle.fill" : "creditcard.fill"
+        guard let payload = entry.payload else { return fallbackIconName }
+        switch mode {
+        case .monthlyTotal:
+            return payload.unpaidCount == 0 ? "checkmark.circle.fill" : "creditcard.fill"
+        case .nextDue:
+            return payload.unpaidCount == 0 ? "checkmark.circle.fill" : "calendar"
+        }
     }
 
-    private var iconColor: Color {
+    private var fallbackIconName: String {
+        switch mode {
+        case .monthlyTotal:
+            return "creditcard.fill"
+        case .nextDue:
+            return "calendar"
+        }
+    }
+
+    private var accentColor: Color {
         guard let payload = entry.payload else { return .mint }
-        return payload.unpaidCount == 0 ? .green : .mint
+        switch mode {
+        case .monthlyTotal:
+            return payload.unpaidCount == 0 ? .green : .mint
+        case .nextDue:
+            return payload.unpaidCount == 0 ? .green : .mint
+        }
     }
 
     private var labelText: String {
         guard let payload = entry.payload else { return "Open Judith" }
-        if payload.unpaidCount == 0 {
-            return "All paid"
+
+        switch mode {
+        case .monthlyTotal:
+            if payload.unpaidCount == 0 {
+                return "All paid"
+            }
+            return dueSummary(
+                unpaidCount: payload.unpaidCount,
+                totalOwed: payload.totalOwed,
+                currency: payload.currency
+            )
+
+        case .nextDue:
+            if payload.unpaidCount == 0 {
+                return "All paid"
+            }
+            return nextDueInlineSummary(payload)
         }
-        return dueSummary(
-            unpaidCount: payload.unpaidCount,
-            totalOwed: payload.totalOwed,
-            currency: payload.currency
-        )
     }
 }
 
 private struct RectangularComplicationView: View {
     let entry: JudithComplicationEntry
+    let mode: JudithComplicationMode
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text("JUDITH")
+            Text(headerText)
                 .font(.system(size: 8, weight: .black, design: .rounded))
                 .foregroundStyle(.mint)
 
             if let payload = entry.payload {
-                Text(payload.unpaidCount == 0 ? "All paid" : dueSummary(
-                    unpaidCount: payload.unpaidCount,
-                    totalOwed: payload.totalOwed,
-                    currency: payload.currency
-                ))
-                    .font(.system(size: 16, weight: .bold, design: .monospaced))
-                    .lineLimit(1)
+                switch mode {
+                case .monthlyTotal:
+                    Text(payload.unpaidCount == 0 ? "All paid" : dueSummary(
+                        unpaidCount: payload.unpaidCount,
+                        totalOwed: payload.totalOwed,
+                        currency: payload.currency
+                    ))
+                        .font(.system(size: 16, weight: .bold, design: .monospaced))
+                        .lineLimit(1)
 
-                Text(payload.unpaidCount == 0 ? "Nothing due right now" : "Open Judith")
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    Text(payload.unpaidCount == 0 ? "Nothing due right now" : "Remaining this month")
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+
+                case .nextDue:
+                    Text(payload.nextProvider.isEmpty ? "Next bill" : payload.nextProvider)
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .lineLimit(1)
+
+                    Text(nextDueAmountSummary(payload))
+                        .font(.system(size: 14, weight: .bold, design: .monospaced))
+                        .lineLimit(1)
+
+                    Text(payload.unpaidCount == 0 ? "Nothing due right now" : "Due \(nextDueCountdown(payload))")
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             } else {
                 Text("Open Judith")
                     .font(.system(size: 16, weight: .bold, design: .rounded))
@@ -179,57 +274,101 @@ private struct RectangularComplicationView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
+
+    private var headerText: String {
+        switch mode {
+        case .monthlyTotal:
+            return "MONTHLY TOTAL"
+        case .nextDue:
+            return "NEXT DUE"
+        }
+    }
 }
 
 private struct InlineComplicationView: View {
     let entry: JudithComplicationEntry
+    let mode: JudithComplicationMode
 
     var body: some View {
-        if let payload = entry.payload, payload.unpaidCount > 0 {
-            Text(dueSummary(
-                unpaidCount: payload.unpaidCount,
-                totalOwed: payload.totalOwed,
-                currency: payload.currency
-            ))
+        if let payload = entry.payload {
+            switch mode {
+            case .monthlyTotal:
+                if payload.unpaidCount > 0 {
+                    Text(dueSummary(
+                        unpaidCount: payload.unpaidCount,
+                        totalOwed: payload.totalOwed,
+                        currency: payload.currency
+                    ))
+                } else {
+                    Text("Judith · All paid")
+                }
+
+            case .nextDue:
+                if payload.unpaidCount > 0 {
+                    Text(nextDueInlineSummary(payload))
+                } else {
+                    Text("Judith · All paid")
+                }
+            }
         } else {
-            Text("Judith · All paid")
+            Text("Open Judith")
         }
     }
 }
 
 struct JudithWatchComplicationsEntryView: View {
     let entry: JudithComplicationEntry
+    let mode: JudithComplicationMode
     @Environment(\.widgetFamily) private var family
 
     var body: some View {
         Group {
             switch family {
             case .accessoryCircular:
-                CircularComplicationView(entry: entry)
+                CircularComplicationView(entry: entry, mode: mode)
             case .accessoryCorner:
-                CornerComplicationView(entry: entry)
+                CornerComplicationView(entry: entry, mode: mode)
             case .accessoryRectangular:
-                RectangularComplicationView(entry: entry)
+                RectangularComplicationView(entry: entry, mode: mode)
             case .accessoryInline:
-                InlineComplicationView(entry: entry)
+                InlineComplicationView(entry: entry, mode: mode)
             default:
-                CircularComplicationView(entry: entry)
+                CircularComplicationView(entry: entry, mode: mode)
             }
         }
         .privacySensitive()
     }
 }
 
-struct JudithWatchComplication: Widget {
-    let kind = "JudithWatchComplication"
+struct JudithNextDueComplication: Widget {
+    let kind = "JudithNextDueComplication"
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: JudithComplicationProvider()) { entry in
-            JudithWatchComplicationsEntryView(entry: entry)
+            JudithWatchComplicationsEntryView(entry: entry, mode: .nextDue)
                 .containerBackground(.black, for: .widget)
         }
-        .configurationDisplayName("Judith")
-        .description("Track your due bills on Apple Watch.")
+        .configurationDisplayName("Judith Next Due")
+        .description("Show the next bill due and how much it is.")
+        .supportedFamilies([
+            .accessoryCircular,
+            .accessoryCorner,
+            .accessoryRectangular,
+            .accessoryInline,
+        ])
+    }
+}
+
+struct JudithMonthlyTotalComplication: Widget {
+    let kind = "JudithMonthlyTotalComplication"
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: JudithComplicationProvider()) { entry in
+            JudithWatchComplicationsEntryView(entry: entry, mode: .monthlyTotal)
+                .containerBackground(.black, for: .widget)
+        }
+        .configurationDisplayName("Judith Monthly Total")
+        .description("Show how much is still due this month.")
         .supportedFamilies([
             .accessoryCircular,
             .accessoryCorner,
@@ -240,7 +379,7 @@ struct JudithWatchComplication: Widget {
 }
 
 #Preview(as: .accessoryRectangular) {
-    JudithWatchComplication()
+    JudithNextDueComplication()
 } timeline: {
     JudithComplicationEntry.placeholder
 }

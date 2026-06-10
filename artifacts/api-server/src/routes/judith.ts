@@ -550,18 +550,19 @@ async function loadUserData(userId: string) {
 /** Returns the authenticated Supabase user, or a guest sentinel for unauthenticated requests. */
 async function requireUser(req: Request, res: Response) {
   const token = bearerToken(req.headers.authorization);
-  if (token) {
-    const user = await getUserFromToken(token);
-    if (!user) {
-      res.status(401).json({ error: "Unauthorized" });
-      return null;
-    }
-    return user;
+  if (!token) {
+    res.status(401).json({ error: "Unauthorized" });
+    return null;
   }
-  // No token → guest mode. Allow the request; return a typed sentinel so callers stay simple.
-  return { id: "guest", email: undefined, role: "guest" } as const;
-}
 
+  const user = await getUserFromToken(token);
+  if (!user) {
+    res.status(401).json({ error: "Unauthorized" });
+    return null;
+  }
+
+  return user;
+}
 // POST /api/judith/delete-account -> { ok: true }
 // Permanently removes the authenticated user's bills, profile, and auth account.
 router.post("/delete-account", async (req, res) => {

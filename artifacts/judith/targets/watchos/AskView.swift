@@ -10,6 +10,7 @@ struct AskView: View {
 
     @State private var query: String = ""
     @State private var viewState: AskState = .idle
+    @State private var autoStartedOnAppear = false
 
     private let synthesizer = AVSpeechSynthesizer()
 
@@ -27,20 +28,37 @@ struct AskView: View {
 
                     promptCard
 
-                    Button {
-                        beginAskFlow()
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "message.fill")
-                            Text("Ask Judith")
+                    VStack(spacing: 8) {
+                        Button {
+                            beginAskFlow()
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "mic.fill")
+                                Text("Speak to Judith")
+                            }
+                            .font(.system(Font.TextStyle.footnote, design: .rounded).weight(.semibold))
+                            .foregroundStyle(.black)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
                         }
-                        .font(.system(Font.TextStyle.footnote, design: .rounded).weight(.semibold))
-                        .foregroundStyle(.black)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
+                        .background(Color.judithAccent)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                        Button {
+                            beginAskFlow()
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "hand.draw.fill")
+                                Text("Type or Scribble")
+                            }
+                            .font(.system(Font.TextStyle.caption, design: .rounded).weight(.semibold))
+                            .foregroundStyle(Color.txtHi)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                        }
+                        .background(Color.surface1)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
-                    .background(Color.judithAccent)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
 
                     if !connectivity.isPhoneReachable {
                         Text("Open Judith on your iPhone if this takes a while.")
@@ -55,7 +73,7 @@ struct AskView: View {
                     ProgressView()
                         .tint(Color.judithAccent)
                         .scaleEffect(1.2)
-                    Text("Listening…")
+                    Text("Open dictation or Scribble…")
                         .font(.system(Font.TextStyle.caption, design: .rounded))
                         .foregroundStyle(Color.txtMid)
                         .padding(.top, 8)
@@ -137,12 +155,20 @@ struct AskView: View {
             .frame(maxWidth: .infinity)
         }
         .background(Color.black)
+        .onAppear {
+            guard shouldAutoStartAsk else { return }
+            autoStartedOnAppear = true
+            beginAskFlow()
+        }
+        .onDisappear {
+            autoStartedOnAppear = false
+        }
     }
 
     // MARK: — Sub-views
 
     private var promptCard: some View {
-        Text(query.isEmpty ? "Tap Ask Judith to dictate or scribble your question." : query)
+        Text(query.isEmpty ? "Speak right away, or choose type / Scribble if you're in public." : query)
             .frame(maxWidth: .infinity, alignment: .leading)
             .lineLimit(4)
             .padding(10)
@@ -160,10 +186,28 @@ struct AskView: View {
             .clipShape(Circle())
     }
 
+    private var shouldAutoStartAsk: Bool {
+        guard !autoStartedOnAppear, query.isEmpty else { return false }
+        if case .idle = viewState {
+            return true
+        }
+        return false
+    }
+
     // MARK: — Actions
 
     private func beginAskFlow() {
+        guard canStartInput else { return }
         Task { await requestInputAndAsk() }
+    }
+
+    private var canStartInput: Bool {
+        switch viewState {
+        case .capturing, .asking:
+            return false
+        case .idle, .answered, .error:
+            return true
+        }
     }
 
     @MainActor

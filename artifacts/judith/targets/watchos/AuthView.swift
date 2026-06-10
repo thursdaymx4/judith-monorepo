@@ -27,7 +27,7 @@ struct AuthView: View {
                 .font(.system(Font.TextStyle.headline, design: .rounded).weight(.bold))
                 .foregroundStyle(Color.txtHi)
 
-            Text("Open Judith on your iPhone to sync\(String(repeating: ".", count: dotCount))")
+            Text(statusTitle)
                 .font(.system(Font.TextStyle.footnote, design: .rounded))
                 .foregroundStyle(Color.txtMid)
                 .multilineTextAlignment(.center)
@@ -40,6 +40,12 @@ struct AuthView: View {
                         .font(.system(Font.TextStyle.caption2, design: .rounded))
                         .foregroundStyle(Color.judithOK)
                 }
+
+                Text("If this stays here, open Judith on iPhone and make sure Apple Watch sync is enabled in Settings.")
+                    .font(.system(Font.TextStyle.caption2, design: .rounded))
+                    .foregroundStyle(Color.txtLow)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 10)
             }
 
             Spacer()
@@ -48,5 +54,12 @@ struct AuthView: View {
         .onReceive(timer) { _ in
             dotCount = dotCount % 3 + 1
         }
+    }
+
+    private var statusTitle: String {
+        if connectivity.isPhoneReachable {
+            return "Connected to your iPhone. Waiting for your latest bill summary\(String(repeating: ".", count: dotCount))"
+        }
+        return "Open Judith on your iPhone to sync\(String(repeating: ".", count: dotCount))"
     }
 }
