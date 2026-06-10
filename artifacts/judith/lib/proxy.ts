@@ -321,7 +321,6 @@ export async function askJudithStream(
     stream: true,
   };
 
-  const headers = await authHeader();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 45_000);
   // Bridge the caller-supplied signal into our internal controller so unmounting
@@ -338,7 +337,7 @@ export async function askJudithStream(
   try {
     resp = await fetch(`${BASE}/ask`, {
       method: "POST",
-      headers: { ...headers, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
       signal: controller.signal,
     });
