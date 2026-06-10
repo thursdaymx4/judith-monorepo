@@ -740,6 +740,7 @@ router.post("/ask", askLimiter, async (req, res) => {
       res.setHeader("X-Accel-Buffering", "no");
       res.flushHeaders();
 
+      const llmStart = Date.now();
       let rawText = "";
       let inputTokens = 0;
       let outputTokens = 0;
@@ -761,27 +762,32 @@ router.post("/ask", askLimiter, async (req, res) => {
         res.end();
         return;
       }
+      const llmMs = Date.now() - llmStart;
 
       const { cleanText: reply, action } = parseAction(rawText.trim());
-      const { audioBase64, mime, ttsOk, ttsChars } = await doTts(reply);
+      const { audioBase64, mime, ttsOk, ttsChars, ttsMs } = await doTts(reply);
+      const totalMs = Date.now() - llmStart;
       res.write(`data: ${JSON.stringify({ type: "done", reply, action: action ?? null, audioBase64, mime })}\n\n`);
       res.end();
-      doLog(reply, ttsOk, ttsChars, inputTokens, outputTokens);
+      doLog(reply, ttsOk, ttsChars, inputTokens, outputTokens, llmMs, ttsMs, totalMs, model);
       return;
     }
 
     // Non-streaming path — used by Watch and clients that don't support SSE.
+    const llmStart = Date.now();
     const message = await anthropic.messages.create({ model, max_tokens: 200, system: systemStr, messages: msgs });
+    const llmMs = Date.now() - llmStart;
 
     const rawReply = message.content
       .map((b) => (b.type === "text" ? b.text : ""))
       .join(" ")
       .trim();
     const { cleanText: reply, action } = parseAction(rawReply);
-    const { audioBase64, mime, ttsOk, ttsChars } = await doTts(reply);
+    const { audioBase64, mime, ttsOk, ttsChars, ttsMs } = await doTts(reply);
+    const totalMs = Date.now() - llmStart;
 
     res.json({ reply, audioBase64, mime, action });
-    doLog(reply, ttsOk, ttsChars, message.usage.input_tokens, message.usage.output_tokens);
+    doLog(reply, ttsOk, ttsChars, message.usage.input_tokens, message.usage.output_tokens, llmMs, ttsMs, totalMs, model);
   } catch (err) {
     logger.error({ err }, "ask failed");
     res.status(500).json({ error: "Judith could not respond right now" });
