@@ -1,0 +1,18 @@
+carlocanieso@Carlos-Mac-Studio judith % eas --version
+eas-cli/20.1.0 darwin-arm64 node-v25.9.0
+carlocanieso@Carlos-Mac-Studio judith % eas build --profile production --platform ios
+
+⚠️ Detected that your app uses Expo Go for development, this is not recommended when building production apps.
+Learn more: https://expo.fyi/why-not-build-expo-go-for-production
+To suppress this warning, set EAS_BUILD_NO_EXPO_GO_WARNING=true.
+
+Resolved "production" environment for the build. Learn more: https://docs.expo.dev/eas/environment-variables/#setting-the-environment-for-your-builds
+Environment variables with visibility "Plain text" and "Sensitive" loaded from the "production" environment on EAS: EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID, EXPO_PUBLIC_REVENUECAT_API_KEY_IOS, EXPO_PUBLIC_REVENUECAT_TEST_API_KEY, EXPO_PUBLIC_SUPABASE_ANON_KEY, EXPO_PUBLIC_SUPABASE_URL.
+Environment variables loaded from the "production" build profile "env" configuration: EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY, EXPO_PUBLIC_DOMAIN.
+The following environment variables are defined in both the "production" build profile "env" configuration and the "production" environment on EAS: EXPO_PUBLIC_SUPABASE_ANON_KEY, EXPO_PUBLIC_SUPABASE_URL. The values from the build profile configuration will be used.
+
+Failed to read the app config from the project using the local Expo CLI: /Users/carlocanieso/Judith/judith-monorepo/node_modules/.pnpm/expo@54.0.35_@babel+core@7.29.0_@expo+metro-runtime@6.1.2_expo-router@6.0.24_react-nati_64a141fa51896003fed02e90eff955d3/node_modules/expo/bin/cli config --json --type introspect exited with non-zero code: 1
+Falling back to the version of "@expo/config" shipped with the EAS CLI.
+Failed to resolve iOS entitlements from Expo config. The local Expo CLI failed with: /Users/carlocanieso/Judith/judith-monorepo/node_modules/.pnpm/expo@54.0.35_@babel+core@7.29.0_@expo+metro-runtime@6.1.2_expo-router@6.0.24_react-nati_64a141fa51896003fed02e90eff955d3/node_modules/expo/bin/cli config --json --type introspect exited with non-zero code: 1. The bundled config fallback also failed with: [ios.splashScreenStoryboard]: withIosSplashScreenStoryboardBaseMod: Cannot read properties of undefined (reading '0')
+    Error: build command failed.
+carlocanieso@Carlos-Mac-Studio judith % 
