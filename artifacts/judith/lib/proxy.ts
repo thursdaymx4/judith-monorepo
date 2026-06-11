@@ -621,9 +621,16 @@ export async function askOnboarding(
   persona?: PersonaId,
   language?: string,
   currency?: string,
+  signal?: AbortSignal,
+  /** Categories the user actually checked on the bill-list screen — Judith
+   *  uses this to skip prompts for categories the user said they don't have. */
+  selectedCategories?: string[],
 ): Promise<AskResult> {
+  if (signal?.aborted) throw new AbortedError();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 45_000);
+  const propagateAbort = () => controller.abort();
+  signal?.addEventListener("abort", propagateAbort);
   let res: Response;
   try {
     res = await fetch(`${BASE}/ask-onboarding`, {
@@ -636,16 +643,19 @@ export async function askOnboarding(
         localDate: localDateString(),
         language,
         currency,
+        ...(selectedCategories?.length ? { selectedCategories } : {}),
       }),
       signal: controller.signal,
     });
   } catch (e) {
+    if (signal?.aborted) throw new AbortedError();
     if (controller.signal.aborted || (e as Error)?.name === "AbortError") {
       throw new TimeoutError();
     }
     throw e;
   } finally {
     clearTimeout(timer);
+    signal?.removeEventListener("abort", propagateAbort);
   }
   throwIfRateLimited(res);
   if (!res.ok) {
@@ -662,12 +672,21 @@ export async function askOnboarding(
 export async function parseSubscriptionScreenshot(
   imageBase64: string,
   mimeType: string,
+  signal?: AbortSignal,
 ): Promise<{ subscriptions: { provider: string; amount: number | null; dueDay: number | null; frequency: "monthly" | "annual"; nextDue: string | null }[] }> {
-  const res = await fetch(`${BASE}/parse-subscription-screenshot`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ imageBase64, mimeType }),
-  });
+  if (signal?.aborted) throw new AbortedError();
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/parse-subscription-screenshot`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageBase64, mimeType }),
+      signal,
+    });
+  } catch (e) {
+    if (signal?.aborted || (e as Error)?.name === "AbortError") throw new AbortedError();
+    throw e;
+  }
   throwIfRateLimited(res);
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
@@ -685,6 +704,7 @@ export async function parseSubscriptionScreenshot(
 export async function parseBillOnboarding(
   text: string,
   category: string,
+  signal?: AbortSignal,
 ): Promise<{
   provider: string | null;
   amount: number | null;
@@ -693,11 +713,19 @@ export async function parseBillOnboarding(
   frequency: "monthly" | "annual";
   skip: boolean;
 }> {
-  const res = await fetch(`${BASE}/parse-bill`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, category }),
-  });
+  if (signal?.aborted) throw new AbortedError();
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/parse-bill`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, category }),
+      signal,
+    });
+  } catch (e) {
+    if (signal?.aborted || (e as Error)?.name === "AbortError") throw new AbortedError();
+    throw e;
+  }
   throwIfRateLimited(res);
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
@@ -720,12 +748,21 @@ export async function transcribeOnboarding(
   audioBase64: string,
   mimeType: string,
   language?: string,
+  signal?: AbortSignal,
 ): Promise<{ text: string }> {
-  const res = await fetch(`${BASE}/stt-onboarding`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ audioBase64, mimeType, language }),
-  });
+  if (signal?.aborted) throw new AbortedError();
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/stt-onboarding`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ audioBase64, mimeType, language }),
+      signal,
+    });
+  } catch (e) {
+    if (signal?.aborted || (e as Error)?.name === "AbortError") throw new AbortedError();
+    throw e;
+  }
   throwIfRateLimited(res);
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
@@ -749,20 +786,29 @@ export async function synthOnboarding(
   text: string,
   persona?: PersonaId,
   language?: string,
+  signal?: AbortSignal,
 ): Promise<{ audioBase64: string; mime: string }> {
+  if (signal?.aborted) throw new AbortedError();
   const cacheKey = `${text}__${persona ?? "pro"}__${language ?? "en"}`;
   const hit = _synthCache.get(cacheKey);
   if (hit) return hit;
 
-  const res = await fetch(`${BASE}/tts-onboarding`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      text,
-      persona: persona ? PERSONA_MAP[persona] : "professional",
-      language,
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/tts-onboarding`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        persona: persona ? PERSONA_MAP[persona] : "professional",
+        language,
+      }),
+      signal,
+    });
+  } catch (e) {
+    if (signal?.aborted || (e as Error)?.name === "AbortError") throw new AbortedError();
+    throw e;
+  }
   throwIfRateLimited(res);
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
@@ -784,15 +830,24 @@ const _sampleCache = new Map<string, { text: string; audioBase64: string; mime: 
 export async function fetchSampleOnboarding(
   persona: PersonaId,
   language?: string,
+  signal?: AbortSignal,
 ): Promise<{ text: string; audioBase64: string; mime: string }> {
+  if (signal?.aborted) throw new AbortedError();
   const cacheKey = `${persona}__${language ?? "en"}`;
   const hit = _sampleCache.get(cacheKey);
   if (hit) return hit;
 
   const lang = language ? `&language=${encodeURIComponent(language)}` : "";
-  const res = await fetch(
-    `${BASE}/sample-onboarding?persona=${PERSONA_MAP[persona]}${lang}`,
-  );
+  let res: Response;
+  try {
+    res = await fetch(
+      `${BASE}/sample-onboarding?persona=${PERSONA_MAP[persona]}${lang}`,
+      { signal },
+    );
+  } catch (e) {
+    if (signal?.aborted || (e as Error)?.name === "AbortError") throw new AbortedError();
+    throw e;
+  }
   throwIfRateLimited(res);
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
