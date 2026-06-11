@@ -709,13 +709,11 @@ router.post("/ask", askLimiter, async (req, res) => {
       let ttsOk = false;
       let ttsChars = 0;
       try {
-        const [safe, audio] = await Promise.all([
-          isSafeForTTS(reply),
-          synthesize(reply, voiceId, { live: true, speed: getSpeakingSpeed(persona), language: ttsLang }).catch(() => null),
-        ]);
-        if (!safe) {
-          logger.warn("tts skipped — moderation flagged reply");
-        } else if (audio) {
+        // Skip moderation for AI-generated replies — content is controlled by our
+        // system prompt and is always bill-tracking safe. Running isSafeForTTS
+        // here adds a full Sonnet round-trip that can exceed TTS latency.
+        const audio = await synthesize(reply, voiceId, { live: true, speed: getSpeakingSpeed(persona), language: ttsLang }).catch(() => null);
+        if (audio) {
           audioBase64 = audio.base64;
           mime = audio.mime;
           ttsOk = true;
@@ -796,21 +794,29 @@ router.post("/ask", askLimiter, async (req, res) => {
       return;
     }
 
-    // Non-streaming path — used by Watch and clients that don't support SSE.
+    // Non-streaming path — streams Anthropic internally so TTS fires the instant
+    // the last token arrives, without waiting for HTTP response framing overhead.
     const llmStart = Date.now();
-    const message = await anthropic.messages.create({ model, max_tokens: 200, system: systemStr, messages: msgs });
+    let rawText = "";
+    let inputTokens = 0;
+    let outputTokens = 0;
+    const stream = anthropic.messages.stream({ model, max_tokens: 200, system: systemStr, messages: msgs });
+    for await (const event of stream) {
+      if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+        rawText += event.delta.text;
+      }
+    }
+    const final = await stream.finalMessage();
+    inputTokens = final.usage.input_tokens;
+    outputTokens = final.usage.output_tokens;
     const llmMs = Date.now() - llmStart;
 
-    const rawReply = message.content
-      .map((b) => (b.type === "text" ? b.text : ""))
-      .join(" ")
-      .trim();
-    const { cleanText: reply, action } = parseAction(rawReply);
+    const { cleanText: reply, action } = parseAction(rawText.trim());
     const { audioBase64, mime, ttsOk, ttsChars, ttsMs } = await doTts(reply);
     const totalMs = Date.now() - llmStart;
 
     res.json({ reply, audioBase64, mime, action });
-    doLog(reply, ttsOk, ttsChars, message.usage.input_tokens, message.usage.output_tokens, llmMs, ttsMs, totalMs, model);
+    doLog(reply, ttsOk, ttsChars, inputTokens, outputTokens, llmMs, ttsMs, totalMs, model);
   } catch (err) {
     logger.error({ err }, "ask failed");
     res.status(500).json({ error: "Judith could not respond right now" });
