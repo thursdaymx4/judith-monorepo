@@ -21,7 +21,7 @@ import { getQuickAsks } from "@/constants/providers";
 import { getPersona } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
-import { enqueueAudio, fileToBase64, resetAudioToPlayback, stopCurrentAudio } from "@/lib/audio";
+import { enqueueAudio, fileToBase64, isAudioActive, resetAudioToPlayback, stopCurrentAudio } from "@/lib/audio";
 import { safeBack } from "@/lib/navigation";
 import { type AddBillAction, type AskBill, askJudith, parseSubscriptionScreenshot, transcribe, RateLimitError, TimeoutError, ServerError, UnauthorizedError, AbortedError } from "@/lib/proxy";
 import { sttHint, isFilipino } from "@/constants/languages";
@@ -213,14 +213,35 @@ export default function AskModal() {
 
   useEffect(() => {
     return () => {
+      // Always cancel any in-flight request on unmount.
       inFlightAbortRef.current?.abort();
       inFlightAbortRef.current = null;
-      stopCurrentAudio();
+      // Stop audio only if we were mid-request (no audio playing yet).
+      // If Judith was already speaking the user tapped X, let it finish.
+      if (!isAudioActive()) stopCurrentAudio();
       recorder.stop().catch(() => {});
       resetAudioToPlayback().catch(() => {});
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /**
+   * X-button close handler.
+   * - Thinking (in-flight request): abort immediately so the fetch is cancelled
+   *   BEFORE navigation starts, preventing the "stuck thinking" feeling.
+   * - Speaking (audio playing, no request): navigate without stopping audio —
+   *   Judith keeps talking while the user returns to the previous screen.
+   */
+  const handleClose = useCallback(() => {
+    const wasThinking = inFlightAbortRef.current != null;
+    if (wasThinking) {
+      inFlightAbortRef.current!.abort();
+      inFlightAbortRef.current = null;
+      stopCurrentAudio();
+    }
+    safeBack(router);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router]);
 
   const [scanBusy, setScanBusy] = useState(false);
   const [scanRows, setScanRows] = useState<ScanRow[] | null>(null);
@@ -865,7 +886,7 @@ export default function AskModal() {
       >
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <Pressable
-            onPress={() => safeBack(router)}
+            onPress={handleClose}
             hitSlop={10}
             style={{
               width: 32,

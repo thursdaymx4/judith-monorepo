@@ -199,6 +199,11 @@ async function playFromWrittenUri({ uri, ready }: QueuedClip): Promise<void> {
   });
 }
 
+/** Returns true if audio is currently playing or queued to play. */
+export function isAudioActive(): boolean {
+  return _audioPumpRunning || _activePlayer !== null || _audioQueue.length > 0;
+}
+
 /** Reads a recorded file URI and returns its base64 contents. */
 export async function fileToBase64(uri: string): Promise<string> {
   return FileSystem.readAsStringAsync(uri, {
