@@ -9,9 +9,9 @@ dist/
 web-build/
 expo-env.d.ts
 
-# Native
-ios/
-android/
+# Native (prebuild output — local Expo modules' own ios/ folders are intentionally tracked)
+/ios/
+/android/
 *.orig.*
 *.jks
 *.p8
