@@ -49,6 +49,7 @@ export default function AddBillScreen() {
     [bills, existing?.id],
   );
   const [remDays, setRemDays] = useState(existing?.reminderDays ?? 3);
+  const [remHour, setRemHour] = useState(existing?.reminderHour ?? 9);
   const [statementDay, setStatementDay] = useState(existing?.statementDay ?? 5);
   const [chargedToCard, setChargedToCard] = useState(existing?.chargedToCard ?? false);
   const [parentCardId, setParentCardId] = useState<string | undefined>(existing?.parentCardId);
@@ -94,6 +95,7 @@ export default function AddBillScreen() {
       isBusiness: isBusiness || undefined,
       businessName: isBusiness ? businessName.trim() || undefined : undefined,
       reminderDays: remDays,
+      reminderHour: remHour,
       statementDay: cat === "Credit card" ? statementDay : undefined,
       chargedToCard: canLinkCard && chargedToCard ? true : undefined,
       parentCardId: canLinkCard && chargedToCard ? parentCardId : undefined,
@@ -471,6 +473,20 @@ export default function AddBillScreen() {
             onInc={() => setRemDays((d) => Math.min(30, d + 1))}
             unit={remDays === 1 ? "day before" : "days before"}
           />
+        </View>
+
+        {/* reminder time-of-day — fires in the device's local timezone, so a
+            user who picks "Morning" in Manila keeps getting 9 AM reminders
+            after travelling. Four presets cover ~95% of real preferences
+            without a full time-picker; we can add custom hours later. */}
+        <View style={{ marginTop: 14 }}>
+          <FieldLabel text="What time?" />
+          <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+            <Chip label="Morning · 9 AM" selected={remHour === 9}  onPress={() => { haptics.selection(); setRemHour(9); }} />
+            <Chip label="Noon · 12 PM"   selected={remHour === 12} onPress={() => { haptics.selection(); setRemHour(12); }} />
+            <Chip label="Evening · 6 PM" selected={remHour === 18} onPress={() => { haptics.selection(); setRemHour(18); }} />
+            <Chip label="Night · 9 PM"   selected={remHour === 21} onPress={() => { haptics.selection(); setRemHour(21); }} />
+          </View>
         </View>
 
         {/* ───────── organize ───────── */}

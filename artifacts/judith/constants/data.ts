@@ -46,6 +46,13 @@ export interface Bill {
   /** Days before due date to send a reminder (default 3). */
   reminderDays?: number;
   /**
+   * Local hour-of-day (0–23) to fire the reminder at. Interpreted in the
+   * device's current timezone so a "9" set in Manila keeps firing at 9 AM
+   * after the user lands in Tokyo — matches how iOS handles `Date.setHours`.
+   * Default 9 (9 AM local).
+   */
+  reminderHour?: number;
+  /**
    * Day of the month the credit card statement is released (1–28).
    * Only relevant when cat === "Credit card".
    * Judith nudges the user on this day to update the bill amount.
@@ -614,6 +621,7 @@ export function makeManualBill(
     isBusiness?: boolean;
     businessName?: string;
     reminderDays?: number;
+    reminderHour?: number;
     statementDay?: number;
     chargedToCard?: boolean;
     parentCardId?: string;
@@ -658,6 +666,7 @@ export function makeManualBill(
     ...(a.isBusiness ? { isBusiness: true } : {}),
     ...(a.isBusiness && a.businessName ? { businessName: a.businessName } : {}),
     ...(a.reminderDays != null ? { reminderDays: a.reminderDays } : {}),
+    ...(a.reminderHour != null ? { reminderHour: a.reminderHour } : {}),
     ...(a.statementDay != null ? { statementDay: a.statementDay } : {}),
     ...(a.chargedToCard ? { chargedToCard: true } : {}),
     ...(a.parentCardId ? { parentCardId: a.parentCardId } : {}),

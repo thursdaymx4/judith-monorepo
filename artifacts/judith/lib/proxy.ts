@@ -243,6 +243,8 @@ export interface UpdateBillAction {
   cat?: string;
   kind?: "Fixed" | "Variable";
   reminderDays?: number;
+  /** Local hour-of-day (0–23) to fire the bill's reminder at. */
+  reminderHour?: number;
   isBusiness?: boolean;
   house?: string;
   chargedToCard?: boolean;

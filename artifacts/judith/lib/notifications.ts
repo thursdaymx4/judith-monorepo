@@ -386,7 +386,12 @@ async function scheduleBill(
 
   const dueAt = new Date();
   dueAt.setDate(dueAt.getDate() + occ.dueDays);
-  dueAt.setHours(9, 0, 0, 0);
+  // Fire at the user's chosen local hour (0–23). setHours uses the device's
+  // current timezone, so a "9" picked in Manila correctly fires at 9 AM
+  // local in Manila — and also at 9 AM local after a user travels to Tokyo,
+  // matching expectations for a personal reminder. Default 9 (9 AM).
+  const hour = Math.max(0, Math.min(23, bill.reminderHour ?? 9));
+  dueAt.setHours(hour, 0, 0, 0);
 
   const ops: Promise<string>[] = [];
 

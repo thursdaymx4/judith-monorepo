@@ -664,6 +664,7 @@ export default function AskModal() {
             ...(typeof action.cat === "string" && action.cat ? { cat: action.cat } : {}),
             ...(action.kind === "Fixed" || action.kind === "Variable" ? { kind: action.kind as "Fixed" | "Variable" } : {}),
             ...(typeof action.reminderDays === "number" ? { reminderDays: action.reminderDays } : {}),
+            ...(typeof action.reminderHour === "number" ? { reminderHour: Math.max(0, Math.min(23, Math.round(action.reminderHour))) } : {}),
             ...(typeof action.isBusiness === "boolean" ? { isBusiness: action.isBusiness } : {}),
             ...(typeof action.house === "string" && action.house ? { house: action.house } : {}),
             ...(typeof action.chargedToCard === "boolean" ? { chargedToCard: action.chargedToCard } : {}),
