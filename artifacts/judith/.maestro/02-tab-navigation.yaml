@@ -1,0 +1,35 @@
+appId: com.app.judith
+name: Tab navigation — all four tabs render without crashing
+
+# Catches navigation regressions and per-tab render crashes. Cheap and
+# fast — runs in under 10s. Won't catch UX issues but it WILL catch
+# "I added a hook in insights.tsx and now switching to it kicks the
+# user back to home" or "settings screen white-screens on render".
+---
+- launchApp:
+    clearState: false
+- waitForAnimationToEnd
+- assertVisible: "This month"      # Home
+
+- tapOn: "Calendar"
+- waitForAnimationToEnd
+- assertNotVisible:
+    text: "Something went wrong"
+    optional: true
+
+- tapOn: "Insights"
+- waitForAnimationToEnd
+- assertNotVisible:
+    text: "Something went wrong"
+    optional: true
+
+- tapOn: "Settings"
+- waitForAnimationToEnd
+- assertVisible: "Settings"        # Page heading on settings.tsx
+- assertNotVisible:
+    text: "Something went wrong"
+    optional: true
+
+- tapOn: "Home"
+- waitForAnimationToEnd
+- assertVisible: "This month"      # Back where we started

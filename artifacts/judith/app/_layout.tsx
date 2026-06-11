@@ -11,7 +11,21 @@ import {
   useFonts,
 } from "@expo-google-fonts/space-grotesk";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import * as Sentry from "@sentry/react-native";
 import * as Notifications from "expo-notifications";
+
+// Sentry must initialize before any other JS executes app code — surfaces
+// crashes and unhandled rejections that happen during the very first render.
+// DSN is public by design; pulled from env so dev/prod can point at different
+// projects. Set EXPO_PUBLIC_SENTRY_DSN in `.env` (and as an EAS secret for CI).
+Sentry.init({
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+  // Only sample 20% of perf traces in production to stay under the free-tier
+  // event budget; in dev we want every trace so flame graphs reflect reality.
+  tracesSampleRate: __DEV__ ? 1.0 : 0.2,
+  // Don't ship dev errors to the prod project — every Metro reload would log.
+  enabled: !__DEV__,
+});
 import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
@@ -239,7 +253,7 @@ function RootLayoutNav() {
   );
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     SpaceGrotesk_400Regular,
     SpaceGrotesk_500Medium,
@@ -282,3 +296,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 22 },
   body: { fontSize: 15, textAlign: "center", lineHeight: 22 },
 });
+
+// Sentry.wrap installs the error boundary that captures unhandled render
+// errors with full component stack frames + a "view stacktrace" link in the
+// Sentry UI. Keep this as the default export so Expo Router picks it up.
+export default Sentry.wrap(RootLayout);

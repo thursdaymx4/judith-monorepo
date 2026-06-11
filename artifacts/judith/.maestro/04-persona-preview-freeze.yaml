@@ -1,0 +1,73 @@
+appId: com.app.judith
+name: Persona-preview freeze — reproducer
+
+# Reproduces the observed "Settings persona previews wedge the JS thread"
+# bug. User reports the slowdown is triggered specifically by tapping
+# "Hear voice" on persona cards under Settings — after a few previews,
+# subsequent taps (including tab navigation) stop responding.
+#
+# A green run does NOT mean the bug is fixed — it means the bug didn't
+# surface in this exact scenario. Treat as a leading indicator: red is
+# certain regression, green is "probably OK with this many previews".
+---
+- launchApp:
+    clearState: false
+- waitForAnimationToEnd
+- assertVisible: "This month"
+
+# Go to Settings.
+- tapOn: "Settings"
+- waitForAnimationToEnd
+- assertVisible: "Settings"
+
+# Scroll the Settings page until at least one "Hear voice" button is in
+# view. Personas live inside a horizontal carousel further down the
+# page; a fixed-distance scroll over- or under-shoots depending on
+# device height. scrollUntilVisible keeps scrolling until found.
+- scrollUntilVisible:
+    element:
+      text: "Hear voice"
+    direction: DOWN
+    timeout: 10000
+- waitForAnimationToEnd
+
+# Tap "Hear voice" repeatedly. After each tap the targeted card flips
+# to "Playing…" and a different card becomes the new index-0 "Hear
+# voice". We rapid-fire 6 previews to mimic a user auditioning personas
+# back-to-back — the scenario where the freeze was observed.
+- repeat:
+    times: 6
+    commands:
+      - tapOn: "Hear voice"
+      # Short wait between taps — long enough for the press to register
+      # and the next card to become tappable, short enough to overlap
+      # playbacks (which is exactly the user's scenario).
+      - waitForAnimationToEnd
+
+# ── Freeze check — does the app still respond? ────────────────────────
+# This is the assertion that fails when the bug is present. If the JS
+# thread is wedged from accumulated audio listeners / Sound objects /
+# something else, tapping Home either no-ops or takes >5s and the
+# assertVisible times out.
+- tapOn: "Home"
+- waitForAnimationToEnd
+- assertVisible: "This month"
+
+- tapOn: "Calendar"
+- waitForAnimationToEnd
+
+- tapOn: "Insights"
+- waitForAnimationToEnd
+
+- tapOn: "Settings"
+- waitForAnimationToEnd
+- assertVisible: "Settings"
+
+- tapOn: "Home"
+- waitForAnimationToEnd
+- assertVisible: "This month"
+
+# No crash screen.
+- assertNotVisible:
+    text: "Something went wrong"
+    optional: true

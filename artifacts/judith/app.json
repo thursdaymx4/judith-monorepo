@@ -83,7 +83,14 @@
         }
       ],
       "expo-notifications",
-      "@bacons/apple-targets"
+      "@bacons/apple-targets",
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "padalastory",
+          "project": "judith"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
