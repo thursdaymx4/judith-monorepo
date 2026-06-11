@@ -67,6 +67,7 @@
           }
         }
       ],
+      "./plugins/with-handled-splash",
       [
         "expo-router",
         {
