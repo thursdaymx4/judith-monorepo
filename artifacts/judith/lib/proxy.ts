@@ -65,10 +65,17 @@ async function authHeader(): Promise<Record<string, string>> {
 }
 
 /** Like authHeader() but never throws — returns {} when there is no session so
- *  endpoints with a server-side guest fallback (e.g. /ask) work without sign-in. */
+ *  endpoints with a server-side guest fallback (e.g. /ask) work without sign-in.
+ *  A 3-second timeout prevents a hung Supabase client from blocking the ask. */
 async function optionalAuthHeader(): Promise<Record<string, string>> {
   try {
-    const session = (await supabase?.auth.getSession())?.data.session;
+    const sessionP = supabase?.auth.getSession();
+    if (!sessionP) return {};
+    const result = await Promise.race([
+      sessionP,
+      new Promise<null>((r) => setTimeout(() => r(null), 3000)),
+    ]);
+    const session = result?.data?.session;
     if (session?.access_token) return { Authorization: `Bearer ${session.access_token}` };
   } catch {}
   return {};

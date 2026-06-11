@@ -23,7 +23,7 @@ import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { enqueueAudio, fileToBase64, resetAudioToPlayback, stopCurrentAudio } from "@/lib/audio";
 import { safeBack } from "@/lib/navigation";
-import { type AddBillAction, type AskBill, askJudith, askJudithStream, parseSubscriptionScreenshot, transcribe, RateLimitError, TimeoutError, ServerError, UnauthorizedError, AbortedError } from "@/lib/proxy";
+import { type AddBillAction, type AskBill, askJudith, parseSubscriptionScreenshot, transcribe, RateLimitError, TimeoutError, ServerError, UnauthorizedError, AbortedError } from "@/lib/proxy";
 import { sttHint, isFilipino } from "@/constants/languages";
 
 /**
@@ -581,22 +581,15 @@ export default function AskModal() {
         text: m.text,
       }));
       appendNoPersist({ role: "judith", text: "" });
-      let accumulated = "";
-      const { reply, action } = await askJudithStream(
+      const { reply, audioBase64, action } = await askJudith(
         q, askBills(), persona, language, wantVoice, currency, country.name,
         monthlyIncome, country.code,
         Object.keys(incomeByMonth).length > 0 ? incomeByMonth : undefined,
         payCycle, paydayDay, paydaySemi, paydayWeekday,
         historyMsgs.length > 0 ? historyMsgs : undefined,
-        (delta) => {
-          accumulated += delta;
-          updateLatestMsg(accumulated);
-          requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: false }));
-        },
-        (audio) => { enqueueAudio(audio); },
-        abortCtrl.signal,
       );
-      const finalReply = reply?.trim() || accumulated || await fallbackWithDelay(q);
+      if (audioBase64) enqueueAudio(audioBase64);
+      const finalReply = reply?.trim() || await fallbackWithDelay(q);
       updateLatestMsg(finalReply);
       requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: false }));
       setAskHistory([...messagesRef.current]);
