@@ -358,7 +358,13 @@ export async function askJudithStream(
 
   if (!resp.body) {
     cleanup();
-    throw new ServerError(500, "no_body");
+    // ReadableStream not available in this environment (older React Native) —
+    // fall back to the plain JSON non-streaming path as promised in the JSDoc.
+    return askJudith(
+      text, bills, persona, language, includeVoice, currency, countryName,
+      monthlyIncome, countryCode, incomeByMonth, payCycle, paydayDay,
+      paydaySemi, paydayWeekday, history,
+    );
   }
 
   const reader = resp.body.getReader();

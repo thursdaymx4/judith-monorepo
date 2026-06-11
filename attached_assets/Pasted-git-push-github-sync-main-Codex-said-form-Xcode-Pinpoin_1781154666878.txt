@@ -1,0 +1,52 @@
+git push github-sync main
+Codex said form Xcode
+"Pinpointed it. The "May problema sa server" message at ask.tsx:693 is only thrown when e instanceof ServerError. Since my curl confirms the server is healthy, the ServerError is being thrown inside the client's streaming parser, not by the server.
+
+Looking at proxy.ts, ServerError from askJudithStream can be thrown from four spots — and given the server actually works:
+
+| Source | Likely? |
+|---|---|
+| ServerError(500, "no_body") at line 361 | High — RN fetch sometimes doesn't expose resp.body for streaming reads |
+| ServerError(500, "no_done_event") at line 404 | High — RN may close the reader before the final done SSE event is parsed, or the trailing buffer never flushes |
+| ServerError(500, "stream_error") at line 392 | Low — server didn't emit {type:"error"} in my curl |
+| ServerError(resp.status, …) at line 356 | Low — server returns 200 |
+
+This also explains "the app slows down after that" — a hung/leaking ReadableStream reader in RN can block the JS bridge for the rest of the session.
+
+The cleanest, safest, OTA-able fix:
+
+Swap askJudithStream → askJudith in ask.tsx. The non-streaming endpoint works perfectly (we just proved it). You lose the progressive word-by-word text appearance, but you get a working Ask Judith tonight, and the app stops slowing down. The streaming variant can be properly debugged later (it's a known-fragile area in React Native — fetch streaming has been buggy across versions).
+
+Concrete change is about ~10 lines in ask.tsx around line 585 — replace the streaming call with the non-streaming one, drop the onDelta / onAudio callbacks, and enqueueAudio(audioBase64) once when the reply lands instead of chunk-by-chunk.
+
+Want me to make this swap now? It's:
+• Single file change (app/ask.tsx)
+• ~10 lines
+• Ships via OTA (no archive needed)
+• Doesn't touch the splash/SecureStore reshuffle Replit just did
+• Easy to revert if you don't like losing the streaming text
+
+Done. Final diff is +2/-10 in ask.tsx only — clean swap.
+
+What changed:
+• Import: askJudithStream → askJudith
+• The call drops the three streaming-specific args (onDelta, onAudio, abortCtrl.signal) and the streamedText accumulator
+
+What still works the same:
+• The empty placeholder Judith message at line 583 is still created, then filled with finalReply on line 592 — so the chat UI behaves identically except text appears all at once instead of word-by-word
+• Audio still plays via enqueueAudio(audioBase64) on line 597
+• All the action handlers (add_bill, mark_paid, etc.) still run
+• Error handling, rate-limit, and timeout paths unchanged
+
+Two minor notes:
+1. abortCtrl is still created and stored in inFlightAbortRef but no longer cancels the fetch (since askJudith doesn't accept a signal). The "supersede stale ask" race is now theoretically possible but very unlikely in practice — single user, single tap. Acceptable.
+2. AbortedError is still imported and the catch block at line 653 still checks for it; it's now dead code but harmless. Worth a cleanup pass later when streaming is properly fixed.
+
+cd /Users/carlocanieso/Judith/judith-monorepo/artifacts/judith
+eas update --branch production --message "ask.tsx: fall back to non-streaming until RN stream parser is fixed"
+
+(Replace production with whatever channel your installed TestFlight build was published against — eas channel:list will show it.)
+
+Then kill + reopen the app. With the useOtaUpdate hook from 359cfc7 already shipped, the new bundle should apply on first reopen.
+
+Should be fixed once you publish. Want to also save a memory note that streaming Ask is busted in RN so we don't lose this when revisiting?"

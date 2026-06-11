@@ -784,7 +784,13 @@ router.post("/ask", askLimiter, async (req, res) => {
       const { cleanText: reply, action } = parseAction(rawText.trim());
       const { audioBase64, mime, ttsOk, ttsChars, ttsMs } = await doTts(reply);
       const totalMs = Date.now() - llmStart;
-      res.write(`data: ${JSON.stringify({ type: "done", reply, action: action ?? null, audioBase64, mime })}\n\n`);
+      // Send audio as its own event so the done event stays small (~150 bytes).
+      // Large base64 payloads inside a done line can silently fail in React
+      // Native's streaming reader.
+      if (audioBase64) {
+        res.write(`data: ${JSON.stringify({ type: "audio", audioBase64, mime })}\n\n`);
+      }
+      res.write(`data: ${JSON.stringify({ type: "done", reply, action: action ?? null, audioBase64: null, mime })}\n\n`);
       res.end();
       doLog(reply, ttsOk, ttsChars, inputTokens, outputTokens, llmMs, ttsMs, totalMs, model);
       return;
