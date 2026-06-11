@@ -1,0 +1,16 @@
+carlocanieso@Carlos-Mac-Studio judith % npx expo config --type introspect 2>&1 | tail -50
+env: load .env.local
+env: export EXPO_PUBLIC_SUPABASE_URL EXPO_PUBLIC_SUPABASE_ANON_KEY EXPO_PUBLIC_DOMAIN
+TypeError: [ios.splashScreenStoryboard]: withIosSplashScreenStoryboardBaseMod: Cannot read properties of undefined (reading '0')
+TypeError: [ios.splashScreenStoryboard]: withIosSplashScreenStoryboardBaseMod: Cannot read properties of undefined (reading '0')
+    at removeImageFromSplashScreen (/Users/carlocanieso/Judith/judith-monorepo/node_modules/.pnpm/@expo+prebuild-config@54.0.8_expo@54.0.35_typescript@5.9.3/node_modules/@expo/prebuild-config/build/plugins/unversioned/expo-splash-screen/InterfaceBuilder.js:57:35)
+    at applySplashScreenStoryboard (/Users/carlocanieso/Judith/judith-monorepo/node_modules/.pnpm/@expo+prebuild-config@54.0.8_expo@54.0.35_typescript@5.9.3/node_modules/@expo/prebuild-config/build/plugins/unversioned/expo-splash-screen/withIosSplashScreenStoryboardImage.js:44:62)
+    at /Users/carlocanieso/Judith/judith-monorepo/node_modules/.pnpm/@expo+prebuild-config@54.0.8_expo@54.0.35_typescript@5.9.3/node_modules/@expo/prebuild-config/build/plugins/unversioned/expo-splash-screen/withIosSplashScreenStoryboardImage.js:24:25
+    at action (/Users/carlocanieso/Judith/judith-monorepo/node_modules/.pnpm/@expo+config-plugins@54.0.4/node_modules/@expo/config-plugins/build/plugins/withMod.js:199:29)
+    at interceptingMod (/Users/carlocanieso/Judith/judith-monorepo/node_modules/.pnpm/@expo+config-plugins@54.0.4/node_modules/@expo/config-plugins/build/plugins/withMod.js:104:27)
+    at action (/Users/carlocanieso/Judith/judith-monorepo/node_modules/.pnpm/@expo+config-plugins@54.0.4/node_modules/@expo/config-plugins/build/plugins/createBaseMod.js:60:27)
+    at async interceptingMod (/Users/carlocanieso/Judith/judith-monorepo/node_modules/.pnpm/@expo+config-plugins@54.0.4/node_modules/@expo/config-plugins/build/plugins/withMod.js:104:21)
+    at async evalModsAsync (/Users/carlocanieso/Judith/judith-monorepo/node_modules/.pnpm/@expo+config-plugins@54.0.4/node_modules/@expo/config-plugins/build/plugins/mod-compiler.js:206:25)
+    at async compileModsAsync (/Users/carlocanieso/Judith/judith-monorepo/node_modules/.pnpm/@expo+config-plugins@54.0.4/node_modules/@expo/config-plugins/build/plugins/mod-compiler.js:123:10)
+    at async configAsync (/Users/carlocanieso/Judith/judith-monorepo/node_modules/.pnpm/@expo+cli@54.0.25_expo-router@6.0.24_expo@54.0.35_react-native@0.81.5_@babel+core@7.29._d2692a18a3c9d9eb24f2d1bd1f7e96db/node_modules/@expo/cli/build/src/config/configAsync.js:141:9)
+carlocanieso@Carlos-Mac-Studio judith % 

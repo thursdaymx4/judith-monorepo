@@ -1,0 +1,9 @@
+{
+  "name": "judith-secure-store",
+  "version": "1.0.0",
+  "description": "iOS Keychain-backed secure storage + AES-GCM encryption helpers for Judith.",
+  "main": "./index",
+  "peerDependencies": {
+    "expo-modules-core": "*"
+  }
+}
