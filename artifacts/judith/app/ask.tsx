@@ -581,22 +581,25 @@ export default function AskModal() {
         text: m.text,
       }));
       appendNoPersist({ role: "judith", text: "" });
-      // Use non-streaming path — React Native's ReadableStream / SSE parser is
-      // unreliable across versions and causes silent no_done_event failures on
-      // some iOS builds. Streaming text appearance is a nice-to-have; a working
-      // answer is not. Restore askJudithStream once RN streaming is stable.
-      const { reply, audioBase64, action } = await askJudith(
+      let accumulated = "";
+      const { reply, action } = await askJudithStream(
         q, askBills(), persona, language, wantVoice, currency, country.name,
         monthlyIncome, country.code,
         Object.keys(incomeByMonth).length > 0 ? incomeByMonth : undefined,
         payCycle, paydayDay, paydaySemi, paydayWeekday,
         historyMsgs.length > 0 ? historyMsgs : undefined,
+        (delta) => {
+          accumulated += delta;
+          updateLatestMsg(accumulated);
+          requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: false }));
+        },
+        (audio) => { enqueueAudio(audio); },
+        abortCtrl.signal,
       );
-      const finalReply = reply?.trim() || await fallbackWithDelay(q);
+      const finalReply = reply?.trim() || accumulated || await fallbackWithDelay(q);
       updateLatestMsg(finalReply);
       requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: false }));
       setAskHistory([...messagesRef.current]);
-      if (audioBase64) enqueueAudio(audioBase64);
       if (action?.type === "add_bill") {
         const bill = makeBillFromAction(action as AddBillAction);
         saveBill(bill);
