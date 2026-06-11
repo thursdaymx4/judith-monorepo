@@ -64,6 +64,16 @@ async function authHeader(): Promise<Record<string, string>> {
   return { Authorization: `Bearer ${session.access_token}` };
 }
 
+/** Like authHeader() but never throws — returns {} when there is no session so
+ *  endpoints with a server-side guest fallback (e.g. /ask) work without sign-in. */
+async function optionalAuthHeader(): Promise<Record<string, string>> {
+  try {
+    const session = (await supabase?.auth.getSession())?.data.session;
+    if (session?.access_token) return { Authorization: `Bearer ${session.access_token}` };
+  } catch {}
+  return {};
+}
+
 /**
  * Thrown when the server returns HTTP 429 (rate limited).
  * `retryAfter` is the number of seconds to wait before retrying,
@@ -117,6 +127,37 @@ export class AbortedError extends Error {
     super("aborted");
     this.name = "AbortedError";
   }
+}
+
+async function postJsonOptAuth<T>(path: string, body: unknown, timeoutMs?: number): Promise<T> {
+  const headers = await optionalAuthHeader();
+  const controller = timeoutMs != null ? new AbortController() : null;
+  const timer =
+    controller != null ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller?.signal,
+    });
+  } catch (e) {
+    if (controller?.signal.aborted || (e as Error)?.name === "AbortError") {
+      throw new TimeoutError();
+    }
+    throw e;
+  } finally {
+    if (timer != null) clearTimeout(timer);
+  }
+  throwIfRateLimited(res);
+  if (!res.ok) {
+    if (res.status === 401) throw new UnauthorizedError();
+    const detail = await res.text().catch(() => "");
+    if (res.status >= 500) throw new ServerError(res.status, detail);
+    throw new Error(`Request failed (${res.status}): ${detail}`);
+  }
+  return (await res.json()) as T;
 }
 
 async function postJson<T>(path: string, body: unknown, timeoutMs?: number): Promise<T> {
@@ -252,7 +293,7 @@ export function askJudith(
   paydayWeekday?: number,
   history?: Array<{ role: "user" | "assistant"; text: string }>,
 ): Promise<AskResult> {
-  return postJson("/ask", {
+  return postJsonOptAuth("/ask", {
     text,
     bills,
     persona: persona ? PERSONA_MAP[persona] : undefined,
