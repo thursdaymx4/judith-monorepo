@@ -627,13 +627,10 @@ router.post("/stt", sttTtsLimiter, async (req, res) => {
 });
 
 // POST /api/judith/ask  { text } -> { reply, audioBase64, mime }
-function pickModel(question: string, historyLen: number): string {
-  // Prefer Haiku (3-5× faster) for the vast majority of bill-tracking asks.
-  // Only escalate to Sonnet for genuinely complex multi-step analysis.
-  const isComplex = historyLen > 6
-    || question.length > 300
-    || /\b(compare|project|forecast|breakdown|trend|analysis|pattern|versus|\bvs\b)\b/i.test(question);
-  return isComplex ? ANTHROPIC_MODEL : ANTHROPIC_HAIKU_MODEL;
+function pickModel(_question: string, _historyLen: number): string {
+  // Always use Haiku — bill-tracking asks don't need Sonnet, and Haiku is
+  // 3-5× faster with far lower tail latency (Sonnet can spike to 13+ s).
+  return ANTHROPIC_HAIKU_MODEL;
 }
 
 router.post("/ask", askLimiter, async (req, res) => {
