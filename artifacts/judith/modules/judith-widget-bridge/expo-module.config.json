@@ -1,3 +1,6 @@
 {
-  "platforms": ["ios"]
+  "platforms": ["ios"],
+  "ios": {
+    "modules": ["JudithWidgetBridgeModule"]
+  }
 }
