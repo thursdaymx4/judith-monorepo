@@ -11,6 +11,17 @@ let _activeSub: { remove: () => void } | null = null;
  *  pump when audio is force-stopped externally — otherwise the await hangs
  *  forever, the pump never exits, and closures leak per-clip. */
 let _activeResolve: (() => void) | null = null;
+/** Per-clip safety-net cleanup. Invoked by stopCurrentAudio so the watchdog
+ *  timer is cleared synchronously — otherwise it would keep firing for ~90s
+ *  after a stop, eventually doing redundant work. */
+let _activeCleanup: (() => void) | null = null;
+/** Hard cap on how long a single audio Promise will wait for didJustFinish.
+ *  Audio can silently fail to load (corrupt mp3, missing file, bad URL) — in
+ *  which case the native player never emits didJustFinish, the Promise hangs,
+ *  the queue pump wedges, and the Sound + listener leak. The watchdog forces
+ *  cleanup so a failed clip cannot stall everything that comes after it.
+ *  Longer than the longest expected Judith reply (~30s) plus generous slack. */
+const PLAYBACK_WATCHDOG_MS = 90_000;
 interface QueuedClip {
   uri: string;
   ready: Promise<void>;
@@ -51,10 +62,12 @@ export function stopCurrentAudio(opts?: { keepQueue?: boolean }) {
   const uri = _activeUri;
   const sub = _activeSub;
   const resolveFn = _activeResolve;
+  const cleanupFn = _activeCleanup;
   _activePlayer = null;
   _activeUri = null;
   _activeSub = null;
   _activeResolve = null;
+  _activeCleanup = null;
   // Remove the subscription BEFORE removing the player so no stale
   // playbackStatusUpdate callbacks accumulate across multiple audio plays.
   if (sub) { try { sub.remove(); } catch { /* ignore */ } }
@@ -65,6 +78,8 @@ export function stopCurrentAudio(opts?: { keepQueue?: boolean }) {
   // Resolve the in-flight playback promise so its caller (e.g. the queue pump
   // or an awaited playFromUrl) can advance and release its closure.
   if (resolveFn) { try { resolveFn(); } catch { /* ignore */ } }
+  // Cancel the per-clip watchdog so it doesn't fire 90s later doing redundant work.
+  if (cleanupFn) { try { cleanupFn(); } catch { /* ignore */ } }
   void cleanupUri(uri);
 }
 
@@ -82,18 +97,26 @@ export async function playFromUrl(url: string, rate = 1.0): Promise<void> {
   try { (player as unknown as { rate: number }).rate = rate; } catch { /* unsupported */ }
   player.play();
   return new Promise<void>((resolve) => {
+    let done = false;
+    const cleanup = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(watchdog);
+      if (_activeSub === sub) _activeSub = null;
+      if (_activeResolve === resolve) _activeResolve = null;
+      if (_activeCleanup === cleanup) _activeCleanup = null;
+      try { sub.remove(); } catch { /* ignore */ }
+      if (_activePlayer === player) _activePlayer = null;
+      try { player.remove(); } catch { /* ignore */ }
+      resolve();
+    };
     _activeResolve = resolve;
+    _activeCleanup = cleanup;
     const sub = player.addListener("playbackStatusUpdate", (status) => {
-      if (status.didJustFinish) {
-        if (_activeSub === sub) _activeSub = null;
-        if (_activeResolve === resolve) _activeResolve = null;
-        sub.remove();
-        if (_activePlayer === player) _activePlayer = null;
-        try { player.remove(); } catch { /* ignore */ }
-        resolve();
-      }
+      if (status.didJustFinish) cleanup();
     });
     _activeSub = sub;
+    const watchdog = setTimeout(cleanup, PLAYBACK_WATCHDOG_MS);
   });
 }
 
@@ -124,23 +147,31 @@ export async function playBase64Mp3(base64: string, rate = 1.0): Promise<void> {
   player.play();
 
   return new Promise<void>((resolve) => {
-    _activeResolve = resolve;
-    const sub = player.addListener("playbackStatusUpdate", (status) => {
-      if (status.didJustFinish) {
-        if (_activeSub === sub) _activeSub = null;
-        if (_activeResolve === resolve) _activeResolve = null;
-        sub.remove();
-        const finishedUri = _activePlayer === player ? _activeUri : uri;
-        if (_activePlayer === player) {
-          _activePlayer = null;
-          _activeUri = null;
-        }
-        try { player.remove(); } catch { /* ignore */ }
-        void cleanupUri(finishedUri);
-        resolve();
+    let done = false;
+    const cleanup = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(watchdog);
+      if (_activeSub === sub) _activeSub = null;
+      if (_activeResolve === resolve) _activeResolve = null;
+      if (_activeCleanup === cleanup) _activeCleanup = null;
+      try { sub.remove(); } catch { /* ignore */ }
+      const finishedUri = _activePlayer === player ? _activeUri : uri;
+      if (_activePlayer === player) {
+        _activePlayer = null;
+        _activeUri = null;
       }
+      try { player.remove(); } catch { /* ignore */ }
+      void cleanupUri(finishedUri);
+      resolve();
+    };
+    _activeResolve = resolve;
+    _activeCleanup = cleanup;
+    const sub = player.addListener("playbackStatusUpdate", (status) => {
+      if (status.didJustFinish) cleanup();
     });
     _activeSub = sub;
+    const watchdog = setTimeout(cleanup, PLAYBACK_WATCHDOG_MS);
   });
 }
 
@@ -182,20 +213,28 @@ async function playFromWrittenUri({ uri, ready }: QueuedClip): Promise<void> {
   try { (player as unknown as { rate: number }).rate = 1.0; } catch { /* unsupported */ }
   player.play();
   return new Promise<void>((resolve) => {
+    let done = false;
+    const cleanup = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(watchdog);
+      if (_activeSub === sub) _activeSub = null;
+      if (_activeResolve === resolve) _activeResolve = null;
+      if (_activeCleanup === cleanup) _activeCleanup = null;
+      try { sub.remove(); } catch { /* ignore */ }
+      const finishedUri = _activePlayer === player ? _activeUri : uri;
+      if (_activePlayer === player) { _activePlayer = null; _activeUri = null; }
+      try { player.remove(); } catch { /* ignore */ }
+      void cleanupUri(finishedUri);
+      resolve();
+    };
     _activeResolve = resolve;
+    _activeCleanup = cleanup;
     const sub = player.addListener("playbackStatusUpdate", (status) => {
-      if (status.didJustFinish) {
-        if (_activeSub === sub) _activeSub = null;
-        if (_activeResolve === resolve) _activeResolve = null;
-        sub.remove();
-        const finishedUri = _activePlayer === player ? _activeUri : uri;
-        if (_activePlayer === player) { _activePlayer = null; _activeUri = null; }
-        try { player.remove(); } catch { /* ignore */ }
-        void cleanupUri(finishedUri);
-        resolve();
-      }
+      if (status.didJustFinish) cleanup();
     });
     _activeSub = sub;
+    const watchdog = setTimeout(cleanup, PLAYBACK_WATCHDOG_MS);
   });
 }
 
