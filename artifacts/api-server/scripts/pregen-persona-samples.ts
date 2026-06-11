@@ -18,6 +18,7 @@ import { synthesize } from "../src/lib/elevenlabs.js";
 import {
   DEFAULT_VOICE_IDS,
   FILIPINO_VOICE_IDS,
+  PHILIPPINE_ENGLISH_VOICE_IDS,
   getSpeakingSpeed,
   type PersonaId,
 } from "../src/lib/personas.js";
@@ -500,6 +501,32 @@ for (const persona of ALL_PERSONAS) {
     } catch (err) {
       console.error(`✗ ${persona}/${label}:`, err);
     }
+  }
+}
+
+console.log("\n── Philippine English (en_PH) ───────────────");
+
+// Philippines + English: served with Filipino-accented English voices.
+// Cache slot is "en_PH" (sampleLangKey("en-US", "PH")), keyed off countryCode.
+// Without this, every PH user's persona preview is a live-synthesis cache
+// miss (10s+ delay + huge base64 → UI freeze).
+for (const persona of ALL_PERSONAS) {
+  const already = await hasSampleAudio(persona, "en", "PH");
+  if (already) {
+    console.log(`· ${persona}/en_PH (cached)`);
+    skipped++;
+    continue;
+  }
+  try {
+    const audio = await synthesize(EN_TEXT[persona], PHILIPPINE_ENGLISH_VOICE_IDS[persona], {
+      live: false,
+      speed: getSpeakingSpeed(persona),
+    });
+    await setSampleAudio(persona, "en", audio.base64, "PH");
+    console.log(`✓ ${persona}/en_PH`);
+    generated++;
+  } catch (err) {
+    console.error(`✗ ${persona}/en_PH:`, err);
   }
 }
 

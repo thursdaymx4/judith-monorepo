@@ -178,11 +178,12 @@ export async function getSampleUrl(
 export async function hasSampleAudio(
   persona: string,
   lang: string,
+  countryCode?: string,
 ): Promise<boolean> {
   const bucket = await getBucket();
   if (!bucket) return false;
   try {
-    const key = `${SAMPLE_PREFIX}/${persona}/${cacheLanguageGroup(lang)}.mp3`;
+    const key = `${SAMPLE_PREFIX}/${persona}/${sampleLangKey(lang, countryCode)}.mp3`;
     const [exists] = await bucket.file(key).exists();
     return exists;
   } catch {

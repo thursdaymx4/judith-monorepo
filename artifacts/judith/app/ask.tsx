@@ -23,7 +23,7 @@ import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { enqueueAudio, fileToBase64, isAudioActive, resetAudioToPlayback, stopCurrentAudio } from "@/lib/audio";
 import { safeBack } from "@/lib/navigation";
-import { type AddBillAction, type AskBill, askJudith, parseSubscriptionScreenshot, transcribe, RateLimitError, TimeoutError, ServerError, UnauthorizedError, AbortedError } from "@/lib/proxy";
+import { type AddBillAction, type AskBill, askJudith, synthesizeAiReply, parseSubscriptionScreenshot, transcribe, RateLimitError, TimeoutError, ServerError, UnauthorizedError, AbortedError } from "@/lib/proxy";
 import { sttHint, isFilipino } from "@/constants/languages";
 
 /**
@@ -602,17 +602,30 @@ export default function AskModal() {
         text: m.text,
       }));
       appendNoPersist({ role: "judith", text: "" });
-      const { reply, audioBase64, action } = await askJudith(
-        q, askBills(), persona, language, wantVoice, currency, country.name,
+      // Request text only — never block the reply on server-side TTS. The text
+      // renders the moment the model responds, then (if voice is wanted) we fetch
+      // and play the audio as a follow-up so it trails the text instead of gating it.
+      const { reply, action, ttsToken } = await askJudith(
+        q, askBills(), persona, language, false, currency, country.name,
         monthlyIncome, country.code,
         Object.keys(incomeByMonth).length > 0 ? incomeByMonth : undefined,
         payCycle, paydayDay, paydaySemi, paydayWeekday,
         historyMsgs.length > 0 ? historyMsgs : undefined,
         abortCtrl.signal,
       );
-      if (audioBase64) enqueueAudio(audioBase64);
       const finalReply = reply?.trim() || await fallbackWithDelay(q);
       updateLatestMsg(finalReply);
+      // Fire-and-forget audio for Judith's reply. Trails the on-screen text by one
+      // fast (flash-model) TTS round-trip. The ttsToken authorizes the fast path;
+      // only fire it when the reply matches what the server signed. Skip if this
+      // ask was superseded/unmounted.
+      if (wantVoice && reply?.trim() && ttsToken) {
+        synthesizeAiReply(finalReply, persona, language, country.code, ttsToken)
+          .then(({ audioBase64 }) => {
+            if (audioBase64 && !abortCtrl.signal.aborted) enqueueAudio(audioBase64);
+          })
+          .catch(() => { /* no audio is acceptable — text already shown */ });
+      }
       requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: false }));
       setAskHistory([...messagesRef.current]);
       if (action?.type === "add_bill") {

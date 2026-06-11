@@ -178,6 +178,15 @@ var FILIPINO_VOICE_IDS = {
   britney: "n6WaB3rOlZSC9y8yEPEz"
   // Use professional Filipino voice — Britney stays direct regardless of language
 };
+var PHILIPPINE_ENGLISH_VOICE_IDS = {
+  professional: "P1hTNpVDMG973fukK9V2",
+  // Ate Ada — warm, wise, middle-aged, formal (fil)
+  funny: "cvnP6nKXpiWGFASDWN3Y",
+  mom: "gILcvhAz18uV9ARSsU4u",
+  sarcastic: "RGymW84CSmfVugnA5tvA",
+  marites: "XB0fDUnXU5powFXDhCwa",
+  britney: "Xb7hH8MSUJpSbSDYk0k2"
+};
 var PERSONA_SPEED = {
   professional: 0.92,
   funny: 0.92,
@@ -315,11 +324,6 @@ async function getBucket() {
     return null;
   }
 }
-function cacheLanguageGroup(lang) {
-  if (lang.startsWith("en")) return "en";
-  if (lang === "fil" || lang === "ceb" || lang === "ilo" || lang === "hil") return "fil";
-  return lang;
-}
 function sampleLangKey(lang, countryCode) {
   const base = lang.startsWith("en") ? "en" : lang;
   return countryCode ? `${base}_${countryCode}` : base;
@@ -342,11 +346,11 @@ async function setSampleAudio(persona, lang, audioBase64, countryCode) {
   } catch {
   }
 }
-async function hasSampleAudio(persona, lang) {
+async function hasSampleAudio(persona, lang, countryCode) {
   const bucket = await getBucket();
   if (!bucket) return false;
   try {
-    const key = `${SAMPLE_PREFIX}/${persona}/${cacheLanguageGroup(lang)}.mp3`;
+    const key = `${SAMPLE_PREFIX}/${persona}/${sampleLangKey(lang, countryCode)}.mp3`;
     const [exists] = await bucket.file(key).exists();
     return exists;
   } catch {
@@ -666,6 +670,26 @@ for (const persona of ALL_PERSONAS) {
     } catch (err) {
       console.error(`\u2717 ${persona}/${label}:`, err);
     }
+  }
+}
+console.log("\n\u2500\u2500 Philippine English (en_PH) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500");
+for (const persona of ALL_PERSONAS) {
+  const already = await hasSampleAudio(persona, "en", "PH");
+  if (already) {
+    console.log(`\xB7 ${persona}/en_PH (cached)`);
+    skipped++;
+    continue;
+  }
+  try {
+    const audio = await synthesize(EN_TEXT[persona], PHILIPPINE_ENGLISH_VOICE_IDS[persona], {
+      live: false,
+      speed: getSpeakingSpeed(persona)
+    });
+    await setSampleAudio(persona, "en", audio.base64, "PH");
+    console.log(`\u2713 ${persona}/en_PH`);
+    generated++;
+  } catch (err) {
+    console.error(`\u2717 ${persona}/en_PH:`, err);
   }
 }
 console.log("\n\u2500\u2500 Other languages \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500");

@@ -30,6 +30,8 @@
 - [Judith Xcode 26 font API](judith-xcode26-font-api.md) — Font.system(style:) and Font.design() removed in iPhoneOS26.0.sdk; widget target: use .fontDesign()/.fontWeight() view modifiers; watchOS target: Font.system(Font.TextStyle.xxx, design:) still OK.
 - [Replit GCS sidecar auth](replit-gcs-sidecar.md) — plain new Storage() fails; must pass external_account creds pointing to sidecar at http://127.0.0.1:1106/credential + /token.
 - [Judith persona sample lines](judith-persona-sample-lines.md) — SAMPLE_LINES split into FIL/EN; getSampleText picks by language; English path via fetchSampleOnboarding, Filipino path client-side.
+- [Judith persona PH cache slot](judith-persona-ph-cache.md) — PH persona preview keys cache by en_PH (not en); pregen MUST write en_PH for all 6 personas + run the workflow, else slow live synth + UI freeze.
+- [Judith /tts aiReply token](judith-tts-aireply-token.md) — Ask voice decoupled (text-first, audio trails); /tts aiReply skips moderation+uses flash but REQUIRES /ask-issued HMAC token over exact reply, else falls back to moderated path.
 - [Judith RevenueCat seed](judith-revenuecat-seed.md) — idempotent dual-tier seed script; addIntegration+proposeIntegration both required; custom fetch bridges connectors proxy into RC SDK createClient.
 - [Judith TTS currency](judith-tts-currency.md) — prepareForTTS must normalize ALL currency symbols (A$, CA$, £, ¥, ﷼…) to spoken words; ElevenLabs reads prefix letters literally without this.
 - [Judith OTA setup](judith-ota-setup.md) — eas update needs babel-preset-expo pinned as direct dep (@54.0.11) + metro transformIgnorePatterns to prevent hermesc private-field errors.

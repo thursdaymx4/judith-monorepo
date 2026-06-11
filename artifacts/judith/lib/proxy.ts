@@ -260,6 +260,8 @@ export interface AskResult {
   audioBase64: string | null;
   mime: string;
   action?: JudithAction | null;
+  /** Short-lived HMAC token authorizing fast (moderation-skipping) TTS of this reply. */
+  ttsToken?: string | null;
 }
 
 /** Returns today's date as YYYY-MM-DD in the device's local timezone. */
@@ -485,6 +487,29 @@ export function synthesize(
     language,
     countryCode,
   });
+}
+
+/**
+ * Fast TTS for Judith's own AI reply (Ask Judith voice). Sets aiReply:true so the
+ * server skips moderation and uses the low-latency flash model — letting the text
+ * reply render immediately while the audio is fetched and played a moment later,
+ * instead of blocking the whole reply on TTS.
+ */
+export function synthesizeAiReply(
+  text: string,
+  persona?: PersonaId,
+  language?: string,
+  countryCode?: string,
+  ttsToken?: string | null,
+): Promise<{ audioBase64: string; mime: string }> {
+  return postJson("/tts", {
+    text,
+    persona: persona ? PERSONA_MAP[persona] : undefined,
+    language,
+    countryCode,
+    aiReply: true,
+    ttsToken,
+  }, 30_000);
 }
 
 export interface VoiceOption {

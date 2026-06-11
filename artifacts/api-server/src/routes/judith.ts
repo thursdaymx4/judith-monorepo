@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
   bearerToken,
@@ -37,6 +38,45 @@ import {
 const router: IRouter = Router();
 
 const PERSONAS: PersonaId[] = ["professional", "funny", "sarcastic", "mom", "marites", "britney"];
+
+// ── AI-reply TTS token ──────────────────────────────────────────────────────
+// /tts has an `aiReply` fast path that skips the (slow) isSafeForTTS moderation
+// round-trip. To stop authenticated clients from abusing that flag to synthesize
+// arbitrary unmoderated speech, the fast path requires a short-lived HMAC token
+// that only /ask issues — and only over text Judith herself produced. Without a
+// valid token, /tts falls back to the normal moderated path.
+const TTS_TOKEN_TTL_MS = 5 * 60 * 1000;
+const ttsSigningKey =
+  process.env.TTS_SIGNING_SECRET ||
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.ELEVENLABS_API_KEY ||
+  "";
+
+function signAiReply(text: string, exp: number): string {
+  return createHmac("sha256", ttsSigningKey).update(`${exp}|${text}`).digest("hex");
+}
+
+function makeAiReplyToken(text: string): string | null {
+  if (!ttsSigningKey) return null;
+  const exp = Date.now() + TTS_TOKEN_TTL_MS;
+  return `${exp}.${signAiReply(text, exp)}`;
+}
+
+function verifyAiReplyToken(token: unknown, text: string): boolean {
+  if (!ttsSigningKey || typeof token !== "string") return false;
+  const dot = token.indexOf(".");
+  if (dot <= 0) return false;
+  const exp = Number(token.slice(0, dot));
+  const sig = token.slice(dot + 1);
+  if (!Number.isFinite(exp) || exp < Date.now()) return false;
+  const expected = signAiReply(text, exp);
+  if (sig.length !== expected.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(sig, "hex"), Buffer.from(expected, "hex"));
+  } catch {
+    return false;
+  }
+}
 
 function coercePersona(value: unknown): PersonaId {
   return PERSONAS.includes(value as PersonaId)
@@ -787,7 +827,7 @@ router.post("/ask", askLimiter, async (req, res) => {
       if (audioBase64) {
         res.write(`data: ${JSON.stringify({ type: "audio", audioBase64, mime })}\n\n`);
       }
-      res.write(`data: ${JSON.stringify({ type: "done", reply, action: action ?? null, audioBase64: null, mime })}\n\n`);
+      res.write(`data: ${JSON.stringify({ type: "done", reply, action: action ?? null, audioBase64: null, mime, ttsToken: makeAiReplyToken(reply) })}\n\n`);
       res.end();
       doLog(reply, ttsOk, ttsChars, inputTokens, outputTokens, llmMs, ttsMs, totalMs, model);
       return;
@@ -803,7 +843,7 @@ router.post("/ask", askLimiter, async (req, res) => {
     const totalMs = Date.now() - llmStart;
 
     logger.info({ model, llmMs, ttsMs, totalMs, ttsChars }, "[ask] timing");
-    res.json({ reply, audioBase64, mime, action });
+    res.json({ reply, audioBase64, mime, action, ttsToken: makeAiReplyToken(reply) });
     doLog(reply, ttsOk, ttsChars, message.usage.input_tokens, message.usage.output_tokens, llmMs, ttsMs, totalMs, model);
   } catch (err) {
     logger.error({ err }, "ask failed");
@@ -817,7 +857,7 @@ router.post("/tts", sttTtsLimiter, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
-    const { text, persona, voiceId: bodyVoiceId, language, countryCode } = req.body ?? {};
+    const { text, persona, voiceId: bodyVoiceId, language, countryCode, aiReply, ttsToken } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
       res.status(400).json({ error: "text is required" });
       return;
@@ -832,12 +872,23 @@ router.post("/tts", sttTtsLimiter, async (req, res) => {
         : persona
           ? getVoiceId(chosen, lang, cCode)
           : voiceId;
-    if (!(await isSafeForTTS(text.trim()))) {
+    // Fast path for Judith's own AI replies (Ask Judith voice). These come straight
+    // from our system-prompted model, so they're already bill-tracking safe — skip
+    // the isSafeForTTS moderation round-trip (a full Sonnet call that can exceed TTS
+    // latency) and use the low-latency flash model so audio follows the text quickly.
+    // Requires a valid HMAC token issued by /ask over this exact text, so clients
+    // can't set aiReply to bypass moderation for arbitrary input.
+    const isAiReply = aiReply === true && verifyAiReplyToken(ttsToken, text.trim());
+    if (!isAiReply && !(await isSafeForTTS(text.trim()))) {
       logger.warn("tts request blocked — moderation flagged user-submitted text");
       res.status(400).json({ error: "Content not suitable for speech synthesis" });
       return;
     }
-    const audio = await synthesize(text.trim(), voice, { live: false, speed: getSpeakingSpeed(chosen) });
+    const audio = await synthesize(text.trim(), voice, {
+      live: isAiReply,
+      speed: getSpeakingSpeed(chosen),
+      ...(isAiReply && lang ? { language: lang } : {}),
+    });
     res.json({ audioBase64: audio.base64, mime: audio.mime });
   } catch (err) {
     logger.error({ err }, "tts failed");
