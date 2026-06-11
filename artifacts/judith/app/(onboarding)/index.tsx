@@ -51,6 +51,7 @@ import { haptics } from "@/lib/haptics";
 import { getTierPackages, type TierPackages } from "@/lib/purchases";
 import { fileToBase64, playBase64Mp3, stopCurrentAudio } from "@/lib/audio";
 import { transcribeOnboarding, synthOnboarding, fetchSampleOnboarding, parseBillOnboarding, parseSubscriptionScreenshot, askOnboarding, RateLimitError, TimeoutError } from "@/lib/proxy";
+import { speak as speakOnboarding, preview as previewOnboarding, prefetchPreview, cancelAll as cancelOnboardingAudio, currentSignal as onboardingSignal } from "@/lib/onboardingAudio";
 import { requestPermission } from "@/lib/notifications";
 import type { Theme } from "@/constants/theme";
 
@@ -258,22 +259,20 @@ const VOICE_LINES_FIL: Record<string, string> = {
  */
 function useOnbVoice(line: string, persona: PersonaId, language = "en") {
   const played = useRef(false);
-  // Stop whatever is playing when the screen leaves.
+  // Stop whatever is playing AND abort the in-flight TTS request when the
+  // screen leaves. cancelOnboardingAudio covers both vs the old call which
+  // only stopped playback.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => () => { stopCurrentAudio(); }, []);
+  useEffect(() => () => { cancelOnboardingAudio(); }, []);
   // Fire the TTS exactly once per mount, in the chosen language.
   useEffect(() => {
     if (played.current) return;
     played.current = true;
-    let cancelled = false;
     const utterance = (isFilipino(language) ? VOICE_LINES_FIL[line] : undefined) ?? line;
     if (!utterance) return; // empty string = voice suppressed for this screen
-    synthOnboarding(utterance, persona, language)
-      .then(({ audioBase64 }) => {
-        if (!cancelled) playBase64Mp3(audioBase64).catch(() => {});
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
+    // Fire-and-forget — speak() handles cancellation via the shared session;
+    // the screen's transition handler will abort us if the user advances.
+    void speakOnboarding(utterance, persona, language);
   }, []);
 }
 
@@ -752,9 +751,7 @@ function WordTransitionOverlay({
 
   useEffect(() => {
     const line = name ? `${word} ${name}` : word;
-    synthOnboarding(line, persona, language)
-      .then(({ audioBase64 }) => playBase64Mp3(audioBase64).catch(() => {}))
-      .catch(() => {});
+    void speakOnboarding(line, persona, language);
   }, []);
 
   const flagScale   = useRef(new Animated.Value(2.0)).current;
@@ -1056,12 +1053,11 @@ function ScreenLanguage({ ctx }: { ctx: Ctx }) {
     setVoiceLang(code);
     setLanguage(code);
     setSpeaking(true);
+    // speakOnboarding cancels any prior in-flight session, so the local
+    // id-vs-langReqId guard is now belt-and-braces — kept so a stale
+    // setSpeaking(false) from a cancelled call can't race ahead.
     try {
-      const { audioBase64 } = await synthOnboarding(filSample(code), persona, code);
-      if (id !== langReqId.current) return;
-      await playBase64Mp3(audioBase64);
-    } catch {
-      /* silently skip if TTS unavailable */
+      await speakOnboarding(filSample(code), persona, code);
     } finally {
       if (id === langReqId.current) setSpeaking(false);
     }
@@ -1229,9 +1225,11 @@ function ScreenPersona({ ctx }: { ctx: Ctx }) {
 
   // Prefetch visible persona samples the moment this screen mounts so
   // "Play voice" taps are instant (hits the in-memory cache, no network round-trip).
+  // prefetchPreview deliberately doesn't open a session — it just primes the
+  // server cache in the background.
   useEffect(() => {
     if (!isFilipino(language)) {
-      visiblePersonas.forEach((p) => { fetchSampleOnboarding(p.id, language).catch(() => {}); });
+      visiblePersonas.forEach((p) => { prefetchPreview(p.id, language); });
     }
   }, []);
 
@@ -1240,18 +1238,17 @@ function ScreenPersona({ ctx }: { ctx: Ctx }) {
     const reqId = ++personaReqId.current;
     setPersona(id);
     setSpeakId(id);
+    // Two voice sources depending on language: Filipino has hand-written
+    // per-persona greetings that need fresh TTS; English uses the
+    // server-cached sample audio. Both go through the shared session, so
+    // rapid taps cleanly supersede each other instead of stacking.
     try {
-      let audioBase64: string;
       if (isFilipino(language)) {
         const text = PERSONA_FIL_SAMPLES[id](name);
-        ({ audioBase64 } = await synthOnboarding(text, id, language));
+        await speakOnboarding(text, id, language);
       } else {
-        ({ audioBase64 } = await fetchSampleOnboarding(id, language));
+        await previewOnboarding(id, language);
       }
-      if (reqId !== personaReqId.current) return;
-      await playBase64Mp3(audioBase64);
-    } catch {
-      /* silently skip if TTS unavailable */
     } finally {
       if (reqId === personaReqId.current) setSpeakId(null);
     }
@@ -2518,6 +2515,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       const { subscriptions } = await parseSubscriptionScreenshot(
         base64,
         asset.mimeType || "image/jpeg",
+        onboardingSignal(),
       );
       setScreenshotBills(subscriptions);
       setDraftSubs(subscriptions.map((sub, i) => ({
@@ -2658,7 +2656,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       const uri = recorder.uri;
       if (!uri) throw new Error("No audio captured");
       const base64 = await fileToBase64(uri);
-      const { text } = await transcribeOnboarding(base64, "audio/m4a", sttHint(language));
+      const { text } = await transcribeOnboarding(base64, "audio/m4a", sttHint(language), onboardingSignal());
       // Discard if transcription is only background-noise annotations
       if (!text?.trim() || isNoiseTranscript(text)) {
         setMode("prompt");
@@ -2667,7 +2665,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       setHeardText(text);
       /* Parse transcribed text into structured bill fields */
       try {
-        const parsed = await parseBillOnboarding(text, sample.cat);
+        const parsed = await parseBillOnboarding(text, sample.cat, onboardingSignal());
         if (parsed.skip) {
           // User owns their home / has no payment for this category — skip it silently.
           setParsedBill(null);
@@ -2762,16 +2760,10 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     if (key === lastPlayedPromptKey.current) return;
     lastPlayedPromptKey.current = key;
     if (!voiceText) return;
-    let cancelled = false;
-    synthOnboarding(voiceText, persona, language)
-      .then(({ audioBase64 }) => {
-        if (!cancelled) return playBase64Mp3(audioBase64);
-      })
-      .catch(() => { /* silently skip if TTS unavailable */ });
-    return () => {
-      cancelled = true;
-      stopCurrentAudio();
-    };
+    // speakOnboarding rides the shared session — when the user advances
+    // to the next prompt (or screen), cancelOnboardingAudio() will
+    // abort us and stop playback in one call.
+    void speakOnboarding(voiceText, persona, language);
   }, [mode, phase, idx, cardDone, loanDone, breatherGroup, voiceText, persona, language]);
 
   const progress = Math.min(idx + (mode === "done" ? 0 : 1), SAMPLES.length);
@@ -4228,15 +4220,11 @@ function ScreenCongrats({ ctx }: { ctx: Ctx }) {
   const total = data.reduce((s, b) => s + b.amount, 0);
   // Dynamic voice — speaks the real bill count + total so the user hears their actual numbers.
   useEffect(() => {
-    let cancelled = false;
     const n = data.length;
     const line = isFilipino(language)
       ? "Yan na yung total mo. Check mo."
       : `You\u2019ve got ${n} bills \u2014 ${cur}${fmtNum(total)} a month. All set. Let me show you what I see.`;
-    synthOnboarding(line, persona, language)
-      .then(({ audioBase64 }) => { if (!cancelled) playBase64Mp3(audioBase64).catch(() => {}); })
-      .catch(() => {});
-    return () => { cancelled = true; stopCurrentAudio(); };
+    void speakOnboarding(line, persona, language);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
@@ -4283,17 +4271,17 @@ function ScreenPersonalizing({ ctx }: { ctx: Ctx }) {
     }
   });
   // Voice: synthesize once, mark voiceDone when playback finishes.
+  // The "voice + timer" advance gate stays — we just route through
+  // speakOnboarding so cancelling on unmount cleanly aborts. The
+  // local cancelled flag still guards the post-await advance call
+  // so a cancellation during unmount doesn't trigger setIdx.
   useEffect(() => {
     let cancelled = false;
     const utterance = JUDITH_VOICE.personalizing[persona];
-    synthOnboarding(utterance, persona, language)
-      .then(({ audioBase64 }) => {
-        if (cancelled) return Promise.resolve();
-        return playBase64Mp3(audioBase64);
-      })
-      .then(() => { if (!cancelled) { voiceDone.current = true; tryAdvance.current(); } })
-      .catch(() => { if (!cancelled) { voiceDone.current = true; tryAdvance.current(); } });
-    return () => { cancelled = true; stopCurrentAudio(); };
+    speakOnboarding(utterance, persona, language).finally(() => {
+      if (!cancelled) { voiceDone.current = true; tryAdvance.current(); }
+    });
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   // Progress bar timer: marks timerDone when animation completes.
@@ -4338,8 +4326,6 @@ function ScreenSummary({ ctx }: { ctx: Ctx }) {
   // Dynamic voice: speaks real insights from the user's actual bill data.
   useEffect(() => {
     if (data.length === 0) return;
-    let cancelled = false;
-    stopCurrentAudio();
     const n = data.length;
     const total = data.reduce((s, b) => s + b.amount, 0);
     const biggest = data.reduce((a, b) => (b.amount > a.amount ? b : a), data[0]!);
@@ -4351,15 +4337,9 @@ function ScreenSummary({ ctx }: { ctx: Ctx }) {
     const line = isFilipino(ctx.language)
       ? `May total kang ${cur}${fmtNum(total)} this month for your bills. Ang pinaka malaking mong bill, obviously ay, ${biggest.provider} — ${cur}${fmtNum(biggest.amount)}. Yung pinaka malapit na due mo ay ${nextDue.provider} — ${cur}${fmtNum(nextDue.amount)}, ${nextDue.dueDays} araw na lang. Ayos ba yung pagkaka lista natin ng bills mo?`
       : `Okay — ${n} bill${n === 1 ? "" : "s"}, ${cur}${fmtNum(total)} a month. ${biggest.provider}'s the big one at ${cur}${fmtNum(biggest.amount)}. First up is ${nextDue.provider} — due in ${nextDue.dueDays} day${nextDue.dueDays === 1 ? "" : "s"}. ${savings}`;
-    synthOnboarding(line, ctx.persona, ctx.language)
-      .then(({ audioBase64 }) => {
-        if (!cancelled) playBase64Mp3(audioBase64).catch(() => {});
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-      stopCurrentAudio();
-    };
+    // speakOnboarding opens a fresh session (cancelling any prior in-flight
+    // request) and stops on screen advance via cancelOnboardingAudio().
+    void speakOnboarding(line, ctx.persona, ctx.language);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -4606,7 +4586,11 @@ function FeatureShell({
     setAskMode("thinking");
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
     try {
-      const { reply, audioBase64 } = await askOnboarding(q2, billsCtx, persona, language, ctx.country.cur);
+      // selectedCats is the categories the user actually checked on the
+      // bill-list screen — pass through so Judith only asks about what
+      // they have, not the full default set.
+      const checkedCats = ctx.selectedCats.length > 0 ? ctx.selectedCats : undefined;
+      const { reply, audioBase64 } = await askOnboarding(q2, billsCtx, persona, language, ctx.country.cur, onboardingSignal(), checkedCats);
       const finalReply = reply?.trim() || "Hmm, I couldn\u2019t answer that just now.";
       setMessages((m) => [...m, { role: "judith", text: finalReply }]);
       setHasAnswered(true);
@@ -4653,7 +4637,7 @@ function FeatureShell({
       const uri = recorder.uri;
       if (!uri) throw new Error("No audio captured");
       const base64 = await fileToBase64(uri);
-      const { text } = await transcribeOnboarding(base64, "audio/m4a", sttHint(language));
+      const { text } = await transcribeOnboarding(base64, "audio/m4a", sttHint(language), onboardingSignal());
       if (text?.trim()) {
         await doAsk(text);
       } else {
@@ -5850,6 +5834,12 @@ export default function OnboardingScreen() {
   const [bills, setBills] = useState<OnbBill[]>([]);
   const [selectedCats, setSelectedCats] = useState<string[]>([]);
 
+  // Top-level cleanup: leaving the onboarding screen entirely (finishing,
+  // backgrounding, navigating away) must cancel any in-flight TTS / parse
+  // / transcribe request AND stop playback. Without this, a final-step
+  // request could keep firing after the user landed on the home screen.
+  useEffect(() => () => { cancelOnboardingAudio(); }, []);
+
   // vIn: screen entrance — opacity 0→1 + translateY 8→0 (400ms, prototype vIn keyframe)
   const vInOpacity = useRef(new Animated.Value(0)).current;
   const vInY      = useRef(new Animated.Value(8)).current;
@@ -5884,6 +5874,12 @@ export default function OnboardingScreen() {
   const [trans, setTrans] = useState<"word" | "question" | "sweep" | null>(null);
 
   const advance = (toIdx: number) => {
+    // Every step transition cancels any in-flight TTS request, persona
+    // preview fetch, transcribe/parse-bill call, AND tears down the
+    // currently playing Sound. Without this, a slow TTS for screen N
+    // can still arrive and play over screen N+1, or a "stuck" request
+    // (network hang, server slow) leaves the next screen unresponsive.
+    cancelOnboardingAudio();
     if (toIdx >= FLOW.length) {
       setOnboarded(true);
       return;
@@ -5892,12 +5888,16 @@ export default function OnboardingScreen() {
   };
   const finishTrans = () => { setTrans(null); advance(idx + 1); };
   const next = () => {
+    cancelOnboardingAudio();
     if (screen.id === "welcome")  { setTrans("sweep");    return; }
     if (screen.id === "country")  { setTrans("word");     return; }
     if (screen.id === "latefee")  { setTrans("question"); return; }
     advance(idx + 1);
   };
-  const back = () => setIdx((i) => Math.max(i - 1, 0));
+  const back = () => {
+    cancelOnboardingAudio();
+    setIdx((i) => Math.max(i - 1, 0));
+  };
   const addBill = (b: OnbBill) => setBills((arr) => [...arr, b]);
 
   const ctx = useMemo<Ctx>(

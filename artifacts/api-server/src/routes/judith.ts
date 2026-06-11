@@ -1442,7 +1442,7 @@ router.get("/sample", sampleVoicesLimiter, async (req, res) => {
 // No auth required — interactive AI ask during onboarding feature screens.
 router.post("/ask-onboarding", askOnboardingGlobalCap, askOnboardingLimiter, async (req, res) => {
   try {
-    const { text, bills: bodyBills, persona: bodyPersona, localDate, language, currency } = req.body ?? {};
+    const { text, bills: bodyBills, persona: bodyPersona, localDate, language, currency, selectedCategories } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
       res.status(400).json({ error: "text is required" });
       return;
@@ -1454,11 +1454,22 @@ router.post("/ask-onboarding", askOnboardingGlobalCap, askOnboardingLimiter, asy
     const bills = Array.isArray(bodyBills) ? (bodyBills as ClientBill[]) : [];
     const context = buildClientContext(bills, parseLocalDate(localDate), cur);
 
+    // Categories the user explicitly checked on the bill-list screen. When
+    // present we instruct the model to skip prompts for unchecked categories
+    // — so a user who only said "credit cards" doesn't get asked about rent
+    // or mortgage even though those are in the default sample set.
+    const checkedCats = Array.isArray(selectedCategories)
+      ? selectedCategories.filter((c: unknown): c is string => typeof c === "string" && c.length > 0)
+      : [];
+    const categoryGuard = checkedCats.length > 0
+      ? `\n\nUSER ONLY HAS THESE BILL CATEGORIES (do NOT suggest, ask about, or prompt for any others): ${checkedCats.join(", ")}.`
+      : "";
+
     const anthropic = getAnthropic();
     const message = await anthropic.messages.create({
       model: ANTHROPIC_MODEL,
       max_tokens: 250,
-      system: `${systemPrompt(persona, lang, undefined, cur)}\n\nBILL CONTEXT (the only source of truth):\n${context}`,
+      system: `${systemPrompt(persona, lang, undefined, cur)}\n\nBILL CONTEXT (the only source of truth):\n${context}${categoryGuard}`,
       messages: [{ role: "user", content: text.trim() }],
     });
     const rawReply = message.content
