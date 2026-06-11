@@ -23,7 +23,7 @@ import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { enqueueAudio, fileToBase64, resetAudioToPlayback, stopCurrentAudio } from "@/lib/audio";
 import { safeBack } from "@/lib/navigation";
-import { type AddBillAction, type AskBill, askJudithStream, parseSubscriptionScreenshot, transcribe, RateLimitError, TimeoutError, ServerError, UnauthorizedError, AbortedError } from "@/lib/proxy";
+import { type AddBillAction, type AskBill, askJudith, askJudithStream, parseSubscriptionScreenshot, transcribe, RateLimitError, TimeoutError, ServerError, UnauthorizedError, AbortedError } from "@/lib/proxy";
 import { sttHint, isFilipino } from "@/constants/languages";
 
 /**
@@ -581,27 +581,21 @@ export default function AskModal() {
         text: m.text,
       }));
       appendNoPersist({ role: "judith", text: "" });
-      let streamedText = "";
-      const { reply, audioBase64, action } = await askJudithStream(
+      // Use non-streaming path — React Native's ReadableStream / SSE parser is
+      // unreliable across versions and causes silent no_done_event failures on
+      // some iOS builds. Streaming text appearance is a nice-to-have; a working
+      // answer is not. Restore askJudithStream once RN streaming is stable.
+      const { reply, audioBase64, action } = await askJudith(
         q, askBills(), persona, language, wantVoice, currency, country.name,
         monthlyIncome, country.code,
         Object.keys(incomeByMonth).length > 0 ? incomeByMonth : undefined,
         payCycle, paydayDay, paydaySemi, paydayWeekday,
         historyMsgs.length > 0 ? historyMsgs : undefined,
-        (delta) => {
-          streamedText += delta;
-          updateLatestMsg(streamedText.replace(/<<ACTION:.*$/s, "").trimEnd());
-          requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: false }));
-        },
-        (chunk) => enqueueAudio(chunk),
-        abortCtrl.signal,
       );
       const finalReply = reply?.trim() || await fallbackWithDelay(q);
       updateLatestMsg(finalReply);
       requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: false }));
       setAskHistory([...messagesRef.current]);
-      // Server's fallback path (no sentence-boundary found mid-stream) sends
-      // audio in the `done` event rather than as separate chunks.
       if (audioBase64) enqueueAudio(audioBase64);
       if (action?.type === "add_bill") {
         const bill = makeBillFromAction(action as AddBillAction);
