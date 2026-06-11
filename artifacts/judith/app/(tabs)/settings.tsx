@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import * as Updates from "expo-updates";
 import React, { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
@@ -139,6 +139,22 @@ export default function SettingsScreen() {
     stopCurrentAudio();
     setSpeakingPersona(null);
   }, [language, countryCode]);
+
+  // Kill any in-flight persona preview when the user tabs away from Settings.
+  // Without this, an audio Player + status listener can survive across tab
+  // switches, contributing to the "tap a tab and the app stops responding"
+  // failure mode reported after rapid Hear-voice taps. The blur path runs
+  // the same stopCurrentAudio used on persona supersede, which is safe to
+  // call when nothing is playing.
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        speakRequestRef.current += 1;
+        stopCurrentAudio();
+        setSpeakingPersona(null);
+      };
+    }, []),
+  );
 
   const playPersonaSample = useCallback(async (id: PersonaId) => {
     if (speakingPersona === id) return;
@@ -724,6 +740,8 @@ export default function SettingsScreen() {
               )}
               <Pressable
                 onPress={(e) => { e.stopPropagation(); playPersonaSample(p.id); }}
+                accessibilityRole="button"
+                accessibilityLabel={`Preview ${p.name} voice`}
                 style={({ pressed }) => ({
                   marginTop: 10,
                   flexDirection: "row",

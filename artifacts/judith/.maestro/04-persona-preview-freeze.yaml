@@ -20,13 +20,14 @@ name: Persona-preview freeze — reproducer
 - waitForAnimationToEnd
 - assertVisible: "Settings"
 
-# Scroll the Settings page until at least one "Hear voice" button is in
-# view. Personas live inside a horizontal carousel further down the
-# page; a fixed-distance scroll over- or under-shoots depending on
-# device height. scrollUntilVisible keeps scrolling until found.
+# Scroll the Settings page until at least one persona-preview button is
+# in view. We target the a11y label set on the Pressable rather than the
+# inner Txt — Maestro on iOS can read accessibilityLabel reliably,
+# whereas the inner <Txt>"Hear voice"</Txt> sits behind a wrapper that
+# isn't always introspectable.
 - scrollUntilVisible:
     element:
-      text: "Hear voice"
+      text: "Preview .* voice"
     direction: DOWN
     timeout: 10000
 - waitForAnimationToEnd
@@ -38,7 +39,12 @@ name: Persona-preview freeze — reproducer
 - repeat:
     times: 6
     commands:
-      - tapOn: "Hear voice"
+      # First-match accessibility-label tap: whichever persona's preview
+      # is the current top-of-list a11y match gets tapped. After the tap
+      # it becomes "Playing…" and a different card takes the top slot,
+      # so consecutive iterations exercise different personas (which is
+      # exactly the user's "audition multiple voices back-to-back" path).
+      - tapOn: "Preview .* voice"
       # Short wait between taps — long enough for the press to register
       # and the next card to become tappable, short enough to overlap
       # playbacks (which is exactly the user's scenario).
