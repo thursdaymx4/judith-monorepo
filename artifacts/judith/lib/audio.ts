@@ -11,8 +11,14 @@ let _activeSub: { remove: () => void } | null = null;
  *  pump when audio is force-stopped externally — otherwise the await hangs
  *  forever, the pump never exits, and closures leak per-clip. */
 let _activeResolve: (() => void) | null = null;
-/** FIFO of base64 MP3 chunks waiting to be played sequentially. */
-let _audioQueue: string[] = [];
+interface QueuedClip {
+  uri: string;
+  ready: Promise<void>;
+}
+/** FIFO of MP3 clips waiting to be played sequentially.
+ *  Each entry has already started writing to disk so the pump
+ *  can await the ready-promise and start playback immediately. */
+let _audioQueue: QueuedClip[] = [];
 let _audioPumpRunning = false;
 
 /**
@@ -40,7 +46,7 @@ async function cleanupUri(uri: string | null) {
  * Safe to call even when nothing is active.
  */
 export function stopCurrentAudio(opts?: { keepQueue?: boolean }) {
-  if (!opts?.keepQueue) _audioQueue = [];
+  if (!opts?.keepQueue) { _audioQueue = []; }
   const p = _activePlayer;
   const uri = _activeUri;
   const sub = _activeSub;
@@ -140,11 +146,15 @@ export async function playBase64Mp3(base64: string, rate = 1.0): Promise<void> {
 
 /**
  * Append a base64 MP3 to the playback queue and start draining if idle.
- * Chunks play strictly in order, end-to-end. Used by the streaming Ask reply
- * so first-sentence audio starts before the full reply is synthesized.
+ * The disk write begins immediately so it can complete in parallel with
+ * React rendering the text reply, minimising the text→audio gap.
  */
 export function enqueueAudio(base64: string) {
-  _audioQueue.push(base64);
+  const uri = `${FileSystem.cacheDirectory}judith-${Date.now()}-${counter++}.mp3`;
+  const ready = FileSystem.writeAsStringAsync(uri, base64, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+  _audioQueue.push({ uri, ready });
   if (!_audioPumpRunning) void pumpAudioQueue();
 }
 
@@ -154,11 +164,39 @@ async function pumpAudioQueue() {
     while (_audioQueue.length > 0) {
       const next = _audioQueue.shift();
       if (!next) continue;
-      try { await playBase64Mp3(next); } catch { /* skip and continue */ }
+      try { await playFromWrittenUri(next); } catch { /* skip and continue */ }
     }
   } finally {
     _audioPumpRunning = false;
   }
+}
+
+/** Play an already-queued clip whose disk write may still be in flight. */
+async function playFromWrittenUri({ uri, ready }: QueuedClip): Promise<void> {
+  stopCurrentAudio({ keepQueue: true });
+  await ready;
+  await resetAudioToPlayback();
+  const player = createAudioPlayer(uri);
+  _activePlayer = player;
+  _activeUri = uri;
+  try { (player as unknown as { rate: number }).rate = 1.0; } catch { /* unsupported */ }
+  player.play();
+  return new Promise<void>((resolve) => {
+    _activeResolve = resolve;
+    const sub = player.addListener("playbackStatusUpdate", (status) => {
+      if (status.didJustFinish) {
+        if (_activeSub === sub) _activeSub = null;
+        if (_activeResolve === resolve) _activeResolve = null;
+        sub.remove();
+        const finishedUri = _activePlayer === player ? _activeUri : uri;
+        if (_activePlayer === player) { _activePlayer = null; _activeUri = null; }
+        try { player.remove(); } catch { /* ignore */ }
+        void cleanupUri(finishedUri);
+        resolve();
+      }
+    });
+    _activeSub = sub;
+  });
 }
 
 /** Reads a recorded file URI and returns its base64 contents. */
