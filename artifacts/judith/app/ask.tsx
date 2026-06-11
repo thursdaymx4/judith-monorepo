@@ -23,7 +23,7 @@ import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { enqueueAudio, fileToBase64, resetAudioToPlayback, stopCurrentAudio } from "@/lib/audio";
 import { safeBack } from "@/lib/navigation";
-import { type AddBillAction, type AskBill, askJudith, parseSubscriptionScreenshot, transcribe, RateLimitError, TimeoutError, ServerError, UnauthorizedError, AbortedError } from "@/lib/proxy";
+import { type AddBillAction, type AskBill, askJudith, synthesize, parseSubscriptionScreenshot, transcribe, RateLimitError, TimeoutError, ServerError, UnauthorizedError, AbortedError } from "@/lib/proxy";
 import { sttHint, isFilipino } from "@/constants/languages";
 
 /**
@@ -581,17 +581,27 @@ export default function AskModal() {
         text: m.text,
       }));
       appendNoPersist({ role: "judith", text: "" });
-      const { reply, audioBase64, action } = await askJudith(
-        q, askBills(), persona, language, wantVoice, currency, country.name,
+      // Always request text-only from /ask — TTS is fired separately below so
+      // text appears the moment the LLM finishes (~2-4 s) without waiting the
+      // extra ~1-2 s for ElevenLabs. Voice audio then lands shortly after.
+      const { reply, action } = await askJudith(
+        q, askBills(), persona, language, false /* TTS handled below */, currency, country.name,
         monthlyIncome, country.code,
         Object.keys(incomeByMonth).length > 0 ? incomeByMonth : undefined,
         payCycle, paydayDay, paydaySemi, paydayWeekday,
         historyMsgs.length > 0 ? historyMsgs : undefined,
         abortCtrl.signal,
       );
-      if (audioBase64) enqueueAudio(audioBase64);
       const finalReply = reply?.trim() || await fallbackWithDelay(q);
       updateLatestMsg(finalReply);
+      // Fire TTS in background — never blocks text display. Audio plays when ready.
+      if (wantVoice && finalReply && !abortCtrl.signal.aborted) {
+        synthesize(finalReply, persona, language, country.code)
+          .then(({ audioBase64 }) => {
+            if (!abortCtrl.signal.aborted) enqueueAudio(audioBase64);
+          })
+          .catch(() => { /* TTS failure is non-fatal — text already shown */ });
+      }
       requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: false }));
       setAskHistory([...messagesRef.current]);
       if (action?.type === "add_bill") {
