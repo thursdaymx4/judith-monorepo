@@ -829,7 +829,7 @@ export default function AskModal() {
       if (e instanceof RateLimitError) {
         setRateLimitSecs(Math.min(e.retryAfter, 3600));
         setErr(`You're going too fast — wait ${e.retryAfter} second${e.retryAfter === 1 ? "" : "s"} then try again.`);
-      } else if (e instanceof AuthError) {
+      } else if (e instanceof UnauthorizedError) {
         setErr("You need to sign in again before asking.");
       } else {
         const msg = String((e as Error)?.message ?? e);

@@ -1,4 +1,5 @@
 import { useRouter } from "expo-router";
+import * as Updates from "expo-updates";
 import React, { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
 
@@ -1028,6 +1029,16 @@ export default function SettingsScreen() {
 
       <View style={{ alignItems: "center", marginTop: 22 }}>
         <Low size={12}>Judith v1.0 · Available worldwide</Low>
+        <Low size={11} style={{ marginTop: 2 }}>
+          {`Build ${Updates.runtimeVersion ?? "—"}${Updates.channel ? ` · ${Updates.channel}` : ""}`}
+        </Low>
+        <Low size={11} style={{ marginTop: 1 }}>
+          {Updates.isEmbeddedLaunch
+            ? "Embedded bundle · no OTA applied"
+            : `OTA ${(Updates.updateId ?? "").slice(0, 8) || "—"}${
+                Updates.createdAt ? ` · ${Updates.createdAt.toISOString().slice(0, 10)}` : ""
+              }`}
+        </Low>
         <Pressable onPress={() => setConfirmOpen(true)} style={{ marginTop: 6 }}>
           <Low size={12}>Restart from scratch</Low>
         </Pressable>

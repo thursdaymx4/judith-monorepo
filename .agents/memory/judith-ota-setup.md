@@ -23,6 +23,15 @@ description: What's required for eas update (OTA) to work in this pnpm monorepo
 
 **How to apply:** any time OTA is set up on a new clone / machine, ensure both are present. If `eas update` fails with "Cannot find module 'babel-preset-expo'", check #1. If it fails with "private properties are not supported", check #2.
 
+## Apply-on-first-reopen (in-app force)
+Expo's default lifecycle DOWNLOADS an OTA on launch N and only SWAPS it in on launch N+1 — so a fresh `eas update` looks like it "didn't take" until the second reopen. There is no in-app force unless you add one.
+
+**Fix:** `hooks/useOtaUpdate.ts` (mounted once in `app/_layout.tsx`) runs on cold-start mount: `checkForUpdateAsync → fetchUpdateAsync → reloadAsync`, so the new bundle runs in the SAME session (first reopen). Foreground-resume is fetch-only (no reload) to avoid yanking an active session. Gated by `Updates.isEnabled` (no-op in dev/Expo Go); `inFlight` + `cancelled` guards prevent overlap. No reload loop: after reload the fetched update is current, so the next check returns isAvailable=false.
+
+**Verify which bundle is live:** Settings footer stamp reads `Updates.isEmbeddedLaunch` (→ "Embedded · no OTA applied") vs `Updates.updateId`/`createdAt`/`channel`/`runtimeVersion`. `isEmbeddedLaunch` true = OTA has NOT applied.
+
+**Note:** these only take effect once a build carrying this code is itself installed (via store/TestFlight or a prior OTA) — they cannot retroactively fix an already-shipped binary that lacks them.
+
 ## Mac workflow after pulling these changes
 ```bash
 pnpm install   # no --frozen-lockfile (package.json changed)

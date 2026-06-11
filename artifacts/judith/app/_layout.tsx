@@ -30,6 +30,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { JudithProvider, useJudith } from "@/contexts/JudithStore";
 import { useBiometricLock } from "@/hooks/useBiometricLock";
 import { useNotificationSync } from "@/hooks/useNotificationSync";
+import { useOtaUpdate } from "@/hooks/useOtaUpdate";
 import { useWatchSync } from "@/hooks/useWatchSync";
 import { useTheme } from "@/hooks/useTheme";
 import { registerNotificationCategories, syncRemotePushRegistrationToSession } from "@/lib/notifications";
@@ -150,6 +151,9 @@ function RootLayoutNav() {
 
   // Register notification action categories (Mark Paid / Remind Tomorrow buttons).
   useEffect(() => { registerNotificationCategories().catch(() => {}); }, []);
+
+  // Pull and apply OTA updates promptly (first reopen, not the second).
+  useOtaUpdate();
 
   // Keep local notifications in sync with bills and toggles.
   useNotificationSync();
