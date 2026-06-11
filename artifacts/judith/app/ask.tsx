@@ -587,6 +587,7 @@ export default function AskModal() {
         Object.keys(incomeByMonth).length > 0 ? incomeByMonth : undefined,
         payCycle, paydayDay, paydaySemi, paydayWeekday,
         historyMsgs.length > 0 ? historyMsgs : undefined,
+        abortCtrl.signal,
       );
       if (audioBase64) enqueueAudio(audioBase64);
       const finalReply = reply?.trim() || await fallbackWithDelay(q);

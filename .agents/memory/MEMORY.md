@@ -33,6 +33,8 @@
 - [Judith RevenueCat seed](judith-revenuecat-seed.md) — idempotent dual-tier seed script; addIntegration+proposeIntegration both required; custom fetch bridges connectors proxy into RC SDK createClient.
 - [Judith TTS currency](judith-tts-currency.md) — prepareForTTS must normalize ALL currency symbols (A$, CA$, £, ¥, ﷼…) to spoken words; ElevenLabs reads prefix letters literally without this.
 - [Judith OTA setup](judith-ota-setup.md) — eas update needs babel-preset-expo pinned as direct dep (@54.0.11) + metro transformIgnorePatterns to prevent hermesc private-field errors.
+- [Replit SSE proxy block](replit-sse-proxy.md) — Replit autoscale deployment proxy silently drops all SSE/streaming connections; always use non-streaming JSON for /ask in production.
+- [Judith OTA env var](judith-ota-env.md) — EXPO_PUBLIC_* vars must be set as Replit shared env vars AND prefixed on every eas update command; OTA bundles bake them at Metro time, not EAS time.
 - [Judith managed prebuild](judith-managed-prebuild.md) — color-only splash crashes prebuild (need image); never force-add native to ios/ (breaks eas build) — keep custom native in modules/ + targets/ autolinked.
 - [Judith production deploy split](judith-production-deploy-split.md) — live API is a SEPARATE GCP server (judithforduedates.com), OTA ships from user's Mac (not Replit); Replit fixes don't reach prod until synced to Mac + eas update or GCP redeploy.
 - [Judith Supabase storage key](judith-supabase-storage-key.md) — storageKey:"judith-auth-token" must stay pinned; removing it causes OTA bundles to look in a different slot than the native build → silent sign-out on every update.

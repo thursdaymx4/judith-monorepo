@@ -136,26 +136,39 @@ export class AbortedError extends Error {
   }
 }
 
-async function postJsonOptAuth<T>(path: string, body: unknown, timeoutMs?: number): Promise<T> {
+async function postJsonOptAuth<T>(
+  path: string,
+  body: unknown,
+  timeoutMs?: number,
+  signal?: AbortSignal,
+): Promise<T> {
   const headers = await optionalAuthHeader();
+  // If the caller already aborted (e.g. user navigated away), bail immediately.
+  if (signal?.aborted) throw new AbortedError();
   const controller = timeoutMs != null ? new AbortController() : null;
   const timer =
     controller != null ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  // Forward external abort into the internal timeout controller.
+  const onExternalAbort = controller ? () => controller.abort() : undefined;
+  if (signal && onExternalAbort) signal.addEventListener("abort", onExternalAbort, { once: true });
+  const fetchSignal = controller?.signal ?? signal;
   let res: Response;
   try {
     res = await fetch(`${BASE}${path}`, {
       method: "POST",
       headers: { ...headers, "Content-Type": "application/json" },
       body: JSON.stringify(body),
-      signal: controller?.signal,
+      signal: fetchSignal,
     });
   } catch (e) {
+    if (signal?.aborted) throw new AbortedError();
     if (controller?.signal.aborted || (e as Error)?.name === "AbortError") {
       throw new TimeoutError();
     }
     throw e;
   } finally {
     if (timer != null) clearTimeout(timer);
+    if (signal && onExternalAbort) signal.removeEventListener("abort", onExternalAbort);
   }
   throwIfRateLimited(res);
   if (!res.ok) {
@@ -299,6 +312,7 @@ export function askJudith(
   paydaySemi?: [number, number],
   paydayWeekday?: number,
   history?: Array<{ role: "user" | "assistant"; text: string }>,
+  signal?: AbortSignal,
 ): Promise<AskResult> {
   return postJsonOptAuth("/ask", {
     text,
@@ -318,7 +332,7 @@ export function askJudith(
     paydaySemi,
     paydayWeekday,
     history: history?.length ? history : undefined,
-  }, 45_000); // never let the chat hang forever — abort + surface a retry after 45s
+  }, 45_000, signal); // never let the chat hang forever — abort + surface a retry after 45s
 }
 
 /**
