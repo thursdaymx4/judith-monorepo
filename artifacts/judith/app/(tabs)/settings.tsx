@@ -18,6 +18,7 @@ import { PRIVACY_URL, TERMS_URL, openLegal } from "@/constants/legal";
 import { DEMO_ACCOUNTS } from "@/constants/demoAccounts";
 import { fetchSample } from "@/lib/proxy";
 import { playBase64Mp3, playFromUrl, stopCurrentAudio } from "@/lib/audio";
+import { getTierPackages, type TierPackages } from "@/lib/purchases";
 import type { PersonaId } from "@/constants/personas";
 
 function initialsOf(name: string): string {
@@ -133,6 +134,21 @@ export default function SettingsScreen() {
 
   const [speakingPersona, setSpeakingPersona] = useState<PersonaId | null>(null);
   const speakRequestRef = useRef(0);
+
+  // App Store / Play Store dynamic pricing. RevenueCat returns each package's
+  // priceString already-formatted for the user's storefront (e.g. ₱199.00 in
+  // PH, $3.99 in US). Falls back to the country-currency translation of the
+  // PHP price while loading or if RC isn't configured (Expo Go, web).
+  const [pkgs, setPkgs] = useState<TierPackages>({ chat: null, voice: null });
+  useEffect(() => {
+    let cancelled = false;
+    getTierPackages()
+      .then((p) => { if (!cancelled) setPkgs(p); })
+      .catch(() => { /* ignore — fallback to money() */ });
+    return () => { cancelled = true; };
+  }, []);
+  const voicePrice = pkgs.voice?.product.priceString ?? money(199);
+  const chatPrice  = pkgs.chat?.product.priceString  ?? money(99);
 
   useEffect(() => {
     speakRequestRef.current += 1;
@@ -343,9 +359,9 @@ export default function SettingsScreen() {
           </Txt>
           <Low size={12}>
             {tier === "voice" ? (
-              <>Unlimited text & voice · <Mono size={12}>{money(199)}</Mono>/mo</>
+              <>Unlimited text & voice · <Mono size={12}>{voicePrice}</Mono>/mo</>
             ) : tier === "chat" ? (
-              <>Unlimited text asks · <Mono size={12}>{money(99)}</Mono>/mo</>
+              <>Unlimited text asks · <Mono size={12}>{chatPrice}</Mono>/mo</>
             ) : (
               <><Mono size={12}>{asksLeft}</Mono> free asks left</>
             )}

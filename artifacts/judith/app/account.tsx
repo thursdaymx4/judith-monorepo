@@ -11,7 +11,7 @@ import { verifyBiometricsNow } from "@/hooks/useBiometricLock";
 import { useTheme } from "@/hooks/useTheme";
 import { safeBack } from "@/lib/navigation";
 import { deleteAccount as deleteAccountRemote } from "@/lib/proxy";
-import { restorePurchases as restorePurchasesRemote } from "@/lib/purchases";
+import { getTierPackages, restorePurchases as restorePurchasesRemote, type TierPackages } from "@/lib/purchases";
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -214,11 +214,23 @@ export default function AccountScreen() {
   const [deleteText, setDeleteText] = React.useState("");
   const canDelete = deleteText.trim().toLowerCase() === "delete";
 
+  // App Store / Play Store dynamic pricing — see settings.tsx for the rationale.
+  const [pkgs, setPkgs] = React.useState<TierPackages>({ chat: null, voice: null });
+  React.useEffect(() => {
+    let cancelled = false;
+    getTierPackages()
+      .then((p) => { if (!cancelled) setPkgs(p); })
+      .catch(() => { /* ignore — fallback to money() */ });
+    return () => { cancelled = true; };
+  }, []);
+  const voicePrice = pkgs.voice?.product.priceString ?? money(199);
+  const chatPrice  = pkgs.chat?.product.priceString  ?? money(99);
+
   const subLabel =
     tier === "voice"
-      ? "Voice Ask · " + money(199) + "/mo · Active"
+      ? "Voice Ask · " + voicePrice + "/mo · Active"
       : tier === "chat"
-        ? "Chat Ask · " + money(99) + "/mo · Active"
+        ? "Chat Ask · " + chatPrice + "/mo · Active"
         : "Free · 8 asks to try both modes";
 
   const openEdit = () => {
