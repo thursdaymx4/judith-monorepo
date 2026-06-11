@@ -628,9 +628,11 @@ router.post("/stt", sttTtsLimiter, async (req, res) => {
 
 // POST /api/judith/ask  { text } -> { reply, audioBase64, mime }
 function pickModel(question: string, historyLen: number): string {
-  const isComplex = historyLen > 3
-    || question.length > 120
-    || /compare|project|forecast|breakdown|trend|analysis|next.{0,10}month|across|budget|pattern|versus|\bvs\b/i.test(question);
+  // Prefer Haiku (3-5× faster) for the vast majority of bill-tracking asks.
+  // Only escalate to Sonnet for genuinely complex multi-step analysis.
+  const isComplex = historyLen > 6
+    || question.length > 300
+    || /\b(compare|project|forecast|breakdown|trend|analysis|pattern|versus|\bvs\b)\b/i.test(question);
   return isComplex ? ANTHROPIC_MODEL : ANTHROPIC_HAIKU_MODEL;
 }
 
@@ -794,29 +796,18 @@ router.post("/ask", askLimiter, async (req, res) => {
       return;
     }
 
-    // Non-streaming path — streams Anthropic internally so TTS fires the instant
-    // the last token arrives, without waiting for HTTP response framing overhead.
     const llmStart = Date.now();
-    let rawText = "";
-    let inputTokens = 0;
-    let outputTokens = 0;
-    const stream = anthropic.messages.stream({ model, max_tokens: 200, system: systemStr, messages: msgs });
-    for await (const event of stream) {
-      if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-        rawText += event.delta.text;
-      }
-    }
-    const final = await stream.finalMessage();
-    inputTokens = final.usage.input_tokens;
-    outputTokens = final.usage.output_tokens;
+    const message = await anthropic.messages.create({ model, max_tokens: 200, system: systemStr, messages: msgs });
     const llmMs = Date.now() - llmStart;
 
-    const { cleanText: reply, action } = parseAction(rawText.trim());
+    const rawReply = message.content.map((b) => (b.type === "text" ? b.text : "")).join(" ").trim();
+    const { cleanText: reply, action } = parseAction(rawReply);
     const { audioBase64, mime, ttsOk, ttsChars, ttsMs } = await doTts(reply);
     const totalMs = Date.now() - llmStart;
 
+    logger.info({ model, llmMs, ttsMs, totalMs, ttsChars }, "[ask] timing");
     res.json({ reply, audioBase64, mime, action });
-    doLog(reply, ttsOk, ttsChars, inputTokens, outputTokens, llmMs, ttsMs, totalMs, model);
+    doLog(reply, ttsOk, ttsChars, message.usage.input_tokens, message.usage.output_tokens, llmMs, ttsMs, totalMs, model);
   } catch (err) {
     logger.error({ err }, "ask failed");
     res.status(500).json({ error: "Judith could not respond right now" });
