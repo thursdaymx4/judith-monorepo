@@ -1,7 +1,7 @@
 import ExpoModulesCore
 import WidgetKit
 
-final class JudithWidgetBridgeModule: Module {
+public final class JudithWidgetBridgeModule: Module {
     private enum Config {
         static let appGroupID = "group.com.app.judith"
         static let payloadCacheKey = "judith.payload_v2"

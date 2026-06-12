@@ -1,43 +1,64 @@
 /**
- * Custom Expo config plugin — adds the "Handled." title to the iOS launch
- * storyboard so the splash matches the branded design that existed before
- * the move to expo-splash-screen.
+ * Custom Expo config plugin — strips the iOS launch storyboard down to a
+ * plain dark canvas (#0a0b0e) with NO logo and NO text.
  *
- * The expo-splash-screen plugin regenerates `ios/Judith/SplashScreen.storyboard`
- * on every prebuild with just an icon. We can't replace its config (it doesn't
- * accept extra text), so this plugin runs AFTER it via `withDangerousMod` and
- * injects a UILabel + constraints into the existing storyboard XML.
+ * Why: the React-side HandledSplash (BreathingBackdrop + avatar + headline)
+ * is the real splash. The native launch storyboard only exists to cover the
+ * brief moment between iOS app-launch and the JS bundle's first paint. If
+ * the storyboard shows a logo or "Handled." label, that flashes for a
+ * fraction of a second before HandledSplash mounts and replaces it — which
+ * the user perceives as a jarring two-step splash.
  *
- * Font: Georgia-BoldItalic ships with iOS so no font-bundling step is needed.
- * It's the closest system serif italic to Playfair Display — swap in a real
- * Playfair .ttf via the expo-font plugin later if pixel-accuracy matters.
+ * `expo-splash-screen` regenerates `ios/Judith/SplashScreen.storyboard` on
+ * every prebuild with an imageView pointing at the configured icon. We
+ * can't remove the image via its config (it's required), so this plugin
+ * runs AFTER expo-splash-screen via `withDangerousMod` and surgically
+ * removes the imageView + its constraints + any leftover label from the
+ * generated storyboard.
  *
- * The injection is idempotent — if the label is already present, the plugin
- * no-ops, so re-running prebuild doesn't double-apply.
+ * Idempotent — re-running prebuild after a clean storyboard is a no-op.
  */
-const { withDangerousMod } = require("@expo/config-plugins");
+const { withDangerousMod } = require("expo/config-plugins");
 const fs = require("fs");
 const path = require("path");
 
 const LABEL_ID = "HandledSplashTitle";
+const IMAGE_VIEW_ID = "EXPO-SplashScreen";
 
-// One UILabel rendering "Handled." centered horizontally, pinned 28pt below
-// the existing SplashScreenLogo image view. Width spans the device so the
-// label scales across iPhone sizes. Color is a soft off-white so it reads
-// clearly on the #0a0b0e background without feeling harsh.
-const LABEL_XML = `
-                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Handled." textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="${LABEL_ID}" userLabel="HandledLabel">
-                                <rect key="frame" x="0.0" y="554.0" width="393" height="56"/>
-                                <fontDescription key="fontDescription" name="Georgia-BoldItalic" family="Georgia" pointSize="42"/>
-                                <color key="textColor" red="0.96" green="0.96" blue="0.94" alpha="1.0" colorSpace="custom" customColorSpace="sRGB"/>
-                                <nil key="highlightedColor"/>
-                            </label>`;
+/**
+ * Remove every XML element whose tag matches `tagName` AND whose `id`
+ * attribute equals `idValue`. Also removes <constraint> elements that
+ * reference the removed id via firstItem= or secondItem=. Single-line
+ * self-closing AND multi-line block forms are handled.
+ */
+function stripById(xml, tagName, idValue) {
+  // Block form: <tag ... id="idValue" ...> ... </tag>
+  const blockRe = new RegExp(
+    `\\s*<${tagName}\\b[^>]*\\bid="${idValue}"[\\s\\S]*?<\\/${tagName}>`,
+    "g",
+  );
+  xml = xml.replace(blockRe, "");
+  // Self-closing form: <tag ... id="idValue" .../>
+  const selfRe = new RegExp(
+    `\\s*<${tagName}\\b[^>]*\\bid="${idValue}"[^>]*\\/>`,
+    "g",
+  );
+  xml = xml.replace(selfRe, "");
+  return xml;
+}
 
-const CONSTRAINTS_XML = `
-                            <constraint firstItem="${LABEL_ID}" firstAttribute="centerX" secondItem="EXPO-ContainerView" secondAttribute="centerX" id="HandledLabelCenterX"/>
-                            <constraint firstItem="${LABEL_ID}" firstAttribute="top" secondItem="EXPO-SplashScreen" secondAttribute="bottom" constant="28" id="HandledLabelTop"/>
-                            <constraint firstItem="${LABEL_ID}" firstAttribute="leading" secondItem="EXPO-ContainerView" secondAttribute="leading" constant="24" id="HandledLabelLeading"/>
-                            <constraint firstItem="${LABEL_ID}" firstAttribute="trailing" secondItem="EXPO-ContainerView" secondAttribute="trailing" constant="-24" id="HandledLabelTrailing"/>`;
+/**
+ * Strip every <constraint> element that references the given id via
+ * firstItem or secondItem. Used to clean up dangling constraints left
+ * behind after removing an imageView or label.
+ */
+function stripConstraintsReferencing(xml, idValue) {
+  const re = new RegExp(
+    `\\s*<constraint\\b[^>]*(?:firstItem|secondItem)="${idValue}"[^>]*\\/>`,
+    "g",
+  );
+  return xml.replace(re, "");
+}
 
 module.exports = function withHandledSplash(config) {
   return withDangerousMod(config, [
@@ -49,36 +70,28 @@ module.exports = function withHandledSplash(config) {
         "SplashScreen.storyboard",
       );
 
-      if (!fs.existsSync(storyboardPath)) {
-        // Storyboard doesn't exist yet — expo-splash-screen probably failed
-        // to generate it. Don't error; just skip and let the build surface
-        // the upstream problem.
-        return cfg;
-      }
+      if (!fs.existsSync(storyboardPath)) return cfg;
 
       let xml = fs.readFileSync(storyboardPath, "utf8");
+      const before = xml;
 
-      // Idempotent guard — if we already injected, leave it alone.
-      if (xml.includes(`id="${LABEL_ID}"`)) return cfg;
+      // 1) Remove the legacy "Handled." label if present.
+      xml = stripById(xml, "label", LABEL_ID);
+      xml = stripConstraintsReferencing(xml, LABEL_ID);
 
-      // Need both anchors for the injection. If expo-splash-screen ever
-      // changes its element ids, this no-ops gracefully.
-      const subviewsClose = "</subviews>";
-      const constraintsClose = "</constraints>";
-      if (!xml.includes(subviewsClose) || !xml.includes(constraintsClose)) {
-        return cfg;
-      }
+      // 2) Remove the splash-screen imageView (and its constraints) so the
+      //    storyboard is just the dark canvas.
+      xml = stripById(xml, "imageView", IMAGE_VIEW_ID);
+      xml = stripConstraintsReferencing(xml, IMAGE_VIEW_ID);
 
+      // 3) Drop the SplashScreenLogo image resource — orphaned after the
+      //    imageView is removed, and keeping it would let Xcode warn.
       xml = xml.replace(
-        subviewsClose,
-        LABEL_XML + "\n                        " + subviewsClose,
-      );
-      xml = xml.replace(
-        constraintsClose,
-        CONSTRAINTS_XML + "\n                        " + constraintsClose,
+        /\s*<image name="SplashScreenLogo"[^/]*\/>/g,
+        "",
       );
 
-      fs.writeFileSync(storyboardPath, xml);
+      if (xml !== before) fs.writeFileSync(storyboardPath, xml);
       return cfg;
     },
   ]);

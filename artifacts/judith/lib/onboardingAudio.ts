@@ -18,7 +18,16 @@
  */
 import { enqueueAudio, playBase64Mp3, playFromUrl, stopCurrentAudio } from "@/lib/audio";
 import { fetchSampleOnboarding, synthOnboarding, AbortedError } from "@/lib/proxy";
-import type { PersonaId } from "@/constants/personas";
+import { getPersona, type PersonaId } from "@/constants/personas";
+
+/**
+ * The line Judith says on the onboarding Welcome screen. Exported so the
+ * splash can prefetch it (see `prefetchSpeak`) and the Welcome screen can
+ * use the exact same string — a one-character mismatch would defeat the
+ * synth cache and re-introduce the "stuck for 5s" feel users reported.
+ */
+export const ONBOARDING_WELCOME_LINE =
+  "Hi — I’m Judith. Your due date assistant. Let’s take control of your bills, shall we?";
 
 /** The AbortController for the current onboarding audio "session." */
 let _ctl: AbortController | null = null;
@@ -65,6 +74,45 @@ export function isSessionActive(): boolean {
 }
 
 /**
+ * In-memory cache of audio bytes returned by `synthOnboarding`, keyed by
+ * persona + language + text. Populated by `prefetchSpeak()` (called from
+ * the splash to warm specific onboarding lines) and consumed by `speak()`
+ * to skip the round-trip when a hit is found. The cache lives for the
+ * lifetime of the JS module — small (one entry per prefetched line) so
+ * memory growth isn't a concern.
+ */
+const _synthCache = new Map<string, string>();
+function synthCacheKey(text: string, persona?: PersonaId, language?: string): string {
+  return `${persona ?? "_"}|${language ?? "en"}|${text}`;
+}
+
+/**
+ * Background prefetch — synthesize a line in advance and stash the bytes.
+ * A subsequent `speak()` with the same text/persona/language plays without
+ * any network wait. No playback, no session reset, failures are silent.
+ *
+ * Used by HandledSplash to warm the onboarding Welcome line during the
+ * splash hold, so the "Let's begin" screen doesn't feel frozen on first
+ * visit (the live synth round-trip is 2–5s for cold ElevenLabs caches).
+ */
+export function prefetchSpeak(
+  text: string,
+  persona?: PersonaId,
+  language?: string,
+): void {
+  if (!text) return;
+  const key = synthCacheKey(text, persona, language);
+  if (_synthCache.has(key)) return;
+  // Independent AbortController — prefetch must NOT ride the active session,
+  // otherwise an unrelated cancelAll() (e.g. screen transition) would tear
+  // down the prefetch mid-flight.
+  const ctrl = new AbortController();
+  synthOnboarding(text, persona, language, ctrl.signal)
+    .then(({ audioBase64 }) => { _synthCache.set(key, audioBase64); })
+    .catch(() => { /* best-effort */ });
+}
+
+/**
  * High-level "synthesize this line and play it" helper. The request, the
  * file write, and the playback all live under the same AbortSignal — calling
  * `cancelAll()` while this is in flight cleanly stops every stage.
@@ -80,8 +128,19 @@ export async function speak(
 ): Promise<void> {
   const signal = beginSession();
   try {
+    // Cache hit — play immediately, no network wait. Crucial for the
+    // Welcome screen where any latency reads as the whole tab being frozen.
+    const key = synthCacheKey(text, persona, language);
+    const cached = _synthCache.get(key);
+    if (cached) {
+      if (signal.aborted) return;
+      await playBase64Mp3(cached);
+      return;
+    }
     const { audioBase64 } = await synthOnboarding(text, persona, language, signal);
     if (signal.aborted) return;
+    // Stash for any future re-mount of the same screen.
+    _synthCache.set(key, audioBase64);
     await playBase64Mp3(audioBase64);
   } catch (e) {
     if (e instanceof AbortedError) return;
@@ -94,6 +153,17 @@ export async function speak(
  * Plays the pre-baked persona greeting sample (server-side cached audio).
  * Faster than `speak()` because the server pre-renders the line at build
  * time. Used by the persona-picker preview taps and any "intro" screens.
+ *
+ * Live-synth fallback: when the pregen endpoint returns non-200 (typically
+ * because the server hasn't baked a sample for this persona/language combo
+ * — e.g. `sib` + `britney` lacked English pregens, and any persona may
+ * lack non-English pregens), we fall through to live ElevenLabs synth of
+ * the persona's `line`. The live result is cached in `_synthCache` (via
+ * `speak`'s cache) so subsequent taps play instantly.
+ *
+ * Live synth as a FALLBACK is fine — it's the unavoidable cost when no
+ * pregen exists. We just don't make it the primary path (see project
+ * memory `feedback_persona_voice_preview.md`).
  */
 export async function preview(
   persona: PersonaId,
@@ -104,23 +174,56 @@ export async function preview(
     const { audioBase64 } = await fetchSampleOnboarding(persona, language, signal);
     if (signal.aborted) return;
     await playBase64Mp3(audioBase64);
+    return;
   } catch (e) {
     if (e instanceof AbortedError) return;
+    // Pregen unavailable — fall through to live synth below.
+  }
+  // ── Live synth fallback ────────────────────────────────────────────
+  if (signal.aborted) return;
+  const fallbackLine = getPersona(persona).line;
+  try {
+    // Check cache before hitting network — `speak()` populates this on every
+    // successful synth, so a repeat tap on a previously-fallen-back persona
+    // plays instantly.
+    const cacheK = synthCacheKey(fallbackLine, persona, language);
+    const cached = _synthCache.get(cacheK);
+    if (cached) {
+      if (signal.aborted) return;
+      await playBase64Mp3(cached);
+      return;
+    }
+    const { audioBase64 } = await synthOnboarding(fallbackLine, persona, language, signal);
+    if (signal.aborted) return;
+    _synthCache.set(cacheK, audioBase64);
+    await playBase64Mp3(audioBase64);
+  } catch (e) {
+    if (e instanceof AbortedError) return;
+    // Both pregen AND live synth failed — give up silently. The visible
+    // persona row stays as "Playing…" briefly then clears.
   }
 }
 
 /**
- * Background prefetch — warm the server-side persona-sample cache so a
- * subsequent `preview()` call plays instantly. No playback, no session
- * reset, errors silently swallowed. Safe to fire on a list-render effect.
+ * Background prefetch — warm caches so a subsequent `preview()` call plays
+ * instantly. Tries the pregen sample first; if that 404s, warms the live-
+ * synth fallback so the first tap doesn't pay the 2–5s ElevenLabs cost.
+ *
+ * Deliberately doesn't use beginSession — prefetch must NOT cancel an
+ * actively playing preview. It just primes both caches in the background.
+ * Failures silently swallowed.
  */
 export function prefetchPreview(
   persona: PersonaId,
   language?: string,
 ): void {
-  // Deliberately doesn't use beginSession — prefetch should NOT cancel
-  // an actively playing preview. It just primes the cache in the background.
-  void fetchSampleOnboarding(persona, language).catch(() => {});
+  fetchSampleOnboarding(persona, language)
+    .catch(() => {
+      // Pregen unavailable — warm the live-synth fallback so the first
+      // user tap doesn't stall waiting for ElevenLabs to round-trip.
+      const fallbackLine = getPersona(persona).line;
+      prefetchSpeak(fallbackLine, persona, language);
+    });
 }
 
 /**

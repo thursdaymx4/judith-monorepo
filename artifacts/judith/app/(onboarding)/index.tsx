@@ -51,7 +51,7 @@ import { haptics } from "@/lib/haptics";
 import { getTierPackages, type TierPackages } from "@/lib/purchases";
 import { fileToBase64, playBase64Mp3, stopCurrentAudio } from "@/lib/audio";
 import { transcribeOnboarding, synthOnboarding, fetchSampleOnboarding, parseBillOnboarding, parseSubscriptionScreenshot, askOnboarding, RateLimitError, TimeoutError } from "@/lib/proxy";
-import { speak as speakOnboarding, preview as previewOnboarding, prefetchPreview, cancelAll as cancelOnboardingAudio, currentSignal as onboardingSignal } from "@/lib/onboardingAudio";
+import { speak as speakOnboarding, preview as previewOnboarding, prefetchPreview, cancelAll as cancelOnboardingAudio, currentSignal as onboardingSignal, ONBOARDING_WELCOME_LINE } from "@/lib/onboardingAudio";
 import { requestPermission } from "@/lib/notifications";
 import type { Theme } from "@/constants/theme";
 
@@ -925,7 +925,10 @@ function QuestionTransitionOverlay({ onDone }: { onDone: () => void }) {
 /* ================================================================== */
 
 function ScreenWelcome({ ctx }: { ctx: Ctx }) {
-  useOnbVoice("Hi \u2014 I\u2019m Judith. Your due date assistant. Let\u2019s take control of your bills, shall we?", ctx.persona, ctx.language);
+  // Line is shared with HandledSplash's prefetch (see ONBOARDING_WELCOME_LINE
+  // export). Editing it here without updating the constant means the cache
+  // misses and the screen feels frozen again on first visit.
+  useOnbVoice(ONBOARDING_WELCOME_LINE, ctx.persona, ctx.language);
   const popScale   = useRef(new Animated.Value(0.8)).current;
   const popOpacity = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -1705,7 +1708,7 @@ function ScreenStakes({ ctx }: { ctx: Ctx }) {
         <JudithAvatar persona={persona} size={64} state="idle" />
         <Kicker style={{ textAlign: "center", marginTop: 14 }}>The fork</Kicker>
         <Title style={{ maxWidth: 300, textAlign: "center" }}>
-          Let’s avoid late fees and start taking control
+          Start taking control and let’s get ahead of your bills
         </Title>
         <View style={{ flexDirection: "row", alignItems: "stretch", width: "100%", maxWidth: 320, marginVertical: 26 }}>
           <View
@@ -2439,8 +2442,22 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     commitBill(b, advanceAfterItem);
   };
   const skipOne = () => advanceAfterItem();
-  const startScripted = () => { setPhase("scripted"); setIdx(0); setMode("prompt"); };
   const startLoans = () => { setPhase("loans"); setLoanDone(0); setMode("count"); };
+  const startScripted = () => {
+    // If the user's bill-list selection left no scripted essentials
+    // (e.g. they checked only "Credit card"), skip the scripted phase
+    // entirely. Without this, scriptedItem falls back to SAMPLES_ALL[0]
+    // — which is Rent / Mortgage — and Judith asks about it despite
+    // the user explicitly opting out.
+    if (SAMPLES.length === 0) {
+      if (!skipLoans) startLoans();
+      else setMode("more");
+      return;
+    }
+    setPhase("scripted");
+    setIdx(0);
+    setMode("prompt");
+  };
   const chooseCount = (k: number) => {
     if (phase === "cards") {
       setCardN(k);
@@ -5427,11 +5444,23 @@ function ScreenNotifications({ ctx }: { ctx: Ctx }) {
   const allow = async () => {
     setRequesting(true);
     try {
-      const granted = await requestPermission();
+      // Race the system-permission request against a 5s timeout — Expo
+      // Go on the simulator (and occasionally on device when the user
+      // dismisses the prompt very fast) can leave the await pending
+      // indefinitely. Without the race the screen got stuck on
+      // "Setting up…" with no path forward. Treating the timeout as
+      // "not granted" is correct because the user can still toggle
+      // reminders on later in Settings.
+      const granted = await Promise.race([
+        requestPermission(),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 5000)),
+      ]);
       if (granted) {
         setToggle("dueReminders", true);
         setToggle("nudges", true);
       }
+    } catch {
+      /* swallow — fall through to next() so the user is never stuck */
     } finally {
       setRequesting(false);
     }

@@ -569,7 +569,7 @@ export default function AccountScreen() {
       </View>
 
       <View style={{ alignItems: "center", marginTop: 22 }}>
-        <Low size={12}>Judith v1.0 · Made for the Philippines</Low>
+        <Low size={12}>Judith v1.0 · Available worldwide</Low>
       </View>
 
       {/* edit-name modal */}

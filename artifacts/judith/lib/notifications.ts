@@ -473,8 +473,41 @@ export async function syncNotifications(
   );
 }
 
+/**
+ * Hard guard against the "push-token listener thrash" loop. Background:
+ * `addPushTokenListener` (mounted in app/_layout.tsx) fires its callback
+ * whenever expo-notifications has a new device push token. The callback
+ * calls THIS function, which calls `getDevicePushTokenAsync`, which on
+ * the iOS simulator (where tokens are unobtainable) fires the listener
+ * AGAIN — creating an infinite loop. Each iteration logged a warning,
+ * starved the JS thread, and saturated the IPC bridge. Symptom: "scroll
+ * works, taps don't" — JS thread eaten by the warning flood.
+ *
+ * Fix: a module-level cooldown that drops any call within 2s of the last
+ * one. Token rotations on real devices are minutes/hours apart, so a 2s
+ * guard never blocks a legitimate sync; it only kills the runaway loop.
+ */
+let _lastSyncAt = 0;
+const SYNC_COOLDOWN_MS = 2000;
+/** Simulator detection — push tokens are never obtainable on iOS sim, so
+ *  attempting the registration there guarantees the loop above. */
+function isIOSSimulator(): boolean {
+  if (Platform.OS !== "ios") return false;
+  const model = (Constants.platform as { ios?: { model?: string } } | undefined)?.ios?.model;
+  return typeof model === "string" && model.toLowerCase().includes("simulator");
+}
+
 export async function syncRemotePushRegistrationToSession(): Promise<void> {
   if (Platform.OS === "web" || !supabase) return;
+  // Skip on iOS simulator — getDevicePushTokenAsync re-triggers the push
+  // listener which re-enters this function. Real devices only.
+  if (isIOSSimulator()) return;
+  // Cooldown — at most one sync per 2s regardless of how often the push
+  // token listener fires. Critical safety net even if the simulator
+  // detection misses an edge case.
+  const now = Date.now();
+  if (now - _lastSyncAt < SYNC_COOLDOWN_MS) return;
+  _lastSyncAt = now;
 
   const previous = await readStoredRemotePushRegistration();
   const registration = await registerRemotePushTokens();

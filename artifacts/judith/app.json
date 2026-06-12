@@ -74,7 +74,14 @@
           "origin": "https://replit.com/"
         }
       ],
-      "expo-font",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/PlayfairDisplay_800ExtraBold_Italic.ttf"
+          ]
+        }
+      ],
       "expo-web-browser",
       "expo-apple-authentication",
       [

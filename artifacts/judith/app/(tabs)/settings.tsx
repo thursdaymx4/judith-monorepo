@@ -1,24 +1,24 @@
-import { useFocusEffect, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import * as Updates from "expo-updates";
-import React, { startTransition, useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
 
-import * as Notifications from "expo-notifications";
 import { Icon, type IconName } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Dot, Low, Mono, Screen, Txt, mix } from "@/components/ui";
-import { COUNTRIES, CURRENCIES } from "@/constants/countries";
-import { LANGUAGES, langDesc, languageByCode } from "@/constants/languages";
+import { COUNTRIES, CURRENCIES, countryByCode } from "@/constants/countries";
+import { formatMoney } from "@/constants/data";
+import { LANGUAGES, langDesc } from "@/constants/languages";
 import { PERSONAS } from "@/constants/personas";
 import { useAuth } from "@/contexts/AuthContext";
-import { useJudith, type Toggles } from "@/contexts/JudithStore";
+import { useJudithActions, useJudithSelect, type Toggles } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
-import { requestPermission } from "@/lib/notifications";
 import { PRIVACY_URL, TERMS_URL, openLegal } from "@/constants/legal";
 import { DEMO_ACCOUNTS } from "@/constants/demoAccounts";
-import { fetchSample } from "@/lib/proxy";
-import { playBase64Mp3, playFromUrl, stopCurrentAudio } from "@/lib/audio";
 import { getTierPackages, type TierPackages } from "@/lib/purchases";
+import { requestPermission } from "@/lib/notifications";
+import { getICloudInfo, isICloudAvailable } from "@/lib/icloud-backup";
+import { cancelAll as cancelPersonaPreview, preview as playPersonaPreview, prefetchPreview } from "@/lib/onboardingAudio";
 import type { PersonaId } from "@/constants/personas";
 
 function initialsOf(name: string): string {
@@ -28,32 +28,87 @@ function initialsOf(name: string): string {
   return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
 }
 
-interface ToggleDef {
-  key: keyof Toggles;
-  icon: IconName;
-  t: string;
-  s: string;
-}
+// ────────────────────────────────────────────────────────────────────────
+// iOS-style grouped-table primitives
+//
+// `<Section>` renders an UPPERCASE label, a rounded card with hairline-
+// separated rows, and an optional plain-text footer below the card. It
+// matches the layout that iOS Settings uses, which users already have
+// muscle memory for. `hidden` lets the search filter remove the whole
+// section when none of its rows match, without breaking margins.
+// ────────────────────────────────────────────────────────────────────────
 
-const TOGGLE_DEFS: ToggleDef[] = [
-  { key: "dueReminders", icon: "bell", t: "Due-date reminders", s: "Before every bill" },
-  { key: "widget", icon: "grid", t: "Home-screen widget", s: "Next due bill at a glance" },
-  { key: "watch", icon: "watch", t: "Apple Watch", s: "Glanceable on your wrist" },
-  { key: "nudges", icon: "wallet", t: "Payment nudges", s: "Remind me to pay, not autopay" },
-];
+function Section({
+  title,
+  footer,
+  children,
+  hidden,
+}: {
+  title?: string;
+  footer?: string;
+  children: React.ReactNode;
+  hidden?: boolean;
+}) {
+  const t = useTheme();
+  if (hidden) return null;
+  return (
+    <View style={{ marginTop: 20 }}>
+      {!!title && (
+        <Text
+          style={{
+            fontFamily: t.fonts.semibold,
+            fontSize: 11.5,
+            letterSpacing: 0.8,
+            textTransform: "uppercase",
+            color: t.txtMid,
+            marginBottom: 8,
+            marginLeft: 4,
+          }}
+        >
+          {title}
+        </Text>
+      )}
+      <View
+        style={{
+          borderRadius: t.radius.md,
+          backgroundColor: t.surface2,
+          borderWidth: 1,
+          borderColor: t.hair,
+          overflow: "hidden",
+        }}
+      >
+        {children}
+      </View>
+      {!!footer && (
+        <Text
+          style={{
+            fontFamily: t.fonts.regular,
+            fontSize: 11.5,
+            lineHeight: 16,
+            color: t.txtLow,
+            marginTop: 8,
+            marginHorizontal: 4,
+          }}
+        >
+          {footer}
+        </Text>
+      )}
+    </View>
+  );
+}
 
 function IcoBox({
   name,
-  size = 38,
-  iconSize,
+  size = 30,
+  iconSize = 16,
   color,
-  borderColor,
+  bg,
 }: {
   name: IconName;
   size?: number;
-  iconSize: number;
+  iconSize?: number;
   color: string;
-  borderColor?: string;
+  bg?: string;
 }) {
   const t = useTheme();
   return (
@@ -61,16 +116,111 @@ function IcoBox({
       style={{
         width: size,
         height: size,
-        borderRadius: 11,
+        borderRadius: 8,
         borderWidth: 1,
-        borderColor: borderColor ?? t.hair,
-        backgroundColor: t.surface3,
+        borderColor: t.hair,
+        backgroundColor: bg ?? t.surface3,
         alignItems: "center",
         justifyContent: "center",
       }}
     >
       <Icon name={name} size={iconSize} color={color} />
     </View>
+  );
+}
+
+// Single row inside a Section card. `first` skips the top hairline.
+function Row({
+  icon,
+  iconColor,
+  iconBg,
+  leadingNode,
+  title,
+  subtitle,
+  right,
+  onPress,
+  onLongPress,
+  first,
+  disabled,
+  hidden,
+  destructive,
+}: {
+  icon?: IconName;
+  iconColor?: string;
+  iconBg?: string;
+  /** Replaces the IcoBox when present — useful for avatars or emoji flags. */
+  leadingNode?: React.ReactNode;
+  title: React.ReactNode;
+  subtitle?: React.ReactNode;
+  right?: React.ReactNode;
+  onPress?: () => void;
+  onLongPress?: () => void;
+  first?: boolean;
+  disabled?: boolean;
+  hidden?: boolean;
+  destructive?: boolean;
+}) {
+  const t = useTheme();
+  if (hidden) return null;
+  const tappable = !!(onPress || onLongPress);
+  // Inline a chevron on tappable rows if the caller didn't supply a right
+  // element — matches iOS Settings affordance.
+  const rightNode = right ?? (tappable && <Icon name="chev" size={15} color={t.txtMid} />);
+  if (!tappable) {
+    return (
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 12,
+          paddingVertical: 12,
+          paddingHorizontal: 14,
+          borderTopWidth: first ? 0 : 1,
+          borderTopColor: t.hair,
+          opacity: disabled ? 0.5 : 1,
+        }}
+      >
+        {leadingNode ?? (icon && (
+          <IcoBox name={icon} color={iconColor ?? t.accent} bg={iconBg} />
+        ))}
+        <View style={{ flex: 1 }}>
+          <Txt size={15} weight="medium" color={destructive ? t.semantic.urgent : t.txtHi}>
+            {title}
+          </Txt>
+          {subtitle && <Low size={12} style={{ marginTop: 1 }}>{subtitle}</Low>}
+        </View>
+        {rightNode}
+      </View>
+    );
+  }
+  return (
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      disabled={disabled}
+      style={({ pressed }) => ({
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        borderTopWidth: first ? 0 : 1,
+        borderTopColor: t.hair,
+        backgroundColor: pressed ? t.surface3 : "transparent",
+        opacity: disabled ? 0.5 : 1,
+      })}
+    >
+      {leadingNode ?? (icon && (
+        <IcoBox name={icon} color={iconColor ?? t.accent} bg={iconBg} />
+      ))}
+      <View style={{ flex: 1 }}>
+        <Txt size={15} weight="medium" color={destructive ? t.semantic.urgent : t.txtHi}>
+          {title}
+        </Txt>
+        {subtitle && <Low size={12} style={{ marginTop: 1 }}>{subtitle}</Low>}
+      </View>
+      {rightNode}
+    </Pressable>
   );
 }
 
@@ -104,126 +254,194 @@ function Toggle({ on, onPress }: { on: boolean; onPress: () => void }) {
   );
 }
 
+interface ToggleDef {
+  key: keyof Toggles;
+  icon: IconName;
+  t: string;
+  s: string;
+}
 
-function SettingsLabel({ children }: { children: React.ReactNode }) {
-  const t = useTheme();
-  return (
-    <Text
-      style={{
-        fontFamily: t.fonts.medium,
-        fontSize: 13,
-        color: t.txtMid,
-        letterSpacing: 0.5,
-        textTransform: "uppercase",
-        marginTop: 18,
-        marginBottom: 10,
-      }}
-    >
-      {children}
-    </Text>
-  );
+const REMINDER_TOGGLES: ToggleDef[] = [
+  { key: "dueReminders", icon: "bell", t: "Due-date reminders", s: "Before every bill" },
+  { key: "nudges", icon: "wallet", t: "Payment nudges", s: "Remind me to pay, not autopay" },
+];
+// Note: the previous "Home-screen widget" toggle was cosmetic — nothing
+// read toggles.widget at runtime (lib/watch.ts unconditionally pushes
+// widget payloads regardless of state). Replaced with a navigation row
+// to /widget that shows the install flow (preview + step-by-step).
+const DEVICE_TOGGLES: ToggleDef[] = [
+  { key: "watch", icon: "watch", t: "Apple Watch", s: "Glanceable on your wrist" },
+];
+
+// Simple lowercase substring match used by the top search field.
+function matches(needle: string, ...haystacks: (string | undefined)[]): boolean {
+  const n = needle.trim().toLowerCase();
+  if (!n) return true;
+  return haystacks.some((h) => !!h && h.toLowerCase().includes(n));
 }
 
 export default function SettingsScreen() {
   const t = useTheme();
   const router = useRouter();
-  const { persona, setPersona, language, setLanguage, toggles, setToggle, reduceMotion, setReduceMotion, asksLeft, tier, theme, setTheme, restart, loadDemoData, loadDemoAccount, money, bills, name, guest, country, setCountry, currency, setCurrency, countryCode } =
-    useJudith();
+  // Slice subscriptions — Settings only re-renders when a field it actually
+  // reads here changes. Bill mutations from Home / Bills / Calendar (which
+  // happen frequently) no longer cascade a re-render through this tab.
+  const persona = useJudithSelect((s) => s.persona);
+  const language = useJudithSelect((s) => s.language);
+  const toggles = useJudithSelect((s) => s.toggles);
+  const reduceMotion = useJudithSelect((s) => s.reduceMotion);
+  const asksLeft = useJudithSelect((s) => s.asksLeft);
+  const tier = useJudithSelect((s) => s.tier);
+  const theme = useJudithSelect((s) => s.theme);
+  const billsLength = useJudithSelect((s) => s.bills.length);
+  const name = useJudithSelect((s) => s.name);
+  const guest = useJudithSelect((s) => s.guest);
+  const countryCode = useJudithSelect((s) => s.countryCode);
+  const currency = useJudithSelect((s) => s.currency);
+  // Derive country + money from the primitive slices above. countryByCode
+  // returns a fresh object every call, so memoize keyed on countryCode to
+  // keep referential stability for downstream React.memo'd children.
+  const country = useMemo(() => countryByCode(countryCode), [countryCode]);
+  const money = useCallback((n: number) => formatMoney(n, currency), [currency]);
+
+  // Stable callback bag — same reference forever, methods stable too.
+  // Picking only what Settings uses keeps the surface obvious.
+  const {
+    setPersona, setLanguage, setToggle, setReduceMotion, setTheme,
+    restart, loadDemoAccount, setCountry, setCurrency, restoreFromCloud,
+  } = useJudithActions();
   const { user } = useAuth();
   const email = user?.email ?? (guest ? "Guest account" : "—");
 
-  const [speakingPersona, setSpeakingPersona] = useState<PersonaId | null>(null);
-  const speakRequestRef = useRef(0);
+  // ── Top-level UI state ────────────────────────────────────────────────
+  const [searchQ, setSearchQ] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const canRestart = confirmText.trim().toLowerCase() === "restart";
+  const [demoPickerOpen, setDemoPickerOpen] = useState(false);
+  const [devMenuOpen, setDevMenuOpen] = useState(false);
+  const [personaOpen, setPersonaOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
+  const [langQ, setLangQ] = useState("");
+  const [langExpanded, setLangExpanded] = useState<string | null>(null);
+  const [countryOpen, setCountryOpen] = useState(false);
+  const [countryQ, setCountryQ] = useState("");
+  const [curOpen, setCurOpen] = useState(false);
+  const [curQ, setCurQ] = useState("");
 
-  // App Store / Play Store dynamic pricing. RevenueCat returns each package's
-  // priceString already-formatted for the user's storefront (e.g. ₱199.00 in
-  // PH, $3.99 in US). Falls back to the country-currency translation of the
-  // PHP price while loading or if RC isn't configured (Expo Go, web).
+  // ── RevenueCat dynamic pricing (Plan row) ─────────────────────────────
   const [pkgs, setPkgs] = useState<TierPackages>({ chat: null, voice: null });
   useEffect(() => {
     let cancelled = false;
     getTierPackages()
       .then((p) => { if (!cancelled) setPkgs(p); })
-      .catch(() => { /* ignore — fallback to money() */ });
+      .catch(() => { /* fallback to money() */ });
     return () => { cancelled = true; };
   }, []);
   const voicePrice = pkgs.voice?.product.priceString ?? money(199);
   const chatPrice  = pkgs.chat?.product.priceString  ?? money(99);
 
-  useEffect(() => {
-    speakRequestRef.current += 1;
-    stopCurrentAudio();
-    setSpeakingPersona(null);
-  }, [language, countryCode]);
+  // ── Persona voice preview — pregen sample only (see memory) ───────────
+  const [speakingPersona, setSpeakingPersona] = useState<PersonaId | null>(null);
+  useEffect(() => { prefetchPreview(persona, language); }, [persona, language]);
+  useEffect(() => () => { cancelPersonaPreview(); }, []);
 
-  // Kill any in-flight persona preview when the user tabs away from Settings.
-  // Without this, an audio Player + status listener can survive across tab
-  // switches, contributing to the "tap a tab and the app stops responding"
-  // failure mode reported after rapid Hear-voice taps. The blur path runs
-  // the same stopCurrentAudio used on persona supersede, which is safe to
-  // call when nothing is playing.
-  useFocusEffect(
-    useCallback(() => {
-      return () => {
-        speakRequestRef.current += 1;
-        stopCurrentAudio();
-        setSpeakingPersona(null);
-      };
-    }, []),
-  );
-
-  const playPersonaSample = useCallback(async (id: PersonaId) => {
-    if (speakingPersona === id) return;
-    const requestId = speakRequestRef.current + 1;
-    speakRequestRef.current = requestId;
-    stopCurrentAudio();
-    startTransition(() => setSpeakingPersona(id));
-    try {
-      const { url, audioBase64 } = await fetchSample(id, language, countryCode);
-      if (speakRequestRef.current !== requestId) return;
-      if (url) {
-        await playFromUrl(url);
-      } else if (audioBase64) {
-        await playBase64Mp3(audioBase64);
-      }
-    } catch {
-      // ignore — failed silently
-    } finally {
-      if (speakRequestRef.current === requestId) {
-        startTransition(() => {
-          setSpeakingPersona((cur) => (cur === id ? null : cur));
-        });
-      }
+  const handlePersonaPress = (id: PersonaId) => {
+    setPersona(id);
+    if (speakingPersona === id) {
+      cancelPersonaPreview();
+      setSpeakingPersona(null);
+      return;
     }
-  }, [speakingPersona, language, countryCode]);
+    cancelPersonaPreview();
+    setSpeakingPersona(id);
+    playPersonaPreview(id, language).finally(() => {
+      setSpeakingPersona((cur) => (cur === id ? null : cur));
+    });
+  };
 
-  const subscribed = tier !== "free";
+  // ── iCloud backup status ──────────────────────────────────────────────
+  const [iCloud, setICloud] = useState<{ available: boolean; savedAt: string | null }>({ available: false, savedAt: null });
+  const [restoreOpen, setRestoreOpen] = useState(false);
+  const [restoreBusy, setRestoreBusy] = useState(false);
+  const [restoreMsg, setRestoreMsg] = useState("");
 
-  const [confirmOpen, setConfirmOpen] = React.useState(false);
-  const [confirmText, setConfirmText] = React.useState("");
-  const canRestart = confirmText.trim().toLowerCase() === "restart";
+  const refreshICloud = useCallback(async () => {
+    const ok = await isICloudAvailable();
+    if (!ok) { setICloud({ available: false, savedAt: null }); return; }
+    if (!user?.id) { setICloud({ available: true, savedAt: null }); return; }
+    const info = await getICloudInfo(user.id);
+    setICloud({ available: true, savedAt: info?.savedAt ?? null });
+  }, [user?.id]);
 
-  const [demoPickerOpen, setDemoPickerOpen] = React.useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    refreshICloud().catch(() => { if (!cancelled) setICloud({ available: false, savedAt: null }); });
+    return () => { cancelled = true; };
+  }, [refreshICloud]);
 
-  const [langOpen, setLangOpen] = React.useState(false);
-  const [langQ, setLangQ] = React.useState("");
-  const [langExpanded, setLangExpanded] = React.useState<string | null>(null);
+  const lastBackupLabel = useMemo(() => {
+    if (!iCloud.available) return "iCloud not available";
+    if (!user?.id) return "Sign in to enable backup";
+    if (!iCloud.savedAt) return "Not yet backed up";
+    const t0 = Date.parse(iCloud.savedAt);
+    if (Number.isNaN(t0)) return "Backed up";
+    const secs = Math.max(0, Math.floor((Date.now() - t0) / 1000));
+    if (secs < 60) return "Backed up just now";
+    if (secs < 3600) return `Backed up ${Math.floor(secs / 60)}m ago`;
+    if (secs < 86400) return `Backed up ${Math.floor(secs / 3600)}h ago`;
+    return `Backed up ${Math.floor(secs / 86400)}d ago`;
+  }, [iCloud, user?.id]);
 
-  const [countryOpen, setCountryOpen] = React.useState(false);
-  const [countryQ, setCountryQ] = React.useState("");
-  const countryQuery = countryQ.trim().toLowerCase();
+  const canRestore = iCloud.available && !!user?.id && !!iCloud.savedAt;
 
-  const [curOpen, setCurOpen] = React.useState(false);
-  const [curQ, setCurQ] = React.useState("");
-  const curQuery = curQ.trim().toLowerCase();
-  const curList = CURRENCIES.filter(
-    (c) => !curQuery || c.cur.toLowerCase().includes(curQuery) || c.label.toLowerCase().includes(curQuery),
-  );
-  const countryList = COUNTRIES.filter((c) =>
-    !countryQuery || c.name.toLowerCase().includes(countryQuery) || c.code.toLowerCase().includes(countryQuery)
-  );
+  const closeRestore = () => { setRestoreOpen(false); setRestoreBusy(false); setRestoreMsg(""); };
+  const doRestore = async () => {
+    if (!canRestore || restoreBusy) return;
+    setRestoreBusy(true); setRestoreMsg("");
+    try {
+      const ok = await restoreFromCloud();
+      if (!ok) { setRestoreMsg("No backup found for this account."); setRestoreBusy(false); return; }
+      closeRestore();
+      refreshICloud().catch(() => {});
+    } catch {
+      setRestoreMsg("Restore failed. Try again later.");
+      setRestoreBusy(false);
+    }
+  };
 
-  const currentLangDisplay = React.useMemo(() => {
+  // ── Picker-modal derived state ───────────────────────────────────────
+  // Memoize ALL three filtered lists. Without this, every parent render
+  // (incl. every keystroke in the top Search field) iterates 50+50+30
+  // items and rebuilds the arrays — wasted work because the modals are
+  // closed most of the time. Now they only recompute when the search
+  // query for THAT picker changes.
+  const countryList = useMemo(() => {
+    const q = countryQ.trim().toLowerCase();
+    if (!q) return COUNTRIES;
+    return COUNTRIES.filter(
+      (c) => c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q),
+    );
+  }, [countryQ]);
+  const curList = useMemo(() => {
+    const q = curQ.trim().toLowerCase();
+    if (!q) return CURRENCIES;
+    return CURRENCIES.filter(
+      (c) => c.cur.toLowerCase().includes(q) || c.label.toLowerCase().includes(q),
+    );
+  }, [curQ]);
+  const langList = useMemo(() => {
+    const q = langQ.trim().toLowerCase();
+    if (!q) return LANGUAGES;
+    return LANGUAGES.filter((l) => {
+      if (l.label.toLowerCase().includes(q) || l.native.toLowerCase().includes(q)) return true;
+      return (l.dialects ?? []).some(
+        (d) => d.label.toLowerCase().includes(q) || d.native.toLowerCase().includes(q),
+      );
+    });
+  }, [langQ]);
+
+  const currentLangDisplay = useMemo(() => {
     for (const l of LANGUAGES) {
       if (l.code === language && !l.dialects?.length) return { flag: l.flag, native: l.native };
       const d = (l.dialects ?? []).find((d) => d.code === language);
@@ -233,44 +451,83 @@ export default function SettingsScreen() {
     return { flag: "🇬🇧", native: "English" };
   }, [language]);
 
-  const langQuery = langQ.trim().toLowerCase();
-  const langList = LANGUAGES.filter((l) => {
-    if (!langQuery) return true;
-    if (l.label.toLowerCase().includes(langQuery) || l.native.toLowerCase().includes(langQuery)) return true;
-    return (l.dialects ?? []).some((d) => d.label.toLowerCase().includes(langQuery) || d.native.toLowerCase().includes(langQuery));
-  });
+  // PERSONAS is small but the `.find` runs on every render — cheap, but
+  // memoizing avoids creating a new object reference when persona is the
+  // same, which keeps downstream React.memo'd components from re-rendering.
+  const currentPersona = useMemo(() => PERSONAS.find((p) => p.id === persona), [persona]);
 
-  const closeConfirm = () => {
-    setConfirmOpen(false);
-    setConfirmText("");
-  };
-  const doRestart = () => {
-    if (!canRestart) return;
-    closeConfirm();
-    restart();
-  };
-
+  // ── Restart / share / dev tools ──────────────────────────────────────
+  const closeConfirm = () => { setConfirmOpen(false); setConfirmText(""); };
+  const doRestart = () => { if (!canRestart) return; closeConfirm(); restart(); };
   const handleShare = useCallback(async () => {
     await Share.share({
       title: "Track your bills with Judith",
       message:
-        "Hey! I\u2019ve been using Judith to stay on top of all my bills \u2014 it reminds me before every due date so I never miss a payment. You should try it! \ud83d\udcf1\nhttps://judith.app",
+        "Hey! I’ve been using Judith to stay on top of all my bills — it reminds me before every due date so I never miss a payment. You should try it! 📱\nhttps://judith.app",
     });
   }, []);
 
-  const rowBase = {
-    flexDirection: "row" as const,
-    alignItems: "center" as const,
-    gap: 13,
-    paddingVertical: 14,
-    paddingHorizontal: 15,
-    borderWidth: 1,
-    borderColor: t.hair,
-    backgroundColor: t.surface2,
-  };
+  const subscribed = tier !== "free";
+
+  // ── Search visibility helpers ────────────────────────────────────────
+  // Per-row predicates so a section auto-hides when none of its rows match.
+  // Fast path: when the search box is empty (the 99% case), skip 15+ calls
+  // to `matches()` and just hardcode everything visible. Saves real time
+  // on every keystroke elsewhere AND every state-driven re-render.
+  const searchActive = searchQ.trim().length > 0;
+  const m = (label: string, sub?: string) => searchActive ? matches(searchQ, label, sub) : true;
+
+  // Account/Plan
+  const visAccount = !searchActive || m("Account", name || email);
+  const visPlan = !searchActive || m("Plan", "Ask Judith");
+
+  // Notifications — array predicate kept as map so the per-row `first`
+  // logic can read it. When search is inactive, every row is visible.
+  const visReminderRows = searchActive
+    ? REMINDER_TOGGLES.map((d) => m(d.t, d.s))
+    : REMINDER_TOGGLES.map(() => true);
+  const visReminders = !searchActive || visReminderRows.some(Boolean);
+
+  // Appearance
+  const visTheme = !searchActive || m("Appearance theme dark light system");
+  const visReduce = !searchActive || m("Reduce motion", "Calm the animations");
+  const visAppearance = visTheme || visReduce;
+
+  // Voice & persona
+  const visPersona = !searchActive || m("Personality", currentPersona?.name);
+  const visLang = !searchActive || m("Voice language", currentLangDisplay.native);
+  const visSpeakAloud = tier === "voice" && (!searchActive || m("Speak answers aloud"));
+  const visVoice = visPersona || visLang || visSpeakAloud;
+
+  // Region
+  const visCountry = !searchActive || m("Country region where you live", country.name);
+  const visCurrency = !searchActive || m("Currency symbol", currency);
+  const visRegion = visCountry || visCurrency;
+
+  // Devices
+  const visDeviceRows = searchActive
+    ? DEVICE_TOGGLES.map((d) => m(d.t, d.s))
+    : DEVICE_TOGGLES.map(() => true);
+  const visWidget = !searchActive || m("Home-screen widget", "lock screen widget add to home");
+  const visDevPreview = !searchActive || m("Preview on your devices");
+  const visDevices = !searchActive || visDeviceRows.some(Boolean) || visWidget || visDevPreview;
+
+  // Backup
+  const visBackupRow = !searchActive || m("iCloud backup", lastBackupLabel);
+  const visRestore = !searchActive || m("Restore from iCloud");
+  const visBackup = visBackupRow || visRestore;
+
+  // Legal
+  const visTerms = !searchActive || m("Terms of Use");
+  const visPrivacy = !searchActive || m("Privacy Policy");
+  const visLegal = visTerms || visPrivacy;
+
+  // Share
+  const visShare = !searchActive || m("Share", "Tell a friend about Judith");
 
   return (
-    <Screen contentStyle={{ paddingBottom: 24 }}>
+    <Screen contentStyle={{ paddingBottom: 28 }}>
+      {/* Title */}
       <Text
         style={{
           fontFamily: t.fonts.semibold,
@@ -284,168 +541,567 @@ export default function SettingsScreen() {
         Settings
       </Text>
 
-      {/* account */}
-      <Pressable
-        onPress={() => router.push("/account")}
-        style={({ pressed }) => [
-          {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 14,
-            borderWidth: 1,
-            borderColor: t.hair,
-            borderRadius: t.radius.md,
-            backgroundColor: t.surface2,
-            padding: t.space.pad,
-            marginBottom: 12,
-          },
-          pressed && { transform: [{ scale: 0.99 }] },
-        ]}
+      {/* Search field — iOS Settings convention. Filters sections by label
+          + subtitle match. Empty query renders everything. */}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 10,
+          backgroundColor: t.surface2,
+          borderWidth: 1,
+          borderColor: t.hair,
+          borderRadius: 12,
+          paddingHorizontal: 14,
+          paddingVertical: Platform.OS === "ios" ? 10 : 6,
+          marginBottom: 6,
+        }}
       >
-        <View
+        <TextInput
+          value={searchQ}
+          onChangeText={setSearchQ}
+          placeholder="Search Settings"
+          placeholderTextColor={t.txtLow}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="search"
           style={{
-            width: 44,
-            height: 44,
-            borderRadius: 13,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: mix(t.accent, t.surface3, 0.18),
-            borderWidth: 1,
-            borderColor: mix(t.accent, t.surface2, 0.4),
+            flex: 1,
+            color: t.txtHi,
+            fontFamily: t.fonts.regular,
+            fontSize: 15,
+            padding: 0,
           }}
-        >
-          <Text style={{ fontFamily: t.fonts.bold, fontSize: 16, color: t.accent }}>
-            {initialsOf(name)}
-          </Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Txt size={15} weight="semibold">
-            {name || "Your account"}
-          </Txt>
-          <Low size={12} style={{ marginTop: 1 }}>
-            {email}
-          </Low>
-        </View>
-        <Icon name="chev" size={16} color={t.txtMid} />
-      </Pressable>
-
-      {/* plan — single combined card */}
-      <Pressable
-        onPress={() => router.push("/plans")}
-        style={({ pressed }) => [
-          {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 14,
-            borderWidth: 1,
-            borderColor: subscribed ? mix(t.accent, t.surface2, 0.3) : t.hair,
-            borderRadius: t.radius.md,
-            backgroundColor: subscribed ? mix(t.accent, t.surface2, 0.14) : t.surface2,
-            padding: t.space.pad,
-          },
-          pressed && { transform: [{ scale: 0.99 }] },
-        ]}
-      >
-        <IcoBox
-          name={subscribed ? "star" : "spark"}
-          size={44}
-          iconSize={20}
-          color={t.accent}
-          borderColor={subscribed ? mix(t.accent, t.surface2, 0.4) : t.hair}
         />
-        <View style={{ flex: 1, gap: 2 }}>
-          <Txt size={15} weight="semibold">
-            {tier === "voice" ? "Voice Ask" : tier === "chat" ? "Chat Ask" : "Ask Judith"}
-          </Txt>
-          <Low size={12}>
-            {tier === "voice" ? (
+        {!!searchQ && (
+          <Pressable onPress={() => setSearchQ("")} hitSlop={8}>
+            <Icon name="x" size={14} color={t.txtMid} />
+          </Pressable>
+        )}
+      </View>
+
+      {/* Empty state when search query has zero hits anywhere */}
+      {!!searchQ.trim() &&
+        !visAccount && !visPlan && !visReminders && !visAppearance &&
+        !visVoice && !visRegion && !visDevices && !visBackup &&
+        !visLegal && !visShare && (
+          <View style={{ alignItems: "center", marginTop: 40, paddingHorizontal: 24 }}>
+            <Txt size={15} weight="semibold" style={{ marginBottom: 4 }}>No matches</Txt>
+            <Low size={13} style={{ textAlign: "center" }}>
+              Nothing in Settings matches "{searchQ.trim()}". Try a different keyword.
+            </Low>
+          </View>
+        )}
+
+      {/* ── ACCOUNT ─── */}
+      <Section title="Account" hidden={!visAccount}>
+        <Row
+          first
+          onPress={() => router.push("/account")}
+          leadingNode={
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 10,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: mix(t.accent, t.surface3, 0.18),
+                borderWidth: 1,
+                borderColor: mix(t.accent, t.surface2, 0.4),
+              }}
+            >
+              <Text style={{ fontFamily: t.fonts.bold, fontSize: 13, color: t.accent }}>
+                {initialsOf(name)}
+              </Text>
+            </View>
+          }
+          title={name || "Your account"}
+          subtitle={email}
+        />
+      </Section>
+
+      {/* ── PLAN ─── */}
+      <Section title="Plan" hidden={!visPlan}>
+        <Row
+          first
+          onPress={() => router.push("/plans")}
+          icon={subscribed ? "star" : "spark"}
+          iconColor={t.accent}
+          title={tier === "voice" ? "Voice Ask" : tier === "chat" ? "Chat Ask" : "Ask Judith"}
+          subtitle={
+            tier === "voice" ? (
               <>Unlimited text & voice · <Mono size={12}>{voicePrice}</Mono>/mo</>
             ) : tier === "chat" ? (
               <>Unlimited text asks · <Mono size={12}>{chatPrice}</Mono>/mo</>
             ) : (
               <><Mono size={12}>{asksLeft}</Mono> free asks left</>
-            )}
-          </Low>
-          {subscribed && (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 1 }}>
-              <Dot kind="ok" />
-              <Txt size={11} color={t.semantic.ok}>Active</Txt>
-            </View>
-          )}
-        </View>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            backgroundColor: subscribed ? mix(t.accent, t.surface2, 0.22) : t.surface2,
-            borderWidth: 1,
-            borderColor: subscribed ? mix(t.accent, t.surface2, 0.35) : t.hair,
-            borderRadius: 20,
-            paddingVertical: 6,
-            paddingHorizontal: 12,
-          }}
-        >
-          <Text style={{ fontFamily: t.fonts.bold, fontSize: 13, color: t.accent }}>
-            {tier === "voice" ? "Manage" : tier === "chat" ? "Upgrade" : "Get a plan"}
-          </Text>
-        </View>
-      </Pressable>
-
-      {/* appearance */}
-      <SettingsLabel>Appearance</SettingsLabel>
-      <View style={{ flexDirection: "row", gap: 8 }}>
-        {(["dark", "system", "light"] as const).map((mode) => {
-          const on = theme === mode;
-          const iconName = mode === "dark" ? "moon" : mode === "light" ? "sun" : "smartphone";
-          const label = mode === "dark" ? "Dark" : mode === "light" ? "Light" : "System";
-          return (
-            <Pressable
-              key={mode}
-              onPress={() => setTheme(mode)}
+            )
+          }
+          right={
+            <View
               style={{
-                flex: 1,
-                flexDirection: "column",
+                flexDirection: "row",
                 alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-                paddingVertical: 14,
-                paddingHorizontal: 4,
-                borderRadius: t.radius.md,
+                backgroundColor: subscribed ? mix(t.accent, t.surface2, 0.22) : t.surface3,
                 borderWidth: 1,
-                borderColor: on ? t.accent : t.hair,
-                backgroundColor: on ? t.accent + "14" : t.surface2,
+                borderColor: subscribed ? mix(t.accent, t.surface2, 0.35) : t.hair,
+                borderRadius: 20,
+                paddingVertical: 5,
+                paddingHorizontal: 11,
+                gap: 5,
               }}
             >
-              <Icon name={iconName} size={18} color={on ? t.accent : t.txtMid} />
-              <Text style={{ fontFamily: t.fonts.semibold, fontSize: 12, color: on ? t.accent : t.txtMid }}>
-                {label}
+              {subscribed && <Dot kind="ok" />}
+              <Text style={{ fontFamily: t.fonts.bold, fontSize: 12, color: t.accent }}>
+                {tier === "voice" ? "Manage" : tier === "chat" ? "Upgrade" : "Get plan"}
               </Text>
-            </Pressable>
+            </View>
+          }
+        />
+      </Section>
+
+      {/* ── NOTIFICATIONS ─── */}
+      <Section
+        title="Notifications"
+        footer="Judith reminds you before every bill is due so you never miss a payment."
+        hidden={!visReminders}
+      >
+        {REMINDER_TOGGLES.filter((_, i) => visReminderRows[i]).map((d, idx) => {
+          const on = toggles[d.key];
+          // Turning ON Due-date reminders or Payment nudges requires
+          // notification permission. We gate the setToggle behind the
+          // permission prompt so the toggle never lies about its state.
+          const handleToggle = async () => {
+            const next = !on;
+            if (next) {
+              const granted = await requestPermission();
+              if (!granted) return;
+            }
+            setToggle(d.key, next);
+          };
+          return (
+            <Row
+              key={d.key}
+              first={idx === 0}
+              icon={d.icon}
+              iconColor={on ? t.accent : t.txtMid}
+              title={d.t}
+              subtitle={d.s}
+              right={<Toggle on={on} onPress={handleToggle} />}
+            />
           );
         })}
-      </View>
+      </Section>
 
-      {/* voice language */}
-      <SettingsLabel>Voice language</SettingsLabel>
-      <Pressable
-        onPress={() => { setLangQ(""); setLangExpanded(null); setLangOpen(true); }}
-        style={({ pressed }) => [
-          { ...rowBase, borderRadius: t.radius.md },
-          pressed && { transform: [{ scale: 0.99 }] },
-        ]}
+      {/* ── APPEARANCE ─── */}
+      <Section title="Appearance" hidden={!visAppearance}>
+        {visTheme && (
+          <View
+            style={{
+              padding: 12,
+              flexDirection: "row",
+              gap: 8,
+              borderTopWidth: 0,
+            }}
+          >
+            {(["dark", "system", "light"] as const).map((mode) => {
+              const on = theme === mode;
+              const iconName = mode === "dark" ? "moon" : mode === "light" ? "sun" : "smartphone";
+              const label = mode === "dark" ? "Dark" : mode === "light" ? "Light" : "System";
+              return (
+                <Pressable
+                  key={mode}
+                  onPress={() => setTheme(mode)}
+                  style={{
+                    flex: 1,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                    paddingVertical: 12,
+                    paddingHorizontal: 4,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: on ? t.accent : t.hair,
+                    backgroundColor: on ? mix(t.accent, t.surface2, 0.18) : t.surface3,
+                  }}
+                >
+                  <Icon name={iconName} size={18} color={on ? t.accent : t.txtMid} />
+                  <Text style={{ fontFamily: t.fonts.semibold, fontSize: 12, color: on ? t.accent : t.txtMid }}>
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+        {visReduce && (
+          <Row
+            first={!visTheme}
+            icon="sliders"
+            iconColor={reduceMotion ? t.accent : t.txtMid}
+            title="Reduce motion"
+            subtitle="Calm the animations — instant transitions"
+            right={<Toggle on={reduceMotion} onPress={() => setReduceMotion(!reduceMotion)} />}
+          />
+        )}
+      </Section>
+
+      {/* ── VOICE & PERSONA ─── */}
+      <Section
+        title="Voice & persona"
+        footer="Choose Judith's personality and the language she speaks aloud."
+        hidden={!visVoice}
       >
-        <IcoBox name="mic" iconSize={17} color={t.accent} />
-        <View style={{ flex: 1 }}>
-          <Txt size={15} weight="medium">{currentLangDisplay.native}</Txt>
-          <Low size={12} style={{ marginTop: 1 }}>Judith's spoken language</Low>
-        </View>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Text style={{ fontSize: 22 }}>{currentLangDisplay.flag}</Text>
-          <Icon name="chev" size={16} color={t.txtMid} />
-        </View>
+        {visPersona && (
+          <Row
+            first
+            onPress={() => setPersonaOpen(true)}
+            leadingNode={
+              <View style={{ width: 30, height: 30 }}>
+                <JudithAvatar persona={persona} size={30} state="idle" />
+              </View>
+            }
+            title="Judith's personality"
+            subtitle={currentPersona?.name ?? "Choose a persona"}
+            right={
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Txt size={13} color={t.txtMid}>{currentPersona?.vibe ?? ""}</Txt>
+                <Icon name="chev" size={15} color={t.txtMid} />
+              </View>
+            }
+          />
+        )}
+        {visLang && (
+          <Row
+            first={!visPersona}
+            onPress={() => { setLangQ(""); setLangExpanded(null); setLangOpen(true); }}
+            icon="mic"
+            iconColor={t.accent}
+            title="Voice language"
+            subtitle="Judith's spoken language"
+            right={
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Text style={{ fontSize: 18 }}>{currentLangDisplay.flag}</Text>
+                <Txt size={13} color={t.txtMid}>{currentLangDisplay.native}</Txt>
+                <Icon name="chev" size={15} color={t.txtMid} />
+              </View>
+            }
+          />
+        )}
+        {visSpeakAloud && (
+          <Row
+            first={!visPersona && !visLang}
+            icon={toggles.voiceReplies ? "volume" : "volumeOff"}
+            iconColor={toggles.voiceReplies ? t.accent : t.txtMid}
+            title="Speak answers aloud"
+            subtitle="Turn off to get text-only replies in public"
+            right={
+              <Toggle
+                on={toggles.voiceReplies}
+                onPress={() => setToggle("voiceReplies", !toggles.voiceReplies)}
+              />
+            }
+          />
+        )}
+      </Section>
+
+      {/* ── REGION ─── */}
+      <Section
+        title="Region"
+        footer="Currency symbol only — amounts in the app are never converted."
+        hidden={!visRegion}
+      >
+        {visCountry && (
+          <Row
+            first
+            onPress={() => { setCountryQ(""); setCountryOpen(true); }}
+            icon="globe"
+            iconColor={t.accent}
+            title="Where you live"
+            subtitle="Shapes Judith's voice and cultural context"
+            right={
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Text style={{ fontSize: 18 }}>{country.flag}</Text>
+                <Txt size={13} color={t.txtMid}>{country.name}</Txt>
+                <Icon name="chev" size={15} color={t.txtMid} />
+              </View>
+            }
+          />
+        )}
+        {visCurrency && (
+          <Row
+            first={!visCountry}
+            onPress={() => { setCurQ(""); setCurOpen(true); }}
+            icon="wallet"
+            iconColor={t.accent}
+            title="Currency symbol"
+            subtitle="Symbol only — not converted"
+            right={
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Txt size={16} weight="semibold" color={t.accent}>{currency}</Txt>
+                <Icon name="chev" size={15} color={t.txtMid} />
+              </View>
+            }
+          />
+        )}
+      </Section>
+
+      {/* ── DEVICES ─── */}
+      <Section title="Devices" hidden={!visDevices}>
+        {visWidget && (
+          <Row
+            first
+            onPress={() => router.push("/widget")}
+            icon="grid"
+            iconColor={t.accent}
+            title="Home-screen widget"
+            subtitle="Add Judith to your Home & Lock screens"
+          />
+        )}
+        {DEVICE_TOGGLES.filter((_, i) => visDeviceRows[i]).map((d, idx) => {
+          const on = toggles[d.key];
+          return (
+            <Row
+              key={d.key}
+              first={!visWidget && idx === 0}
+              icon={d.icon}
+              iconColor={on ? t.accent : t.txtMid}
+              title={d.t}
+              subtitle={d.s}
+              right={<Toggle on={on} onPress={() => setToggle(d.key, !on)} />}
+            />
+          );
+        })}
+        {visDevPreview && (
+          <Row
+            first={!visWidget && !visDeviceRows.some(Boolean)}
+            onPress={() => router.push("/devices")}
+            icon="watch"
+            iconColor={t.accent}
+            title="Preview on your devices"
+            subtitle="Widgets & Apple Watch concepts"
+          />
+        )}
+      </Section>
+
+      {/* ── BACKUP ─── */}
+      <Section
+        title="Backup"
+        footer="Your bills and settings are mirrored to your private iCloud container — reinstall the app anytime and tap Restore to get them back."
+        hidden={!visBackup}
+      >
+        {visBackupRow && (
+          <Row
+            first
+            icon="globe"
+            iconColor={iCloud.available ? t.accent : t.txtMid}
+            title="iCloud backup"
+            subtitle={lastBackupLabel}
+            right={
+              <View
+                style={{
+                  paddingVertical: 3,
+                  paddingHorizontal: 9,
+                  borderRadius: 999,
+                  borderWidth: 1,
+                  borderColor: iCloud.available ? mix(t.accent, t.surface2, 0.4) : t.hair,
+                  backgroundColor: iCloud.available ? mix(t.accent, t.surface2, 0.14) : t.surface3,
+                }}
+              >
+                <Txt size={11} weight="semibold" color={iCloud.available ? t.accent : t.txtMid}>
+                  {iCloud.available ? (iCloud.savedAt ? "On" : "Ready") : "Off"}
+                </Txt>
+              </View>
+            }
+          />
+        )}
+        {visRestore && (
+          <Row
+            first={!visBackupRow}
+            onPress={canRestore ? () => { setRestoreMsg(""); setRestoreOpen(true); } : undefined}
+            disabled={!canRestore}
+            icon="refresh"
+            iconColor={canRestore ? t.accent : t.txtMid}
+            title="Restore from iCloud"
+            subtitle="Replaces local bills & settings with your backup"
+          />
+        )}
+      </Section>
+
+      {/* ── PRIVACY & LEGAL ─── */}
+      <Section title="Privacy & Legal" hidden={!visLegal}>
+        {visTerms && (
+          <Row
+            first
+            onPress={() => openLegal(TERMS_URL)}
+            icon="receipt"
+            iconColor={t.txtMid}
+            title="Terms of Use"
+            subtitle="Including acceptable & fair use"
+          />
+        )}
+        {visPrivacy && (
+          <Row
+            first={!visTerms}
+            onPress={() => openLegal(PRIVACY_URL)}
+            icon="lock"
+            iconColor={t.txtMid}
+            title="Privacy Policy"
+            subtitle="How your data is handled"
+          />
+        )}
+      </Section>
+
+      {/* ── SHARE — accent card kept distinct from grouped table ─── */}
+      {visShare && (
+        <Pressable
+          onPress={handleShare}
+          style={({ pressed }) => [
+            {
+              marginTop: 26,
+              borderRadius: t.radius.md,
+              borderWidth: 1,
+              borderColor: mix(t.accent, t.surface2, 0.38),
+              backgroundColor: mix(t.accent, t.surface2, 0.13),
+              overflow: "hidden",
+            },
+            pressed && { transform: [{ scale: 0.985 }] },
+          ]}
+        >
+          <View style={{ paddingTop: 18, paddingHorizontal: 18, paddingBottom: 16 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 10 }}>
+              <View
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  backgroundColor: mix(t.accent, t.surface2, 0.22),
+                  borderWidth: 1,
+                  borderColor: mix(t.accent, t.surface2, 0.45),
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Icon name="share" size={19} color={t.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Txt size={15} weight="semibold" color={t.accent}>Tell a friend about Judith</Txt>
+                <Low size={12} style={{ marginTop: 1 }}>They probably have bills too 😅</Low>
+              </View>
+            </View>
+            <View
+              style={{
+                backgroundColor: t.accent,
+                borderRadius: 12,
+                paddingVertical: 12,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ fontFamily: t.fonts.bold, fontSize: 15, color: "#000", letterSpacing: -0.2 }}>
+                Share Judith 📱
+              </Text>
+            </View>
+          </View>
+        </Pressable>
+      )}
+
+      {/* ── ABOUT — version stamp. Long-press opens dev tools (demo
+              account loader + Restart from scratch). Hidden from casual
+              users so the production Settings stays clean. */}
+      <Pressable
+        onLongPress={() => setDevMenuOpen(true)}
+        delayLongPress={650}
+        style={{ alignItems: "center", marginTop: 26 }}
+      >
+        <Low size={12}>Judith v1.0 · Available worldwide</Low>
+        <Low size={11} style={{ marginTop: 2 }}>
+          {`Build ${Updates.runtimeVersion ?? "—"}${Updates.channel ? ` · ${Updates.channel}` : ""}`}
+        </Low>
+        <Low size={11} style={{ marginTop: 1 }}>
+          {Updates.isEmbeddedLaunch
+            ? "Embedded bundle · no OTA applied"
+            : `OTA ${(Updates.updateId ?? "").slice(0, 8) || "—"}${
+                Updates.createdAt ? ` · ${Updates.createdAt.toISOString().slice(0, 10)}` : ""
+              }`}
+        </Low>
+        <Low size={10} style={{ marginTop: 4, opacity: 0.5 }}>Long-press for developer tools</Low>
       </Pressable>
 
+      {/* ─────────────────────── MODALS ─────────────────────── */}
+
+      {/* Persona picker — replaces the old inline horizontal scroller.
+          Bottom sheet with a vertical list, iOS-style. Tapping a persona
+          selects it AND plays the cached preview sample (see memory:
+          previews must use pregen, never live TTS). */}
+      <Modal visible={personaOpen} transparent animationType="slide" onRequestClose={() => setPersonaOpen(false)}>
+        {personaOpen && (
+        <Pressable onPress={() => setPersonaOpen(false)} style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}>
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={{ backgroundColor: t.surface1, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderColor: t.hair, maxHeight: "85%", paddingBottom: 34 }}
+          >
+            <View style={{ alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: t.hair2, marginTop: 12, marginBottom: 14 }} />
+            <View style={{ paddingHorizontal: 18, marginBottom: 8 }}>
+              <Txt size={18} weight="semibold">Judith's personality</Txt>
+              <Low size={12} style={{ marginTop: 2 }}>Tap any persona to hear her voice.</Low>
+            </View>
+            <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 14, gap: 10 }}>
+              {PERSONAS.filter((p) => !p.phOnly || country.code === "PH").map((p) => {
+                const on = persona === p.id;
+                const speaking = speakingPersona === p.id;
+                return (
+                  <Pressable
+                    key={p.id}
+                    onPress={() => handlePersonaPress(p.id)}
+                    style={({ pressed }) => ({
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 14,
+                      paddingVertical: 12,
+                      paddingHorizontal: 14,
+                      borderRadius: 14,
+                      borderWidth: 1,
+                      borderColor: on ? t.accent : t.hair,
+                      backgroundColor: on ? mix(t.accent, t.surface2, 0.12) : t.surface2,
+                      opacity: pressed ? 0.85 : 1,
+                    })}
+                  >
+                    <JudithAvatar persona={p.id} size={44} state={speaking ? "speaking" : "idle"} />
+                    <View style={{ flex: 1 }}>
+                      <Txt size={15} weight="semibold">{p.name}</Txt>
+                      <Low size={12} style={{ marginTop: 2 }}>{p.vibe}</Low>
+                      {speaking && (
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 }}>
+                          <Icon name="volume" size={11} color={t.accent} />
+                          <Txt size={11} weight="semibold" color={t.accent}>Playing…</Txt>
+                        </View>
+                      )}
+                    </View>
+                    {p.phOnly && (
+                      <View style={{
+                        backgroundColor: "#f472b6",
+                        borderRadius: 20,
+                        paddingVertical: 2,
+                        paddingHorizontal: 7,
+                        marginRight: 6,
+                      }}>
+                        <Txt size={9.5} weight="semibold" color="#fff">🇵🇭</Txt>
+                      </View>
+                    )}
+                    {on ? <Icon name="check" size={18} color={t.accent} /> : <View style={{ width: 18 }} />}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+        )}
+      </Modal>
+
+      {/* Voice language picker (unchanged behavior, gated body) */}
       <Modal visible={langOpen} transparent animationType="slide" onRequestClose={() => setLangOpen(false)}>
+        {langOpen && (
         <Pressable onPress={() => setLangOpen(false)} style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}>
           <Pressable
             onPress={(e) => e.stopPropagation()}
@@ -535,29 +1191,12 @@ export default function SettingsScreen() {
             </ScrollView>
           </Pressable>
         </Pressable>
+        )}
       </Modal>
 
-      {/* where you live */}
-      <SettingsLabel>Where you live</SettingsLabel>
-      <Pressable
-        onPress={() => { setCountryQ(""); setCountryOpen(true); }}
-        style={({ pressed }) => [
-          { ...rowBase, borderRadius: t.radius.md },
-          pressed && { transform: [{ scale: 0.99 }] },
-        ]}
-      >
-        <IcoBox name="globe" iconSize={17} color={t.accent} />
-        <View style={{ flex: 1 }}>
-          <Txt size={15} weight="medium">{country.name}</Txt>
-          <Low size={12} style={{ marginTop: 1 }}>Shapes Judith's voice and cultural context</Low>
-        </View>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Text style={{ fontSize: 22 }}>{country.flag}</Text>
-          <Icon name="chev" size={16} color={t.txtMid} />
-        </View>
-      </Pressable>
-
+      {/* Country picker */}
       <Modal visible={countryOpen} transparent animationType="slide" onRequestClose={() => setCountryOpen(false)}>
+        {countryOpen && (
         <Pressable onPress={() => setCountryOpen(false)} style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}>
           <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
           <Pressable
@@ -608,29 +1247,12 @@ export default function SettingsScreen() {
           </Pressable>
           </KeyboardAvoidingView>
         </Pressable>
+        )}
       </Modal>
 
-      {/* currency */}
-      <SettingsLabel>Currency</SettingsLabel>
-      <Pressable
-        onPress={() => { setCurQ(""); setCurOpen(true); }}
-        style={({ pressed }) => [
-          { ...rowBase, borderRadius: t.radius.md },
-          pressed && { transform: [{ scale: 0.99 }] },
-        ]}
-      >
-        <IcoBox name="wallet" iconSize={17} color={t.accent} />
-        <View style={{ flex: 1 }}>
-          <Txt size={15} weight="medium">Currency symbol</Txt>
-          <Low size={12} style={{ marginTop: 1 }}>Symbol only — amounts are not converted</Low>
-        </View>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Txt size={17} weight="semibold" style={{ color: t.accent }}>{currency}</Txt>
-          <Icon name="chev" size={16} color={t.txtMid} />
-        </View>
-      </Pressable>
-
+      {/* Currency picker */}
       <Modal visible={curOpen} transparent animationType="slide" onRequestClose={() => setCurOpen(false)}>
+        {curOpen && (
         <Pressable onPress={() => setCurOpen(false)} style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}>
           <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
           <Pressable
@@ -641,7 +1263,7 @@ export default function SettingsScreen() {
             <View style={{ paddingHorizontal: 18 }}>
               <Txt size={18} weight="semibold" style={{ marginBottom: 10 }}>Currency symbol</Txt>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: mix(t.accent, t.surface2, 0.12), borderRadius: 10, paddingVertical: 10, paddingHorizontal: 13, marginBottom: 12 }}>
-                <Icon name="info" size={15} color={t.accent} />
+                <Icon name="lock" size={15} color={t.accent} />
                 <Txt size={12} style={{ color: t.accent, flex: 1, lineHeight: 17 }}>
                   Changing this only updates the symbol shown in the app. Your amounts stay exactly the same — nothing is converted.
                 </Txt>
@@ -687,337 +1309,108 @@ export default function SettingsScreen() {
           </Pressable>
           </KeyboardAvoidingView>
         </Pressable>
+        )}
       </Modal>
 
-      {/* persona — horizontal slidable avatar picker */}
-      <SettingsLabel>Judith's personality</SettingsLabel>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ gap: 10, paddingVertical: 2, paddingRight: 4 }}
-      >
-        {PERSONAS.filter(p => !p.phOnly || country.code === "PH").map((p) => {
-          const on = persona === p.id;
-          return (
-            <Pressable
-              key={p.id}
-              onPress={() => setPersona(p.id)}
-              style={({ pressed }) => ({
-                width: 128,
-                alignItems: "center",
-                paddingTop: 14,
-                paddingBottom: 12,
-                paddingHorizontal: 10,
-                borderRadius: t.radius.md,
-                borderWidth: 1,
-                borderColor: on ? t.accent : t.hair,
-                backgroundColor: on ? mix(t.accent, t.surface2, 0.12) : t.surface2,
-                opacity: pressed ? 0.85 : 1,
-              })}
-            >
-              <View>
-                <JudithAvatar persona={p.id} size={56} state="idle" />
-                {on && (
-                  <View
-                    style={{
-                      position: "absolute",
-                      right: -2,
-                      bottom: -2,
-                      width: 20,
-                      height: 20,
-                      borderRadius: 10,
-                      backgroundColor: t.accent,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      borderWidth: 2,
-                      borderColor: on ? mix(t.accent, t.surface2, 0.12) : t.surface2,
-                    }}
-                  >
-                    <Icon name="check" size={11} color={t.onAccent} />
-                  </View>
-                )}
-              </View>
-              <Txt size={13.5} weight="semibold" color={on ? t.txtHi : t.txtMid} style={{ marginTop: 9, textAlign: "center" }} numberOfLines={1}>
-                {p.name}
-              </Txt>
-              <Low size={11} style={{ marginTop: 2, textAlign: "center" }} numberOfLines={1}>
-                {p.vibe}
-              </Low>
-              {p.phOnly && (
-                <View style={{
-                  backgroundColor: "#f472b6",
-                  borderRadius: 20,
-                  paddingVertical: 2,
-                  paddingHorizontal: 7,
-                  marginTop: 6,
-                }}>
-                  <Txt size={9.5} weight="semibold" color="#fff">🇵🇭 PH only</Txt>
-                </View>
-              )}
-              <Pressable
-                onPress={(e) => { e.stopPropagation(); playPersonaSample(p.id); }}
-                accessibilityRole="button"
-                accessibilityLabel={`Preview ${p.name} voice`}
-                style={({ pressed }) => ({
-                  marginTop: 10,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 4,
-                  paddingVertical: 5,
-                  paddingHorizontal: 9,
-                  borderRadius: 12,
-                  backgroundColor: speakingPersona === p.id
-                    ? t.accent
-                    : on
-                    ? mix(t.accent, t.surface2, 0.18)
-                    : t.surface1,
-                  opacity: pressed ? 0.75 : 1,
-                })}
-              >
-                <Icon
-                  name={speakingPersona === p.id ? "volume" : "play"}
-                  size={10}
-                  color={speakingPersona === p.id ? t.onAccent : t.accent}
-                />
-                <Txt size={10} weight="semibold" color={speakingPersona === p.id ? t.onAccent : t.accent}>
-                  {speakingPersona === p.id ? "Playing…" : "Hear voice"}
-                </Txt>
-              </Pressable>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-
-      {/* voice — only for Voice Ask subscribers */}
-      {tier === "voice" && (
-        <>
-          <SettingsLabel>Voice</SettingsLabel>
-          <View style={{ borderRadius: t.radius.md, overflow: "hidden" }}>
-            <View style={{ ...rowBase, borderTopWidth: 1, borderBottomWidth: 0 }}>
-              <IcoBox name={toggles.voiceReplies ? "volume" : "volumeOff"} iconSize={17} color={toggles.voiceReplies ? t.accent : t.txtMid} />
-              <View style={{ flex: 1 }}>
-                <Txt size={15} weight="medium">
-                  Speak answers aloud
-                </Txt>
-                <Low size={12} style={{ marginTop: 1 }}>
-                  Turn off to get text-only replies in public
-                </Low>
-              </View>
-              <Toggle on={toggles.voiceReplies} onPress={() => setToggle("voiceReplies", !toggles.voiceReplies)} />
-            </View>
-          </View>
-        </>
-      )}
-
-      {/* reminders */}
-      <SettingsLabel>Reminders & devices</SettingsLabel>
-      <View style={{ borderRadius: t.radius.md, overflow: "hidden" }}>
-        {TOGGLE_DEFS.map((d, i) => {
-          const on = toggles[d.key];
-          const needsPermission = d.key === "dueReminders" || d.key === "nudges";
-          const handleToggle = async () => {
-            const next = !on;
-            if (next && needsPermission) {
-              const granted = await requestPermission();
-              if (!granted) return;
-            }
-            setToggle(d.key, next);
-          };
-          return (
-            <View key={d.key} style={{ ...rowBase, borderTopWidth: i === 0 ? 1 : 0, borderBottomWidth: 0 }}>
-              <IcoBox name={d.icon} iconSize={17} color={on ? t.accent : t.txtMid} />
-              <View style={{ flex: 1 }}>
-                <Txt size={15} weight="medium">
-                  {d.t}
-                </Txt>
-                <Low size={12} style={{ marginTop: 1 }}>
-                  {d.s}
-                </Low>
-              </View>
-              <Toggle on={on} onPress={handleToggle} />
-            </View>
-          );
-        })}
-      </View>
-
-      {/* test notification */}
-      <Pressable
-        onPress={async () => {
-          const granted = await requestPermission();
-          if (!granted) return;
-          await Notifications.scheduleNotificationAsync({
-            content: {
-              title: `Test · ${persona === "funny" ? "Heads up 👀" : persona === "pro" ? "Reminder: you have bills." : persona === "mama" ? "Anak, test lang 👋" : persona === "marites" ? "Psst! Test notification 🤫" : persona === "britney" ? "You have bills. Pay them." : "Test notification"}`,
-              body: "Notifications are working! ₱2,500 due in 3 days.",
-              sound: true,
-            },
-            trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 3, repeats: false },
-          });
-        }}
-        style={({ pressed }) => [
-          {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 13,
-            marginTop: 9,
-            paddingVertical: 14,
-            paddingHorizontal: 15,
-            borderWidth: 1,
-            borderColor: mix(t.accent, t.surface2, 0.4),
-            borderRadius: t.radius.md,
-            backgroundColor: mix(t.accent, t.surface2, 0.1),
-          },
-          pressed && { opacity: 0.7 },
-        ]}
-      >
-        <IcoBox name="bell" iconSize={17} color={t.accent} borderColor={mix(t.accent, t.surface2, 0.4)} />
-        <View style={{ flex: 1 }}>
-          <Txt size={15} weight="medium" color={t.accent}>Fire test notification</Txt>
-          <Low size={12} style={{ marginTop: 1 }}>Fires in 3 seconds — lock your screen</Low>
-        </View>
-        <Icon name="chev" size={16} color={t.accent} />
-      </Pressable>
-
-      {/* accessibility */}
-      <SettingsLabel>Accessibility</SettingsLabel>
-      <View style={{ borderRadius: t.radius.md, overflow: "hidden" }}>
-        <View style={{ ...rowBase, borderTopWidth: 1, borderBottomWidth: 0 }}>
-          <IcoBox name="sliders" iconSize={17} color={reduceMotion ? t.accent : t.txtMid} />
-          <View style={{ flex: 1 }}>
-            <Txt size={15} weight="medium">
-              Reduce motion
-            </Txt>
-            <Low size={12} style={{ marginTop: 1 }}>
-              Calm the animations — instant transitions
-            </Low>
-          </View>
-          <Toggle on={reduceMotion} onPress={() => setReduceMotion(!reduceMotion)} />
-        </View>
-      </View>
-
-      <Pressable
-        onPress={() => router.push("/devices")}
-        style={({ pressed }) => [
-          { ...rowBase, borderRadius: t.radius.md, marginTop: 9 },
-          pressed && { transform: [{ scale: 0.99 }] },
-        ]}
-      >
-        <IcoBox name="watch" iconSize={17} color={t.accent} />
-        <View style={{ flex: 1 }}>
-          <Txt size={15} weight="medium">
-            Preview on your devices
-          </Txt>
-          <Low size={12} style={{ marginTop: 1 }}>
-            Widgets & Apple Watch concepts
-          </Low>
-        </View>
-        <Icon name="chev" size={16} color={t.txtMid} />
-      </Pressable>
-
-      {/* share */}
-      <SettingsLabel>Share</SettingsLabel>
-      <Pressable
-        onPress={handleShare}
-        style={({ pressed }) => [
-          {
-            borderRadius: t.radius.md,
-            borderWidth: 1,
-            borderColor: mix(t.accent, t.surface2, 0.38),
-            backgroundColor: mix(t.accent, t.surface2, 0.13),
-            overflow: "hidden",
-          },
-          pressed && { transform: [{ scale: 0.985 }] },
-        ]}
-      >
-        <View style={{ paddingTop: 18, paddingHorizontal: 18, paddingBottom: 16 }}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 10 }}>
-            <View
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 12,
-                backgroundColor: mix(t.accent, t.surface2, 0.22),
-                borderWidth: 1,
-                borderColor: mix(t.accent, t.surface2, 0.45),
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Icon name="share" size={19} color={t.accent} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Txt size={15} weight="semibold" color={t.accent}>Tell a friend about Judith</Txt>
-              <Low size={12} style={{ marginTop: 1 }}>They probably have bills too 😅</Low>
-            </View>
-          </View>
-          <View
-            style={{
-              backgroundColor: t.accent,
-              borderRadius: 12,
-              paddingVertical: 12,
-              alignItems: "center",
-            }}
-          >
-            <Text style={{ fontFamily: t.fonts.bold, fontSize: 15, color: "#000", letterSpacing: -0.2 }}>
-              Share Judith 📱
-            </Text>
-          </View>
-        </View>
-      </Pressable>
-
-      {/* legal */}
-      <SettingsLabel>Legal</SettingsLabel>
-      <View style={{ borderRadius: t.radius.md, overflow: "hidden" }}>
-        {[
-          { icon: "receipt" as IconName, t: "Terms of Use", s: "Including acceptable & fair use", url: TERMS_URL },
-          { icon: "lock" as IconName, t: "Privacy Policy", s: "How your data is handled", url: PRIVACY_URL },
-        ].map((row, i) => (
+      {/* iCloud restore confirm */}
+      <Modal visible={restoreOpen} transparent animationType="fade" onRequestClose={closeRestore} statusBarTranslucent>
+        {restoreOpen && (
+        <Pressable
+          onPress={restoreBusy ? undefined : closeRestore}
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center", padding: 26 }}
+        >
           <Pressable
-            key={row.t}
-            onPress={() => openLegal(row.url)}
-            style={({ pressed }) => [
-              { ...rowBase, borderTopWidth: i === 0 ? 1 : 0, borderBottomWidth: 0 },
-              pressed && { opacity: 0.7 },
-            ]}
+            onPress={(e) => e.stopPropagation()}
+            style={{ width: "100%", maxWidth: 380, borderRadius: 18, borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface2, padding: 22 }}
           >
-            <IcoBox name={row.icon} iconSize={17} color={t.txtMid} />
-            <View style={{ flex: 1 }}>
-              <Txt size={15} weight="medium">{row.t}</Txt>
-              <Low size={12} style={{ marginTop: 1 }}>{row.s}</Low>
+            <View style={{ width: 46, height: 46, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: mix(t.accent, t.surface2, 0.16), borderWidth: 1, borderColor: mix(t.accent, t.surface2, 0.4), marginBottom: 14 }}>
+              <Icon name="globe" size={22} color={t.accent} />
             </View>
-            <Icon name="chev" size={16} color={t.txtMid} />
+            <Text style={{ fontFamily: t.fonts.semibold, fontSize: 19, color: t.txtHi, letterSpacing: -0.3, marginBottom: 8 }}>
+              Restore from iCloud?
+            </Text>
+            <Low size={13} style={{ lineHeight: 19 }}>
+              Replaces your{" "}
+              <Low size={13} weight="medium" color={t.txtHi}>current {billsLength} bills & settings</Low>{" "}
+              with the iCloud backup{iCloud.savedAt ? ` from ${lastBackupLabel.toLowerCase()}` : ""}. This can&rsquo;t be undone.
+            </Low>
+            {!!restoreMsg && (
+              <Text style={{ marginTop: 12, fontSize: 13, color: t.semantic.urgent, fontFamily: t.fonts.regular }}>{restoreMsg}</Text>
+            )}
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 18 }}>
+              <Pressable
+                onPress={closeRestore}
+                disabled={restoreBusy}
+                style={{ flex: 1, alignItems: "center", paddingVertical: 13, borderRadius: 11, borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface3, opacity: restoreBusy ? 0.5 : 1 }}
+              >
+                <Txt size={14} weight="medium">Cancel</Txt>
+              </Pressable>
+              <Pressable
+                onPress={doRestore}
+                disabled={restoreBusy}
+                style={{ flex: 1, alignItems: "center", paddingVertical: 13, borderRadius: 11, backgroundColor: t.accent, opacity: restoreBusy ? 0.7 : 1 }}
+              >
+                <Txt size={14} weight="semibold" color={t.onAccent}>{restoreBusy ? "Restoring…" : "Restore"}</Txt>
+              </Pressable>
+            </View>
           </Pressable>
-        ))}
-      </View>
+        </Pressable>
+        )}
+      </Modal>
 
-      {/* Load demo account — country picker */}
-      <Pressable
-        onPress={() => setDemoPickerOpen(true)}
-        style={({ pressed }) => [
-          {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 13,
-            marginTop: 28,
-            paddingVertical: 14,
-            paddingHorizontal: 15,
-            borderWidth: 1,
-            borderColor: mix(t.accent, t.surface2, 0.4),
-            borderRadius: t.radius.md,
-            backgroundColor: mix(t.accent, t.surface2, 0.08),
-          },
-          pressed && { opacity: 0.7 },
-        ]}
-      >
-        <Icon name="spark" size={18} color={t.accent} />
-        <View style={{ flex: 1 }}>
-          <Txt size={15} weight="medium" color={t.accent}>Load demo account</Txt>
-          <Low size={12} style={{ marginTop: 1 }}>Try the app pre-filled with bills for any country</Low>
-        </View>
-        <Icon name="chev" size={16} color={t.accent} />
-      </Pressable>
+      {/* Dev menu — surfaced via long-press on the version stamp. Kept
+          out of the main UI so production users don't see "Load demo"
+          and "Restart from scratch" by default. */}
+      <Modal visible={devMenuOpen} transparent animationType="slide" onRequestClose={() => setDevMenuOpen(false)}>
+        {devMenuOpen && (
+        <Pressable onPress={() => setDevMenuOpen(false)} style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" }}>
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={{ backgroundColor: t.surface1, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingBottom: 40, borderWidth: 1, borderColor: t.hair }}
+          >
+            <View style={{ alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: t.hair2, marginTop: 12, marginBottom: 14 }} />
+            <View style={{ paddingHorizontal: 20, paddingBottom: 14 }}>
+              <Txt size={18} weight="semibold" style={{ marginBottom: 4 }}>Developer tools</Txt>
+              <Low size={13}>Internal-only. Not visible to regular users.</Low>
+            </View>
+            <View style={{ paddingHorizontal: 18, gap: 10 }}>
+              <Pressable
+                onPress={() => { setDevMenuOpen(false); setDemoPickerOpen(true); }}
+                style={({ pressed }) => [
+                  { flexDirection: "row", alignItems: "center", gap: 13, paddingVertical: 14, paddingHorizontal: 15, borderWidth: 1, borderColor: mix(t.accent, t.surface2, 0.4), borderRadius: t.radius.md, backgroundColor: mix(t.accent, t.surface2, 0.08) },
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Icon name="spark" size={18} color={t.accent} />
+                <View style={{ flex: 1 }}>
+                  <Txt size={15} weight="medium" color={t.accent}>Load demo account</Txt>
+                  <Low size={12} style={{ marginTop: 1 }}>Try the app pre-filled with bills for any country</Low>
+                </View>
+                <Icon name="chev" size={16} color={t.accent} />
+              </Pressable>
+              <Pressable
+                onPress={() => { setDevMenuOpen(false); setConfirmOpen(true); }}
+                style={({ pressed }) => [
+                  { flexDirection: "row", alignItems: "center", gap: 13, paddingVertical: 14, paddingHorizontal: 15, borderWidth: 1, borderColor: mix("#ff645f", t.surface2, 0.4), borderRadius: t.radius.md, backgroundColor: mix("#ff645f", t.surface2, 0.1) },
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Icon name="refresh" size={18} color="#ff645f" />
+                <View style={{ flex: 1 }}>
+                  <Txt size={15} weight="medium" color="#ff645f">Restart from scratch</Txt>
+                  <Low size={12} style={{ marginTop: 1 }}>Wipes local bills & settings — requires "restart" confirmation</Low>
+                </View>
+                <Icon name="chev" size={16} color="#ff645f" />
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+        )}
+      </Modal>
 
+      {/* Demo-account picker (opened from dev menu) */}
       <Modal visible={demoPickerOpen} transparent animationType="slide" onRequestClose={() => setDemoPickerOpen(false)}>
+        {demoPickerOpen && (
         <Pressable onPress={() => setDemoPickerOpen(false)} style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}>
           <Pressable
             onPress={(e) => e.stopPropagation()}
@@ -1031,20 +1424,11 @@ export default function SettingsScreen() {
               {DEMO_ACCOUNTS.map((acct) => (
                 <Pressable
                   key={acct.code}
-                  onPress={() => {
-                    loadDemoAccount(acct.code);
-                    setDemoPickerOpen(false);
-                  }}
+                  onPress={() => { loadDemoAccount(acct.code); setDemoPickerOpen(false); }}
                   style={({ pressed }) => ({
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 14,
-                    paddingVertical: 14,
-                    paddingHorizontal: 16,
-                    borderRadius: 14,
-                    borderWidth: 1,
-                    borderColor: t.hair,
-                    backgroundColor: t.surface2,
+                    flexDirection: "row", alignItems: "center", gap: 14,
+                    paddingVertical: 14, paddingHorizontal: 16, borderRadius: 14,
+                    borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface2,
                     opacity: pressed ? 0.75 : 1,
                   })}
                 >
@@ -1059,97 +1443,32 @@ export default function SettingsScreen() {
             </ScrollView>
           </Pressable>
         </Pressable>
+        )}
       </Modal>
 
-      <View style={{ alignItems: "center", marginTop: 22 }}>
-        <Low size={12}>Judith v1.0 · Available worldwide</Low>
-        <Low size={11} style={{ marginTop: 2 }}>
-          {`Build ${Updates.runtimeVersion ?? "—"}${Updates.channel ? ` · ${Updates.channel}` : ""}`}
-        </Low>
-        <Low size={11} style={{ marginTop: 1 }}>
-          {Updates.isEmbeddedLaunch
-            ? "Embedded bundle · no OTA applied"
-            : `OTA ${(Updates.updateId ?? "").slice(0, 8) || "—"}${
-                Updates.createdAt ? ` · ${Updates.createdAt.toISOString().slice(0, 10)}` : ""
-              }`}
-        </Low>
-        <Pressable onPress={() => setConfirmOpen(true)} style={{ marginTop: 6 }}>
-          <Low size={12}>Restart from scratch</Low>
-        </Pressable>
-      </View>
-
-      <Modal
-        visible={confirmOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={closeConfirm}
-        statusBarTranslucent
-      >
+      {/* Restart-from-scratch confirm */}
+      <Modal visible={confirmOpen} transparent animationType="fade" onRequestClose={closeConfirm} statusBarTranslucent>
         <Pressable
           onPress={closeConfirm}
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.6)",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 26,
-          }}
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center", padding: 26 }}
         >
           <Pressable
             onPress={(e) => e.stopPropagation()}
-            style={{
-              width: "100%",
-              maxWidth: 380,
-              borderRadius: 18,
-              borderWidth: 1,
-              borderColor: t.hair,
-              backgroundColor: t.surface2,
-              padding: 22,
-            }}
+            style={{ width: "100%", maxWidth: 380, borderRadius: 18, borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface2, padding: 22 }}
           >
-            <View
-              style={{
-                width: 46,
-                height: 46,
-                borderRadius: 13,
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: mix("#ff645f", t.surface2, 0.16),
-                borderWidth: 1,
-                borderColor: mix("#ff645f", t.surface2, 0.4),
-                marginBottom: 14,
-              }}
-            >
+            <View style={{ width: 46, height: 46, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: mix("#ff645f", t.surface2, 0.16), borderWidth: 1, borderColor: mix("#ff645f", t.surface2, 0.4), marginBottom: 14 }}>
               <Icon name="bell" size={22} color="#ff645f" />
             </View>
-
-            <Text
-              style={{
-                fontFamily: t.fonts.semibold,
-                fontSize: 19,
-                color: t.txtHi,
-                letterSpacing: -0.3,
-                marginBottom: 8,
-              }}
-            >
+            <Text style={{ fontFamily: t.fonts.semibold, fontSize: 19, color: t.txtHi, letterSpacing: -0.3, marginBottom: 8 }}>
               Restart from scratch?
             </Text>
-
             <Low size={13} style={{ lineHeight: 19 }}>
               This permanently deletes{" "}
-              <Low size={13} weight="medium" color={t.txtHi}>
-                all {bills.length} of your bill records
-              </Low>{" "}
-              and resets every setting, so you can start a brand-new
-              onboarding. This can&rsquo;t be undone.
+              <Low size={13} weight="medium" color={t.txtHi}>all {billsLength} of your bill records</Low>{" "}
+              and resets every setting, so you can start a brand-new onboarding. This can&rsquo;t be undone.
             </Low>
-
             <Low size={12} style={{ marginTop: 16, marginBottom: 7 }}>
-              Type{" "}
-              <Low size={12} weight="medium" color={t.txtHi}>
-                restart
-              </Low>{" "}
-              to confirm
+              Type <Low size={12} weight="medium" color={t.txtHi}>restart</Low> to confirm
             </Low>
             <TextInput
               value={confirmText}
@@ -1159,50 +1478,24 @@ export default function SettingsScreen() {
               autoCapitalize="none"
               autoCorrect={false}
               style={{
-                fontFamily: t.fonts.medium,
-                fontSize: 15,
-                color: t.txtHi,
-                borderWidth: 1,
-                borderColor: canRestart ? "#ff645f" : t.hair,
-                backgroundColor: t.surface3,
-                borderRadius: 11,
-                paddingHorizontal: 14,
-                paddingVertical: 12,
+                fontFamily: t.fonts.medium, fontSize: 15, color: t.txtHi,
+                borderWidth: 1, borderColor: canRestart ? "#ff645f" : t.hair,
+                backgroundColor: t.surface3, borderRadius: 11, paddingHorizontal: 14, paddingVertical: 12,
               }}
             />
-
             <View style={{ flexDirection: "row", gap: 10, marginTop: 18 }}>
               <Pressable
                 onPress={closeConfirm}
-                style={{
-                  flex: 1,
-                  alignItems: "center",
-                  paddingVertical: 13,
-                  borderRadius: 11,
-                  borderWidth: 1,
-                  borderColor: t.hair,
-                  backgroundColor: t.surface3,
-                }}
+                style={{ flex: 1, alignItems: "center", paddingVertical: 13, borderRadius: 11, borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface3 }}
               >
-                <Txt size={14} weight="medium">
-                  Cancel
-                </Txt>
+                <Txt size={14} weight="medium">Cancel</Txt>
               </Pressable>
               <Pressable
                 onPress={doRestart}
                 disabled={!canRestart}
-                style={{
-                  flex: 1,
-                  alignItems: "center",
-                  paddingVertical: 13,
-                  borderRadius: 11,
-                  backgroundColor: canRestart ? "#ff645f" : mix("#ff645f", t.surface2, 0.3),
-                  opacity: canRestart ? 1 : 0.5,
-                }}
+                style={{ flex: 1, alignItems: "center", paddingVertical: 13, borderRadius: 11, backgroundColor: canRestart ? "#ff645f" : mix("#ff645f", t.surface2, 0.3), opacity: canRestart ? 1 : 0.5 }}
               >
-                <Txt size={14} weight="semibold" color="#ffffff">
-                  Delete & restart
-                </Txt>
+                <Txt size={14} weight="semibold" color="#ffffff">Delete & restart</Txt>
               </Pressable>
             </View>
           </Pressable>

@@ -9,6 +9,7 @@ import React, {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 
 import { formatMoney, isPaidViaCard, totalOwed, type Bill, type BillCycleRecord } from "@/constants/data";
@@ -134,7 +135,7 @@ const DEFAULTS: PersistShape = {
   asksLeft: FREE_ASKS,
   tier: "free",
   name: "",
-  persona: "marites",
+  persona: "pro",
   voiceId: "rachel",
   language: "en",
   theme: "system",
@@ -156,6 +157,70 @@ const DEFAULTS: PersistShape = {
   askHistory: [],
   customQuestions: [],
 };
+
+// ────────────────────────────────────────────────────────────────────────
+// External store — single source of truth for PersistShape
+//
+// Background: the previous implementation kept state in `useState<PersistShape>`
+// inside `JudithProvider` and exposed a single context value memoized on
+// `state`. Any state mutation rebuilt the value → every consumer of
+// `useJudith()` (27 files) re-rendered, including hidden background tabs.
+// Marking a bill paid on Home would re-render Settings, Insights, etc.
+//
+// Now: the canonical state lives in a module-level `_state` variable.
+// Components subscribe via `useSyncExternalStore` and only re-render when
+// the snapshot they selected actually changes. Consumers using
+// `useJudith()` still get the full snapshot (backward compatible). New
+// consumers can use `useJudithSelect(s => s.bills)` to subscribe to one
+// slice and bypass the storm.
+// ────────────────────────────────────────────────────────────────────────
+
+let _state: PersistShape = DEFAULTS;
+const _listeners = new Set<() => void>();
+
+/** Subscribe to state updates. Returns an unsubscribe fn. Reference is
+ *  stable across calls — required by useSyncExternalStore. */
+function _subscribe(cb: () => void): () => void {
+  _listeners.add(cb);
+  return () => { _listeners.delete(cb); };
+}
+
+/** Snapshot of the current state. Reference is stable across calls;
+ *  React only re-renders when this returns a different value. */
+function _getSnapshot(): PersistShape {
+  return _state;
+}
+
+/**
+ * Apply a state update — accepts either a new full state object or a
+ * functional updater. Notifies all subscribers. Skips notification if
+ * the next state is referentially equal to the current one (so a no-op
+ * updater doesn't cascade re-renders).
+ */
+function _setState(updater: PersistShape | ((s: PersistShape) => PersistShape)): void {
+  const next = typeof updater === "function" ? (updater as (s: PersistShape) => PersistShape)(_state) : updater;
+  if (next === _state) return;
+  _state = next;
+  _listeners.forEach((cb) => cb());
+}
+
+/**
+ * Subscribe to a SLICE of state. Component only re-renders when the
+ * selector's return value changes (by reference equality). Use this to
+ * bypass the full-context re-render storm for tabs that only care about
+ * a few fields.
+ *
+ * Selectors MUST return referentially-stable values: pick existing fields
+ * (`s => s.bills`) or compute primitives (`s => s.bills.length`). Returning
+ * fresh objects/arrays (`s => ({ bills: s.bills })`) will re-render on
+ * every state change and React will warn.
+ */
+export function useJudithSelect<T>(selector: (s: PersistShape) => T): T {
+  // Wrap selector so React's getSnapshot stays a stable reference even
+  // as the selector closes over local vars.
+  const getSelected = () => selector(_state);
+  return useSyncExternalStore(_subscribe, getSelected, getSelected);
+}
 
 interface JudithStoreValue extends PersistShape {
   hydrated: boolean;
@@ -222,15 +287,31 @@ interface JudithStoreValue extends PersistShape {
   restart: () => void;
   loadDemoData: () => void;
   loadDemoAccount: (code: string) => void;
+  /**
+   * Manually restore the persisted store from this user's iCloud backup,
+   * overwriting current local state. Returns true if a backup was found
+   * and applied. Settings "Restore from iCloud" calls this after confirm.
+   */
+  restoreFromCloud: () => Promise<boolean>;
 }
 
 const JudithContext = createContext<JudithStoreValue | undefined>(undefined);
+const JudithActionsContext = createContext<JudithStoreValue | undefined>(undefined);
 
 export function JudithProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const storageKey = storageKeyForUser(user?.id);
 
-  const [state, setState] = useState<PersistShape>(DEFAULTS);
+  // Read the full state via useSyncExternalStore. This component still
+  // re-renders on every state change (it's the source for `useJudith()`'s
+  // mega-object). The win is that ONLY THIS provider + components calling
+  // `useJudith()` re-render — components using `useJudithSelect(...)` for
+  // a slice subscribe directly to the external store and skip this whole
+  // chain. `setState` is aliased to the external store mutator so the 20+
+  // existing call sites below (setState(DEFAULTS), setState((s)=>...))
+  // continue to work unchanged.
+  const state = useSyncExternalStore(_subscribe, _getSnapshot, _getSnapshot);
+  const setState = _setState;
   const [hydrated, setHydrated] = useState(false);
   const [toast, setToast] = useState("");
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -743,16 +824,125 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
         const preset = acct?.preset ?? DEMO_ACCOUNTS[DEMO_ACCOUNTS.length - 1]!.preset;
         setState({ ...DEFAULTS, ...preset } as PersistShape);
       },
+      restoreFromCloud: async () => {
+        if (!user?.id) return false;
+        const cloud = await loadFromICloud(user.id);
+        if (!cloud) return false;
+        // Merge envelope over DEFAULTS so any field added since the
+        // backup (new toggles, currency, etc.) still has a sane default.
+        setState({ ...DEFAULTS, ...(cloud as Partial<PersistShape>) });
+        return true;
+      },
     };
-  }, [state, hydrated, patch, mapBills, toast, showToast, storageKey]);
+  }, [state, hydrated, patch, mapBills, toast, showToast, storageKey, user?.id]);
+
+  // Latest-value ref. Updated synchronously during render so action wrappers
+  // (created once via the useMemo below) can always delegate to the freshest
+  // implementation without holding stale closures.
+  const valueRef = useRef<JudithStoreValue>(value);
+  valueRef.current = value;
+
+  // Stable actions bag — created EXACTLY ONCE (empty deps). Each method is a
+  // wrapper that reads the latest implementation from valueRef.current at
+  // call time. Result: `useJudithActions()` returns an object whose reference
+  // never changes, and whose methods are also stable references. Components
+  // using only this hook never re-render on state changes — they read state
+  // via `useJudithSelect()` instead. See `app/(tabs)/settings.tsx` for the
+  // canonical migration pattern.
+  //
+  // The cast to JudithStoreValue is intentional: callers receive an object
+  // that supports the same callbacks as the full value, but reading state
+  // fields off it returns null/stale (don't do that — use useJudithSelect).
+  const stableActions = useMemo<JudithStoreValue>(() => {
+    const make = <T extends (...args: any[]) => any>(key: keyof JudithStoreValue): T =>
+      ((...args: unknown[]) => (valueRef.current as any)[key](...args)) as unknown as T;
+    return {
+      // Bill ops
+      togglePaid: make("togglePaid"),
+      markPaid: make("markPaid"),
+      markUnpaid: make("markUnpaid"),
+      snooze: make("snooze"),
+      saveBill: make("saveBill"),
+      deleteBill: make("deleteBill"),
+      payPartial: make("payPartial"),
+      rolloverBill: make("rolloverBill"),
+      updateBillAmount: make("updateBillAmount"),
+      // Ask metering
+      consumeAsk: make("consumeAsk"),
+      canUseVoice: make("canUseVoice"),
+      subscribe: make("subscribe"),
+      addAsks: make("addAsks"),
+      // Setters
+      setName: make("setName"),
+      setFaceIdLock: make("setFaceIdLock"),
+      setPersona: make("setPersona"),
+      setVoice: make("setVoice"),
+      setLanguage: make("setLanguage"),
+      setTheme: make("setTheme"),
+      toggleTheme: make("toggleTheme"),
+      setAccent: make("setAccent"),
+      setCountry: make("setCountry"),
+      setCurrency: make("setCurrency"),
+      setToggle: make("setToggle"),
+      setReduceMotion: make("setReduceMotion"),
+      setOnboarded: make("setOnboarded"),
+      setOnbIdx: make("setOnbIdx"),
+      setGuest: make("setGuest"),
+      setMonthlyIncome: make("setMonthlyIncome"),
+      setMonthIncome: make("setMonthIncome"),
+      setPayCycle: make("setPayCycle"),
+      setPaydayDay: make("setPaydayDay"),
+      setPaydaySemi: make("setPaydaySemi"),
+      setPaydayWeekday: make("setPaydayWeekday"),
+      // Ask history + custom questions
+      setAskHistory: make("setAskHistory"),
+      clearAskHistory: make("clearAskHistory"),
+      addCustomQuestion: make("addCustomQuestion"),
+      deleteCustomQuestion: make("deleteCustomQuestion"),
+      // Lifecycle
+      restart: make("restart"),
+      loadDemoData: make("loadDemoData"),
+      loadDemoAccount: make("loadDemoAccount"),
+      restoreFromCloud: make("restoreFromCloud"),
+      // Toast
+      showToast: make("showToast"),
+      // State fields — only present so the type lines up. DON'T read these
+      // off `useJudithActions()`; subscribe via `useJudithSelect` instead.
+      // Provide null/empty placeholders so accidental reads fail loudly.
+    } as unknown as JudithStoreValue;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
-    <JudithContext.Provider value={value}>{children}</JudithContext.Provider>
+    <JudithActionsContext.Provider value={stableActions}>
+      <JudithContext.Provider value={value}>{children}</JudithContext.Provider>
+    </JudithActionsContext.Provider>
   );
 }
 
 export function useJudith(): JudithStoreValue {
   const ctx = useContext(JudithContext);
   if (!ctx) throw new Error("useJudith must be used within JudithProvider");
+  return ctx;
+}
+
+/**
+ * Stable callback bag. Reference never changes across state updates, so a
+ * component reading ONLY from this hook (plus `useJudithSelect` for state
+ * slices) never re-renders on unrelated state mutations.
+ *
+ * Use this anywhere you'd previously destructure setters/callbacks from
+ * `useJudith()`. Example:
+ *
+ *     // before — re-renders on every state change anywhere in the app:
+ *     const { setPersona, setLanguage, bills } = useJudith();
+ *
+ *     // after — only re-renders when YOUR slice changes:
+ *     const { setPersona, setLanguage } = useJudithActions();
+ *     const bills = useJudithSelect(s => s.bills);
+ */
+export function useJudithActions(): JudithStoreValue {
+  const ctx = useContext(JudithActionsContext);
+  if (!ctx) throw new Error("useJudithActions must be used within JudithProvider");
   return ctx;
 }

@@ -95,6 +95,41 @@ export async function saveToICloud(
 }
 
 /**
+ * Public status check for the Settings UI: is iCloud reachable on this
+ * device? Used to render the backup row's availability pill.
+ */
+export async function isICloudAvailable(): Promise<boolean> {
+  return available();
+}
+
+/**
+ * Read the envelope metadata without applying it. Used by Settings to show
+ * "Last backup: 5 minutes ago" so the user can confirm their data is safe.
+ * Returns null if iCloud is off, no backup exists, or the envelope belongs
+ * to a different userId.
+ */
+export async function getICloudInfo(
+  userId: string,
+): Promise<{ savedAt: string } | null> {
+  if (!userId) return null;
+  if (!(await available())) return null;
+  const cs = getCS()!;
+  const path = backupPath(cs);
+  if (!path) return null;
+  try {
+    const exists = await cs.exist(path);
+    if (!exists) return null;
+    const raw = await cs.readFile(path);
+    const envelope = await parseProtectedObject<BackupEnvelope>(raw);
+    if (!envelope) return null;
+    if (envelope.userId !== userId) return null;
+    return { savedAt: envelope.savedAt };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Try to restore a backup from iCloud.
  * Returns the stored data object if a backup exists for this userId,
  * or null if unavailable / not found / wrong user.
