@@ -11,3 +11,15 @@ id = "ibfjKF0YxVjEUd1dl2oLj"
 uri = "file://artifacts/judith-watch/icons/AppIcon-1024.png"
 type = "image"
 title = "Judith Watch App Icon — no alpha (1024×1024)"
+
+[[outputs]]
+id = "Q8gX9rkdxoupwO9pdxHEn"
+uri = "file://attached_assets/framed/watch_ultra_ask.png"
+type = "image"
+title = "Apple Watch Ultra — Ask screen"
+
+[[outputs]]
+id = "z9p_YeSvT3Gz7EImfqmUw"
+uri = "file://attached_assets/framed/watch_ultra_home.png"
+type = "image"
+title = "Apple Watch Ultra — Home screen"
