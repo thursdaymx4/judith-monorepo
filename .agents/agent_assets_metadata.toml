@@ -23,3 +23,27 @@ id = "z9p_YeSvT3Gz7EImfqmUw"
 uri = "file://attached_assets/framed/watch_ultra_home.png"
 type = "image"
 title = "Apple Watch Ultra — Home screen"
+
+[[outputs]]
+id = "_ekJZNczTD85Wqv4wk_p5"
+uri = "file://attached_assets/framed/ultra_410x502_ask.png"
+type = "image"
+title = "410×502 — Ask screen"
+
+[[outputs]]
+id = "FsXDuRcNK2UEWUJdX7YIR"
+uri = "file://attached_assets/framed/ultra_410x502_home.png"
+type = "image"
+title = "410×502 — Home screen"
+
+[[outputs]]
+id = "uX3FXrchxCdJrEr2rN77R"
+uri = "file://attached_assets/framed/ultra_422x514_ask.png"
+type = "image"
+title = "422×514 — Ask screen"
+
+[[outputs]]
+id = "b1wpq4VQdIprEkRsj9sYB"
+uri = "file://attached_assets/framed/ultra_422x514_home.png"
+type = "image"
+title = "422×514 — Home screen"
