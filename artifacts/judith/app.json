@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.app.judith",
-      "buildNumber": "31",
+      "buildNumber": "33",
       "usesAppleSignIn": true,
       "appleTeamId": "88JK8X8BT7",
       "entitlements": {
