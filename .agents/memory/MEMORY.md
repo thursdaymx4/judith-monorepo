@@ -42,3 +42,4 @@
 - [Judith Supabase storage key](judith-supabase-storage-key.md) — storageKey:"judith-auth-token" must stay pinned; removing it causes OTA bundles to look in a different slot than the native build → silent sign-out on every update.
 - [Judith onboarding voice lockstep](judith-onb-voice-lockstep.md) — voiceLines.ts + pregen EN_TEXT + ONB_LINE_TO_CONCEPT must stay in sync; britney must be in all three; file uses literal \\\uXXXX escapes (not UTF-8 chars) — match carefully.
 - [GCS static import blocks Cloud Run startup](gcs-cloud-run-startup.md) — @google-cloud/* static imports hang in Cloud Run; always use lazy await import() inside getBucket().
+- [Judith marketing site](judith-marketing-site.md) — standalone react-vite web artifact at /site/ (Marketing URL) + /site/support (Support URL) for App Store; base-aware anchors required.
