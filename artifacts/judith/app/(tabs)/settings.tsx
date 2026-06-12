@@ -15,7 +15,6 @@ import { useJudithActions, useJudithSelect, type Toggles } from "@/contexts/Judi
 import { useTheme } from "@/hooks/useTheme";
 import { PRIVACY_URL, TERMS_URL, openLegal } from "@/constants/legal";
 import { DEMO_ACCOUNTS } from "@/constants/demoAccounts";
-import { getTierPackages, type TierPackages } from "@/lib/purchases";
 import { requestPermission } from "@/lib/notifications";
 import { getICloudInfo, isICloudAvailable } from "@/lib/icloud-backup";
 import { cancelAll as cancelPersonaPreview, preview as playPersonaPreview, prefetchPreview } from "@/lib/onboardingAudio";
@@ -329,17 +328,13 @@ export default function SettingsScreen() {
   const [curOpen, setCurOpen] = useState(false);
   const [curQ, setCurQ] = useState("");
 
-  // ── RevenueCat dynamic pricing (Plan row) ─────────────────────────────
-  const [pkgs, setPkgs] = useState<TierPackages>({ chat: null, voice: null });
-  useEffect(() => {
-    let cancelled = false;
-    getTierPackages()
-      .then((p) => { if (!cancelled) setPkgs(p); })
-      .catch(() => { /* fallback to money() */ });
-    return () => { cancelled = true; };
-  }, []);
-  const voicePrice = pkgs.voice?.product.priceString ?? money(199);
-  const chatPrice  = pkgs.chat?.product.priceString  ?? money(99);
+  // Prices intentionally NOT shown in the Plan row — until RevenueCat
+  // env vars are configured (EXPO_PUBLIC_REVENUECAT_API_KEY_IOS etc.) the
+  // app falls back to a hardcoded PHP base, which displays incorrectly
+  // for non-PH users. The full paywall in /plans uses the same fallback
+  // with an explicit ₱ symbol so the price is at least honest there.
+  // Settings just shows the plan name + entitlement summary; the
+  // dedicated /plans route is the source of truth for pricing.
 
   // ── Persona voice preview — pregen sample only (see memory) ───────────
   const [speakingPersona, setSpeakingPersona] = useState<PersonaId | null>(null);
@@ -631,9 +626,9 @@ export default function SettingsScreen() {
           title={tier === "voice" ? "Voice Ask" : tier === "chat" ? "Chat Ask" : "Ask Judith"}
           subtitle={
             tier === "voice" ? (
-              <>Unlimited text & voice · <Mono size={12}>{voicePrice}</Mono>/mo</>
+              "Unlimited text & voice asks"
             ) : tier === "chat" ? (
-              <>Unlimited text asks · <Mono size={12}>{chatPrice}</Mono>/mo</>
+              "Unlimited text asks"
             ) : (
               <><Mono size={12}>{asksLeft}</Mono> free asks left</>
             )
