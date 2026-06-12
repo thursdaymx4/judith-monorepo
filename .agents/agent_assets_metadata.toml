@@ -47,3 +47,9 @@ id = "b1wpq4VQdIprEkRsj9sYB"
 uri = "file://attached_assets/framed/ultra_422x514_home.png"
 type = "image"
 title = "422×514 — Home screen"
+
+[[outputs]]
+id = "FkFCqyqXGJeGxCr0GE0n5"
+uri = "file://attached_assets/framed/google_play_feature_graphic.png"
+type = "image"
+title = "Google Play Feature Graphic — 1024×500 px"
