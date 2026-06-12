@@ -765,6 +765,22 @@ router.post("/ask", askLimiter, async (req, res) => {
       res.status(400).json({ error: "text is required" });
       return;
     }
+    // Hard cap on user message length to prevent cost-burn / OOM. A normal
+    // Ask Judith question is 50-200 chars; 4000 is generous headroom for
+    // a power-user pasting a long invoice description. Anything beyond
+    // that is either accidental or abusive — reject loudly so the client
+    // can guide the user to summarise.
+    if (text.length > 4000) {
+      res.status(413).json({ error: "text too long (max 4000 chars)" });
+      return;
+    }
+    // Sanity cap on the bills array — a real user has <100 bills; anything
+    // bigger is either client corruption or a tampered request. Stops one
+    // call from blowing up the prompt token budget.
+    if (Array.isArray(bodyBills) && bodyBills.length > 300) {
+      res.status(413).json({ error: "too many bills in context" });
+      return;
+    }
     const today = parseLocalDate(localDate);
     const cur: string = typeof currency === "string" && currency.trim() ? currency.trim() : "₱";
     const country: string = typeof countryName === "string" && countryName.trim() ? countryName.trim() : "the Philippines";
