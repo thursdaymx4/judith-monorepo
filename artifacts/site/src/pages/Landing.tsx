@@ -125,8 +125,8 @@ function Hero() {
 
         <Reveal delay={0.05}>
           <h1 className="mt-7 text-balance text-[40px] leading-[1.05] tracking-tight text-txt-hi sm:text-[64px]">
-            Do you actually know how much you{" "}
-            <span className="font-display text-mint-grad">still owe</span>?
+            Do you actually know how much bills you{" "}
+            <span className="font-display text-mint-grad">still need to pay</span>?
           </h1>
         </Reveal>
 
