@@ -20,8 +20,9 @@ export default function PrivacyPolicy() {
       <Section title="1. How Your Bill Data Is Stored">
         <p style={pStyle}>
           Your bill data — names, amounts, due dates, and categories — is stored{" "}
-          <strong>locally on your device</strong> using on-device storage. It is
-          not continuously uploaded to our servers during normal app use.
+          <strong>locally on your device</strong>, encrypted at rest using
+          AES-256-GCM via iOS Keychain-backed key material. It is not
+          continuously uploaded to our servers during normal app use.
         </p>
         <p style={pStyle}>
           <strong>iCloud Backup (signed-in users).</strong> If you are signed
@@ -56,10 +57,14 @@ export default function PrivacyPolicy() {
             When you use the <strong>Ask Judith</strong> feature, your question
             and your current bill list (including amounts, due dates, and
             payment status) are sent to Judith's backend server, which uses{" "}
-            <strong>Anthropic</strong> (Claude AI) to generate a response. This
-            context is used only to answer your question and is not retained by
-            Judith after the request completes. Anthropic's data practices are
-            governed by their{" "}
+            <strong>Anthropic</strong> (Claude AI) to generate a response.{" "}
+            <strong>
+              Your bill context is not stored on our servers after the response
+              is generated.
+            </strong>{" "}
+            Anthropic may temporarily process the request data per their
+            published policy. Anthropic's data practices are governed by
+            their{" "}
             <a
               href="https://www.anthropic.com/privacy"
               style={linkStyle}
@@ -141,15 +146,17 @@ export default function PrivacyPolicy() {
           </p>
         </Subsection>
 
-        <Subsection title="Crash & Error Reporting">
+        <Subsection title="Crash & Performance Diagnostics">
           <p style={pStyle}>
-            We use <strong>Sentry</strong> to automatically capture crash
-            reports and error logs. When the app crashes or encounters an
-            unexpected error, Sentry collects technical details such as the
-            stack trace, device type, OS version, and app version. This
-            information is used solely to diagnose and fix bugs — it does not
-            include your bill data, account credentials, or financial
-            information. Sentry's data practices are governed by their{" "}
+            In production, we use <strong>Sentry</strong> to collect
+            anonymized crash reports and performance metrics (app launch time,
+            render performance, network response times). This data is used to
+            detect bugs and improve app stability. Sentry receives a
+            device-bound installation identifier that is{" "}
+            <strong>not linked to your account</strong> and does not include
+            your bill data, account credentials, or financial information.
+            Sentry is <strong>disabled in development builds</strong>. Sentry's
+            data practices are governed by their{" "}
             <a
               href="https://sentry.io/privacy/"
               style={linkStyle}
@@ -164,9 +171,9 @@ export default function PrivacyPolicy() {
 
         <Subsection title="Device & Usage Data">
           <p style={pStyle}>
-            Beyond crash reports (see above), we collect minimal technical data
-            (device type, OS version, app version) to maintain app stability.
-            We do not use third-party advertising trackers or analytics SDKs.
+            We do not use third-party advertising trackers. The only analytics
+            tool we use is Sentry, scoped to crash and performance diagnostics
+            as described above.
           </p>
         </Subsection>
       </Section>
@@ -244,9 +251,9 @@ export default function PrivacyPolicy() {
           active. If you delete your account, your account information and
           associated records are permanently deleted within 30 days. Because
           bill data is stored locally and in your iCloud, deleting the app or
-          your iCloud backup removes that data from those locations. Anonymized,
-          aggregated usage statistics (containing no personal information) may
-          be retained for analytics.
+          your iCloud backup removes that data from those locations. Sentry
+          retains anonymized crash and performance data per their own retention
+          policy.
         </p>
       </Section>
 
@@ -270,10 +277,11 @@ export default function PrivacyPolicy() {
 
       <Section title="8. Children's Privacy">
         <p style={pStyle}>
-          Judith is not intended for children under 13 years of age. We do not
-          knowingly collect personal information from children under 13. If you
-          believe a child has provided us with personal information, please
-          contact us and we will delete it promptly.
+          Judith is not intended for children under 13 years of age (or under
+          16 where applicable under local law). We do not knowingly collect
+          personal information from children under 13. If you believe a child
+          has provided us with personal information, please contact us and we
+          will delete it promptly.
         </p>
       </Section>
 
@@ -281,9 +289,11 @@ export default function PrivacyPolicy() {
         <p style={pStyle}>
           When you authenticate with Apple or Google, those platforms handle
           your credentials — we never see your password. We receive only a
-          unique user identifier and, optionally, your name and email. Your use
-          of those authentication services is also governed by Apple's and
-          Google's respective privacy policies.
+          unique user identifier and, optionally, your name and email.
+          Apple Sign-In uses cryptographic nonces to prevent replay attacks,
+          ensuring each authentication request is unique and cannot be reused.
+          Your use of those authentication services is also governed by Apple's
+          and Google's respective privacy policies.
         </p>
       </Section>
 
@@ -298,8 +308,10 @@ export default function PrivacyPolicy() {
 
       <Section title="11. Contact Us">
         <p style={pStyle}>
-          If you have questions or concerns about this Privacy Policy, please
-          contact:
+          <strong>Thursday MX</strong> is the data controller responsible for
+          your personal data under this policy. If you have questions or
+          concerns about this Privacy Policy, or wish to exercise any of your
+          rights, please contact:
         </p>
         <div style={contactBoxStyle}>
           <p style={{ margin: "0 0 4px", fontWeight: 600, color: "#1a1a1a" }}>Thursday MX</p>

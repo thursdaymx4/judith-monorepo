@@ -1,0 +1,57 @@
+Tight policy overall — flows well and Apple-acceptable. Three real gaps to fix before you publish, plus a few small nice-to-haves:
+
+🚫 Must fix before publishing
+
+1. Sentry is undisclosed.
+You list third parties as "Anthropic, ElevenLabs, RevenueCat, Supabase" — Sentry is missing. Your latest build runs Sentry.init in production (not dev), so it WILL collect crash + performance data from real users. Apple's reviewer cross-checks the nutrition label against the policy; if you ticked Crash Data + Performance Data on the label but the policy doesn't name Sentry, you risk rejection.
+
+Add to Section 2 (a new sub-section):
+Crash & Performance Diagnostics. In production, we use Sentry to collect anonymized crash reports and performance metrics (app launch time, render performance, network response times). This data is used to detect bugs and improve app stability. Sentry receives a device-bound installation identifier but is not linked to your account. Sentry is disabled in development builds. Sentry's data practices are governed by their Privacy Policy.
+
+And add Sentry to Section 5: "Third-party services we use (Anthropic, ElevenLabs, RevenueCat, Sentry, Supabase) …"
+
+2. The "no analytics SDKs" claim is wrong.
+Section 2 → Device & Usage Data says: "We do not use third-party advertising trackers or analytics SDKs." — Sentry IS technically an analytics SDK (perf data, screen navigation breadcrumbs). Replace with:
+
+"We do not use third-party advertising trackers. The only analytics tool we use is Sentry, scoped to crash and performance diagnostics."
+
+3. Section 11 (Contact) is empty.
+Your text ends with please contact: and nothing after it. Add the actual contact details — Apple WILL reject for incomplete privacy policy. Suggested:
+
+Thursday MX
+Email: privacy@judithforduedates.com
+[optional: physical address required in some jurisdictions like GDPR/CCPA]
+
+For GDPR compliance specifically you also want to name the data controller (likely Thursday MX) in either Section 5 or Section 11.
+
+🟡 Nice-to-haves (not blockers)
+
+4. Mention local encryption as a feature.
+You currently say bill data is "stored locally on your device using on-device storage." Worth adding "encrypted at rest using AES-256-GCM via iOS Keychain-backed key material." That's true (your JudithSecureStoreModule.swift􀰓 does exactly this) and it's a real selling point.
+
+5. The "anonymized, aggregated usage statistics" line is hypothetical.
+Section 6 ends with: "Anonymized, aggregated usage statistics (containing no personal information) may be retained for analytics." — you don't currently aggregate anything. Either remove the sentence to keep the policy honest, OR scope it to Sentry's anonymized crash counts.
+
+6. Bill list to backend — clarify retention.
+Section 3 says context is "sent to our backend and Anthropic." Add the explicit non-retention claim that matches your code:
+"Your bill context is not stored on our servers after the response is generated. Anthropic may temporarily process the request data per their published policy."
+
+7. Children's age.
+For GDPR-EU, the threshold floats between 13 and 16 depending on country. Your "under 13" is fine for US/App Store but consider: "under 13 (or under 16 where applicable under local law)".
+
+8. Apple Sign-In nonce.
+You mention Apple/Google sign-in but not the security mechanism. A one-liner like "Apple Sign-In uses cryptographic nonces to prevent replay attacks" makes you look sharper to anyone reviewing.
+
+🟢 Already correct (no changes needed)
+
+• All Anthropic/ElevenLabs/RevenueCat/Supabase disclosures
+• iCloud backup framing as user-owned storage (not your servers)
+• Apple Watch + widget app-group framing
+• Account deletion + 30-day window
+• Hide My Email handling
+• No-sell / no-broker statement
+• Section 7 rights list is GDPR + CCPA compliant
+
+⸻
+
+Bottom line: Fix items 1, 2, 3 in that order. Without those three, you'll either get rejected at App Store review or get a regulatory complaint later. Items 4–8 are polish that you can ship without but should knock out in your next policy update.
