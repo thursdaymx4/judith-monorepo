@@ -141,11 +141,32 @@ export default function PrivacyPolicy() {
           </p>
         </Subsection>
 
+        <Subsection title="Crash & Error Reporting">
+          <p style={pStyle}>
+            We use <strong>Sentry</strong> to automatically capture crash
+            reports and error logs. When the app crashes or encounters an
+            unexpected error, Sentry collects technical details such as the
+            stack trace, device type, OS version, and app version. This
+            information is used solely to diagnose and fix bugs — it does not
+            include your bill data, account credentials, or financial
+            information. Sentry's data practices are governed by their{" "}
+            <a
+              href="https://sentry.io/privacy/"
+              style={linkStyle}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Privacy Policy
+            </a>
+            .
+          </p>
+        </Subsection>
+
         <Subsection title="Device & Usage Data">
           <p style={pStyle}>
-            We collect minimal technical data (device type, OS version, app
-            version, crash logs) to maintain app stability. We do not use
-            third-party advertising trackers or analytics SDKs.
+            Beyond crash reports (see above), we collect minimal technical data
+            (device type, OS version, app version) to maintain app stability.
+            We do not use third-party advertising trackers or analytics SDKs.
           </p>
         </Subsection>
       </Section>
@@ -177,6 +198,10 @@ export default function PrivacyPolicy() {
             <strong>Always:</strong> Subscription status is checked with
             RevenueCat. Authentication is handled by Supabase Auth.
           </li>
+          <li style={liStyle}>
+            <strong>On crash or error:</strong> Technical crash details (stack
+            trace, device/OS/app version — no bill data) are sent to Sentry.
+          </li>
         </ul>
       </Section>
 
@@ -207,8 +232,8 @@ export default function PrivacyPolicy() {
         </p>
         <p style={pStyle}>
           Third-party services we use (Anthropic, ElevenLabs, RevenueCat,
-          Supabase) are each bound by their own security practices and data
-          processing agreements. We select partners with strong security
+          Sentry, Supabase) are each bound by their own security practices and
+          data processing agreements. We select partners with strong security
           reputations.
         </p>
       </Section>
