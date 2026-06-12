@@ -76,6 +76,18 @@ const FEATURES = [
   },
 ];
 
+const SCREENSHOTS = [
+  { file: "01-home.png", label: "Your month, handled" },
+  { file: "02-calendar.png", label: "Plan ahead" },
+  { file: "03-insights.png", label: "Work & life, split" },
+  { file: "04-ask.png", label: "Go on, ask" },
+  { file: "05-upcoming.png", label: "Nothing slips" },
+  { file: "06-darkmode.png", label: "Night owl?" },
+  { file: "07-watch.png", label: "On your wrist" },
+  { file: "08-personality.png", label: "She's got personality" },
+  { file: "09-language.png", label: "Speaks your language" },
+];
+
 export default function Landing() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-canvas">
@@ -86,6 +98,7 @@ export default function Landing() {
       <Autopay />
       <RealLife />
       <Testimonial />
+      <Screenshots />
       <Features />
       <Pricing />
       <CTA />
@@ -505,6 +518,61 @@ function Testimonial() {
           </figcaption>
         </figure>
       </Reveal>
+    </section>
+  );
+}
+
+/* --------------------------------------------------------- SCREENSHOTS */
+function Screenshots() {
+  const base = import.meta.env.BASE_URL;
+  return (
+    <section id="screenshots" className="py-20 sm:py-28">
+      <Reveal className="px-5 text-center">
+        <SectionHead
+          eyebrow="See it in action"
+          title={
+            <>
+              Every screen, built{" "}
+              <span className="font-display text-mint-grad">for clarity.</span>
+            </>
+          }
+          sub="Nine views, one purpose — know exactly where you stand, whenever you need to."
+        />
+      </Reveal>
+
+      <div
+        className={[
+          "mt-14 flex gap-5 overflow-x-auto pb-6",
+          "px-5 sm:px-8",
+          "snap-x snap-mandatory scroll-smooth",
+          "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
+        ].join(" ")}
+      >
+        {SCREENSHOTS.map((s, i) => (
+          <Reveal
+            key={s.file}
+            delay={Math.min(i, 4) * 0.05}
+            className="flex-shrink-0 snap-start"
+          >
+            <div className="flex flex-col items-center gap-3">
+              <img
+                src={`${base}screenshots/${s.file}`}
+                alt={s.label}
+                width={280}
+                className="h-auto w-[220px] rounded-2xl shadow-2xl ring-1 ring-white/5 sm:w-[260px]"
+                loading="lazy"
+                draggable={false}
+              />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-txt-low">
+                {s.label}
+              </span>
+            </div>
+          </Reveal>
+        ))}
+
+        {/* breathing room at the end */}
+        <div className="flex-shrink-0 w-3 sm:w-6" aria-hidden />
+      </div>
     </section>
   );
 }
