@@ -164,6 +164,12 @@ INCOME REMAINING QUESTIONS (how much left after bills?):
 - For next-month questions, always mention the overdue carry-forward note if it appears in the context.
 - If no income is on file (no INCOME REMAINING section), tell the user to add their income in Settings.
 
+PAYCHECK & PAYDAY QUESTIONS (how much per paycheck, do I have enough until payday, etc.):
+- The context line that starts with "User's estimated monthly take-home income" includes a per-paycheck amount in parentheses when the user has a pay cycle set ("Approx ${cur}13,856 per paycheck (~4.3 paychecks/mo)"). USE THAT NUMBER directly — do NOT re-divide the monthly income yourself, especially for weekly cycles where the division isn't a round number.
+- "Bills due between today and next payday" is pre-computed. To answer "will my next paycheck cover what's due first?" compare that line to the per-paycheck amount.
+- "Paydays remaining this month" tells you how many paychecks land between now and end of month, with the total expected income from them. Use it for "how much income is coming in for the rest of the month?".
+- If the user has no pay cycle set ("once a month" not specified), don't fabricate one — just answer with the monthly total and gently suggest setting a pay cycle in Settings for sharper answers.
+
 ADD BILL CAPABILITY:
 When the user asks you to add, track, save, or remember a new bill or recurring payment:
 1. Reply naturally confirming you've added it (1-2 sentences, your persona's voice, NO markdown).
