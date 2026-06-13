@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState, useCallback } from "react";
 import {
   CreditCard,
   Bell,
@@ -13,6 +13,9 @@ import {
   ArrowRight,
   ChevronLeft,
   ChevronRight,
+  Volume2,
+  Square,
+  Loader2,
 } from "lucide-react";
 import { Nav } from "@/components/site/Nav";
 import { Footer } from "@/components/site/Footer";
@@ -126,6 +129,7 @@ function avatarUrl(bg: string, params: string) {
 
 const PERSONAS_SITE = [
   {
+    id: "professional",
     name: "Professional Peer",
     vibe: "Clear · calm",
     line: "Every due date, tracked. Clear, on time — nothing slips through.",
@@ -137,6 +141,7 @@ const PERSONAS_SITE = [
     ),
   },
   {
+    id: "funny",
     name: "Funny Friend",
     vibe: "Warm · playful",
     line: "No more 'wait, that was due WHEN?' moments. I've got your back.",
@@ -148,6 +153,7 @@ const PERSONAS_SITE = [
     ),
   },
   {
+    id: "sarcastic",
     name: "Sarcastic Sibling",
     vibe: "Cheeky · blunt",
     line: "Your bills are handled. You're welcome — I know you'd have forgotten.",
@@ -159,6 +165,7 @@ const PERSONAS_SITE = [
     ),
   },
   {
+    id: "mom",
     name: "Your Mom",
     vibe: "Caring · a little naggy",
     line: "Don't worry about the bills — I've got it. Now go eat something, please.",
@@ -170,6 +177,7 @@ const PERSONAS_SITE = [
     ),
   },
   {
+    id: "marites",
     name: "Perky Pal",
     vibe: "Perky · gossip-y",
     line: "I know everything about your bills — and I will never let you forget them!",
@@ -181,6 +189,7 @@ const PERSONAS_SITE = [
     ),
   },
   {
+    id: "britney",
     name: "Brutal Britney",
     vibe: "Honest · brutal",
     line: "Bills. Due dates. Amounts. I track them. You pay them. That's it.",
@@ -1100,6 +1109,118 @@ function GlanceOrAsk() {
   );
 }
 
+/* ---------------------------------------------------- VOICE BUTTON */
+const API_BASE = "https://judithforduedates.com";
+
+// Module-level singletons — one audio at a time, URLs cached in memory
+let _activeAudio: HTMLAudioElement | null = null;
+let _resetActive: (() => void) | null = null;
+const _urlCache = new Map<string, string>();
+
+type PlayState = "idle" | "loading" | "playing" | "error";
+
+function VoiceButton({ personaId }: { personaId: string }) {
+  const [state, setState] = useState<PlayState>("idle");
+
+  // Stable reference to "reset this button to idle"
+  const stopSelf = useCallback(() => setState("idle"), []);
+
+  const handleClick = async () => {
+    // Already playing / loading this persona — stop it
+    if (state === "playing" || state === "loading") {
+      _activeAudio?.pause();
+      _activeAudio = null;
+      _resetActive = null;
+      setState("idle");
+      return;
+    }
+
+    // Stop whatever is currently playing and reset that button
+    _activeAudio?.pause();
+    _activeAudio = null;
+    _resetActive?.();
+    _resetActive = stopSelf;
+
+    setState("loading");
+
+    try {
+      let url = _urlCache.get(personaId);
+      if (!url) {
+        const res = await fetch(
+          `${API_BASE}/api/public/persona-sample?persona=${personaId}`,
+        );
+        if (!res.ok) throw new Error("fetch_failed");
+        const data = (await res.json()) as { url: string };
+        url = data.url;
+        _urlCache.set(personaId, url);
+      }
+
+      // Check we weren't pre-empted by another button click
+      if (_resetActive !== stopSelf) return;
+
+      const audio = new Audio(url);
+      _activeAudio = audio;
+
+      audio.addEventListener("ended", () => {
+        if (_activeAudio === audio) {
+          _activeAudio = null;
+          _resetActive = null;
+        }
+        setState("idle");
+      });
+      audio.addEventListener("error", () => {
+        if (_activeAudio === audio) {
+          _activeAudio = null;
+          _resetActive = null;
+        }
+        setState("error");
+      });
+
+      await audio.play();
+      if (_activeAudio !== audio) return; // pre-empted during async play()
+      setState("playing");
+    } catch {
+      if (_resetActive === stopSelf) {
+        _resetActive = null;
+        setState("error");
+      }
+    }
+  };
+
+  return (
+    <button
+      onClick={handleClick}
+      className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold transition-colors ${
+        state === "playing"
+          ? "border-accent/50 bg-accent/20 text-accent"
+          : state === "error"
+            ? "border-red-400/30 bg-red-400/10 text-red-400"
+            : "border-accent/25 bg-accent/8 text-accent hover:bg-accent/16"
+      }`}
+      aria-label={state === "playing" ? "Stop preview" : "Hear this voice"}
+    >
+      {state === "loading" ? (
+        <>
+          <Loader2 size={10} className="animate-spin" />
+          <span>Loading…</span>
+        </>
+      ) : state === "playing" ? (
+        <>
+          <Square size={10} className="fill-accent" />
+          <span>Stop</span>
+        </>
+      ) : state === "error" ? (
+        <span>Try again</span>
+      ) : (
+        <>
+          <Volume2 size={10} />
+          <span>Hear voice</span>
+        </>
+      )}
+    </button>
+  );
+}
+
 /* ----------------------------------------------------------- PERSONAS */
 function Personas() {
   return (
@@ -1142,13 +1263,18 @@ function Personas() {
                 </p>
 
                 {/* Footer */}
-                <div className="mt-5 flex items-center gap-2.5 border-t border-hair pt-4">
-                  <span className="text-[13px] font-semibold text-txt-hi">
-                    {p.name}
-                  </span>
-                  <span className="ml-auto rounded-full border border-hair px-2.5 py-0.5 text-[11px] text-txt-low">
-                    {p.vibe}
-                  </span>
+                <div className="mt-5 border-t border-hair pt-4">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-[13px] font-semibold text-txt-hi">
+                      {p.name}
+                    </span>
+                    <span className="ml-auto rounded-full border border-hair px-2.5 py-0.5 text-[11px] text-txt-low">
+                      {p.vibe}
+                    </span>
+                  </div>
+                  <div className="mt-3">
+                    <VoiceButton personaId={p.id} />
+                  </div>
                 </div>
               </div>
             </Reveal>
