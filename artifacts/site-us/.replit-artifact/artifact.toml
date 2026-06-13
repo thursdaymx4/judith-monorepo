@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Judith (US)"
+version = "1.0.0"
+id = "artifacts/site-us"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20349
+
+[services.development]
+run = "pnpm --filter @workspace/site-us run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/site-us", "run", "build" ]
+publicDir = "artifacts/site-us/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20349"
+BASE_PATH = "/"

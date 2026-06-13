@@ -1,5 +1,5 @@
 kind = "mobile"
-previewPath = "/"
+previewPath = "/app/"
 title = "Judith"
 version = "1.0.0"
 id = "artifacts/judith"
@@ -12,7 +12,7 @@ version = "1.0.0"
 [[services]]
 ensurePreviewReachable = "/status"
 name = "expo"
-paths = [ "/" ]
+paths = [ "/app/" ]
 localPort = 25567
 
 [services.development]
@@ -26,4 +26,4 @@ args = ["node", "artifacts/judith/server/serve.js"]
 
 [services.production.run.env]
 PORT = "25567"
-BASE_PATH = "/"
+BASE_PATH = "/app/"

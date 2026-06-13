@@ -1,0 +1,161 @@
+@import "tailwindcss";
+
+@theme {
+  --color-canvas: #0a0b0e;
+  --color-surface-1: #121419;
+  --color-surface-2: #181b22;
+  --color-surface-3: #1f232c;
+
+  --color-hair: rgba(255, 255, 255, 0.09);
+  --color-hair-2: rgba(255, 255, 255, 0.055);
+
+  --color-txt-hi: #f3f5f8;
+  --color-txt-mid: #a7adba;
+  --color-txt-low: #6a7180;
+
+  --color-accent: #29d5a5;
+  --color-accent-dim: #1c9e7a;
+  --color-on-accent: #07080a;
+
+  --color-overdue: #ea1d3b;
+  --color-urgent: #ff645f;
+  --color-near: #f7b83d;
+  --color-ok: #56d1a3;
+
+  --color-violet: #b394ff;
+  --color-blue: #36acff;
+
+  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Playfair Display", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #0a0b0e;
+  color: #f3f5f8;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgba(41, 213, 165, 0.28);
+  color: #f3f5f8;
+}
+
+/* Thin custom scrollbar to match the dark canvas */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0b0e;
+}
+::-webkit-scrollbar-thumb {
+  background: #1f232c;
+  border-radius: 999px;
+  border: 2px solid #0a0b0e;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #2a2f3a;
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+    font-style: italic;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* The mint signature gradient used for emphasis words */
+  .text-mint-grad {
+    background: linear-gradient(135deg, #5fe6c1 0%, #29d5a5 55%, #1c9e7a 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Soft radial bloom — echoes the app's IntroScreenGlow */
+  .bloom {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(90px);
+    pointer-events: none;
+    opacity: 0.55;
+  }
+
+  /* Hairline card surface */
+  .card {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0)),
+      #121419;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 24px;
+  }
+
+  .card-tight {
+    background: #15181f;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 18px;
+  }
+
+  .ring-accent {
+    box-shadow: 0 0 0 1px rgba(41, 213, 165, 0.5),
+      0 18px 60px -22px rgba(41, 213, 165, 0.55);
+  }
+
+  .grain {
+    background-image: radial-gradient(
+      rgba(255, 255, 255, 0.025) 1px,
+      transparent 1px
+    );
+    background-size: 4px 4px;
+  }
+
+  .fade-up {
+    opacity: 0;
+    transform: translateY(18px);
+    animation: fadeUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  @keyframes fadeUp {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes floaty {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-8px);
+    }
+  }
+  .floaty {
+    animation: floaty 6s ease-in-out infinite;
+  }
+
+  @keyframes marquee-left {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+  }
+  @keyframes marquee-right {
+    from { transform: translateX(-50%); }
+    to   { transform: translateX(0); }
+  }
+  .marquee-left {
+    animation: marquee-left 40s linear infinite;
+  }
+  .marquee-right {
+    animation: marquee-right 40s linear infinite;
+  }
+}
