@@ -102,11 +102,11 @@ const VOICE_CAPS = [
 ];
 
 const EXAMPLE_ASKS = [
-  { q: "What's due before payday?", a: "You've got ₱18,420 due across 3 bills before the 15th. Electricity is the closest — due in 2 days." },
-  { q: "How much do I still owe this month?" },
-  { q: "Did I pay Meralco?" },
-  { q: "Can I afford a vacation next month?" },
+  { q: "Did I pay my credit card this month?", a: "Your BPI card looks unpaid — ₱4,200 minimum due on the 18th. The full statement balance is ₱12,840." },
   { q: "Which bill should I worry about first?" },
+  { q: "What's coming up next week?" },
+  { q: "How much is left after all my bills?" },
+  { q: "Can I afford a vacation next month?" },
 ];
 
 const WATCH_CAPS = [
