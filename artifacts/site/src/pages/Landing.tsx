@@ -118,6 +118,74 @@ const WATCH_CAPS = [
   "Answers sent from iPhone, shown on Watch",
 ];
 
+const PERSONAS_SITE = [
+  {
+    name: "Professional Peer",
+    vibe: "Clear · calm",
+    line: "Every due date, tracked. Clear, on time — nothing slips through.",
+    border: "border-accent/35",
+    dot: "bg-accent",
+    bg: "bg-accent/8",
+    shadow: "hover:shadow-[0_0_32px_-8px_rgba(41,213,165,0.25)]",
+  },
+  {
+    name: "Funny Friend",
+    vibe: "Warm · playful",
+    line: "No more 'wait, that was due WHEN?' moments. I've got your back.",
+    border: "border-yellow-400/35",
+    dot: "bg-yellow-400",
+    bg: "bg-yellow-400/8",
+    shadow: "hover:shadow-[0_0_32px_-8px_rgba(250,204,21,0.25)]",
+  },
+  {
+    name: "Sarcastic Sibling",
+    vibe: "Cheeky · blunt",
+    line: "Your bills are handled. You're welcome — I know you'd have forgotten.",
+    border: "border-orange-400/35",
+    dot: "bg-orange-400",
+    bg: "bg-orange-400/8",
+    shadow: "hover:shadow-[0_0_32px_-8px_rgba(251,146,60,0.25)]",
+  },
+  {
+    name: "Your Mom",
+    vibe: "Caring · a little naggy",
+    line: "Don't worry about the bills — I've got it. Now go eat something, please.",
+    border: "border-pink-400/35",
+    dot: "bg-pink-400",
+    bg: "bg-pink-400/8",
+    shadow: "hover:shadow-[0_0_32px_-8px_rgba(244,114,182,0.25)]",
+  },
+  {
+    name: "Perky Pal",
+    vibe: "Perky · gossip-y",
+    line: "I know everything about your bills — and I will never let you forget them!",
+    border: "border-violet-400/35",
+    dot: "bg-violet-400",
+    bg: "bg-violet-400/8",
+    shadow: "hover:shadow-[0_0_32px_-8px_rgba(167,139,250,0.25)]",
+  },
+  {
+    name: "Brutal Britney",
+    vibe: "Honest · brutal",
+    line: "Bills. Due dates. Amounts. I track them. You pay them. That's it.",
+    border: "border-red-400/35",
+    dot: "bg-red-400",
+    bg: "bg-red-400/8",
+    shadow: "hover:shadow-[0_0_32px_-8px_rgba(248,113,113,0.25)]",
+  },
+];
+
+const LANG_ROW_A = [
+  "English", "Filipino", "Español", "Français", "Deutsch", "Italiano",
+  "Português", "Nederlands", "Polski", "Русский", "Українська", "Türkçe",
+  "العربية", "日本語", "한국어", "中文", "粵語", "हिन्दी",
+];
+const LANG_ROW_B = [
+  "தமிழ்", "Bahasa Indonesia", "Bahasa Melayu", "Tiếng Việt", "ภาษาไทย",
+  "Svenska", "Dansk", "Norsk", "Suomi", "Čeština", "Slovenčina",
+  "Română", "Български", "Hrvatski", "Ελληνικά", "Magyar",
+];
+
 export default function Landing() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-canvas">
@@ -125,6 +193,8 @@ export default function Landing() {
       <Hero />
       <Ask />
       <VoiceCapabilities />
+      <Personas />
+      <Languages />
       <ALot />
       <Autopay />
       <RealLife />
@@ -877,6 +947,151 @@ function VoiceCapabilities() {
                 </span>
               ))}
             </div>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+/* ----------------------------------------------------------- PERSONAS */
+function Personas() {
+  return (
+    <section className="relative px-5 py-24">
+      <div className="bloom -left-40 top-20 h-[380px] w-[380px] bg-violet/10" />
+      <div className="relative">
+        <Reveal>
+          <SectionHead
+            eyebrow="6 personalities"
+            title={
+              <>
+                Pick the voice{" "}
+                <span className="font-display text-mint-grad">
+                  that feels right.
+                </span>
+              </>
+            }
+            sub="Judith isn't one-size-fits-all. Choose a personality that matches how you like to be spoken to — then switch any time."
+          />
+        </Reveal>
+
+        <div className="mx-auto mt-12 grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {PERSONAS_SITE.map((p, i) => (
+            <Reveal key={p.name} delay={i * 0.06}>
+              <div
+                className={`group relative flex h-full flex-col rounded-2xl border ${p.border} bg-surface-1/50 p-6 backdrop-blur transition-all duration-300 ${p.shadow}`}
+              >
+                {/* Quote mark */}
+                <span className="mb-3 block font-display text-[40px] leading-none text-txt-low/40">
+                  "
+                </span>
+
+                {/* Persona line */}
+                <p className="flex-1 text-[15px] leading-relaxed text-txt-hi">
+                  {p.line}
+                </p>
+
+                {/* Footer */}
+                <div className="mt-5 flex items-center gap-2.5 border-t border-hair pt-4">
+                  <div className={`h-2 w-2 rounded-full ${p.dot}`} />
+                  <span className="text-[13px] font-semibold text-txt-hi">
+                    {p.name}
+                  </span>
+                  <span className="ml-auto rounded-full border border-hair px-2.5 py-0.5 text-[11px] text-txt-low">
+                    {p.vibe}
+                  </span>
+                </div>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ----------------------------------------------------------- LANGUAGES */
+function Languages() {
+  const rowA = [...LANG_ROW_A, ...LANG_ROW_A];
+  const rowB = [...LANG_ROW_B, ...LANG_ROW_B];
+
+  return (
+    <section className="relative overflow-hidden px-0 py-24">
+      <div className="bloom left-1/2 top-0 h-[320px] w-[600px] -translate-x-1/2 bg-accent/8" />
+      <div className="relative">
+        <Reveal>
+          <SectionHead
+            eyebrow="Global reach"
+            title={
+              <>
+                Speaks your language.{" "}
+                <span className="font-display text-mint-grad">Literally.</span>
+              </>
+            }
+            sub="Ask by voice in your language, and Judith replies in the same one — spoken aloud or as text."
+          />
+        </Reveal>
+
+        {/* Language count badge */}
+        <Reveal delay={0.08}>
+          <div className="mx-auto mt-8 flex justify-center">
+            <div className="inline-flex items-center gap-3 rounded-full border border-accent/30 bg-accent/10 px-5 py-2.5">
+              <span className="text-[22px] font-bold text-accent">35+</span>
+              <span className="text-[13px] text-txt-mid">
+                languages spoken & understood
+              </span>
+            </div>
+          </div>
+        </Reveal>
+
+        {/* Marquee rows */}
+        <div className="relative mt-10 space-y-3 overflow-hidden">
+          {/* Fade edges */}
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-canvas to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-gradient-to-l from-canvas to-transparent" />
+
+          {/* Row A — scrolls left */}
+          <div className="flex w-max gap-3 marquee-left">
+            {rowA.map((lang, i) => (
+              <span
+                key={`a-${i}`}
+                className="whitespace-nowrap rounded-full border border-hair bg-surface-1/60 px-4 py-2 text-[13px] font-medium text-txt-mid"
+              >
+                {lang}
+              </span>
+            ))}
+          </div>
+
+          {/* Row B — scrolls right */}
+          <div className="flex w-max gap-3 marquee-right">
+            {rowB.map((lang, i) => (
+              <span
+                key={`b-${i}`}
+                className="whitespace-nowrap rounded-full border border-hair bg-surface-1/60 px-4 py-2 text-[13px] font-medium text-txt-mid"
+              >
+                {lang}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Feature pills */}
+        <Reveal delay={0.12}>
+          <div className="mx-auto mt-10 flex flex-wrap justify-center gap-2.5 px-5">
+            {[
+              "Voice input",
+              "Voice output",
+              "Language auto-detected",
+              "No switching needed",
+            ].map((f) => (
+              <span
+                key={f}
+                className="flex items-center gap-1.5 rounded-full border border-hair bg-surface-2/60 px-4 py-1.5 text-[12px] font-medium text-txt-mid"
+              >
+                <Check size={11} className="text-accent" />
+                {f}
+              </span>
+            ))}
           </div>
         </Reveal>
       </div>
