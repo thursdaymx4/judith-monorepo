@@ -280,17 +280,17 @@ function Hero() {
 
         <Reveal eager delay={0.05}>
           <h1 className="mt-7 text-balance text-[40px] leading-[1.05] tracking-tight text-txt-hi sm:text-[64px]">
-            Do you actually know how much you{" "}
-            <span className="font-display text-mint-grad">still need to pay</span>?
+            Stop guessing. Stop dreading the number.{" "}
+            <span className="font-display text-mint-grad">Just ask Judith.</span>
           </h1>
         </Reveal>
 
         <Reveal eager delay={0.12}>
           <p className="mx-auto mt-7 max-w-2xl text-balance text-[17px] leading-relaxed text-txt-mid sm:text-[19px]">
-            Across every card, every bank, every loan. Most people can't — the
-            numbers live in different apps and the back of your mind. Judith
-            keeps them in one place. The moment you wonder where you stand, you
-            just ask.
+            It's difficult to know how much in total you have to settle — across
+            every card, every bank, every loan. Most people can't — the numbers
+            live in different apps and the back of your mind. Judith keeps them
+            in one place. The moment you wonder where you stand, you just ask.
           </p>
         </Reveal>
 
