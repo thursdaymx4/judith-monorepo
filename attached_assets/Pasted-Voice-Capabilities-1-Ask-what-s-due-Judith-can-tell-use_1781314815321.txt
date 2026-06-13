@@ -1,0 +1,73 @@
+Voice Capabilities
+
+1. Ask what’s due
+Judith can tell users what bills are coming up soon, what’s due this week, and when the next due date is.
+
+2. Ask how much they owe
+Users can ask for this month’s total, remaining unpaid bills, or totals by category like utilities, rent, credit cards, or subscriptions.
+
+3. Ask what’s already paid
+Judith can answer whether a specific bill looks paid or still unpaid.
+
+4. Ask what’s biggest or most urgent
+Users can ask which bill is largest, which one is closest to due, or what needs attention first.
+
+5. Ask about credit cards
+Judith can total credit card bills, track current statement balances, and account for recurring charges linked to cards.
+
+6. Ask about next month
+Judith can estimate next month’s bills based on the bills already tracked.
+
+7. Ask what’s left after bills
+If income is set, users can ask how much money may be left after upcoming bills.
+
+8. Ask affordability questions
+Judith can answer practical “can I afford this?” questions using tracked bills and expected upcoming totals.
+
+9. Add bills by talking
+During setup or bill entry flows, users can tell Judith the provider, amount, and due date instead of typing everything manually.
+
+10. Hear answers spoken back
+With Voice Ask, Judith can reply out loud so users can ask and listen hands-free.
+
+11. Choose Judith’s personality
+Users can hear answers in different Judith personas, like professional, funny, caring/mama-style, sarcastic, or bold.
+
+12. Use voice in natural language
+Users do not need exact commands. They can ask casually, the way they would ask a person.
+
+Example Voice Asks
+
+• “What’s due this week?”
+• “How much do I owe this month?”
+• “How much do I still have to pay this month?”
+• “When’s my next due date?”
+• “What’s my biggest bill?”
+• “Did I pay Meralco?”
+• “What’s the total due for all my credit cards this month?”
+• “How much is my water, electricity, internet, and rent this month?”
+• “What’s my estimated total bill for next month?”
+• “How much will be left from my income after bills?”
+• “Can I afford to go on vacation next month?”
+• “Which bill should I worry about first?”
+• “Add my Netflix bill, 549 pesos, due every 15th.”
+• “Add Meralco, 3,200 pesos, due on the 20th.”
+• “How much is left on my credit card bill?”
+• “What bills are overdue?”
+• “What subscriptions am I paying for?”
+• “How much are my fixed bills every month?”
+• “What bills are coming up before payday?”
+• “Remind me what I still haven’t paid.”
+
+Marketing-Friendly Lines
+
+• “Ask your bills out loud.”
+• “Judith answers your bill questions by voice.”
+• “Know what’s due, what’s paid, and what’s coming next.”
+• “Ask: ‘How much do I owe this month?’ and Judith totals it for you.”
+• “Hands-free bill tracking for real life.”
+• “Talk to Judith like a person, not a spreadsheet.”
+• “Your bills, due dates, and monthly totals, answered instantly.”
+• “Ask if you can afford next month before you spend this month.”
+• “Judith remembers the bills so you don’t have to.”
+• “Voice Ask turns your bill tracker into a personal bill assistant.”

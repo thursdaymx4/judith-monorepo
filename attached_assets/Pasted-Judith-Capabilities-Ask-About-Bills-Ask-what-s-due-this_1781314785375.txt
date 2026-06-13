@@ -1,0 +1,129 @@
+Judith Capabilities
+
+Ask About Bills
+• Ask what’s due this week.
+• Ask when the next bill is due.
+• Ask what bills are overdue.
+• Ask how much is still unpaid this month.
+• Ask the total due for the month.
+• Ask the estimated total for next month.
+• Ask the biggest bill.
+• Ask which bill needs attention first.
+• Ask whether a specific bill was paid.
+
+Example asks:
+• “What’s due this week?”
+• “When’s my next due date?”
+• “How much do I still owe this month?”
+• “What’s my biggest bill?”
+• “Did I pay Meralco?”
+• “Which bill should I pay first?”
+
+Add Bills
+• Add a bill by typing in the app.
+• Add a bill by voice during setup.
+• Add provider, category, amount, due date, frequency, reminder timing, and bill type.
+• Track monthly or annual bills.
+• Add rent, mortgage, electricity, water, internet, mobile, subscriptions, streaming, web apps, insurance, credit cards, loans, and custom bills.
+• Tag bills as personal, business, or by property/home.
+• Link recurring charges to a credit card so they are not double-counted.
+
+Example lines:
+• “Add Meralco, 3,200 pesos, due every 20th.”
+• “Add Netflix, 549 pesos, due on the 15th.”
+• “Add rent, 25,000 pesos, due on the 1st.”
+• “Add my BPI credit card, 12,400 pesos, due on June 28.”
+• “This Spotify bill is charged to my credit card.”
+
+Update Bills
+• Edit provider, amount, category, due day, frequency, reminder schedule, bill type, property tag, and business tag.
+• Update variable bills when the amount changes.
+• Update credit card statement amounts.
+• Record partial payments.
+• Mark bills as paid.
+• Delete bills no longer tracked.
+
+Example lines:
+• “Update Meralco to 3,850 pesos.”
+• “Change my internet due date to the 12th.”
+• “Mark Netflix as paid.”
+• “I paid 2,000 pesos toward my credit card.”
+• “Delete my old Globe bill.”
+
+Reminders
+• Get reminders before bills are due.
+• Choose how many days before due date Judith reminds you.
+• Choose reminder time of day.
+• Get overdue nudges.
+• Get credit card statement update nudges.
+• Use notification actions like marking paid or reminding tomorrow.
+
+Example lines:
+• “Remind me three days before Meralco is due.”
+• “Remind me in the morning.”
+• “Remind me tomorrow.”
+• “Mark this paid.”
+• “Snooze this bill until tomorrow.”
+
+Planning And Forecasting
+• See what’s coming before payday.
+• Estimate next month’s total.
+• Ask what will be left after bills if income is set.
+• Ask practical affordability questions.
+• Understand fixed vs variable monthly obligations.
+• Avoid double-counting bills charged through tracked credit cards.
+
+Example asks:
+• “What bills are coming up before payday?”
+• “How much will I have left after bills?”
+• “Can I afford to go on vacation next month?”
+• “What are my fixed bills every month?”
+• “How much are subscriptions costing me?”
+
+Apple Watch Capabilities
+• See bills from the watch.
+• View upcoming and overdue bills.
+• Open bill details.
+• Mark bills as paid from the watch.
+• Confirm paid actions.
+• Ask Judith from the watch.
+• Use voice/dictation, Scribble, or keyboard input through the watch text field.
+• Send Ask Judith questions from the watch to the iPhone.
+• Receive answers on the watch.
+• Use watch notifications for bill reminders.
+• Use watch complications/widgets for glanceable bill status.
+
+Example watch asks:
+• “What’s due this week?”
+• “How much do I owe this month?”
+• “When’s my next due date?”
+• “Did I pay Meralco?”
+• “What’s overdue?”
+• “Mark this bill paid.”
+
+iPhone App Capabilities
+• Full bill setup and editing.
+• Ask Judith by text or voice.
+• Hear Judith speak answers aloud with Voice Ask.
+• Manage plans, country, currency, persona, language, reminders, notifications, widgets, and watch sync.
+• Scan subscription screenshots and turn detected subscriptions into bills.
+• View calendar, insights, history, and monthly totals.
+• Use widgets for bill status.
+• Sync to Apple Watch.
+
+Marketing-Friendly Grouping
+
+• Ask Judith anything about your bills
+“What’s due this week?” “How much do I still owe?” “Can I afford next month?”
+
+• Add and update bills without spreadsheets
+Track rent, utilities, cards, loans, subscriptions, insurance, business bills, and more.
+
+• Never miss a due date
+Get reminders before bills are due, overdue nudges, and quick actions to mark paid or snooze.
+
+• Plan ahead before spending
+See next month’s estimate, what’s left after bills, and which payments need attention first.
+
+• Use Judith on iPhone and Apple Watch
+Ask by voice, text, keyboard, Scribble, or dictation. Check bills and mark paid from your wrist.
