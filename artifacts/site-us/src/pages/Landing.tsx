@@ -1104,6 +1104,33 @@ function GlanceOrAsk() {
           </Reveal>
         </div>
 
+        {/* ── ROW 4: MOCKUP GALLERY ── */}
+        <Reveal delay={0.06}>
+          <div className="mt-20 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {[
+              { file: "gallery-splash.png",       alt: "Judith splash screen" },
+              { file: "gallery-two-phones.png",   alt: "Home and splash" },
+              { file: "gallery-three-phones.png", alt: "App overview" },
+              { file: "gallery-payment.png",      alt: "Mark as paid" },
+              { file: "gallery-ask-fil.png",      alt: "Ask Judith" },
+              { file: "gallery-settings.png",     alt: "Settings" },
+            ].map((img) => (
+              <div
+                key={img.file}
+                className="overflow-hidden rounded-2xl border border-hair bg-surface-1/30"
+              >
+                <img
+                  src={`${base}screenshots/${img.file}`}
+                  alt={img.alt}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                  draggable={false}
+                />
+              </div>
+            ))}
+          </div>
+        </Reveal>
+
       </div>
     </section>
   );
