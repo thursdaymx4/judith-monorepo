@@ -213,11 +213,11 @@ export default function Landing() {
       <AppleWatch />
       <Personas />
       <Languages />
+      <Testimonial />
+      <Screenshots />
       <ALot />
       <Autopay />
       <RealLife />
-      <Testimonial />
-      <Screenshots />
       <Features />
       <Pricing />
       <CTA />
