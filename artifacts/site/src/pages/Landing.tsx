@@ -93,31 +93,20 @@ const SCREENSHOTS = [
 ];
 
 const VOICE_CAPS = [
-  { n: "01", title: "Ask what's due", body: "What bills are coming up soon, what's due this week, and when the next due date is." },
-  { n: "02", title: "Ask how much you owe", body: "This month's total, remaining unpaid bills, or totals by category — utilities, rent, cards, subscriptions." },
-  { n: "03", title: "Ask what's already paid", body: "Judith tells you whether a specific bill looks paid or still unpaid." },
-  { n: "04", title: "Ask what's biggest or most urgent", body: "Which bill is largest, closest to due, or needs attention first." },
-  { n: "05", title: "Ask about credit cards", body: "Total credit card bills, track current statement balances, and account for recurring charges linked to cards." },
-  { n: "06", title: "Ask about next month", body: "Estimate next month's bills based on what's already tracked." },
-  { n: "07", title: "Ask what's left after bills", body: "If income is set, ask how much money may be left after upcoming bills." },
-  { n: "08", title: "Ask affordability questions", body: "Practical 'can I afford this?' answers using tracked bills and expected upcoming totals." },
-  { n: "09", title: "Add bills by talking", body: "Tell Judith the provider, amount, and due date instead of typing — during setup or any time." },
-  { n: "10", title: "Hear answers spoken back", body: "With Voice Ask, Judith can reply out loud so you can ask and listen hands-free." },
-  { n: "11", title: "Five warm personas", body: "Pick the voice that feels right — professional, funny, caring, sarcastic, or bold." },
-  { n: "12", title: "Natural language", body: "No exact commands needed. Ask casually, the way you'd ask a person." },
+  { title: "What's due", body: "This week, before payday, by category — any timeframe." },
+  { title: "How much you owe", body: "Monthly total, remaining unpaid, or split by cards and utilities." },
+  { title: "Paid or not?", body: "Ask about any bill and get a straight yes or no." },
+  { title: "What's coming next month", body: "Estimated total based on everything already tracked." },
+  { title: "Add bills by voice", body: "Say the provider, amount, and due date. No typing." },
+  { title: "Answers spoken aloud", body: "Voice Ask reads the reply back — hands-free, eyes-free." },
 ];
 
 const EXAMPLE_ASKS = [
-  "What's due this week?",
-  "How much do I still owe this month?",
-  "When's my next due date?",
-  "What's my biggest bill?",
-  "Did I pay Meralco?",
-  "Can I afford to go on vacation next month?",
-  "What subscriptions am I paying for?",
-  "How much will be left from my income after bills?",
-  "What bills are coming up before payday?",
-  "Which bill should I worry about first?",
+  { q: "What's due before payday?", a: "You've got ₱18,420 due across 3 bills before the 15th. Electricity is the closest — due in 2 days." },
+  { q: "How much do I still owe this month?" },
+  { q: "Did I pay Meralco?" },
+  { q: "Can I afford a vacation next month?" },
+  { q: "Which bill should I worry about first?" },
 ];
 
 const WATCH_CAPS = [
@@ -798,6 +787,9 @@ function PlanCard({
 
 /* ------------------------------------------------ VOICE CAPABILITIES */
 function VoiceCapabilities() {
+  const featured = EXAMPLE_ASKS[0];
+  const rest = EXAMPLE_ASKS.slice(1);
+
   return (
     <section id="voice" className="relative px-5 py-24">
       <div className="bloom -right-40 top-10 h-[420px] w-[420px] bg-violet/12" />
@@ -817,38 +809,71 @@ function VoiceCapabilities() {
           />
         </Reveal>
 
-        <div className="mx-auto mt-14 grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {/* 6 compact feature tiles */}
+        <div className="mx-auto mt-12 grid max-w-4xl gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {VOICE_CAPS.map((c, i) => (
-            <Reveal key={c.n} delay={Math.min(i, 5) * 0.05}>
-              <div className="card-tight h-full p-5 transition-colors hover:border-accent/40">
-                <span className="font-mono text-[11px] font-semibold tracking-[0.14em] text-accent">
-                  {c.n}
-                </span>
-                <h3 className="mt-2 text-[15px] font-semibold tracking-tight text-txt-hi">
-                  {c.title}
-                </h3>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-txt-mid">
-                  {c.body}
-                </p>
+            <Reveal key={c.title} delay={i * 0.04}>
+              <div className="group flex h-full gap-3.5 rounded-2xl border border-hair bg-surface-1/40 p-5 transition-colors hover:border-accent/35 hover:bg-surface-1/70">
+                <div className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-accent/10 text-accent group-hover:bg-accent/20 transition-colors">
+                  <Mic size={13} />
+                </div>
+                <div>
+                  <h3 className="text-[14px] font-semibold tracking-tight text-txt-hi">
+                    {c.title}
+                  </h3>
+                  <p className="mt-1 text-[13px] leading-relaxed text-txt-mid">
+                    {c.body}
+                  </p>
+                </div>
               </div>
             </Reveal>
           ))}
         </div>
 
-        {/* Example asks strip */}
-        <Reveal delay={0.15}>
-          <div className="mx-auto mt-14 max-w-4xl">
-            <p className="mb-5 text-center text-[12px] font-semibold uppercase tracking-[0.18em] text-txt-low">
-              Example asks
+        {/* Featured example ask — prominent card */}
+        <Reveal delay={0.18}>
+          <div className="mx-auto mt-14 max-w-2xl">
+            <p className="mb-5 text-center text-[11px] font-semibold uppercase tracking-[0.2em] text-txt-low">
+              Try asking
             </p>
-            <div className="flex flex-wrap justify-center gap-2.5">
-              {EXAMPLE_ASKS.map((q) => (
+
+            {/* Featured ask with full Judith reply */}
+            <div className="rounded-2xl border border-accent/25 bg-surface-1/60 p-6 shadow-[0_0_60px_-12px_var(--color-accent)] backdrop-blur">
+              <div className="flex items-start gap-3">
+                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-accent/15 text-accent">
+                  <Mic size={14} />
+                </div>
+                <p className="pt-1 text-[18px] font-semibold leading-snug text-txt-hi">
+                  "{featured.q}"
+                </p>
+              </div>
+
+              {featured.a && (
+                <div className="mt-5 rounded-xl bg-surface-3/80 px-5 py-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    <div className="grid h-5 w-5 place-items-center rounded-full bg-gradient-to-br from-accent to-accent-dim">
+                      <Sparkles size={10} className="text-on-accent" />
+                    </div>
+                    <span className="text-[11px] font-semibold text-accent">
+                      Judith
+                    </span>
+                  </div>
+                  <p className="text-[15px] leading-relaxed text-txt-mid">
+                    {featured.a}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Remaining asks as compact pills */}
+            <div className="mt-4 flex flex-wrap justify-center gap-2.5">
+              {rest.map((item) => (
                 <span
-                  key={q}
-                  className="flex items-center gap-2 rounded-full border border-hair bg-surface-1/60 px-4 py-2 text-[13px] text-txt-mid backdrop-blur"
+                  key={item.q}
+                  className="flex items-center gap-2 rounded-full border border-hair bg-surface-1/50 px-4 py-2 text-[13px] font-medium text-txt-mid"
                 >
-                  <Mic size={12} className="shrink-0 text-accent" />
-                  {q}
+                  <Mic size={11} className="shrink-0 text-accent" />
+                  {item.q}
                 </span>
               ))}
             </div>
