@@ -190,15 +190,14 @@ export default function Landing() {
     <div className="relative min-h-screen overflow-hidden bg-canvas">
       <Nav />
       <Hero />
-      <Ask />
       <VoiceCapabilities />
+      <AppleWatch />
       <Personas />
       <Languages />
       <ALot />
       <Autopay />
       <RealLife />
       <Testimonial />
-      <AppleWatch />
       <Screenshots />
       <Features />
       <Pricing />
