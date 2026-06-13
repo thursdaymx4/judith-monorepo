@@ -117,60 +117,79 @@ const WATCH_CAPS = [
   "Answers sent from iPhone, shown on Watch",
 ];
 
+const DICEBEAR_BASE =
+  "https://api.dicebear.com/9.x/micah/svg?seed=Amaya&radius=50&backgroundType=gradientLinear";
+
+function avatarUrl(bg: string, params: string) {
+  return `${DICEBEAR_BASE}&backgroundColor=${bg}&${params}`;
+}
+
 const PERSONAS_SITE = [
   {
     name: "Professional Peer",
     vibe: "Clear · calm",
     line: "Every due date, tracked. Clear, on time — nothing slips through.",
     border: "border-accent/35",
-    dot: "bg-accent",
-    bg: "bg-accent/8",
     shadow: "hover:shadow-[0_0_32px_-8px_rgba(41,213,165,0.25)]",
+    avatar: avatarUrl(
+      "d1d4f9,b6e3f4",
+      "mouth=smile&glasses=square&glassesProbability=100&shirt=collared&shirtColor=6690cc",
+    ),
   },
   {
     name: "Funny Friend",
     vibe: "Warm · playful",
     line: "No more 'wait, that was due WHEN?' moments. I've got your back.",
     border: "border-yellow-400/35",
-    dot: "bg-yellow-400",
-    bg: "bg-yellow-400/8",
     shadow: "hover:shadow-[0_0_32px_-8px_rgba(250,204,21,0.25)]",
+    avatar: avatarUrl(
+      "ffdfbf,ffd5dc",
+      "mouth=laughing&eyes=smiling&shirt=crew&shirtColor=ff8a5b&glassesProbability=0",
+    ),
   },
   {
     name: "Sarcastic Sibling",
     vibe: "Cheeky · blunt",
     line: "Your bills are handled. You're welcome — I know you'd have forgotten.",
     border: "border-orange-400/35",
-    dot: "bg-orange-400",
-    bg: "bg-orange-400/8",
     shadow: "hover:shadow-[0_0_32px_-8px_rgba(251,146,60,0.25)]",
+    avatar: avatarUrl(
+      "b8e6dd,b6e3f4",
+      "mouth=smirk&eyes=eyesShadow&eyebrows=up&shirt=open&shirtColor=2fb39b&glassesProbability=0",
+    ),
   },
   {
     name: "Your Mom",
     vibe: "Caring · a little naggy",
     line: "Don't worry about the bills — I've got it. Now go eat something, please.",
     border: "border-pink-400/35",
-    dot: "bg-pink-400",
-    bg: "bg-pink-400/8",
     shadow: "hover:shadow-[0_0_32px_-8px_rgba(244,114,182,0.25)]",
+    avatar: avatarUrl(
+      "ffd5dc,f3d1e6",
+      "mouth=smile&glasses=round&glassesProbability=100&hairColor=b7b7b7&shirt=collared&shirtColor=c77dab",
+    ),
   },
   {
     name: "Perky Pal",
     vibe: "Perky · gossip-y",
     line: "I know everything about your bills — and I will never let you forget them!",
     border: "border-violet-400/35",
-    dot: "bg-violet-400",
-    bg: "bg-violet-400/8",
     shadow: "hover:shadow-[0_0_32px_-8px_rgba(167,139,250,0.25)]",
+    avatar: avatarUrl(
+      "fce7f3,f9a8d4",
+      "mouth=surprised&eyes=round&eyebrows=eyelashesUp&shirt=open&shirtColor=7c3aed&hairColor=db2777&glassesProbability=0",
+    ),
   },
   {
     name: "Brutal Britney",
     vibe: "Honest · brutal",
     line: "Bills. Due dates. Amounts. I track them. You pay them. That's it.",
     border: "border-red-400/35",
-    dot: "bg-red-400",
-    bg: "bg-red-400/8",
     shadow: "hover:shadow-[0_0_32px_-8px_rgba(248,113,113,0.25)]",
+    avatar: avatarUrl(
+      "94a3b8,1e293b",
+      "mouth=pucker&eyes=eyesShadow&eyebrows=up&shirt=collared&shirtColor=374151&glassesProbability=0",
+    ),
   },
 ];
 
@@ -979,10 +998,14 @@ function Personas() {
               <div
                 className={`group relative flex h-full flex-col rounded-2xl border ${p.border} bg-surface-1/50 p-6 backdrop-blur transition-all duration-300 ${p.shadow}`}
               >
-                {/* Quote mark */}
-                <span className="mb-3 block font-display text-[40px] leading-none text-txt-low/40">
-                  "
-                </span>
+                {/* Avatar */}
+                <img
+                  src={p.avatar}
+                  alt={p.name}
+                  className="mb-4 h-14 w-14 rounded-full"
+                  loading="lazy"
+                  draggable={false}
+                />
 
                 {/* Persona line */}
                 <p className="flex-1 text-[15px] leading-relaxed text-txt-hi">
@@ -991,7 +1014,6 @@ function Personas() {
 
                 {/* Footer */}
                 <div className="mt-5 flex items-center gap-2.5 border-t border-hair pt-4">
-                  <div className={`h-2 w-2 rounded-full ${p.dot}`} />
                   <span className="text-[13px] font-semibold text-txt-hi">
                     {p.name}
                   </span>
