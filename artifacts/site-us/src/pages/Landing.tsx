@@ -272,8 +272,7 @@ function Hero() {
 
         <Reveal eager delay={0.28}>
           <p className="mt-7 text-[13px] text-txt-low">
-            A paid app — no subscription required to start. No ads, no selling
-            your data.
+            A paid app. No ads, no selling your data.
           </p>
         </Reveal>
       </div>
@@ -776,7 +775,7 @@ function Pricing() {
               </span>
             </>
           }
-          sub="Judith is a paid app — one purchase, priced by the App Store. Full bill tracking, reminders, the calendar, widgets, the Apple Watch app, and a set of asks to start. No subscription required."
+          sub="Judith is a paid app — one purchase, priced by the App Store. Full bill tracking, reminders, the calendar, widgets, the Apple Watch app, and a set of asks to start."
         />
       </Reveal>
 
@@ -801,6 +800,7 @@ function Pricing() {
             points={[
               "Everything in Chat Ask",
               "Speak your questions, hear replies",
+              "Hear Judith in your language",
               "On your phone and Apple Watch",
             ]}
           />
