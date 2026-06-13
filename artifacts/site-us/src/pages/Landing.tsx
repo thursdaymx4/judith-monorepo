@@ -246,6 +246,7 @@ export default function Landing() {
     <div className="relative min-h-screen overflow-hidden bg-canvas">
       <Nav />
       <Hero />
+      <Ask />
       <GlanceOrAsk />
       <Personas />
       <Languages />
