@@ -16,6 +16,7 @@ import {
   Volume2,
   Square,
   Loader2,
+  Clock,
 } from "lucide-react";
 import { Nav } from "@/components/site/Nav";
 import { Footer } from "@/components/site/Footer";
@@ -1143,7 +1144,10 @@ const API_BASE = "https://judithforduedates.com";
 let _activeAudio: HTMLAudioElement | null = null;
 let _resetActive: (() => void) | null = null;
 
-type PlayState = "idle" | "loading" | "playing" | "error";
+type PlayState = "idle" | "loading" | "playing" | "error" | "rate_limited";
+
+// Blob URLs created for audio — revoked after playback to free memory.
+const _blobUrls = new Map<string, string>();
 
 function VoiceButton({ personaId }: { personaId: string }) {
   const [state, setState] = useState<PlayState>("idle");
@@ -1161,6 +1165,12 @@ function VoiceButton({ personaId }: { personaId: string }) {
       return;
     }
 
+    // Tap on rate_limited / error resets to idle so user knows it's retryable
+    if (state === "rate_limited" || state === "error") {
+      setState("idle");
+      return;
+    }
+
     // Stop whatever is currently playing and reset that button
     _activeAudio?.pause();
     _activeAudio = null;
@@ -1170,28 +1180,34 @@ function VoiceButton({ personaId }: { personaId: string }) {
     setState("loading");
 
     try {
-      // The endpoint streams raw audio/mpeg — use it directly as src.
-      // No JSON pre-fetch needed; the browser handles range/streaming.
-      const url = `${API_BASE}/api/public/persona-sample?persona=${personaId}`;
+      // Fetch as blob so we can read HTTP status before creating the audio.
+      let blobUrl = _blobUrls.get(personaId);
+      if (!blobUrl) {
+        const res = await fetch(
+          `${API_BASE}/api/public/persona-sample?persona=${personaId}`,
+        );
+        if (res.status === 429) {
+          if (_resetActive === stopSelf) { _resetActive = null; setState("rate_limited"); }
+          return;
+        }
+        if (!res.ok) throw new Error(`http_${res.status}`);
+        const blob = await res.blob();
+        blobUrl = URL.createObjectURL(blob);
+        _blobUrls.set(personaId, blobUrl);
+      }
 
-      // Check we weren't pre-empted by another button click
+      // Check we weren't pre-empted during the fetch
       if (_resetActive !== stopSelf) return;
 
-      const audio = new Audio(url);
+      const audio = new Audio(blobUrl);
       _activeAudio = audio;
 
       audio.addEventListener("ended", () => {
-        if (_activeAudio === audio) {
-          _activeAudio = null;
-          _resetActive = null;
-        }
+        if (_activeAudio === audio) { _activeAudio = null; _resetActive = null; }
         setState("idle");
       });
       audio.addEventListener("error", () => {
-        if (_activeAudio === audio) {
-          _activeAudio = null;
-          _resetActive = null;
-        }
+        if (_activeAudio === audio) { _activeAudio = null; _resetActive = null; }
         setState("error");
       });
 
@@ -1199,22 +1215,25 @@ function VoiceButton({ personaId }: { personaId: string }) {
       if (_activeAudio !== audio) return; // pre-empted during async play()
       setState("playing");
     } catch {
-      if (_resetActive === stopSelf) {
-        _resetActive = null;
-        setState("error");
-      }
+      if (_resetActive === stopSelf) { _resetActive = null; setState("error"); }
     }
   };
+
+  const isRateLimited = state === "rate_limited";
+  const isError = state === "error";
 
   return (
     <button
       onClick={handleClick}
+      title={isRateLimited ? "Too many plays — try again in a minute" : undefined}
       className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold transition-colors ${
         state === "playing"
           ? "border-accent/50 bg-accent/20 text-accent"
-          : state === "error"
-            ? "border-red-400/30 bg-red-400/10 text-red-400"
-            : "border-accent/25 bg-accent/8 text-accent hover:bg-accent/16"
+          : isRateLimited
+            ? "border-amber-400/40 bg-amber-400/10 text-amber-400"
+            : isError
+              ? "border-red-400/30 bg-red-400/10 text-red-400"
+              : "border-accent/25 bg-accent/8 text-accent hover:bg-accent/16"
       }`}
       aria-label={state === "playing" ? "Stop preview" : "Hear this voice"}
     >
@@ -1228,7 +1247,12 @@ function VoiceButton({ personaId }: { personaId: string }) {
           <Square size={10} className="fill-accent" />
           <span>Stop</span>
         </>
-      ) : state === "error" ? (
+      ) : isRateLimited ? (
+        <>
+          <Clock size={10} />
+          <span>Try in a moment</span>
+        </>
+      ) : isError ? (
         <span>Try again</span>
       ) : (
         <>
