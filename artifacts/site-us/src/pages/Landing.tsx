@@ -177,7 +177,7 @@ const PERSONAS_SITE = [
 const LANG_ROW_A = [
   "English", "Español", "Français", "Deutsch", "Italiano",
   "Português", "Nederlands", "Polski", "Русский", "Українська", "Türkçe",
-  "العربية", "日本語", "한국어", "中文", "粵語", "हिन्दी", "Filipino",
+  "العربية", "日本語", "한국어", "中文", "粵語", "हिन्दी", "Swahili",
 ];
 const LANG_ROW_B = [
   "தமிழ்", "Bahasa Indonesia", "Bahasa Melayu", "Tiếng Việt", "ภาษาไทย",
