@@ -237,8 +237,7 @@ export default function Landing() {
     <div className="relative min-h-screen overflow-hidden bg-canvas">
       <Nav />
       <Hero />
-      <VoiceCapabilities />
-      <AppleWatch />
+      <GlanceOrAsk />
       <Personas />
       <Languages />
       <Testimonial />
@@ -900,100 +899,202 @@ function PlanCard({
   );
 }
 
-/* ------------------------------------------------ VOICE CAPABILITIES */
-function VoiceCapabilities() {
+/* ---------------------------------------------------- GLANCE OR ASK */
+function GlanceOrAsk() {
+  const base = import.meta.env.BASE_URL;
   const featured = EXAMPLE_ASKS[0];
   const rest = EXAMPLE_ASKS.slice(1);
 
   return (
     <section id="voice" className="relative px-5 py-24">
-      <div className="bloom -right-40 top-10 h-[420px] w-[420px] bg-violet/12" />
-      <div className="relative">
+      <div className="bloom -right-40 top-0 h-[420px] w-[420px] bg-violet/10" />
+      <div className="bloom left-0 top-[60%] h-[320px] w-[400px] bg-accent/8" />
+      <div className="relative mx-auto max-w-6xl">
+
+        {/* Section header */}
         <Reveal>
           <SectionHead
-            eyebrow="Voice capabilities"
+            eyebrow="Quick by design"
             title={
               <>
-                Ask your bills out loud.{" "}
+                Just{" "}
                 <span className="font-display text-mint-grad">
-                  Get a real answer.
+                  Glance or Ask.
                 </span>
               </>
             }
-            sub="Judith understands plain language — no exact commands, no menus. Ask the way you'd ask a person."
+            sub="No menus to dig through. No steps. Judith meets you wherever you are — on your wrist, in your voice, or at the press of a button."
           />
         </Reveal>
 
-        {/* 6 compact feature tiles */}
-        <div className="mx-auto mt-12 grid max-w-4xl gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {VOICE_CAPS.map((c, i) => (
-            <Reveal key={c.title} delay={i * 0.04}>
-              <div className="group flex h-full gap-3.5 rounded-2xl border border-hair bg-surface-1/40 p-5 transition-colors hover:border-accent/35 hover:bg-surface-1/70">
-                <div className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-accent/10 text-accent group-hover:bg-accent/20 transition-colors">
-                  <Mic size={13} />
+        {/* ── ROW 1: GLANCE (Apple Watch) ── */}
+        <div className="mt-20 grid items-center gap-12 lg:grid-cols-2">
+          {/* Watch images */}
+          <Reveal delay={0.08}>
+            <div className="flex justify-center gap-6 sm:gap-10">
+              {[
+                { file: "watch-upnext.png", label: "Up Next" },
+                { file: "watch-ask.png", label: "Ask Judith" },
+              ].map((w) => (
+                <div key={w.file} className="flex flex-col items-center gap-3">
+                  <img
+                    src={`${base}screenshots/${w.file}`}
+                    alt={w.label}
+                    className="w-[155px] drop-shadow-2xl sm:w-[180px]"
+                    loading="lazy"
+                    draggable={false}
+                  />
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-txt-low">
+                    {w.label}
+                  </span>
                 </div>
-                <div>
-                  <h3 className="text-[14px] font-semibold tracking-tight text-txt-hi">
-                    {c.title}
-                  </h3>
-                  <p className="mt-1 text-[13px] leading-relaxed text-txt-mid">
-                    {c.body}
-                  </p>
-                </div>
-              </div>
-            </Reveal>
-          ))}
-        </div>
-
-        {/* Featured example ask — prominent card */}
-        <Reveal delay={0.18}>
-          <div className="mx-auto mt-14 max-w-2xl">
-            <p className="mb-5 text-center text-[11px] font-semibold uppercase tracking-[0.2em] text-txt-low">
-              Try asking
-            </p>
-
-            {/* Featured ask with full Judith reply */}
-            <div className="rounded-2xl border border-accent/25 bg-surface-1/60 p-6 shadow-[0_0_60px_-12px_var(--color-accent)] backdrop-blur">
-              <div className="flex items-start gap-3">
-                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-accent/15 text-accent">
-                  <Mic size={14} />
-                </div>
-                <p className="pt-1 text-[18px] font-semibold leading-snug text-txt-hi">
-                  "{featured.q}"
-                </p>
-              </div>
-
-              {featured.a && (
-                <div className="mt-5 rounded-xl bg-surface-3/80 px-5 py-4">
-                  <div className="mb-2 flex items-center gap-2">
-                    <div className="grid h-5 w-5 place-items-center rounded-full bg-gradient-to-br from-accent to-accent-dim">
-                      <Sparkles size={10} className="text-on-accent" />
-                    </div>
-                    <span className="text-[11px] font-semibold text-accent">
-                      Judith
-                    </span>
-                  </div>
-                  <p className="text-[15px] leading-relaxed text-txt-mid">
-                    {featured.a}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Remaining asks as compact pills */}
-            <div className="mt-4 flex flex-wrap justify-center gap-2.5">
-              {rest.map((item) => (
-                <span
-                  key={item.q}
-                  className="flex items-center gap-2 rounded-full border border-hair bg-surface-1/50 px-4 py-2 text-[13px] font-medium text-txt-mid"
-                >
-                  <Mic size={11} className="shrink-0 text-accent" />
-                  {item.q}
-                </span>
               ))}
             </div>
-          </div>
-        </Reveal>
+          </Reveal>
+
+          {/* Glance content */}
+          <Reveal delay={0.14}>
+            <div className="space-y-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent">
+                Glance
+              </p>
+              <h3 className="text-[28px] font-semibold leading-tight tracking-tight text-txt-hi">
+                On your wrist,{" "}
+                <span className="font-display text-mint-grad">before you spend.</span>
+              </h3>
+              <p className="text-[16px] leading-relaxed text-txt-mid">
+                The Judith Watch app syncs in real time. Ask by voice, check
+                what's due, and mark bills paid — without ever pulling out your
+                phone.
+              </p>
+              <ul className="mt-4 space-y-3">
+                {WATCH_CAPS.map((cap) => (
+                  <li key={cap} className="flex items-start gap-3">
+                    <Check size={16} className="mt-0.5 shrink-0 text-accent" />
+                    <span className="text-[15px] text-txt-hi">{cap}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Reveal>
+        </div>
+
+        {/* ── ROW 2: ASK (Voice) ── */}
+        <div className="mt-24 grid items-center gap-12 lg:grid-cols-2">
+          {/* Ask content */}
+          <Reveal delay={0.08}>
+            <div className="space-y-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent">
+                Ask
+              </p>
+              <h3 className="text-[28px] font-semibold leading-tight tracking-tight text-txt-hi">
+                Talk to Judith.{" "}
+                <span className="font-display text-mint-grad">Get a real answer.</span>
+              </h3>
+              <p className="text-[16px] leading-relaxed text-txt-mid">
+                Plain language — no commands, no menus. Ask the way you'd ask a
+                person. By voice or by text, in your language, in seconds.
+              </p>
+
+              {/* Featured ask */}
+              <div className="mt-6 rounded-2xl border border-accent/25 bg-surface-1/60 p-5 shadow-[0_0_50px_-14px_var(--color-accent)] backdrop-blur">
+                <div className="flex items-start gap-3">
+                  <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-accent/15 text-accent">
+                    <Mic size={13} />
+                  </div>
+                  <p className="pt-0.5 text-[16px] font-semibold leading-snug text-txt-hi">
+                    "{featured.q}"
+                  </p>
+                </div>
+                {featured.a && (
+                  <div className="mt-4 rounded-xl bg-surface-3/80 px-4 py-3.5">
+                    <div className="mb-2 flex items-center gap-2">
+                      <div className="grid h-5 w-5 place-items-center rounded-full bg-gradient-to-br from-accent to-accent-dim">
+                        <Sparkles size={10} className="text-on-accent" />
+                      </div>
+                      <span className="text-[11px] font-semibold text-accent">Judith</span>
+                    </div>
+                    <p className="text-[14px] leading-relaxed text-txt-mid">{featured.a}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Rest as pills */}
+              <div className="mt-3 flex flex-wrap gap-2">
+                {rest.map((item) => (
+                  <span
+                    key={item.q}
+                    className="flex items-center gap-2 rounded-full border border-hair bg-surface-1/50 px-3.5 py-1.5 text-[12px] font-medium text-txt-mid"
+                  >
+                    <Mic size={10} className="shrink-0 text-accent" />
+                    {item.q}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </Reveal>
+
+          {/* Ask phone mockup */}
+          <Reveal delay={0.14}>
+            <div className="flex justify-center">
+              <img
+                src={`${base}screenshots/mockup-ask.png`}
+                alt="Ask Judith conversation"
+                className="w-full max-w-[320px] rounded-3xl drop-shadow-2xl"
+                loading="lazy"
+                draggable={false}
+              />
+            </div>
+          </Reveal>
+        </div>
+
+        {/* ── ROW 3: ACTION BUTTON ── */}
+        <div className="mt-24 grid items-center gap-12 lg:grid-cols-2">
+          {/* Action button mockup */}
+          <Reveal delay={0.08}>
+            <div className="flex justify-center">
+              <img
+                src={`${base}screenshots/action-button-result.png`}
+                alt="Judith bound to the iPhone Action Button"
+                className="w-full max-w-[360px] rounded-3xl drop-shadow-2xl"
+                loading="lazy"
+                draggable={false}
+              />
+            </div>
+          </Reveal>
+
+          {/* Action button content */}
+          <Reveal delay={0.14}>
+            <div className="space-y-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent">
+                Action Button
+              </p>
+              <h3 className="text-[28px] font-semibold leading-tight tracking-tight text-txt-hi">
+                One press.{" "}
+                <span className="font-display text-mint-grad">Instant answer.</span>
+              </h3>
+              <p className="text-[16px] leading-relaxed text-txt-mid">
+                Add Judith as a Shortcut and bind it to your iPhone's Action
+                Button. Press once — your bill total is read aloud, right from
+                your lock screen. No unlocking, no opening, no waiting.
+              </p>
+              <ul className="mt-4 space-y-3">
+                {[
+                  "Add Judith's Siri Shortcut in one tap",
+                  "Bind it to the Action Button in Settings",
+                  "Press the button — hear your total instantly",
+                  "Works from the lock screen, no unlock needed",
+                ].map((cap) => (
+                  <li key={cap} className="flex items-start gap-3">
+                    <Check size={16} className="mt-0.5 shrink-0 text-accent" />
+                    <span className="text-[15px] text-txt-hi">{cap}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Reveal>
+        </div>
+
       </div>
     </section>
   );
@@ -1144,101 +1245,6 @@ function Languages() {
             ))}
           </div>
         </Reveal>
-      </div>
-    </section>
-  );
-}
-
-/* -------------------------------------------------------- APPLE WATCH */
-function AppleWatch() {
-  const base = import.meta.env.BASE_URL;
-  return (
-    <section id="watch" className="relative px-5 py-24">
-      <div className="bloom left-1/2 top-0 h-[380px] w-[500px] -translate-x-1/2 bg-accent/10" />
-      <div className="relative mx-auto max-w-6xl">
-        <Reveal>
-          <SectionHead
-            eyebrow="Apple Watch"
-            title={
-              <>
-                On your wrist.{" "}
-                <span className="font-display text-mint-grad">
-                  Before you spend.
-                </span>
-              </>
-            }
-            sub="Ask Judith, check what's due, and mark bills paid — without touching your phone."
-          />
-        </Reveal>
-
-        <div className="mt-16 grid items-center gap-12 lg:grid-cols-2">
-          {/* Watch images */}
-          <Reveal delay={0.08}>
-            <div className="flex justify-center gap-6 sm:gap-10">
-              {[
-                { file: "watch-upnext.png", label: "Up Next" },
-                { file: "watch-ask.png", label: "Ask Judith" },
-              ].map((w) => (
-                <div key={w.file} className="flex flex-col items-center gap-3">
-                  <img
-                    src={`${base}screenshots/${w.file}`}
-                    alt={w.label}
-                    className="w-[160px] drop-shadow-2xl sm:w-[190px]"
-                    loading="lazy"
-                    draggable={false}
-                  />
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-txt-low">
-                    {w.label}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </Reveal>
-
-          {/* Capabilities */}
-          <Reveal delay={0.14}>
-            <div className="space-y-4">
-              <h3 className="text-[22px] font-semibold tracking-tight text-txt-hi">
-                Everything you need, from your wrist.
-              </h3>
-              <p className="text-[16px] leading-relaxed text-txt-mid">
-                The Judith Watch app syncs with your iPhone in real time. Ask by
-                voice, Scribble, or keyboard. Get answers. Mark paid. Check
-                what's overdue — all without pulling out your phone.
-              </p>
-              <ul className="mt-6 space-y-3">
-                {WATCH_CAPS.map((cap) => (
-                  <li key={cap} className="flex items-start gap-3">
-                    <Check
-                      size={17}
-                      className="mt-0.5 shrink-0 text-accent"
-                    />
-                    <span className="text-[15px] text-txt-hi">{cap}</span>
-                  </li>
-                ))}
-              </ul>
-
-              {/* Mini example asks */}
-              <div className="mt-8 rounded-2xl border border-hair bg-surface-1/50 p-5 backdrop-blur">
-                <p className="mb-3 text-[12px] font-semibold uppercase tracking-[0.16em] text-txt-low">
-                  From your watch
-                </p>
-                <div className="space-y-2">
-                  {[
-                    "What's due this week?",
-                    "How much do I owe this month?",
-                    "What's overdue?",
-                  ].map((q) => (
-                    <div key={q} className="flex items-center gap-2.5">
-                      <Watch size={13} className="shrink-0 text-accent" />
-                      <span className="text-[14px] text-txt-mid">"{q}"</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </Reveal>
-        </div>
       </div>
     </section>
   );
