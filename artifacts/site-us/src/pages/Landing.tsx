@@ -1084,14 +1084,14 @@ function GlanceOrAsk() {
               </h3>
               <p className="text-[16px] leading-relaxed text-txt-mid">
                 Add Judith as a Shortcut and bind it to your iPhone's Action
-                Button. Press once — your bill total is read aloud, right from
-                your lock screen. No unlocking, no opening, no waiting.
+                Button. Press once — your bill total appears on screen, right
+                from your lock screen. No unlocking, no opening, no waiting.
               </p>
               <ul className="mt-4 space-y-3">
                 {[
                   "Add Judith's Siri Shortcut in one tap",
                   "Bind it to the Action Button in Settings",
-                  "Press the button — hear your total instantly",
+                  "Press the button — see your total instantly",
                   "Works from the lock screen, no unlock needed",
                 ].map((cap) => (
                   <li key={cap} className="flex items-start gap-3">
