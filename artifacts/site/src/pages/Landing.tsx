@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import {
   CreditCard,
   Bell,
@@ -10,6 +11,8 @@ import {
   Check,
   Sparkles,
   ArrowRight,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Nav } from "@/components/site/Nav";
 import { Footer } from "@/components/site/Footer";
@@ -156,21 +159,21 @@ function Hero() {
       <div className="grain absolute inset-0 opacity-60" />
 
       <div className="relative mx-auto max-w-4xl text-center">
-        <Reveal>
+        <Reveal eager>
           <span className="inline-flex items-center gap-2 rounded-full border border-hair bg-surface-1/60 px-4 py-1.5 text-[12px] font-medium uppercase tracking-[0.18em] text-txt-mid backdrop-blur">
             <span className="h-1.5 w-1.5 rounded-full bg-accent" />
             Voice-first bill tracker
           </span>
         </Reveal>
 
-        <Reveal delay={0.05}>
+        <Reveal eager delay={0.05}>
           <h1 className="mt-7 text-balance text-[40px] leading-[1.05] tracking-tight text-txt-hi sm:text-[64px]">
             Do you actually know how much bills you{" "}
             <span className="font-display text-mint-grad">still need to pay</span>?
           </h1>
         </Reveal>
 
-        <Reveal delay={0.12}>
+        <Reveal eager delay={0.12}>
           <p className="mx-auto mt-7 max-w-2xl text-balance text-[17px] leading-relaxed text-txt-mid sm:text-[19px]">
             Across every card, every bank, every loan. Most people can't — the
             numbers live in different apps and the back of your mind. Judith
@@ -179,7 +182,7 @@ function Hero() {
           </p>
         </Reveal>
 
-        <Reveal delay={0.2}>
+        <Reveal eager delay={0.2}>
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <AppStoreBadge />
             <a
@@ -191,7 +194,7 @@ function Hero() {
           </div>
         </Reveal>
 
-        <Reveal delay={0.28}>
+        <Reveal eager delay={0.28}>
           <p className="mt-7 text-[13px] text-txt-low">
             A paid app — no subscription required to start. No ads, no selling
             your data.
@@ -200,7 +203,7 @@ function Hero() {
       </div>
 
       {/* Floating "ask" card */}
-      <Reveal delay={0.32} className="relative mx-auto mt-16 max-w-md">
+      <Reveal eager delay={0.32} className="relative mx-auto mt-16 max-w-md">
         <div className="floaty card ring-accent p-5">
           <div className="flex items-center gap-3 border-b border-hair pb-4">
             <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-accent to-accent-dim text-on-accent">
@@ -565,6 +568,15 @@ function Testimonial() {
 /* --------------------------------------------------------- SCREENSHOTS */
 function Screenshots() {
   const base = import.meta.env.BASE_URL;
+  const rowRef = useRef<HTMLDivElement>(null);
+
+  const scroll = (dir: "left" | "right") => {
+    rowRef.current?.scrollBy({
+      left: dir === "right" ? 580 : -580,
+      behavior: "smooth",
+    });
+  };
+
   return (
     <section id="screenshots" className="py-20 sm:py-28">
       <Reveal className="px-5 text-center">
@@ -580,38 +592,58 @@ function Screenshots() {
         />
       </Reveal>
 
-      <div
-        className={[
-          "mt-14 flex gap-5 overflow-x-auto pb-6",
-          "px-5 sm:px-8",
-          "snap-x snap-mandatory scroll-smooth",
-          "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
-        ].join(" ")}
-      >
-        {SCREENSHOTS.map((s, i) => (
-          <Reveal
-            key={s.file}
-            delay={Math.min(i, 4) * 0.05}
-            className="flex-shrink-0 snap-start"
-          >
-            <div className="flex flex-col items-center gap-3">
-              <img
-                src={`${base}screenshots/${s.file}`}
-                alt={s.label}
-                width={280}
-                className="h-auto w-[220px] rounded-2xl shadow-2xl ring-1 ring-white/5 sm:w-[260px]"
-                loading="lazy"
-                draggable={false}
-              />
-              <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-txt-low">
-                {s.label}
-              </span>
-            </div>
-          </Reveal>
-        ))}
+      {/* Arrow buttons — desktop only */}
+      <div className="relative mt-14">
+        <button
+          onClick={() => scroll("left")}
+          aria-label="Scroll left"
+          className="absolute left-2 top-1/2 z-10 hidden -translate-y-1/2 md:flex h-10 w-10 items-center justify-center rounded-full border border-hair bg-surface-1/80 text-txt-mid shadow-lg backdrop-blur transition hover:border-accent/50 hover:text-accent"
+        >
+          <ChevronLeft size={20} />
+        </button>
 
-        {/* breathing room at the end */}
-        <div className="flex-shrink-0 w-3 sm:w-6" aria-hidden />
+        <div
+          ref={rowRef}
+          className={[
+            "flex flex-nowrap gap-5 overflow-x-auto pb-6",
+            "px-5 sm:px-8",
+            "snap-x snap-mandatory scroll-smooth",
+            "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
+          ].join(" ")}
+        >
+          {SCREENSHOTS.map((s, i) => (
+            <Reveal
+              key={s.file}
+              delay={Math.min(i, 4) * 0.05}
+              className="flex-shrink-0 snap-start"
+            >
+              <div className="flex flex-col items-center gap-3">
+                <img
+                  src={`${base}screenshots/${s.file}`}
+                  alt={s.label}
+                  width={280}
+                  className={`h-auto rounded-2xl shadow-2xl ring-1 ring-white/5 ${"wide" in s && s.wide ? "w-[180px] sm:w-[210px]" : "w-[220px] sm:w-[260px]"}`}
+                  loading="lazy"
+                  draggable={false}
+                />
+                <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-txt-low">
+                  {s.label}
+                </span>
+              </div>
+            </Reveal>
+          ))}
+
+          {/* breathing room at the end */}
+          <div className="flex-shrink-0 w-3 sm:w-6" aria-hidden />
+        </div>
+
+        <button
+          onClick={() => scroll("right")}
+          aria-label="Scroll right"
+          className="absolute right-2 top-1/2 z-10 hidden -translate-y-1/2 md:flex h-10 w-10 items-center justify-center rounded-full border border-hair bg-surface-1/80 text-txt-mid shadow-lg backdrop-blur transition hover:border-accent/50 hover:text-accent"
+        >
+          <ChevronRight size={20} />
+        </button>
       </div>
     </section>
   );
