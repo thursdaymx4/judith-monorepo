@@ -165,9 +165,9 @@ export async function getSampleUrl(
     const file = bucket.file(key);
     const [exists] = await file.exists();
     if (!exists) return null;
-    // Ensure object is public (idempotent; throws if uniform bucket-level
-    // access is enabled — caught below and we fall back to base64 path).
-    await file.makePublic();
+    // Best-effort: make public. Silently skipped when uniform bucket-level
+    // access (UBLA) is enabled — files are already public from pregen.
+    await file.makePublic().catch(() => {});
     return `https://storage.googleapis.com/${BUCKET_ID}/${key}`;
   } catch {
     return null;

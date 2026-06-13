@@ -1138,10 +1138,9 @@ function GlanceOrAsk() {
 /* ---------------------------------------------------- VOICE BUTTON */
 const API_BASE = "https://judithforduedates.com";
 
-// Module-level singletons — one audio at a time, URLs cached in memory
+// Module-level singletons — one audio at a time
 let _activeAudio: HTMLAudioElement | null = null;
 let _resetActive: (() => void) | null = null;
-const _urlCache = new Map<string, string>();
 
 type PlayState = "idle" | "loading" | "playing" | "error";
 
@@ -1170,16 +1169,9 @@ function VoiceButton({ personaId }: { personaId: string }) {
     setState("loading");
 
     try {
-      let url = _urlCache.get(personaId);
-      if (!url) {
-        const res = await fetch(
-          `${API_BASE}/api/public/persona-sample?persona=${personaId}`,
-        );
-        if (!res.ok) throw new Error("fetch_failed");
-        const data = (await res.json()) as { url: string };
-        url = data.url;
-        _urlCache.set(personaId, url);
-      }
+      // The endpoint streams raw audio/mpeg — use it directly as src.
+      // No JSON pre-fetch needed; the browser handles range/streaming.
+      const url = `${API_BASE}/api/public/persona-sample?persona=${personaId}`;
 
       // Check we weren't pre-empted by another button click
       if (_resetActive !== stopSelf) return;

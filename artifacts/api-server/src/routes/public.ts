@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { ipLimiter, globalLimiter } from "../middleware/rateLimit";
-import { getSampleUrl } from "../lib/audioCache";
+import { getSampleAudio } from "../lib/audioCache";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -51,13 +51,14 @@ router.get(
     }
 
     try {
-      const url = await getSampleUrl(persona, "en-US");
-      if (!url) {
+      const audio = await getSampleAudio(persona, "en-US");
+      if (!audio) {
         res.status(404).json({ error: "not_cached" });
         return;
       }
       res.set("Cache-Control", "public, max-age=3600");
-      res.json({ url });
+      res.set("Content-Type", "audio/mpeg");
+      res.send(Buffer.from(audio.base64, "base64"));
     } catch (err) {
       logger.error({ err }, "public/persona-sample failed");
       res.status(500).json({ error: "failed" });

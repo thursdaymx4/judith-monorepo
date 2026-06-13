@@ -32,13 +32,26 @@ const allowedOrigins = [
   "https://www.judith.thursday.mx",
 ];
 
-app.use(cors({
+const strictCors = cors({
   origin(origin, callback) {
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
     return callback(new Error("Not allowed by CORS"));
   },
-}));
+});
+
+// /api/public/* is intentionally open — skip strict CORS entirely for that
+// prefix and apply wide-open headers instead.
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/public")) {
+    res.set("Access-Control-Allow-Origin",  "*");
+    res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.set("Access-Control-Allow-Headers", "Content-Type");
+    if (req.method === "OPTIONS") { res.sendStatus(204); return; }
+    return next();
+  }
+  strictCors(req, res, next);
+});
 // Most endpoints handle small JSON payloads; only the vision-based parse routes
 // need room for a screenshot. Path-routed limits cap ingress on every other
 // endpoint to a few MB so attackers can't bloat unrelated requests.
