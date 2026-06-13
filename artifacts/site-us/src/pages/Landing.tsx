@@ -194,14 +194,42 @@ const PERSONAS_SITE = [
 ];
 
 const LANG_ROW_A = [
-  "English", "Español", "Français", "Deutsch", "Italiano",
-  "Português", "Nederlands", "Polski", "Русский", "Українська", "Türkçe",
-  "العربية", "日本語", "한국어", "中文", "粵語", "हिन्दी", "Swahili",
+  { flag: "🇺🇸", name: "English" },
+  { flag: "🇪🇸", name: "Español" },
+  { flag: "🇫🇷", name: "Français" },
+  { flag: "🇩🇪", name: "Deutsch" },
+  { flag: "🇮🇹", name: "Italiano" },
+  { flag: "🇵🇹", name: "Português" },
+  { flag: "🇳🇱", name: "Nederlands" },
+  { flag: "🇵🇱", name: "Polski" },
+  { flag: "🇷🇺", name: "Русский" },
+  { flag: "🇺🇦", name: "Українська" },
+  { flag: "🇹🇷", name: "Türkçe" },
+  { flag: "🇸🇦", name: "العربية" },
+  { flag: "🇯🇵", name: "日本語" },
+  { flag: "🇰🇷", name: "한국어" },
+  { flag: "🇨🇳", name: "中文" },
+  { flag: "🇭🇰", name: "粵語" },
+  { flag: "🇮🇳", name: "हिन्दी" },
+  { flag: "🇰🇪", name: "Swahili" },
 ];
 const LANG_ROW_B = [
-  "தமிழ்", "Bahasa Indonesia", "Bahasa Melayu", "Tiếng Việt", "ภาษาไทย",
-  "Svenska", "Dansk", "Norsk", "Suomi", "Čeština", "Slovenčina",
-  "Română", "Български", "Hrvatski", "Ελληνικά", "Magyar",
+  { flag: "🇱🇰", name: "தமிழ்" },
+  { flag: "🇮🇩", name: "Bahasa Indonesia" },
+  { flag: "🇲🇾", name: "Bahasa Melayu" },
+  { flag: "🇻🇳", name: "Tiếng Việt" },
+  { flag: "🇹🇭", name: "ภาษาไทย" },
+  { flag: "🇸🇪", name: "Svenska" },
+  { flag: "🇩🇰", name: "Dansk" },
+  { flag: "🇳🇴", name: "Norsk" },
+  { flag: "🇫🇮", name: "Suomi" },
+  { flag: "🇨🇿", name: "Čeština" },
+  { flag: "🇸🇰", name: "Slovenčina" },
+  { flag: "🇷🇴", name: "Română" },
+  { flag: "🇧🇬", name: "Български" },
+  { flag: "🇭🇷", name: "Hrvatski" },
+  { flag: "🇬🇷", name: "Ελληνικά" },
+  { flag: "🇭🇺", name: "Magyar" },
 ];
 
 export default function Landing() {
@@ -1075,9 +1103,10 @@ function Languages() {
             {rowA.map((lang, i) => (
               <span
                 key={`a-${i}`}
-                className="whitespace-nowrap rounded-full border border-hair bg-surface-1/60 px-4 py-2 text-[13px] font-medium text-txt-mid"
+                className="flex items-center gap-2 whitespace-nowrap rounded-full border border-hair bg-surface-1/60 px-4 py-2 text-[13px] font-medium text-txt-mid"
               >
-                {lang}
+                <span className="text-base leading-none">{lang.flag}</span>
+                {lang.name}
               </span>
             ))}
           </div>
@@ -1087,9 +1116,10 @@ function Languages() {
             {rowB.map((lang, i) => (
               <span
                 key={`b-${i}`}
-                className="whitespace-nowrap rounded-full border border-hair bg-surface-1/60 px-4 py-2 text-[13px] font-medium text-txt-mid"
+                className="flex items-center gap-2 whitespace-nowrap rounded-full border border-hair bg-surface-1/60 px-4 py-2 text-[13px] font-medium text-txt-mid"
               >
-                {lang}
+                <span className="text-base leading-none">{lang.flag}</span>
+                {lang.name}
               </span>
             ))}
           </div>
