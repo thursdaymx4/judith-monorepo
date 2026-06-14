@@ -418,13 +418,22 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     const dueDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + days);
     const dueDateStr = b.dueLabel ?? englishDate(dueDate);
     const dueWkday = englishWeekday(dueDate);
+    // Via-card bills auto-pay through the parent CC statement, so they MUST
+    // NOT be described with overdue/due language — that causes the model to
+    // sum them into overdue totals on top of the parent CC bill (double
+    // counting). The pre-computed overdueAmt already excludes them; this
+    // makes the bill list consistent so the model can't recompute and
+    // disagree.
+    const isResolvedViaCardLine = isViaCard(b);
     const when = b.isProjection
       ? `due ~${b.dueLabel ?? "next month"} (estimated — not yet billed)`
-      : days === 0
-        ? `due TODAY — ${dueDateStr} (${dueWkday})`
-        : days < 0
-          ? `OVERDUE by ${Math.abs(days)} day(s) — was due ${dueDateStr} (${dueWkday})`
-          : `due in ${days} day(s) — on ${dueDateStr} (${dueWkday})`;
+      : isResolvedViaCardLine
+        ? `auto-charged on ${dueDateStr} (${dueWkday}) — settled via ${b.cardName} statement, NOT counted in overdue or due totals`
+        : days === 0
+          ? `due TODAY — ${dueDateStr} (${dueWkday})`
+          : days < 0
+            ? `OVERDUE by ${Math.abs(days)} day(s) — was due ${dueDateStr} (${dueWkday})`
+            : `due in ${days} day(s) — on ${dueDateStr} (${dueWkday})`;
     const bizTag = b.isBusiness
       ? (b.businessName ? ` [BUSINESS: ${b.businessName}]` : " [BUSINESS]")
       : " [PERSONAL]";
@@ -438,7 +447,11 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     const paidTag = paid > 0 && orig > 0
       ? ` [PARTIALLY PAID this month: ${curStr(cur, paid)} of ${curStr(cur, orig)} — amount shown is REMAINING balance]`
       : "";
-    return `- ${idTag}${b.provider ?? "Bill"} (${b.cat ?? "Other"})${bizTag}${cardTag}${estTag}${paidTag}: ${curStr(cur, b.amount ?? 0)}, ${when}, ${b.status ?? "upcoming"}.`;
+    // For via-card bills the only correct status label is "auto-paid via
+    // card" — the raw client-side status ("overdue"/"urgent"/etc.) would
+    // contradict the `when` clause above and re-introduce double-counting.
+    const statusLabel = isResolvedViaCardLine ? "auto-paid via card" : (b.status ?? "upcoming");
+    return `- ${idTag}${b.provider ?? "Bill"} (${b.cat ?? "Other"})${bizTag}${cardTag}${estTag}${paidTag}: ${curStr(cur, b.amount ?? 0)}, ${when}, ${statusLabel}.`;
   });
 
   // ── Pre-computed income-remaining figures ──────────────────────────────
