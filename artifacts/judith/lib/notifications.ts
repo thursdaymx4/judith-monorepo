@@ -304,6 +304,48 @@ function nudgeCopy(persona: PersonaId, bill: Bill, language: string, cardName?: 
   }
 }
 
+function lastChanceCopy(persona: PersonaId, bill: Bill, language: string): { title: string; body: string } {
+  const amt = pesoStr(bill.amount);
+  const fil = useFilipino(persona, language);
+  switch (persona) {
+    case "funny":
+      return {
+        title: `⏰ Last call — ${bill.provider}`,
+        body: `${amt} still due today. Pay it before it goes overdue!`,
+      };
+    case "sib":
+      return {
+        title: `Still haven't paid ${bill.provider}?`,
+        body: `${amt}. It's 3 PM. You have hours. Move.`,
+      };
+    case "mama":
+      return fil
+        ? {
+            title: `Anak! ${bill.provider} hindi pa bayad!`,
+            body: `${amt} pa rin. Bayaran mo na bago maging overdue, ha?`,
+          }
+        : {
+            title: `${bill.provider} — last chance today!`,
+            body: `${amt} — please don't let it go overdue. Pay it now!`,
+          };
+    case "marites":
+      return fil
+        ? {
+            title: `Ay! ${bill.provider} hindi pa bayad! 😱`,
+            body: `${amt} pa rin ha! Baka ma-late fee ka pa — bayaran mo na!`,
+          }
+        : {
+            title: `${bill.provider} still unpaid! 😱`,
+            body: `${amt} — last chance to pay before it goes overdue!`,
+          };
+    default:
+      return {
+        title: `${bill.provider} — last chance to pay today`,
+        body: `${amt} still due. Pay now to avoid going overdue.`,
+      };
+  }
+}
+
 // ─── Card-linked copy ─────────────────────────────────────────────────────────
 // These bills are auto-charged to a credit card, so the wording shifts from
 // "pay it" to "heads-up, it lands on {card}". The 💳 + card name is the clue.
@@ -365,8 +407,9 @@ function cardLinkedNudgeCopy(
 
 // ─── Identifiers ──────────────────────────────────────────────────────────────
 
-const reminderId = (id: string) => `judith-reminder-${id}`;
-const nudgeId    = (id: string) => `judith-nudge-${id}`;
+const reminderId    = (id: string) => `judith-reminder-${id}`;
+const nudgeId       = (id: string) => `judith-nudge-${id}`;
+const lastChanceId  = (id: string) => `judith-lastchance-${id}`;
 
 // ─── Scheduling ───────────────────────────────────────────────────────────────
 
@@ -437,14 +480,45 @@ async function scheduleBill(
     );
   }
 
+  // ── Last-chance: 3 PM on due date, non-card bills only ────────────────────
+  // The 9 AM nudge reminds the user early; this fires at 3 PM for bills that
+  // still haven't been paid — giving them a concrete afternoon deadline before
+  // the bill goes overdue. Skip if the nudge already fires at or after 3 PM
+  // (no point in a redundant afternoon notification) or if the bill is auto-
+  // charged to a card (nothing for the user to do manually).
+  const LAST_CHANCE_HOUR = 15; // 3 PM local
+  if (opts.nudge && !opts.cardName && hour < LAST_CHANCE_HOUR) {
+    const lastChanceAt = new Date(dueAt);
+    lastChanceAt.setHours(LAST_CHANCE_HOUR, 0, 0, 0);
+    if (lastChanceAt > now) {
+      const copy = lastChanceCopy(persona, liveBill, language);
+      ops.push(
+        Notifications.scheduleNotificationAsync({
+          identifier: lastChanceId(bill.id),
+          content: {
+            title: copy.title,
+            body: copy.body,
+            sound: true,
+            categoryIdentifier: "BILL_REMINDER",
+            data: { billId: bill.id, type: "last-chance" },
+            interruptionLevel: "timeSensitive",
+            priority: Notifications.AndroidNotificationPriority.HIGH,
+          },
+          trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: lastChanceAt },
+        }),
+      );
+    }
+  }
+
   await Promise.allSettled(ops);
 }
 
-/** Cancels both the reminder and nudge for a single bill. */
+/** Cancels the reminder, nudge, and last-chance notifications for a single bill. */
 export async function cancelBillNotifications(billId: string): Promise<void> {
   await Promise.allSettled([
     Notifications.cancelScheduledNotificationAsync(reminderId(billId)),
     Notifications.cancelScheduledNotificationAsync(nudgeId(billId)),
+    Notifications.cancelScheduledNotificationAsync(lastChanceId(billId)),
   ]);
 }
 

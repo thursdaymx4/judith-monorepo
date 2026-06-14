@@ -307,9 +307,10 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
   // its own bill, so the card's statement already covers that money. Summing both
   // double-counts. Exclude these from every money SUM (the card statement is the
   // single payable) but keep them in the list so Judith can still talk about them.
-  // A charge only counts as "via card" when its parent card is known (cardName
-  // resolved); a dangling link keeps counting so real money never vanishes.
-  const isViaCard = (b: ClientBill) => !!b.chargedToCard && !!b.cardName;
+  // Trust chargedToCard alone — a dangling parentCardId (card deleted + re-added)
+  // means cardName resolves to null on the client, but the bill is still auto-paid
+  // via card and must not be counted as an independent payable.
+  const isViaCard = (b: ClientBill) => !!b.chargedToCard;
   const payable = bills.filter((b) => !isViaCard(b));
   const viaCard = bills.filter(isViaCard);
 
@@ -428,7 +429,7 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     const when = b.isProjection
       ? `due ~${b.dueLabel ?? "next month"} (estimated — not yet billed)`
       : isResolvedViaCardLine
-        ? `auto-charged on ${dueDateStr} (${dueWkday}) — settled via ${b.cardName} statement, NOT counted in overdue or due totals`
+        ? `auto-charged on ${dueDateStr} (${dueWkday}) — settled via ${b.cardName ?? "card"} statement, NOT counted in overdue or due totals`
         : days === 0
           ? `due TODAY — ${dueDateStr} (${dueWkday})`
           : days < 0
@@ -437,9 +438,7 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     const bizTag = b.isBusiness
       ? (b.businessName ? ` [BUSINESS: ${b.businessName}]` : " [BUSINESS]")
       : " [PERSONAL]";
-    // Only tag charges that are actually excluded from the totals (resolved card
-    // link). A dangling link is still counted, so tagging it would mislead.
-    const cardTag = isViaCard(b) ? ` [AUTO-CHARGED to ${b.cardName}]` : "";
+    const cardTag = isViaCard(b) ? ` [AUTO-CHARGED to ${b.cardName ?? "card"}]` : "";
     const estTag = b.isProjection ? " [ESTIMATED NEXT MONTH]" : "";
     const idTag = b.id ? `[id:${b.id}] ` : "";
     const paid = b.paidThisPeriod ?? 0;
