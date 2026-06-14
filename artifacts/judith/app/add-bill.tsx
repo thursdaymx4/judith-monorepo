@@ -2,19 +2,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Animated, { FadeInDown, FadeIn, LinearTransition, useSharedValue, useAnimatedStyle, withSpring } from "react-native-reanimated";
-
-// Defensive require so build 33 (which doesn't ship the native module) doesn't
-// crash on screen mount. On builds that DO ship it, we render the inline date
-// picker for "once" bills. On builds without it, we fall back to month chips
-// + day input — same as before this commit.
-let DateTimePickerModule: React.ComponentType<any> | null = null;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  DateTimePickerModule = require("@react-native-community/datetimepicker").default;
-} catch {
-  DateTimePickerModule = null;
-}
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 import { Icon } from "@/components/Icon";
 import { Btn, Chip, Low, Mono, ProviderLogo, RoundBtn, SectionLabel, Txt } from "@/components/ui";
@@ -329,9 +317,7 @@ export default function AddBillScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* live preview */}
-        <Animated.View
-          entering={FadeInDown.duration(360)}
-          layout={LinearTransition.springify().damping(18)}
+        <View
           style={{
             flexDirection: "row",
             alignItems: "center",
@@ -365,10 +351,9 @@ export default function AddBillScreen() {
             )}
             <Low size={11} style={{ marginTop: 1 }}>{freqSuffix}</Low>
           </View>
-        </Animated.View>
+        </View>
 
         {/* ───────── the basics ───────── */}
-        <Animated.View entering={FadeInDown.duration(360).delay(60)}>
         <SectionLabel>The basics</SectionLabel>
 
         <FieldLabel text="Category" />
@@ -417,108 +402,79 @@ export default function AddBillScreen() {
             </ScrollView>
           )}
         </View>
-        </Animated.View>
 
-        {/* ───────── schedule (cadence + date) ───────── */}
-        <Animated.View entering={FadeInDown.duration(360).delay(120)} layout={LinearTransition.springify()}>
-          <SectionLabel>Schedule</SectionLabel>
+        {/* ───────── schedule ───────── */}
+        <SectionLabel>Schedule</SectionLabel>
 
-          <FieldLabel text="How often?" />
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <CadenceTile
-              t={t}
-              icon="repeat"
-              label="Monthly"
-              hint="Every month"
-              selected={frequency === "monthly"}
-              onPress={() => { haptics.selection(); setFrequency("monthly"); }}
-            />
-            <CadenceTile
-              t={t}
-              icon="calendar"
-              label="Yearly"
-              hint="Once a year"
-              selected={frequency === "annual"}
-              onPress={() => { haptics.selection(); setFrequency("annual"); }}
-            />
-            <CadenceTile
-              t={t}
-              icon="spark"
-              label="One-time"
-              hint="No repeat"
-              selected={frequency === "once"}
-              onPress={() => { haptics.selection(); setFrequency("once"); }}
-            />
+        <FieldLabel text="How often?" />
+        <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+          <Chip label="Monthly" selected={frequency === "monthly"} onPress={() => { haptics.selection(); setFrequency("monthly"); }} />
+          <Chip label="Yearly" selected={frequency === "annual"} onPress={() => { haptics.selection(); setFrequency("annual"); }} />
+          <Chip label="One-time" selected={frequency === "once"} onPress={() => { haptics.selection(); setFrequency("once"); }} />
+        </View>
+
+        {/* Frequency-aware date input:
+            monthly → just a day stepper (recurs every month)
+            annual  → day + month (recurs same date each year)
+            once    → full native date picker (any future or past date) */}
+        {frequency === "once" ? (
+          <View style={{ marginTop: 14 }}>
+            <FieldLabel text="Date" />
+            <View style={{ backgroundColor: t.surface1, borderWidth: 1, borderColor: t.hair, borderRadius: 14, paddingVertical: 4, paddingHorizontal: 4, alignItems: "center" }}>
+              <DateTimePicker
+                value={onceDate}
+                mode="date"
+                display={Platform.OS === "ios" ? "inline" : "default"}
+                themeVariant={colorScheme === "dark" ? "dark" : "light"}
+                onChange={(_e, d) => {
+                  if (!d) return;
+                  setOnceDate(d);
+                  setDueDay(String(d.getDate()));
+                  setDueMonth(d.getMonth() + 1);
+                  clearErr();
+                }}
+              />
+            </View>
           </View>
-
-          {/* Frequency-aware date input:
-              monthly → just a day stepper (recurs every month)
-              annual  → day + month (recurs same date each year)
-              once    → native inline calendar (any date) when module available;
-                        falls back to day + month for old builds. */}
-          <Animated.View entering={FadeIn.duration(260)} layout={LinearTransition.springify()} style={{ marginTop: 16 }}>
-            {frequency === "once" && DateTimePickerModule ? (
-              <>
-                <FieldLabel text="Date" />
-                <View style={{ backgroundColor: t.surface1, borderWidth: 1, borderColor: t.hair, borderRadius: 16, paddingVertical: 6, paddingHorizontal: 6, alignItems: "center", overflow: "hidden" }}>
-                  <DateTimePickerModule
-                    value={onceDate}
-                    mode="date"
-                    display={Platform.OS === "ios" ? "inline" : "default"}
-                    themeVariant={colorScheme === "dark" ? "dark" : "light"}
-                    accentColor={t.accent}
-                    onChange={(_e: unknown, d?: Date) => {
-                      if (!d) return;
-                      setOnceDate(d);
-                      setDueDay(String(d.getDate()));
-                      setDueMonth(d.getMonth() + 1);
-                      clearErr();
-                    }}
-                  />
-                </View>
-              </>
-            ) : (
-              <>
-                <FieldLabel text={frequency === "annual" || frequency === "once" ? "Day" : "Due day"} />
-                <TextInput
-                  value={dueDay}
-                  onChangeText={(v) => { setDueDay(v.replace(/[^0-9]/g, "").slice(0, 2)); clearErr(); }}
-                  placeholder="1–31"
-                  placeholderTextColor={t.txtLow}
-                  keyboardType="number-pad"
-                  style={{ ...inputStyle, fontSize: 19, fontFamily: t.fonts.monoBold, textAlign: "center" }}
-                />
-                {(frequency === "annual" || frequency === "once") && (
-                  <View style={{ marginTop: 12 }}>
-                    <FieldLabel text="Month" />
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -4 }} contentContainerStyle={{ paddingHorizontal: 4, gap: 6, flexDirection: "row" }}>
-                      {MONTHS_SHORT.map((m, i) => (
-                        <Chip key={m} label={m} selected={dueMonth === i + 1} onPress={() => { haptics.selection(); setDueMonth(i + 1); }} />
-                      ))}
-                    </ScrollView>
-                  </View>
-                )}
-              </>
+        ) : (
+          <View style={{ marginTop: 14 }}>
+            <FieldLabel text={frequency === "annual" ? "Day" : "Due day"} />
+            <TextInput
+              value={dueDay}
+              onChangeText={(v) => { setDueDay(v.replace(/[^0-9]/g, "").slice(0, 2)); clearErr(); }}
+              placeholder="1–31"
+              placeholderTextColor={t.txtLow}
+              keyboardType="number-pad"
+              style={{ ...inputStyle, fontSize: 19, fontFamily: t.fonts.monoBold, textAlign: "center" }}
+            />
+            {frequency === "annual" && (
+              <View style={{ marginTop: 12 }}>
+                <FieldLabel text="Month" />
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -4 }} contentContainerStyle={{ paddingHorizontal: 4, gap: 6, flexDirection: "row" }}>
+                  {MONTHS_SHORT.map((m, i) => (
+                    <Chip key={m} label={m} selected={dueMonth === i + 1} onPress={() => { haptics.selection(); setDueMonth(i + 1); }} />
+                  ))}
+                </ScrollView>
+              </View>
             )}
-          </Animated.View>
-        </Animated.View>
+          </View>
+        )}
 
-        {/* ───────── amount (hero) ───────── */}
-        <Animated.View entering={FadeInDown.duration(360).delay(180)} style={{ marginTop: 22 }}>
+        {/* amount */}
+        <View style={{ marginTop: 18 }}>
           <FieldLabel text="Amount" />
           <View
             style={{
               backgroundColor: t.surface1,
               borderWidth: 1,
-              borderColor: validAmount ? t.accent + "55" : t.hair,
-              borderRadius: 18,
+              borderColor: validAmount ? t.hair : t.hair,
+              borderRadius: 14,
               flexDirection: "row",
               alignItems: "center",
-              paddingHorizontal: 18,
-              paddingVertical: 6,
+              paddingHorizontal: 14,
             }}
           >
-            <Mono size={26} color={validAmount ? t.accent : t.txtMid}>{country.cur}</Mono>
+            <Mono size={18} color={t.txtMid}>{country.cur}</Mono>
             <TextInput
               value={amount}
               onChangeText={(v) => { setAmount(fmtCurrency(v)); clearErr(); }}
@@ -531,15 +487,15 @@ export default function AddBillScreen() {
               keyboardType="decimal-pad"
               style={{
                 flex: 1,
-                paddingVertical: 16,
-                paddingHorizontal: 10,
+                paddingVertical: 13,
+                paddingHorizontal: 8,
                 color: t.txtHi,
-                fontSize: 28,
+                fontSize: 19,
                 fontFamily: t.fonts.monoBold,
               }}
             />
           </View>
-        </Animated.View>
+        </View>
 
         {/* bill type */}
         <View style={{ marginTop: 18 }}>
@@ -755,53 +711,6 @@ export default function AddBillScreen() {
         )}
       </View>
     </KeyboardAvoidingView>
-  );
-}
-
-/** Large cadence tile with icon + label + hint. Press feedback via Reanimated
- *  spring scale so it feels SwiftUI-tactile rather than the flat chip behaviour. */
-function CadenceTile({
-  t, icon, label, hint, selected, onPress,
-}: {
-  t: ReturnType<typeof useTheme>;
-  icon: "repeat" | "calendar" | "spark";
-  label: string;
-  hint: string;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  const scale = useSharedValue(1);
-  const aStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  return (
-    <Animated.View style={[{ flex: 1 }, aStyle]}>
-      <Pressable
-        onPressIn={() => { scale.value = withSpring(0.94, { damping: 16, stiffness: 320 }); }}
-        onPressOut={() => { scale.value = withSpring(1, { damping: 16, stiffness: 320 }); }}
-        onPress={onPress}
-        style={{
-          borderRadius: 18,
-          borderWidth: 1.5,
-          borderColor: selected ? t.accent : t.hair,
-          backgroundColor: selected ? t.accent + "1f" : t.surface1,
-          paddingVertical: 16,
-          paddingHorizontal: 10,
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <View
-          style={{
-            width: 36, height: 36, borderRadius: 18,
-            backgroundColor: selected ? t.accent : t.surface2,
-            alignItems: "center", justifyContent: "center",
-          }}
-        >
-          <Icon name={icon as never} size={18} color={selected ? t.onAccent : t.txtMid} />
-        </View>
-        <Txt size={13} weight="semibold" color={selected ? t.txtHi : t.txtMid}>{label}</Txt>
-        <Low size={11}>{hint}</Low>
-      </Pressable>
-    </Animated.View>
   );
 }
 
