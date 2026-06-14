@@ -1,5 +1,5 @@
 import { Image } from "expo-image";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { Animated, Easing, StyleSheet, View } from "react-native";
 
 import type { PersonaId } from "@/constants/personas";
@@ -70,7 +70,7 @@ interface JudithAvatarProps {
   badge?: boolean;
 }
 
-export function JudithAvatar({
+function JudithAvatarImpl({
   persona = "pro",
   size = 56,
   state = "idle",
@@ -80,6 +80,12 @@ export function JudithAvatar({
   const look = PERSONA_LOOKS[persona] ?? PERSONA_LOOKS.pro;
   const pulse = useRef(new Animated.Value(0)).current;
   const wave = useRef(new Animated.Value(0)).current;
+
+  // Memoize the DiceBear URL so React.memo on the wrapper component can
+  // reliably skip re-renders when persona/mood haven't changed. Without
+  // this, even a no-op parent re-render reconstructs the URL string and
+  // expo-image diffs the `source` prop.
+  const uri = useMemo(() => faceURL(persona, mood), [persona, mood]);
 
   useEffect(() => {
     let anim: Animated.CompositeAnimation | undefined;
@@ -96,10 +102,20 @@ export function JudithAvatar({
       anim.start();
     } else if (state === "speaking") {
       wave.setValue(0);
+      // useNativeDriver: TRUE — previously this was false because the
+      // wave bars animated `height`, which can't run on the native driver.
+      // Result: every active speaking avatar pumped the JS thread at 60Hz
+      // for the entire duration of the audio. With many avatars in the
+      // persona picker (or stale "speaking" states from cancelled previews),
+      // the JS thread was being starved — taps stopped responding while
+      // scrolling still worked (scroll runs on the UI thread). Switching
+      // to transform-scaleY moves the animation off the JS thread. The
+      // visual result is identical because the bar's anchor point stays
+      // at the bottom (see `transformOrigin` in the bar style below).
       anim = Animated.loop(
         Animated.sequence([
-          Animated.timing(wave, { toValue: 1, duration: 300, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
-          Animated.timing(wave, { toValue: 0, duration: 300, easing: Easing.inOut(Easing.ease), useNativeDriver: false }),
+          Animated.timing(wave, { toValue: 1, duration: 300, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(wave, { toValue: 0, duration: 300, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
         ]),
       );
       anim.start();
@@ -153,28 +169,49 @@ export function JudithAvatar({
         }}
       >
         <Image
-          source={{ uri: faceURL(persona, mood) }}
+          source={{ uri }}
+          // memory-disk so a persona's SVG survives app restarts. Without
+          // this, expo-image's default is memory-only and every cold start
+          // re-fetches every avatar — felt as JS-thread thrash on tab open.
+          cachePolicy="memory-disk"
+          // Reuse the same native view across persona swaps in lists like
+          // the persona picker. Same key = no re-init.
+          recyclingKey={`avatar-${persona}-${mood ?? "none"}`}
           style={{ width: size, height: size }}
           contentFit="cover"
           transition={200}
         />
       </View>
-      {/* speaking wave */}
+      {/* speaking wave — bars use a fixed maximum height container, and
+          scaleY transform (driven natively) to animate. This keeps the
+          animation off the JS thread (was the dominant JS-thread hog
+          before). The "anchor at bottom" effect comes from translateY
+          on the outer container so the bar grows upward, not from both
+          ends like a default scale would. */}
       {state === "speaking" && (
         <View style={[styles.waveRow, { bottom: -size * 0.12 }]}>
           {[0, 1, 2, 3, 4].map((i) => {
-            const h = wave.interpolate({
+            const maxH = size * (0.18 + (i % 2) * 0.12);
+            const minH = size * 0.08;
+            const minScale = minH / maxH;
+            // Interpolate between minScale and 1 — at value 0 the bar is
+            // its minimum size; at value 1 it's full height.
+            const sy = wave.interpolate({
               inputRange: [0, 1],
-              outputRange: [size * 0.08, size * (0.18 + (i % 2) * 0.12)],
+              outputRange: [minScale, 1],
             });
             return (
               <Animated.View
                 key={i}
                 style={{
                   width: Math.max(2, size * 0.04),
-                  height: h,
+                  height: maxH,
                   borderRadius: 4,
                   backgroundColor: look.g1,
+                  transform: [{ scaleY: sy }, { translateY: 0 }],
+                  // Anchor scale to the bottom edge so the bar grows
+                  // upward, mimicking the old height-animation visual.
+                  transformOrigin: "bottom",
                 }}
               />
             );
@@ -199,6 +236,12 @@ export function JudithAvatar({
   );
 }
 
+// React.memo bails out of re-renders whose persona/size/state/mood/badge
+// haven't changed. Critical for the persona picker modal (6 avatars in a
+// scroll list) and Settings (every theme toggle previously re-rendered
+// every avatar — and re-init'd the expo-image source).
+export const JudithAvatar = React.memo(JudithAvatarImpl);
+
 const styles = StyleSheet.create({
   halo: { position: "absolute" },
   pulse: { position: "absolute", borderWidth: 2 },
@@ -221,3 +264,4 @@ const styles = StyleSheet.create({
 });
 
 export default JudithAvatar;
+

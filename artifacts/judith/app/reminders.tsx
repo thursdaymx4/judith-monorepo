@@ -272,7 +272,7 @@ export default function RemindersModal() {
 
   /* group reminders by when Judith will nudge */
   const groups = [
-    { label: "Sending soon", items: list.filter((b) => b.dueDays <= 3) },
+    { label: "Coming up", items: list.filter((b) => b.dueDays <= 3) },
     { label: "This week", items: list.filter((b) => b.dueDays > 3 && b.dueDays <= 7) },
     { label: "Later this month", items: list.filter((b) => b.dueDays > 7) },
   ].filter((g) => g.items.length);

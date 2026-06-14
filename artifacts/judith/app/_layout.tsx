@@ -11,7 +11,31 @@ import {
   useFonts,
 } from "@expo-google-fonts/space-grotesk";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import * as Sentry from "@sentry/react-native";
 import * as Notifications from "expo-notifications";
+
+// Sentry must initialize before any other JS executes app code — surfaces
+// crashes and unhandled rejections that happen during the very first render.
+// DSN is public by design; pulled from env so dev/prod can point at different
+// projects. Set EXPO_PUBLIC_SENTRY_DSN in `.env` (and as an EAS secret for CI).
+//
+// IMPORTANT — In dev we skip Sentry.init entirely (not just `enabled: false`).
+// With only `enabled: false`, Sentry STILL installs its auto-instrumentation:
+// every fetch is wrapped in a transaction, every touch is recorded as a
+// breadcrumb, every screen change is tracked. With `tracesSampleRate: 1.0`
+// in dev that was bombarding the JS thread with span/transaction work even
+// though no events were being uploaded. Symptom: hundreds of CFNetwork
+// events/sec while the app was idle, JS thread starved, taps stopped
+// responding (scrolls kept working because they're UI-thread). Skipping
+// init entirely in dev means no instrumentation, no breadcrumb buffer, no
+// transaction overhead. Production builds still get full Sentry coverage.
+if (!__DEV__) {
+  Sentry.init({
+    dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+    // 20% of perf traces in production to stay under the free-tier budget.
+    tracesSampleRate: 0.2,
+  });
+}
 import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
@@ -25,7 +49,9 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { BreathingBackdrop } from "@/components/BreathingBackdrop";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { HandledSplash } from "@/components/HandledSplash";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { JudithProvider, useJudith } from "@/contexts/JudithStore";
 import { useBiometricLock } from "@/hooks/useBiometricLock";
@@ -209,8 +235,17 @@ function RootLayoutNav() {
 
   const modalOpts = { presentation: "modal" as const, headerShown: false };
 
+  // BreathingBackdrop is now mounted ONLY while the user is on a screen
+  // that visually needs it (splash + auth). Once authed, it unmounts —
+  // freeing the UI thread of 5 Reanimated worklet loops + 5 SVG radial
+  // gradients that were running indefinitely behind opaque tab screens.
+  // That sustained UI-thread work was the source of the "app gets slower
+  // after 5 minutes" thermal-throttling complaint.
+  const showBackdrop = !authed || recoveryActive;
+
   return (
     <View style={{ flex: 1 }}>
+      {showBackdrop && <BreathingBackdrop />}
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.canvas } }}>
         <Stack.Protected guard={isOnboarded}>
           <Stack.Screen name="(tabs)" />
@@ -227,7 +262,11 @@ function RootLayoutNav() {
           <Stack.Screen name="(onboarding)" />
         </Stack.Protected>
         <Stack.Protected guard={!authed || recoveryActive}>
-          <Stack.Screen name="(auth)" />
+          {/* Auth route renders transparent so the root BreathingBackdrop
+              shows through — without this override, Stack's default
+              contentStyle (t.canvas, opaque) paints over the bloom field
+              and the login looks blank. */}
+          <Stack.Screen name="(auth)" options={{ contentStyle: { backgroundColor: "transparent" } }} />
         </Stack.Protected>
       </Stack>
       {isOnboarded && faceIdLock && locked && (
@@ -239,7 +278,7 @@ function RootLayoutNav() {
   );
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     SpaceGrotesk_400Regular,
     SpaceGrotesk_500Medium,
@@ -249,6 +288,11 @@ export default function RootLayout() {
     JetBrainsMono_700Bold,
     PlayfairDisplay_800ExtraBold_Italic,
   });
+
+  // The animated "Handled." splash covers the screen while the JS bundle
+  // warms and contexts hydrate. It dismisses itself ~2.2s after fonts load
+  // by calling onDone(), at which point the system splash is also released.
+  const [splashDone, setSplashDone] = React.useState(false);
 
   useEffect(() => {
     if (fontsLoaded || fontError) SplashScreen.hideAsync();
@@ -261,11 +305,25 @@ export default function RootLayout() {
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1 }}>
+            {/* The persistent BreathingBackdrop used to live HERE at root,
+                but it ran 5 Reanimated worklet loops (breathe + drift +
+                spin per bloom) continuously even while the user was on a
+                tab screen that paints opaquely on top. After ~5 minutes
+                iOS thermal-throttles the CPU and the app feels
+                progressively slower. The backdrop is now rendered
+                conditionally inside RootLayoutNav, only while the user
+                is unauthed (splash + auth screens) — see the
+                `!authed` gate there. HandledSplash has its own internal
+                backdrop instance, so the splash fade is unaffected. */}
             <KeyboardProvider>
               <AuthProvider>
                 <JudithProvider>
                   <SubscriptionProvider>
                     <RootLayoutNav />
+                    {/* Splash sits INSIDE the provider stack so its useTheme()
+                        call resolves against JudithProvider. It absolute-positions
+                        over RootLayoutNav and unmounts after its own fade. */}
+                    {!splashDone && <HandledSplash onDone={() => setSplashDone(true)} />}
                   </SubscriptionProvider>
                 </JudithProvider>
               </AuthProvider>
@@ -282,3 +340,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 22 },
   body: { fontSize: 15, textAlign: "center", lineHeight: 22 },
 });
+
+// Sentry.wrap installs the error boundary that captures unhandled render
+// errors with full component stack frames + a "view stacktrace" link in the
+// Sentry UI. Keep this as the default export so Expo Router picks it up.
+export default Sentry.wrap(RootLayout);

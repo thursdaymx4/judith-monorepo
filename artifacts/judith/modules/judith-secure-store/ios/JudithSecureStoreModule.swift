@@ -3,13 +3,13 @@ import ExpoModulesCore
 import Foundation
 import Security
 
-final class JudithSecureStoreModule: Module {
+public final class JudithSecureStoreModule: Module {
     private enum Config {
         static let service = "com.app.judith.securestore"
         static let storeEncryptionKeyAccount = "judith_store_encryption_key_v1"
     }
 
-    func definition() -> ModuleDefinition {
+    public func definition() -> ModuleDefinition {
         Name("JudithSecureStore")
 
         AsyncFunction("getItem") { (key: String) -> String? in

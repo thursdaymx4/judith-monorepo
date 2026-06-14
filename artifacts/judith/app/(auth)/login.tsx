@@ -11,7 +11,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { IntroScreenGlow } from "@/components/GlowBlob";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Btn } from "@/components/ui";
 import { useAuth, type OAuthProvider } from "@/contexts/AuthContext";
@@ -133,12 +132,12 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: t.canvas }}
+      // transparent so the persistent BreathingBackdrop mounted in
+      // _layout.tsx is visible through the auth screen — the bloom
+      // field that started on the splash keeps running uninterrupted.
+      style={{ flex: 1, backgroundColor: "transparent" }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      {/* ── intro-screen persistent background glow (same as splash).
-           radial-gradient(95% 55% at 50% 38%, accent 22%, transparent 62%) */}
-      <IntroScreenGlow />
 
       <ScrollView
         contentContainerStyle={{
@@ -150,9 +149,13 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* ── avatar — centred, is-auth scale (prototype top:92px, scale:0.7×132=92px) */}
+        {/* ── avatar — centred, is-auth scale (prototype top:92px, scale:0.7×132=92px)
+             Hardcoded to "pro" (Professional Peer — black hair, square glasses,
+             collared shirt) so the same Judith continues from splash → login →
+             onboarding. The user's chosen persona kicks in after they explicitly
+             pick one in the persona-picker step. */}
         <View style={{ alignItems: "center", marginBottom: 18 }}>
-          <JudithAvatar persona={persona} size={92} state="idle" />
+          <JudithAvatar persona="pro" size={92} state="idle" />
         </View>
 
         {/* ── intro-auth-head: kicker + title + lede */}
@@ -187,13 +190,15 @@ export default function LoginScreen() {
             {mode === "login" ? "Hi, I'm Judith" : "Create your account"}
           </Text>
 
-          {/* .lede 14px txtMid */}
+          {/* .lede 14px \u2014 theme-independent off-white so it reads clearly
+               over the dark BreathingBackdrop regardless of system theme.
+               t.txtMid was too pale in light mode against the bloom canvas. */}
           {mode === "login" && (
             <Text
               style={{
                 fontSize: 14,
                 fontFamily: t.fonts.regular,
-                color: t.txtMid,
+                color: "rgba(255,255,255,0.78)",
                 textAlign: "center",
                 lineHeight: 20,
               }}
@@ -263,7 +268,7 @@ export default function LoginScreen() {
         {/* ── "or use email" divider */}
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 14 }}>
           <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
-          <Text style={{ fontSize: 12, color: t.txtLow, fontFamily: t.fonts.regular }}>
+          <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", fontFamily: t.fonts.regular }}>
             or use email
           </Text>
           <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
@@ -297,7 +302,7 @@ export default function LoginScreen() {
               disabled={anyBusy}
               style={{ alignSelf: "flex-end", paddingVertical: 2 }}
             >
-              <Text style={{ fontSize: 12, color: t.txtMid, fontFamily: t.fonts.regular }}>
+              <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.78)", fontFamily: t.fonts.regular }}>
                 Forgot password?
               </Text>
             </Pressable>
@@ -354,7 +359,7 @@ export default function LoginScreen() {
             <Text
               style={{
                 fontSize: 14,
-                color: t.txtMid,
+                color: "rgba(255,255,255,0.78)",
                 textAlign: "center",
                 fontFamily: t.fonts.regular,
               }}
@@ -381,7 +386,7 @@ export default function LoginScreen() {
             <Text
               style={{
                 fontSize: 12,
-                color: t.txtLow,
+                color: "rgba(255,255,255,0.55)",
                 textAlign: "center",
                 fontFamily: t.fonts.regular,
               }}

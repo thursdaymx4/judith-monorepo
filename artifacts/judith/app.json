@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.app.judith",
-      "buildNumber": "31",
+      "buildNumber": "33",
       "usesAppleSignIn": true,
       "appleTeamId": "88JK8X8BT7",
       "entitlements": {
@@ -29,11 +29,13 @@
         ]
       },
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSFinancialDataUsageDescription": "Judith uses your authorized financial transactions to detect bill payments and suggest recurring bills."
       }
     },
     "android": {
       "package": "com.app.judith",
+      "versionCode": 33,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon-android-fg.png",
         "backgroundColor": "#0a0b0e"
@@ -58,22 +60,27 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#0a0b0e",
-          "image": "./assets/images/icon.png",
-          "imageWidth": 200,
           "dark": {
-            "backgroundColor": "#0a0b0e",
-            "image": "./assets/images/icon.png",
-            "imageWidth": 200
+            "backgroundColor": "#0a0b0e"
           }
         }
       ],
+      "./plugins/with-handled-splash",
+      "./plugins/with-judith-app-intents",
       [
         "expo-router",
         {
           "origin": "https://replit.com/"
         }
       ],
-      "expo-font",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/PlayfairDisplay_800ExtraBold_Italic.ttf"
+          ]
+        }
+      ],
       "expo-web-browser",
       "expo-apple-authentication",
       [
@@ -83,7 +90,15 @@
         }
       ],
       "expo-notifications",
-      "@bacons/apple-targets"
+      "@bacons/apple-targets",
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "padalastory",
+          "project": "judith",
+          "disableAutoUpload": true
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

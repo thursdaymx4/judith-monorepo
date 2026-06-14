@@ -12,6 +12,13 @@ struct AskView: View {
     @State private var viewState: AskState = .idle
     @State private var autoStartedOnAppear = false
 
+    /// TabView selection binding owned by ContentView. AskView reasserts
+    /// `selectedTab = tagValue` after every WatchKit interop call so the
+    /// user stays on the "Judith is thinking…" / answered screen instead
+    /// of being silently switched to FaceView or UpNextView.
+    @Binding var selectedTab: Int
+    let tagValue: Int
+
     private let synthesizer = AVSpeechSynthesizer()
 
     var body: some View {
@@ -214,13 +221,21 @@ struct AskView: View {
     private func requestInputAndAsk() async {
         viewState = .capturing
 
-        guard let captured = await presentTextInput(),
-              !captured.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        let captured = await presentTextInput()
+
+        // The WatchKit text-input controller dismissed — reassert our tab
+        // selection so SwiftUI doesn't drop us onto a different page when
+        // control returns to it. Doing this in both branches (cancel and
+        // confirm) covers every dismissal path.
+        selectedTab = tagValue
+
+        guard let text = captured,
+              !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             viewState = .idle
             return
         }
 
-        query = captured.trimmingCharacters(in: .whitespacesAndNewlines)
+        query = text.trimmingCharacters(in: .whitespacesAndNewlines)
         submitQuery()
     }
 

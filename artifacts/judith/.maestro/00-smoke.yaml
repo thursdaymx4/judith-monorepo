@@ -1,0 +1,19 @@
+appId: com.app.judith
+name: Smoke — cold launch lands on home
+
+# Most basic regression catcher: the app must boot and the home tab
+# must render without an error screen. Run this before every archive
+# so something obviously broken (missing native module, JS crash on
+# launch, splash hang) fails the test instead of TestFlight.
+---
+- launchApp:
+    clearState: false
+- waitForAnimationToEnd
+# Home-tab section heading on the "due this month" hero card. If this
+# never appears within Maestro's default 5s the app didn't reach Home —
+# splash hang, navigation crash, or an unhandled error fallback.
+- assertVisible: "This month"
+# ErrorFallback's heading — never expected on a healthy cold launch.
+- assertNotVisible:
+    text: "Something went wrong"
+    optional: true

@@ -418,13 +418,22 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     const dueDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + days);
     const dueDateStr = b.dueLabel ?? englishDate(dueDate);
     const dueWkday = englishWeekday(dueDate);
+    // Via-card bills auto-pay through the parent CC statement, so they MUST
+    // NOT be described with overdue/due language — that causes the model to
+    // sum them into overdue totals on top of the parent CC bill (double
+    // counting). The pre-computed overdueAmt already excludes them; this
+    // makes the bill list consistent so the model can't recompute and
+    // disagree.
+    const isResolvedViaCardLine = isViaCard(b);
     const when = b.isProjection
       ? `due ~${b.dueLabel ?? "next month"} (estimated — not yet billed)`
-      : days === 0
-        ? `due TODAY — ${dueDateStr} (${dueWkday})`
-        : days < 0
-          ? `OVERDUE by ${Math.abs(days)} day(s) — was due ${dueDateStr} (${dueWkday})`
-          : `due in ${days} day(s) — on ${dueDateStr} (${dueWkday})`;
+      : isResolvedViaCardLine
+        ? `auto-charged on ${dueDateStr} (${dueWkday}) — settled via ${b.cardName} statement, NOT counted in overdue or due totals`
+        : days === 0
+          ? `due TODAY — ${dueDateStr} (${dueWkday})`
+          : days < 0
+            ? `OVERDUE by ${Math.abs(days)} day(s) — was due ${dueDateStr} (${dueWkday})`
+            : `due in ${days} day(s) — on ${dueDateStr} (${dueWkday})`;
     const bizTag = b.isBusiness
       ? (b.businessName ? ` [BUSINESS: ${b.businessName}]` : " [BUSINESS]")
       : " [PERSONAL]";
@@ -438,7 +447,11 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     const paidTag = paid > 0 && orig > 0
       ? ` [PARTIALLY PAID this month: ${curStr(cur, paid)} of ${curStr(cur, orig)} — amount shown is REMAINING balance]`
       : "";
-    return `- ${idTag}${b.provider ?? "Bill"} (${b.cat ?? "Other"})${bizTag}${cardTag}${estTag}${paidTag}: ${curStr(cur, b.amount ?? 0)}, ${when}, ${b.status ?? "upcoming"}.`;
+    // For via-card bills the only correct status label is "auto-paid via
+    // card" — the raw client-side status ("overdue"/"urgent"/etc.) would
+    // contradict the `when` clause above and re-introduce double-counting.
+    const statusLabel = isResolvedViaCardLine ? "auto-paid via card" : (b.status ?? "upcoming");
+    return `- ${idTag}${b.provider ?? "Bill"} (${b.cat ?? "Other"})${bizTag}${cardTag}${estTag}${paidTag}: ${curStr(cur, b.amount ?? 0)}, ${when}, ${statusLabel}.`;
   });
 
   // ── Pre-computed income-remaining figures ──────────────────────────────
@@ -481,7 +494,39 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
   const payCycleLabel = payCycle === "semi-monthly" ? "twice a month (semi-monthly)"
     : payCycle === "weekly" ? "every week"
     : "once a month";
-  const payCycleSuffix = payCycle ? ` User gets paid ${payCycleLabel}.` : "";
+
+  // Effective monthly income for THIS month (override or default). Used to
+  // compute per-paycheck math below so the AI doesn't have to divide on its
+  // own — LLMs are reliable at copying numbers but inconsistent at the
+  // arithmetic, and "do I have enough until next payday?" answers depend
+  // on getting this right. Reuse the existing `incomeFor()` helper so the
+  // override-vs-default precedence stays in one place.
+  const effectiveMonthlyIncome = incomeFor(curMonthKey) ?? 0;
+  // Paychecks per month: 12-month average. 52 weeks / 12 months = 4.333 for
+  // weekly; semi-monthly is exactly 2; monthly is 1. Use 4.33 for the AI
+  // string so it lines up with how humans talk about it.
+  const paychecksPerMonth = payCycle === "weekly" ? 4.33
+    : payCycle === "semi-monthly" ? 2
+    : payCycle === "monthly" ? 1
+    : null;
+  const perPaycheckAmount =
+    paychecksPerMonth != null && effectiveMonthlyIncome > 0
+      ? effectiveMonthlyIncome / paychecksPerMonth
+      : null;
+  // Format the per-paycheck math as an explicit clause so the AI quotes it
+  // directly instead of redoing the division (and getting it wrong on a
+  // weekly cycle where the result isn't a round number).
+  const paycheckClause = (() => {
+    if (perPaycheckAmount == null || paychecksPerMonth == null) return "";
+    if (payCycle === "weekly") {
+      return ` Approx ${curStr(cur, Math.round(perPaycheckAmount))} per paycheck (~4.3 paychecks/mo).`;
+    }
+    if (payCycle === "semi-monthly") {
+      return ` Approx ${curStr(cur, Math.round(perPaycheckAmount))} per paycheck (2 paychecks/mo).`;
+    }
+    return ` Full monthly income lands in one paycheck.`;
+  })();
+  const payCycleSuffix = payCycle ? ` User gets paid ${payCycleLabel}.${paycheckClause}` : "";
 
   // Compute next payday and how many days away it is
   const nextPayday = nextPaydayDate(today, payCycle, paydayDay, paydaySemi, paydayWeekday);
@@ -493,6 +538,55 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     if (diffDays === 0) return `Next payday: TODAY (${dateStr}).`;
     if (diffDays === 1) return `Next payday: TOMORROW (${dateStr}).`;
     return `Next payday: ${dateStr} (${diffDays} days from now).`;
+  })();
+
+  // Bills due BEFORE next payday — the window the user typically wants to
+  // know about ("will my next paycheck cover what's due first?"). Computed
+  // from the live due array using days-from-today rather than re-walking
+  // dates. Excludes overdue (those need to be settled regardless of cycle).
+  const billsBeforeNextPaydayLine = (() => {
+    if (!nextPayday) return null;
+    const msPerDay = 86_400_000;
+    const diffDays = Math.round((nextPayday.getTime() - today.getTime()) / msPerDay);
+    if (diffDays <= 0) return null;
+    const windowBills = due.filter((b) => {
+      const d = b.dueDays ?? 0;
+      return d >= 0 && d <= diffDays;
+    });
+    if (windowBills.length === 0) {
+      return `Bills due between today and next payday: none.`;
+    }
+    const windowTotal = windowBills.reduce((s, b) => s + (b.amount ?? 0), 0);
+    const word = windowBills.length === 1 ? "bill" : "bills";
+    return `Bills due between today and next payday: ${curStr(cur, windowTotal)} (${windowBills.length} ${word}).`;
+  })();
+
+  // Count remaining paydays in the current month so the AI can answer "how
+  // much income will land before end of month?" without guessing.
+  const remainingPaydaysThisMonth = (() => {
+    if (!nextPayday || !payCycle) return null;
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    let count = 0;
+    let cursor = new Date(nextPayday);
+    // Walk forward through paydays until we leave the current month. Cap at
+    // 6 iterations (defensive — even weekly gives at most 5 paydays/month).
+    for (let i = 0; i < 6 && cursor <= endOfMonth; i++) {
+      count++;
+      const after = new Date(cursor);
+      after.setDate(after.getDate() + 1);
+      const next = nextPaydayDate(after, payCycle, paydayDay, paydaySemi, paydayWeekday);
+      if (!next || next > endOfMonth) break;
+      cursor = next;
+    }
+    return count;
+  })();
+  const remainingPaydaysLine = (() => {
+    if (remainingPaydaysThisMonth == null || remainingPaydaysThisMonth === 0) return null;
+    const word = remainingPaydaysThisMonth === 1 ? "payday" : "paydays";
+    const expected = perPaycheckAmount != null
+      ? ` (~${curStr(cur, Math.round(perPaycheckAmount * remainingPaydaysThisMonth))} expected income left this month)`
+      : "";
+    return `Paydays remaining this month: ${remainingPaydaysThisMonth} ${word}${expected}.`;
   })();
 
   const incomeHeader = hasVariable
@@ -517,6 +611,8 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     `Today is ${englishDate(today)} (${localWeekday?.trim() || englishWeekday(today)}).`,
     ...(incomeHeader ? [incomeHeader] : []),
     ...(paydayLine ? [paydayLine] : []),
+    ...(billsBeforeNextPaydayLine ? [billsBeforeNextPaydayLine] : []),
+    ...(remainingPaydaysLine ? [remainingPaydaysLine] : []),
     `Total still due (unpaid): ${curStr(cur, total)}.`,
     `Total of bills due within 7 days: ${curStr(cur, dueThisWeek)}.`,
     bizUnpaid.length > 0
@@ -680,6 +776,22 @@ router.post("/ask", askLimiter, async (req, res) => {
     const { text, bills: bodyBills, persona: bodyPersona, localDate, localWeekday: rawLocalWeekday, language, includeVoice, currency, countryName, countryCode, monthlyIncome, incomeByMonth, payCycle, paydayDay, paydaySemi, paydayWeekday, history: bodyHistory } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
       res.status(400).json({ error: "text is required" });
+      return;
+    }
+    // Hard cap on user message length to prevent cost-burn / OOM. A normal
+    // Ask Judith question is 50-200 chars; 4000 is generous headroom for
+    // a power-user pasting a long invoice description. Anything beyond
+    // that is either accidental or abusive — reject loudly so the client
+    // can guide the user to summarise.
+    if (text.length > 4000) {
+      res.status(413).json({ error: "text too long (max 4000 chars)" });
+      return;
+    }
+    // Sanity cap on the bills array — a real user has <100 bills; anything
+    // bigger is either client corruption or a tampered request. Stops one
+    // call from blowing up the prompt token budget.
+    if (Array.isArray(bodyBills) && bodyBills.length > 300) {
+      res.status(413).json({ error: "too many bills in context" });
       return;
     }
     const today = parseLocalDate(localDate);
@@ -1442,7 +1554,7 @@ router.get("/sample", sampleVoicesLimiter, async (req, res) => {
 // No auth required — interactive AI ask during onboarding feature screens.
 router.post("/ask-onboarding", askOnboardingGlobalCap, askOnboardingLimiter, async (req, res) => {
   try {
-    const { text, bills: bodyBills, persona: bodyPersona, localDate, language, currency } = req.body ?? {};
+    const { text, bills: bodyBills, persona: bodyPersona, localDate, language, currency, selectedCategories } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
       res.status(400).json({ error: "text is required" });
       return;
@@ -1454,11 +1566,22 @@ router.post("/ask-onboarding", askOnboardingGlobalCap, askOnboardingLimiter, asy
     const bills = Array.isArray(bodyBills) ? (bodyBills as ClientBill[]) : [];
     const context = buildClientContext(bills, parseLocalDate(localDate), cur);
 
+    // Categories the user explicitly checked on the bill-list screen. When
+    // present we instruct the model to skip prompts for unchecked categories
+    // — so a user who only said "credit cards" doesn't get asked about rent
+    // or mortgage even though those are in the default sample set.
+    const checkedCats = Array.isArray(selectedCategories)
+      ? selectedCategories.filter((c: unknown): c is string => typeof c === "string" && c.length > 0)
+      : [];
+    const categoryGuard = checkedCats.length > 0
+      ? `\n\nUSER ONLY HAS THESE BILL CATEGORIES (do NOT suggest, ask about, or prompt for any others): ${checkedCats.join(", ")}.`
+      : "";
+
     const anthropic = getAnthropic();
     const message = await anthropic.messages.create({
       model: ANTHROPIC_MODEL,
       max_tokens: 250,
-      system: `${systemPrompt(persona, lang, undefined, cur)}\n\nBILL CONTEXT (the only source of truth):\n${context}`,
+      system: `${systemPrompt(persona, lang, undefined, cur)}\n\nBILL CONTEXT (the only source of truth):\n${context}${categoryGuard}`,
       messages: [{ role: "user", content: text.trim() }],
     });
     const rawReply = message.content

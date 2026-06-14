@@ -51,6 +51,13 @@ struct WatchPayload: Codable {
     let paidCount: Int
     /// Bills due this month (paid + unpaid) — gauge denominator.
     let totalCount: Int
+    // Optional fields added 2026-06-14: mirror phone hero card so the watch
+    // ring + complications can show amount-based progress and overdue alerts
+    // without opening the app. Decoded as nil for older cached payloads.
+    let paidAmount: Double?
+    let overdueCount: Int?
+    let overdueTotal: Double?
+    let next7Total: Double?
 
     // MARK: — Derived helpers
 
@@ -62,14 +69,34 @@ struct WatchPayload: Codable {
         "\(currency)\(String(format: "%.0f", nextAmount))"
     }
 
+    /// Amount-based paid fraction — matches the phone hero card. Falls back to
+    /// count-based when an older cached payload lacks `paidAmount`.
+    var paidFractionByAmount: Double? {
+        guard let paid = paidAmount else { return nil }
+        let grand = paid + totalOwed
+        guard grand > 0 else { return nil }
+        return paid / grand
+    }
+
+    var overdueTotalDisplay: String {
+        "\(currency)\(String(format: "%.0f", overdueTotal ?? 0))"
+    }
+
+    var next7TotalDisplay: String {
+        "\(currency)\(String(format: "%.0f", next7Total ?? 0))"
+    }
+
     /// Optimistically remove a bill when mark-paid is tapped on the watch.
     func removing(billId: String) -> WatchPayload {
         guard let removed = upcomingBills.first(where: { $0.id == billId }) else { return self }
         let filtered = upcomingBills.filter { $0.id != billId }
+        let removedAmount = removed.optimisticTotalOwedDelta
+        let wasOverdue = removed.isOverdue
+        let wasInNext7 = !wasOverdue && removed.dueDays <= 7
         return WatchPayload(
             generatedAt: generatedAt,
             currency: currency,
-            totalOwed: max(0, totalOwed - removed.optimisticTotalOwedDelta),
+            totalOwed: max(0, totalOwed - removedAmount),
             unpaidCount: max(0, unpaidCount - removed.optimisticUnpaidCountDelta),
             nextProvider: filtered.first?.provider ?? "",
             nextAmount: filtered.first?.amount ?? 0,
@@ -78,7 +105,11 @@ struct WatchPayload: Codable {
             persona: persona,
             upcomingBills: filtered,
             paidCount: paidCount + 1,
-            totalCount: totalCount
+            totalCount: totalCount,
+            paidAmount: paidAmount.map { max(0, $0) + removedAmount },
+            overdueCount: overdueCount.map { wasOverdue ? max(0, $0 - 1) : $0 },
+            overdueTotal: overdueTotal.map { wasOverdue ? max(0, $0 - removedAmount) : $0 },
+            next7Total: next7Total.map { wasInNext7 ? max(0, $0 - removedAmount) : $0 }
         )
     }
 }

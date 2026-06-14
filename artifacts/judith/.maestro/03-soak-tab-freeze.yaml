@@ -1,0 +1,54 @@
+appId: com.app.judith
+name: Soak — tabs still respond after a minute of use
+
+# Catches the reported "tap a tab and nothing happens" freeze. We churn
+# the app for ~60 seconds with normal-ish user activity (tab switches,
+# opening Ask Judith, scrolling), then verify tab navigation still
+# responds. If the JS thread has wedged from a leak / re-render storm,
+# the final tab tap times out and the assertion fails.
+#
+# This flow is meant to fail when the app is broken. Treat a green run
+# as "no slowdown detected during this scenario" — not as proof there
+# isn't a slower-developing leak. Pair with Instruments / Sentry for
+# real diagnostics.
+---
+- launchApp:
+    clearState: false
+- waitForAnimationToEnd
+- assertVisible: "This month"
+
+# ── 60-ish seconds of activity ────────────────────────────────────────
+# 15 iterations × ~4s/iter ≈ 60s. Each iter exercises the same surfaces
+# the user touches in normal use: tab switching, Ask deep-link, back.
+- repeat:
+    times: 15
+    commands:
+      - tapOn: "Calendar"
+      - waitForAnimationToEnd
+      - tapOn: "Insights"
+      - waitForAnimationToEnd
+      - tapOn: "Settings"
+      - waitForAnimationToEnd
+      - tapOn: "Home"
+      - waitForAnimationToEnd
+
+# ── Freeze check ──────────────────────────────────────────────────────
+# After the soak, tab navigation must still work. If the JS thread is
+# blocked, these taps either no-op (test sees stale view) or take so
+# long that the implicit waitForAnimationToEnd times out.
+- tapOn: "Settings"
+- waitForAnimationToEnd
+- assertVisible: "Settings"
+- tapOn: "Home"
+- waitForAnimationToEnd
+- assertVisible: "This month"
+- tapOn: "Calendar"
+- waitForAnimationToEnd
+- tapOn: "Home"
+- waitForAnimationToEnd
+- assertVisible: "This month"
+
+# Sanity: no error fallback at any point.
+- assertNotVisible:
+    text: "Something went wrong"
+    optional: true

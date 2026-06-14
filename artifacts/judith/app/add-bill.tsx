@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon } from "@/components/Icon";
@@ -12,6 +12,7 @@ import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { safeBack } from "@/lib/navigation";
 import { haptics } from "@/lib/haptics";
+import { suggestBillCategory } from "@/lib/intelligence";
 
 // CATEGORIES is computed per-render from country — see inside the component
 const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -25,12 +26,13 @@ export default function AddBillScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { bills, saveBill, deleteBill, showToast, country, money, language } = useJudith();
-  const CATEGORIES = getVisibleCategories(country.code);
+  const CATEGORIES = useMemo(() => getVisibleCategories(country.code), [country.code]);
 
   const existing = id ? (bills.find((b) => b.id === id) ?? null) : null;
   const isEdit = !!existing;
 
   const [cat, setCat] = useState<string>(existing?.cat ?? "Electricity");
+  const [categoryTouched, setCategoryTouched] = useState(false);
   const [provider, setProvider] = useState(existing?.provider ?? "");
   const [amount, setAmount] = useState(existing?.amount ? to2dp(existing.amount) : "");
   const [dueDay, setDueDay] = useState(existing?.dueDate ? String(existing.dueDate) : "");
@@ -49,6 +51,7 @@ export default function AddBillScreen() {
     [bills, existing?.id],
   );
   const [remDays, setRemDays] = useState(existing?.reminderDays ?? 3);
+  const [remHour, setRemHour] = useState(existing?.reminderHour ?? 9);
   const [statementDay, setStatementDay] = useState(existing?.statementDay ?? 5);
   const [chargedToCard, setChargedToCard] = useState(existing?.chargedToCard ?? false);
   const [parentCardId, setParentCardId] = useState<string | undefined>(existing?.parentCardId);
@@ -69,6 +72,26 @@ export default function AddBillScreen() {
   const valid = validProvider && validAmount && validDay;
 
   const clearErr = () => { if (err) setErr(""); };
+
+  useEffect(() => {
+    if (isEdit || categoryTouched) return;
+    const cleanProvider = provider.trim();
+    if (cleanProvider.length < 3) return;
+
+    let cancelled = false;
+    suggestBillCategory(cleanProvider, CATEGORIES)
+      .then((result) => {
+        if (cancelled || categoryTouched) return;
+        if (result.confidence >= 0.7 && CATEGORIES.includes(result.category)) {
+          setCat(result.category);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [CATEGORIES, categoryTouched, isEdit, provider]);
 
   const save = () => {
     if (!valid) {
@@ -94,6 +117,7 @@ export default function AddBillScreen() {
       isBusiness: isBusiness || undefined,
       businessName: isBusiness ? businessName.trim() || undefined : undefined,
       reminderDays: remDays,
+      reminderHour: remHour,
       statementDay: cat === "Credit card" ? statementDay : undefined,
       chargedToCard: canLinkCard && chargedToCard ? true : undefined,
       parentCardId: canLinkCard && chargedToCard ? parentCardId : undefined,
@@ -243,7 +267,10 @@ export default function AddBillScreen() {
   const freqSuffix = frequency === "monthly" ? "/mo" : "/yr";
 
   return (
-    <View style={{ flex: 1, backgroundColor: t.canvas, paddingTop: Math.max(insets.top, 44) + 6 }}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1, backgroundColor: t.canvas, paddingTop: Math.max(insets.top, 44) + 6 }}
+    >
       {/* header */}
       <View
         style={{
@@ -324,7 +351,7 @@ export default function AddBillScreen() {
               label={getCategoryLabel(c, language)}
               icon={(CAT_ICONS[c] ?? "spark") as never}
               selected={cat === c}
-              onPress={() => { haptics.selection(); setCat(c); clearErr(); }}
+              onPress={() => { haptics.selection(); setCategoryTouched(true); setCat(c); clearErr(); }}
             />
           ))}
         </ScrollView>
@@ -471,6 +498,20 @@ export default function AddBillScreen() {
             onInc={() => setRemDays((d) => Math.min(30, d + 1))}
             unit={remDays === 1 ? "day before" : "days before"}
           />
+        </View>
+
+        {/* reminder time-of-day — fires in the device's local timezone, so a
+            user who picks "Morning" in Manila keeps getting 9 AM reminders
+            after travelling. Four presets cover ~95% of real preferences
+            without a full time-picker; we can add custom hours later. */}
+        <View style={{ marginTop: 14 }}>
+          <FieldLabel text="What time?" />
+          <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+            <Chip label="Morning · 9 AM" selected={remHour === 9}  onPress={() => { haptics.selection(); setRemHour(9); }} />
+            <Chip label="Noon · 12 PM"   selected={remHour === 12} onPress={() => { haptics.selection(); setRemHour(12); }} />
+            <Chip label="Evening · 6 PM" selected={remHour === 18} onPress={() => { haptics.selection(); setRemHour(18); }} />
+            <Chip label="Night · 9 PM"   selected={remHour === 21} onPress={() => { haptics.selection(); setRemHour(21); }} />
+          </View>
         </View>
 
         {/* ───────── organize ───────── */}
@@ -626,7 +667,7 @@ export default function AddBillScreen() {
           <Btn label="Delete this bill" variant="ghost" onPress={confirmDelete} />
         )}
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

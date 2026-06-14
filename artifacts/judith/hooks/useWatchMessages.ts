@@ -36,8 +36,6 @@ function buildAskBills(bills: Bill[]): AskBill[] {
   const today = new Date();
 
   return bills.map((bill) => {
-    // Match the app Ask screen's current-cycle normalization so watch answers
-    // describe the same balances and paid state shown in the phone UI.
     const { dueDays, dueLabel } = currentCycleDue(bill, today);
     const dueDate = new Date(
       today.getFullYear(),
@@ -50,22 +48,32 @@ function buildAskBills(bills: Bill[]): AskBill[] {
     ).padStart(2, "0")}`;
 
     const paidThisMonth = isPaidThisMonth(bill, today);
-    const remaining = remainingThisMonth(bill, today);
     const paidAmount = amountPaidThisMonth(bill, today);
+    const cardName = bill.chargedToCard && bill.parentCardId
+      ? (bills.find((c) => c.id === bill.parentCardId)?.provider ?? null)
+      : null;
+    const isResolvedViaCard = !!cardName;
+    const amount = bill.cat === "Credit card"
+      ? totalOwed(bill)
+      : isResolvedViaCard
+        ? totalOwed(bill)
+        : remainingThisMonth(bill, today);
+    const showPartial = !isResolvedViaCard && !paidThisMonth && paidAmount > 0;
 
     return {
       id: bill.id,
       provider: bill.provider,
       cat: bill.cat,
-      amount: bill.cat === "Credit card" ? totalOwed(bill) : remaining,
+      amount,
       dueDays,
       dueLabel,
       dueMonth,
       status: paidThisMonth ? "paid" : bill.status,
       isBusiness: bill.isBusiness,
       chargedToCard: bill.chargedToCard,
-      cardName: null,
+      cardName,
       amountPaid: paidAmount,
+      ...(showPartial ? { paidThisPeriod: paidAmount, originalTotal: totalOwed(bill) } : {}),
     };
   });
 }

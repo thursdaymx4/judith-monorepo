@@ -1,0 +1,50 @@
+appId: com.app.judith
+name: Ask Judith — text question gets a non-empty reply
+
+# Guards against the class of bugs we hit on 2026-06-11: Ask returning
+# "May problema sa server" every time. If this flow passes, the round
+# trip (client request → server LLM → text rendered in the chat) works.
+# Voice and persona-preview are intentionally not exercised here — they
+# have their own latency characteristics and are best validated by hand.
+---
+- launchApp:
+    clearState: false
+- waitForAnimationToEnd
+- assertVisible: "This month"
+# Deep-link directly into Ask Judith instead of taping through the FAB
+# menu. The FAB has no a11y label yet; the URL scheme `judith:///ask`
+# is part of the public app config so it survives UI redesigns.
+- openLink: "judith:///ask"
+- waitForAnimationToEnd
+# The screen title "Ask Judith" is a real Text node and a reliable
+# anchor. The input placeholder ("Type a question…") is on a
+# TextInput's placeholder prop, which Maestro on iOS can't always
+# see in the a11y tree — don't rely on it.
+- assertVisible: "Ask Judith"
+# Use a template question that exercises Judith's bill-context reasoning.
+# "What's due this week?" forces the server to filter the user's bills by
+# urgency window — if the response is a generic server-error message,
+# something in the ask pipeline is broken (auth, edge function, LLM).
+- inputText: "What's due this week?"
+- hideKeyboard
+# Submit. The send affordance is the mic-turned-arrow on the right of
+# the input row; matching by accessibilityLabel would be more stable,
+# but until we add one, the visible text submit pattern is fine.
+- pressKey: Enter
+# Reply must arrive within 45s (the client-side ask timeout). If the
+# server is down or the bundle has a bug, we never see a reply.
+- extendedWaitUntil:
+    visible:
+      text: ".+"
+      index: 1   # second Judith bubble after the placeholder, i.e. the actual reply
+    timeout: 45000
+# Hard-fail (not optional) on any of the canonical server-error strings —
+# these mean Judith couldn't connect / answer, which IS the failure mode
+# we're guarding against. English + Tagalog variants both checked because
+# the message localises by user country.
+- assertNotVisible: "May problema sa server"
+- assertNotVisible: "Something went wrong on my end"
+- assertNotVisible: "I can't connect to the server"
+- assertNotVisible: "Hindi ako makakonekta sa server"
+- assertNotVisible: "Sorry, that took too long"
+- assertNotVisible: "Pasensya, ang tagal ng sagot"
