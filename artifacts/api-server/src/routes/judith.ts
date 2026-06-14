@@ -346,23 +346,41 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
 
   // Per-month totals so the AI can answer "what's my total in July/August?"
   // accurately — payable bills only, so auto-charged card bills aren't double-counted.
-  const monthMap = new Map<string, { total: number; count: number }>();
+  // Split into two buckets per month so the FUTURE label can distinguish them:
+  //   - projected: recurring bill estimates (isProjection===true)
+  //   - scheduled: known one-time/annual bills whose actual due date falls in
+  //     that month (current-cycle entries with dueMonth > curMonthKey). Treating
+  //     these as "estimated projections" misleads the user — they're real,
+  //     dated, known costs, not guesses.
+  const monthMap = new Map<string, { projected: number; scheduled: number; count: number }>();
   for (const b of payable) {
     if (b.dueMonth && b.amount != null) {
-      const entry = monthMap.get(b.dueMonth) ?? { total: 0, count: 0 };
-      monthMap.set(b.dueMonth, { total: entry.total + b.amount, count: entry.count + 1 });
+      const entry = monthMap.get(b.dueMonth) ?? { projected: 0, scheduled: 0, count: 0 };
+      if (b.isProjection) entry.projected += b.amount;
+      else entry.scheduled += b.amount;
+      entry.count += 1;
+      monthMap.set(b.dueMonth, entry);
     }
   }
   const monthLines = [...monthMap.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([key, { total, count }]) => {
+    .map(([key, { projected, scheduled, count }]) => {
       const [yr, mo] = key.split("-").map(Number);
       const label = new Date(yr!, (mo ?? 1) - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" });
       const isFuture = key > curMonthKey;
       const paidCount = payable.filter((b) => b.dueMonth === key && b.status === "paid").length;
       const unpaidCount = count - paidCount;
-      const estTag = isFuture ? " — ESTIMATED (recurring bills projected, not yet billed)" : "";
-      return `- ${label}: ${curStr(cur, total)} estimated total${estTag} (${count} bill${count === 1 ? "" : "s"}, ${paidCount} paid, ${unpaidCount} upcoming)`;
+      const total = projected + scheduled;
+      if (!isFuture) {
+        return `- ${label}: ${curStr(cur, total)} total (${count} bill${count === 1 ? "" : "s"}, ${paidCount} paid, ${unpaidCount} upcoming)`;
+      }
+      // Future month — explicit split so the model never blurs "scheduled" into "projected".
+      const breakdown = scheduled > 0 && projected > 0
+        ? ` — ${curStr(cur, scheduled)} SCHEDULED (one-time / annual bills with real due dates) + ${curStr(cur, projected)} ESTIMATED (recurring bills projected, not yet billed)`
+        : scheduled > 0
+          ? ` — all SCHEDULED (one-time / annual bills with real due dates, not projections)`
+          : ` — all ESTIMATED (recurring bills projected, not yet billed)`;
+      return `- ${label}: ${curStr(cur, total)} total${breakdown} (${count} bill${count === 1 ? "" : "s"}, ${paidCount} paid, ${unpaidCount} upcoming)`;
     });
 
   // Business totals — scoped to this month (same daysLeftInMonth gate as home screen).
@@ -681,7 +699,7 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
 
   parts.push(
     "",
-    "MONTHLY TOTALS (payable bills only — excludes auto-charged card bills):",
+    "MONTHLY TOTALS (payable bills only — excludes auto-charged card bills). For FUTURE months, totals are split into SCHEDULED (real one-time/annual bills with known due dates — NOT projections) and ESTIMATED (recurring bills projected forward). When the user asks about a 'projected' or 'estimated' future total, quote the ESTIMATED portion; when they ask for the TOTAL future month, use the combined figure and note the split. Never label a one-time bill as 'projected' or 'estimated' — it's a real scheduled cost.",
     monthLines.join("\n"),
     "",
     "SPENDING BY CATEGORY (includes auto-charged card bills — use for category/business cost questions). When asked about ONE category, answer with that category's total and ONLY the bills in its 'Complete list' — never add a bill listed under a different category, and if 'directly payable' is ₱0 then there is NO direct-pay bill to name:",
