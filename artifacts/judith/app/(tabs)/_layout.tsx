@@ -64,7 +64,6 @@ function TabBar({ state, navigation }: TabBarProps) {
 }
 
 const FAB_ACTIONS: { label: string; icon: IconName; to: Href }[] = [
-  { label: "Scan a bill", icon: "scan", to: "/ask?intent=scan" },
   { label: "Enter manually", icon: "keyboard", to: "/add-bill" },
   { label: "Ask Judith", icon: "spark", to: "/ask" },
 ];
