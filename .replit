@@ -16,12 +16,15 @@ name = "Project"
 mode = "parallel"
 author = "agent"
 
+<<<<<<< Updated upstream
 # Auto-pregen tasks REMOVED 2026-06-14 — they were re-generating every
 # persona voice sample on each Replit Run/Publish, burning ~300 ElevenLabs
 # credits per cycle. The standalone "Pregen Onboarding Audio" and
 # "Pregen Persona Samples" workflows below are still available to run
 # manually from the Replit sidebar when persona text or voice IDs change.
 
+=======
+>>>>>>> Stashed changes
 [[workflows.workflow]]
 name = "Pregen Onboarding Audio"
 author = "agent"
