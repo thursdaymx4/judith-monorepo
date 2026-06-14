@@ -329,6 +329,16 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     .filter((b) => (b.dueDays ?? 0) >= 0 && (b.dueDays ?? 0) <= 7)
     .reduce((s, b) => s + (b.amount ?? 0), 0);
 
+  // Bills the user has ALREADY PAID this month — so Judith can answer
+  // "how much have I paid this month?" and "did I pay X?" without scraping
+  // the BILLS section. Uses originalTotal (the full amount) when present
+  // since `amount` is 0 for fully-paid bills; falls back to paidThisPeriod.
+  const paidThisMonth = payable.filter((b) => b.status === "paid" && isThisMonth(b));
+  const paidThisMonthAmt = paidThisMonth.reduce(
+    (s, b) => s + (b.originalTotal ?? b.paidThisPeriod ?? 0),
+    0,
+  );
+
   // Month keys needed by both monthLines and the income-remaining section.
   const curMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   const nextDate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
@@ -614,6 +624,9 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     ...(remainingPaydaysLine ? [remainingPaydaysLine] : []),
     `Total still due (unpaid): ${curStr(cur, total)}.`,
     `Total of bills due within 7 days: ${curStr(cur, dueThisWeek)}.`,
+    paidThisMonth.length === 0
+      ? `Paid this month: none yet.`
+      : `Paid this month: ${curStr(cur, paidThisMonthAmt)} across ${paidThisMonth.length} bill${paidThisMonth.length === 1 ? "" : "s"} (${paidThisMonth.map((b) => b.provider ?? "Bill").join(", ")}). Use this for "how much have I paid this month?" and "did I pay X?" questions — do NOT include these in due/overdue totals.`,
     bizUnpaid.length > 0
       ? `Business bills still unpaid (directly payable): ${bizUnpaid.length} bill${bizUnpaid.length === 1 ? "" : "s"} totalling ${curStr(cur, bizTotal)}.`
       : "Business bills still unpaid (directly payable): none.",

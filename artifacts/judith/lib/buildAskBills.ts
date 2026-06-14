@@ -39,6 +39,10 @@ export function buildAskBills(bills: Bill[], today: Date = new Date()): AskBill[
       ? totalOwed(b)
       : Math.max(0, totalOwed(b) - paidThisPeriod);
     const showPartial = !isResolvedViaCard && !isPaidThisPeriod && paidThisPeriod > 0;
+    // Also expose the paid amount for FULLY paid bills so the server can
+    // compute "how much have I paid this month?" totals. Without this the
+    // server only sees amount=0 for paid bills and can't sum them.
+    const showFullyPaid = isPaidThisPeriod;
     // Status precedence:
     //   1. fully paid this period → "paid"
     //   2. via-card subscription → "via-card" (so Claude DOES NOT count it as
@@ -64,6 +68,7 @@ export function buildAskBills(bills: Bill[], today: Date = new Date()): AskBill[
       chargedToCard: b.chargedToCard,
       cardName,
       ...(showPartial ? { paidThisPeriod, originalTotal: totalOwed(b) } : {}),
+      ...(showFullyPaid ? { paidThisPeriod, originalTotal: totalOwed(b) } : {}),
     };
   });
 
