@@ -14,7 +14,7 @@
 import { Platform } from "react-native";
 import { currentCycleDue, isPaidViaCard, type Bill } from "@/constants/data";
 import type { PersonaId } from "@/constants/personas";
-import { isPaidThisMonth, remainingThisMonth } from "@/lib/currentCycle";
+import { amountPaidThisMonth, isPaidThisMonth, remainingThisMonth } from "@/lib/currentCycle";
 import { writePayload as writeWidgetPayload } from "judith-widget-bridge";
 
 let WatchConnectivity: Record<string, unknown> | null = null;
@@ -65,6 +65,14 @@ export interface WatchPayload {
   paidCount: number;
   /** Bills due this month (paid + unpaid) — denominator for the gauge. */
   totalCount: number;
+  /** Sum of amountPaidThisMonth across all non-via-card bills. Mirrors phone's amount-based progress %. */
+  paidAmount: number;
+  /** # of payable bills overdue right now (via-card excluded). */
+  overdueCount: number;
+  /** Sum of remaining balances on payable overdue bills. */
+  overdueTotal: number;
+  /** Sum of remaining balances on payable bills due in the next 7 days (overdue excluded — matches phone hero "next 7 days"). */
+  next7Total: number;
 }
 
 // ─── Payload builder ──────────────────────────────────────────────────────────
@@ -118,6 +126,24 @@ function buildPayload(bills: Bill[], persona: PersonaId, currency: string): Watc
   const paidCount = cycleBills.filter((b) => isPaidThisMonth(b, today)).length;
   const totalCount = cycleBills.length;
 
+  // Amount-based paid % — mirrors app/(tabs)/index.tsx so the watch ring
+  // matches the phone hero card instead of using count-based fraction.
+  // paidAmount includes both fully-paid bills and in-progress partial payments
+  // on still-unpaid bills, exactly like the phone screen.
+  const paidAmount = bills
+    .filter((b) => !isPaidViaCard(b))
+    .reduce((sum, b) => sum + amountPaidThisMonth(b, today), 0);
+
+  const overdueBills = payableUpcoming.filter((b) => b.dueDays < 0);
+  const overdueCount = overdueBills.length;
+  const overdueTotal = overdueBills.reduce(
+    (sum, b) => sum + remainingThisMonth(b, today),
+    0,
+  );
+  const next7Total = payableUpcoming
+    .filter((b) => b.dueDays >= 0 && b.dueDays <= 7)
+    .reduce((sum, b) => sum + remainingThisMonth(b, today), 0);
+
   return {
     generatedAt: new Date().toISOString(),
     currency,
@@ -139,6 +165,10 @@ function buildPayload(bills: Bill[], persona: PersonaId, currency: string): Watc
     })),
     paidCount,
     totalCount,
+    paidAmount,
+    overdueCount,
+    overdueTotal,
+    next7Total,
   };
 }
 

@@ -1,9 +1,9 @@
 import SwiftUI
 import UserNotifications
 
-// NOTE: @main is here on the App struct. JudithComplicationBundle (WidgetBundle)
-// has no @main — watchOS 9+ auto-discovers Widget types in the same target as
-// complications without needing the bundle to be the module entry point.
+// NOTE: @main is here on the App struct. Complications in the same target
+// (JudithComplicationBundle) do NOT auto-register without a dedicated widget
+// extension target — that work is tracked separately.
 @main
 struct JudithWatchApp: App {
 

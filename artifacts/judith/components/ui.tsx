@@ -3,7 +3,6 @@ import {
   Animated,
   Easing,
   Pressable,
-  ScrollView,
   StyleProp,
   StyleSheet,
   Text,
@@ -15,6 +14,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon, type IconName } from "@/components/Icon";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { CAT_ICONS, dueClass, initials, isPartialBill, lookupProvider, partialPct, totalOwed } from "@/constants/data";
 import { useJudith } from "@/contexts/JudithStore";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
@@ -133,13 +133,13 @@ export function Screen({
     return <View style={[{ flex: 1, backgroundColor: t.canvas }, padStyle, contentStyle]}>{children}</View>;
   }
   return (
-    <ScrollView
+    <KeyboardAwareScrollViewCompat
       style={{ flex: 1, backgroundColor: t.canvas }}
       contentContainerStyle={[padStyle, contentStyle]}
       showsVerticalScrollIndicator={false}
     >
       {children}
-    </ScrollView>
+    </KeyboardAwareScrollViewCompat>
   );
 }
 

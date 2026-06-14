@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon } from "@/components/Icon";
@@ -12,6 +12,7 @@ import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { safeBack } from "@/lib/navigation";
 import { haptics } from "@/lib/haptics";
+import { suggestBillCategory } from "@/lib/intelligence";
 
 // CATEGORIES is computed per-render from country — see inside the component
 const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -25,12 +26,13 @@ export default function AddBillScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { bills, saveBill, deleteBill, showToast, country, money, language } = useJudith();
-  const CATEGORIES = getVisibleCategories(country.code);
+  const CATEGORIES = useMemo(() => getVisibleCategories(country.code), [country.code]);
 
   const existing = id ? (bills.find((b) => b.id === id) ?? null) : null;
   const isEdit = !!existing;
 
   const [cat, setCat] = useState<string>(existing?.cat ?? "Electricity");
+  const [categoryTouched, setCategoryTouched] = useState(false);
   const [provider, setProvider] = useState(existing?.provider ?? "");
   const [amount, setAmount] = useState(existing?.amount ? to2dp(existing.amount) : "");
   const [dueDay, setDueDay] = useState(existing?.dueDate ? String(existing.dueDate) : "");
@@ -70,6 +72,26 @@ export default function AddBillScreen() {
   const valid = validProvider && validAmount && validDay;
 
   const clearErr = () => { if (err) setErr(""); };
+
+  useEffect(() => {
+    if (isEdit || categoryTouched) return;
+    const cleanProvider = provider.trim();
+    if (cleanProvider.length < 3) return;
+
+    let cancelled = false;
+    suggestBillCategory(cleanProvider, CATEGORIES)
+      .then((result) => {
+        if (cancelled || categoryTouched) return;
+        if (result.confidence >= 0.7 && CATEGORIES.includes(result.category)) {
+          setCat(result.category);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [CATEGORIES, categoryTouched, isEdit, provider]);
 
   const save = () => {
     if (!valid) {
@@ -245,7 +267,10 @@ export default function AddBillScreen() {
   const freqSuffix = frequency === "monthly" ? "/mo" : "/yr";
 
   return (
-    <View style={{ flex: 1, backgroundColor: t.canvas, paddingTop: Math.max(insets.top, 44) + 6 }}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1, backgroundColor: t.canvas, paddingTop: Math.max(insets.top, 44) + 6 }}
+    >
       {/* header */}
       <View
         style={{
@@ -326,7 +351,7 @@ export default function AddBillScreen() {
               label={getCategoryLabel(c, language)}
               icon={(CAT_ICONS[c] ?? "spark") as never}
               selected={cat === c}
-              onPress={() => { haptics.selection(); setCat(c); clearErr(); }}
+              onPress={() => { haptics.selection(); setCategoryTouched(true); setCat(c); clearErr(); }}
             />
           ))}
         </ScrollView>
@@ -642,7 +667,7 @@ export default function AddBillScreen() {
           <Btn label="Delete this bill" variant="ghost" onPress={confirmDelete} />
         )}
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

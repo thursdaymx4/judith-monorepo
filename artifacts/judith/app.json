@@ -29,11 +29,13 @@
         ]
       },
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSFinancialDataUsageDescription": "Judith uses your authorized financial transactions to detect bill payments and suggest recurring bills."
       }
     },
     "android": {
       "package": "com.app.judith",
+      "versionCode": 33,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon-android-fg.png",
         "backgroundColor": "#0a0b0e"
@@ -58,16 +60,13 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#0a0b0e",
-          "image": "./assets/images/icon.png",
-          "imageWidth": 200,
           "dark": {
-            "backgroundColor": "#0a0b0e",
-            "image": "./assets/images/icon.png",
-            "imageWidth": 200
+            "backgroundColor": "#0a0b0e"
           }
         }
       ],
       "./plugins/with-handled-splash",
+      "./plugins/with-judith-app-intents",
       [
         "expo-router",
         {
@@ -96,7 +95,8 @@
         "@sentry/react-native/expo",
         {
           "organization": "padalastory",
-          "project": "judith"
+          "project": "judith",
+          "disableAutoUpload": true
         }
       ]
     ],

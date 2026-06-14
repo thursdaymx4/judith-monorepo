@@ -1,6 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { AppState } from "react-native";
+import { router } from "expo-router";
 import { loadFromICloud, saveToICloud } from "@/lib/icloud-backup";
 import { parseProtectedObject, serializeProtectedObject } from "@/lib/securePersist";
+import { clearIntentCommands, readIntentCommands } from "judith-widget-bridge";
 import React, {
   createContext,
   useCallback,
@@ -12,7 +15,7 @@ import React, {
   useSyncExternalStore,
 } from "react";
 
-import { formatMoney, isPaidViaCard, totalOwed, type Bill, type BillCycleRecord } from "@/constants/data";
+import { formatMoney, isPaidViaCard, makeManualBill, totalOwed, type Bill, type BillCycleRecord } from "@/constants/data";
 import { DEMO_PRESET } from "@/constants/demoData";
 import { DEMO_ACCOUNTS } from "@/constants/demoAccounts";
 import {
@@ -157,6 +160,17 @@ const DEFAULTS: PersistShape = {
   askHistory: [],
   customQuestions: [],
 };
+
+interface JudithIntentCommand {
+  id: string;
+  type: "markPaid" | "snooze" | "updateAmount" | "addBill" | "openAsk";
+  billId?: string;
+  provider?: string;
+  amount?: number;
+  dueDay?: number;
+  category?: string;
+  days?: number;
+}
 
 // ────────────────────────────────────────────────────────────────────────
 // External store — single source of truth for PersistShape
@@ -841,6 +855,96 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
   // implementation without holding stale closures.
   const valueRef = useRef<JudithStoreValue>(value);
   valueRef.current = value;
+  const processedIntentIdsRef = useRef<Set<string>>(new Set());
+
+  const drainIntentCommands = useCallback(() => {
+    if (!hydrated) return;
+
+    let commands: JudithIntentCommand[] = [];
+    try {
+      const parsed = JSON.parse(readIntentCommands());
+      if (Array.isArray(parsed)) commands = parsed;
+    } catch {
+      return;
+    }
+    if (!commands.length) return;
+
+    const handledIds: string[] = [];
+    for (const command of commands) {
+      if (!command?.id || processedIntentIdsRef.current.has(command.id)) continue;
+
+      try {
+        const actions = valueRef.current;
+        switch (command.type) {
+          case "markPaid":
+            if (!command.billId) break;
+            actions.markPaid(command.billId);
+            handledIds.push(command.id);
+            break;
+          case "snooze":
+            if (!command.billId) break;
+            actions.snooze(
+              command.billId,
+              Math.max(1, Math.min(30, Math.round(command.days ?? 1))),
+            );
+            handledIds.push(command.id);
+            break;
+          case "updateAmount":
+            if (!command.billId || !Number.isFinite(command.amount)) break;
+            actions.updateBillAmount(command.billId, Math.max(0, Number(command.amount)));
+            handledIds.push(command.id);
+            break;
+          case "addBill": {
+            const provider = (command.provider ?? "").trim();
+            const amount = Number(command.amount ?? 0);
+            const dueDay = Math.max(1, Math.min(31, Math.round(Number(command.dueDay ?? 1))));
+            const category = (command.category ?? "Custom").trim() || "Custom";
+            if (!provider || !Number.isFinite(amount)) break;
+            actions.saveBill(
+              makeManualBill({
+                provider,
+                cat: category,
+                amount: Math.max(0, amount),
+                dueDay,
+                frequency: "monthly",
+                kind: "Fixed",
+              }),
+            );
+            handledIds.push(command.id);
+            break;
+          }
+          case "openAsk":
+            // Action Button on iPhone (or "Ask Judith" Siri shortcut) deep-links
+            // straight into voice input. `intent=voice` is read by app/ask.tsx
+            // (see useLocalSearchParams + auto-fire effect) and triggers the
+            // mic without the user needing a second tap. Defer one frame so
+            // navigation happens after the root layout finishes mounting on a
+            // cold start.
+            requestAnimationFrame(() => router.push("/ask?intent=voice"));
+            handledIds.push(command.id);
+            break;
+        }
+      } catch {
+        // Leave failed commands queued so a future foreground pass can retry.
+      }
+    }
+
+    if (handledIds.length) {
+      handledIds.forEach((id) => processedIntentIdsRef.current.add(id));
+      clearIntentCommands(handledIds);
+    }
+  }, [hydrated]);
+
+  useEffect(() => {
+    drainIntentCommands();
+  }, [drainIntentCommands]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") drainIntentCommands();
+    });
+    return () => subscription.remove();
+  }, [drainIntentCommands]);
 
   // Stable actions bag — created EXACTLY ONCE (empty deps). Each method is a
   // wrapper that reads the latest implementation from valueRef.current at

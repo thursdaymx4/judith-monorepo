@@ -30,10 +30,24 @@ final class WatchStore: ObservableObject {
     var unpaidCount: Int   { payload?.unpaidCount ?? 0 }
     var paidCount: Int     { payload?.paidCount  ?? 0 }
     var totalCount: Int    { payload?.totalCount  ?? 0 }
+    /// Mirrors the phone Home screen — amount-based when the payload provides
+    /// `paidAmount`, otherwise falls back to count-based for older cached payloads.
     var paidFraction: Double {
+        if let fraction = payload?.paidFractionByAmount {
+            return fraction
+        }
         guard totalCount > 0 else { return 0 }
         return Double(paidCount) / Double(totalCount)
     }
+
+    /// Whole-percent display for "X% paid" labels.
+    var paidPct: Int {
+        Int((paidFraction * 100).rounded())
+    }
+
+    var overdueCount: Int { payload?.overdueCount ?? 0 }
+    var overdueTotal: Double { payload?.overdueTotal ?? 0 }
+    var next7Total: Double { payload?.next7Total ?? 0 }
 
     // MARK: — Apply incoming payload
 

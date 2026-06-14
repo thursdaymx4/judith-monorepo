@@ -6,6 +6,8 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject var store: WatchStore
     @EnvironmentObject var connectivity: ConnectivityService
+    @Environment(\.scenePhase) private var scenePhase
+    @StateObject private var launchFlags = JudithLaunchFlags.shared
 
     // Bound selection so child views can restore focus after a WatchKit
     // modal (e.g. presentTextInputController in AskView) dismisses. Without
@@ -29,6 +31,26 @@ struct ContentView: View {
             }
         }
         .background(Color.black)
+        // Action Button binding: when the OpenJudithAskWatchIntent ran (either
+        // headlessly via the Action Button before the app reached foreground,
+        // or via voice) JudithLaunchFlags.shouldOpenAsk flips to true.
+        // We respond by snapping to the Ask tab and acknowledging.
+        .onChange(of: launchFlags.shouldOpenAsk) { _, shouldOpen in
+            if shouldOpen {
+                selectedTab = 2
+                launchFlags.acknowledge()
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            // Re-check the App Group flag whenever we come back to the
+            // foreground — covers the Action Button press while the app
+            // was in the background.
+            if phase == .active { launchFlags.refresh() }
+        }
+        .task {
+            // Cover cold-start: refresh once after the view tree is mounted.
+            launchFlags.refresh()
+        }
     }
 
     private var shouldShowMainUI: Bool {

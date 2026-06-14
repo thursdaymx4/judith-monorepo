@@ -403,7 +403,15 @@ async function scheduleBill(
       ops.push(
         Notifications.scheduleNotificationAsync({
           identifier: reminderId(bill.id),
-          content: { title: copy.title, body: copy.body, sound: true, categoryIdentifier: "BILL_REMINDER", data: { billId: bill.id, type: "reminder" } },
+          content: {
+            title: copy.title,
+            body: copy.body,
+            sound: true,
+            categoryIdentifier: "BILL_REMINDER",
+            data: { billId: bill.id, type: "reminder" },
+            interruptionLevel: "active",
+            priority: Notifications.AndroidNotificationPriority.DEFAULT,
+          },
           trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: fireAt },
         }),
       );
@@ -415,7 +423,15 @@ async function scheduleBill(
     ops.push(
       Notifications.scheduleNotificationAsync({
         identifier: nudgeId(bill.id),
-        content: { title: copy.title, body: copy.body, sound: true, categoryIdentifier: "BILL_REMINDER", data: { billId: bill.id, type: "nudge" } },
+        content: {
+          title: copy.title,
+          body: copy.body,
+          sound: true,
+          categoryIdentifier: "BILL_REMINDER",
+          data: { billId: bill.id, type: "nudge" },
+          interruptionLevel: "timeSensitive",
+          priority: Notifications.AndroidNotificationPriority.HIGH,
+        },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: dueAt },
       }),
     );
