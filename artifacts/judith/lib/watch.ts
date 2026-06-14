@@ -81,31 +81,16 @@ function daysInMonth(year: number, monthIndex: number): number {
   return new Date(year, monthIndex + 1, 0).getDate();
 }
 
+// All bills passed here come from payableUpcoming (non-via-card), so the
+// optimistic delta is simply the bill's remaining balance and a count of 1.
 function optimisticDeltasForBill(
   bill: Bill,
-  allBills: Bill[],
   today: Date,
 ): Pick<UpcomingBill, "optimisticTotalOwedDelta" | "optimisticUnpaidCountDelta"> {
-  if (bill.cat !== "Credit card" && isPaidViaCard(bill) && bill.parentCardId) {
-    const parentCard = allBills.find((candidate) => candidate.id === bill.parentCardId);
-    if (!parentCard) {
-      return { optimisticTotalOwedDelta: 0, optimisticUnpaidCountDelta: 0 };
-    }
-
-    const parentRemaining = remainingThisMonth(parentCard, today);
-    const deltaAmount = Math.min(parentRemaining, remainingThisMonth(bill, today));
-    const deltaCount = parentRemaining > 0 && parentRemaining - deltaAmount <= 0 ? 1 : 0;
-
-    return {
-      optimisticTotalOwedDelta: deltaAmount,
-      optimisticUnpaidCountDelta: deltaCount,
-    };
-  }
-
   const deltaAmount = remainingThisMonth(bill, today);
   return {
     optimisticTotalOwedDelta: deltaAmount,
-    optimisticUnpaidCountDelta: deltaAmount > 0 && !isPaidViaCard(bill) ? 1 : 0,
+    optimisticUnpaidCountDelta: deltaAmount > 0 ? 1 : 0,
   };
 }
 
@@ -122,7 +107,10 @@ function buildPayload(bills: Bill[], persona: PersonaId, currency: string): Watc
     .filter((b) => !isPaidThisMonth(b, today))
     .sort((a, z) => a.dueDays - z.dueDays);
   const payableUpcoming = upcoming.filter((b) => !isPaidViaCard(b));
-  const next = upcoming[0];
+  // "Next bill" must come from payable bills only — a via-card sub-bill
+  // (auto-charged to a CC the user also tracks) is not independently payable
+  // and should not appear as the action item on the Watch face.
+  const next = payableUpcoming[0];
   const paidCount = cycleBills.filter((b) => isPaidThisMonth(b, today)).length;
   const totalCount = cycleBills.length;
 
@@ -154,14 +142,17 @@ function buildPayload(bills: Bill[], persona: PersonaId, currency: string): Watc
     nextDueDays: next?.dueDays ?? 0,
     nextDueLabel: next?.dueLabel ?? "",
     persona,
-    upcomingBills: upcoming.map((b) => ({
+    // Only payable bills appear in the Watch list — via-card sub-bills are
+    // excluded so the list count matches unpaidCount and the total shown on the
+    // Watch face. (Via-card bills remain visible on the phone timeline.)
+    upcomingBills: payableUpcoming.map((b) => ({
       id: b.id,
       provider: b.provider,
       amount: remainingThisMonth(b, today),
       dueDays: b.dueDays,
       dueLabel: b.dueLabel,
       isOverdue: b.dueDays < 0,
-      ...optimisticDeltasForBill(b, bills, today),
+      ...optimisticDeltasForBill(b, today),
     })),
     paidCount,
     totalCount,
