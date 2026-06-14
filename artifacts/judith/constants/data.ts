@@ -624,8 +624,6 @@ export function makeManualBill(
     /** 1–12. For annual bills: the calendar month the bill falls due each year.
      *  For "once" bills: the calendar month the one-time payment is due. */
     dueMonth?: number;
-    /** Year for "once" bills. Defaults to the current year. Ignored for monthly/annual. */
-    dueYear?: number;
     frequency?: "monthly" | "annual" | "once";
     kind?: "Fixed" | "Variable";
     house?: string;
@@ -644,10 +642,7 @@ export function makeManualBill(
   const dayFor = (y: number, m: number) => Math.min(day, daysInMonth(y, m));
   const annualM = a.frequency !== "monthly" && a.dueMonth != null ? a.dueMonth - 1 : base.getMonth();
   const initM = a.frequency !== "monthly" ? annualM : base.getMonth();
-  // "once" bills can be picked for any year (incl. future) via the date picker;
-  // honour the picked year. Monthly/annual derive their year from `today`.
-  const initY = a.frequency === "once" && a.dueYear != null ? a.dueYear : base.getFullYear();
-  let candidate = new Date(initY, initM, dayFor(initY, initM));
+  let candidate = new Date(base.getFullYear(), initM, dayFor(base.getFullYear(), initM));
   if (candidate < base) {
     if (a.frequency === "annual") {
       const y = base.getFullYear() + 1;

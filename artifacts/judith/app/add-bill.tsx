@@ -1,8 +1,7 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View, useColorScheme } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import DateTimePicker from "@react-native-community/datetimepicker";
 
 import { Icon } from "@/components/Icon";
 import { Btn, Chip, Low, Mono, ProviderLogo, RoundBtn, SectionLabel, Txt } from "@/components/ui";
@@ -23,7 +22,6 @@ const to2dp = (n: number): string =>
 
 export default function AddBillScreen() {
   const t = useTheme();
-  const colorScheme = useColorScheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -46,17 +44,6 @@ export default function AddBillScreen() {
     return m >= 0 ? m + 1 : new Date().getMonth() + 1;
   });
   const [frequency, setFrequency] = useState<"monthly" | "annual" | "once">(existing?.frequency ?? "monthly");
-  // For "once" bills, the user picks a full calendar date (incl. year). Default to today.
-  // On edit, derive the year from existing.dueLabel ("Jul 5" → current year; "Jul 5, 2027" → 2027).
-  const [onceDate, setOnceDate] = useState<Date>(() => {
-    if (existing?.frequency !== "once" || !existing?.dueLabel) return new Date();
-    const yMatch = existing.dueLabel.match(/,\s*(\d{4})$/);
-    const year = yMatch ? Number(yMatch[1]) : new Date().getFullYear();
-    const monthIdx = MONTHS_SHORT.findIndex((s) => existing.dueLabel.startsWith(s));
-    const dayMatch = existing.dueLabel.match(/^[A-Za-z]+\s+(\d{1,2})/);
-    const day = dayMatch ? Number(dayMatch[1]) : 1;
-    return new Date(year, monthIdx >= 0 ? monthIdx : 0, day);
-  });
   const [kind, setKind] = useState<"Fixed" | "Variable">(existing?.kind ?? "Fixed");
   const [house, setHouse] = useState(existing?.house ?? "");
   const [isBusiness, setIsBusiness] = useState(existing?.isBusiness ?? false);
@@ -127,8 +114,6 @@ export default function AddBillScreen() {
       dueDay: day,
       // Both "annual" and "once" need a pinned month; "monthly" derives from today.
       dueMonth: frequency === "annual" || frequency === "once" ? dueMonth : undefined,
-      // Only "once" bills pin a specific year (from the date picker).
-      dueYear: frequency === "once" ? onceDate.getFullYear() : undefined,
       frequency,
       kind,
       house: house.trim() || undefined,
@@ -403,42 +388,45 @@ export default function AddBillScreen() {
           )}
         </View>
 
-        {/* ───────── schedule ───────── */}
-        <SectionLabel>Schedule</SectionLabel>
-
-        <FieldLabel text="How often?" />
-        <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-          <Chip label="Monthly" selected={frequency === "monthly"} onPress={() => { haptics.selection(); setFrequency("monthly"); }} />
-          <Chip label="Yearly" selected={frequency === "annual"} onPress={() => { haptics.selection(); setFrequency("annual"); }} />
-          <Chip label="One-time" selected={frequency === "once"} onPress={() => { haptics.selection(); setFrequency("once"); }} />
-        </View>
-
-        {/* Frequency-aware date input:
-            monthly → just a day stepper (recurs every month)
-            annual  → day + month (recurs same date each year)
-            once    → full native date picker (any future or past date) */}
-        {frequency === "once" ? (
-          <View style={{ marginTop: 14 }}>
-            <FieldLabel text="Date" />
-            <View style={{ backgroundColor: t.surface1, borderWidth: 1, borderColor: t.hair, borderRadius: 14, paddingVertical: 4, paddingHorizontal: 4, alignItems: "center" }}>
-              <DateTimePicker
-                value={onceDate}
-                mode="date"
-                display={Platform.OS === "ios" ? "inline" : "default"}
-                themeVariant={colorScheme === "dark" ? "dark" : "light"}
-                onChange={(_e, d) => {
-                  if (!d) return;
-                  setOnceDate(d);
-                  setDueDay(String(d.getDate()));
-                  setDueMonth(d.getMonth() + 1);
-                  clearErr();
+        {/* amount + due day */}
+        <View style={{ flexDirection: "row", gap: 12, marginTop: 18 }}>
+          <View style={{ flex: 1.35 }}>
+            <FieldLabel text="Amount" />
+            <View
+              style={{
+                backgroundColor: t.surface1,
+                borderWidth: 1,
+                borderColor: validAmount ? t.hair : t.hair,
+                borderRadius: 14,
+                flexDirection: "row",
+                alignItems: "center",
+                paddingHorizontal: 14,
+              }}
+            >
+              <Mono size={18} color={t.txtMid}>{country.cur}</Mono>
+              <TextInput
+                value={amount}
+                onChangeText={(v) => { setAmount(fmtCurrency(v)); clearErr(); }}
+                onBlur={() => {
+                  const n = Number(amount.replace(/[^0-9.]/g, ""));
+                  if (amount.trim() && Number.isFinite(n) && n > 0) setAmount(fmtCurrency(to2dp(n)));
+                }}
+                placeholder="0.00"
+                placeholderTextColor={t.txtLow}
+                keyboardType="decimal-pad"
+                style={{
+                  flex: 1,
+                  paddingVertical: 13,
+                  paddingHorizontal: 8,
+                  color: t.txtHi,
+                  fontSize: 19,
+                  fontFamily: t.fonts.monoBold,
                 }}
               />
             </View>
           </View>
-        ) : (
-          <View style={{ marginTop: 14 }}>
-            <FieldLabel text={frequency === "annual" ? "Day" : "Due day"} />
+          <View style={{ flex: 1 }}>
+            <FieldLabel text={frequency === "annual" || frequency === "once" ? "Day" : "Due day"} />
             <TextInput
               value={dueDay}
               onChangeText={(v) => { setDueDay(v.replace(/[^0-9]/g, "").slice(0, 2)); clearErr(); }}
@@ -447,54 +435,27 @@ export default function AddBillScreen() {
               keyboardType="number-pad"
               style={{ ...inputStyle, fontSize: 19, fontFamily: t.fonts.monoBold, textAlign: "center" }}
             />
-            {frequency === "annual" && (
-              <View style={{ marginTop: 12 }}>
-                <FieldLabel text="Month" />
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -4 }} contentContainerStyle={{ paddingHorizontal: 4, gap: 6, flexDirection: "row" }}>
-                  {MONTHS_SHORT.map((m, i) => (
-                    <Chip key={m} label={m} selected={dueMonth === i + 1} onPress={() => { haptics.selection(); setDueMonth(i + 1); }} />
-                  ))}
-                </ScrollView>
-              </View>
-            )}
+          </View>
+        </View>
+        {(frequency === "annual" || frequency === "once") && (
+          <View style={{ marginTop: 12 }}>
+            <FieldLabel text="Month" />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -4 }} contentContainerStyle={{ paddingHorizontal: 4, gap: 6, flexDirection: "row" }}>
+              {MONTHS_SHORT.map((m, i) => (
+                <Chip key={m} label={m} selected={dueMonth === i + 1} onPress={() => { haptics.selection(); setDueMonth(i + 1); }} />
+              ))}
+            </ScrollView>
           </View>
         )}
 
-        {/* amount */}
-        <View style={{ marginTop: 18 }}>
-          <FieldLabel text="Amount" />
-          <View
-            style={{
-              backgroundColor: t.surface1,
-              borderWidth: 1,
-              borderColor: validAmount ? t.hair : t.hair,
-              borderRadius: 14,
-              flexDirection: "row",
-              alignItems: "center",
-              paddingHorizontal: 14,
-            }}
-          >
-            <Mono size={18} color={t.txtMid}>{country.cur}</Mono>
-            <TextInput
-              value={amount}
-              onChangeText={(v) => { setAmount(fmtCurrency(v)); clearErr(); }}
-              onBlur={() => {
-                const n = Number(amount.replace(/[^0-9.]/g, ""));
-                if (amount.trim() && Number.isFinite(n) && n > 0) setAmount(fmtCurrency(to2dp(n)));
-              }}
-              placeholder="0.00"
-              placeholderTextColor={t.txtLow}
-              keyboardType="decimal-pad"
-              style={{
-                flex: 1,
-                paddingVertical: 13,
-                paddingHorizontal: 8,
-                color: t.txtHi,
-                fontSize: 19,
-                fontFamily: t.fonts.monoBold,
-              }}
-            />
-          </View>
+        {/* ───────── schedule ───────── */}
+        <SectionLabel>Schedule</SectionLabel>
+
+        <FieldLabel text="How often?" />
+        <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+          <Chip label="Monthly" selected={frequency === "monthly"} onPress={() => { haptics.selection(); setFrequency("monthly"); }} />
+          <Chip label="Yearly" selected={frequency === "annual"} onPress={() => { haptics.selection(); setFrequency("annual"); }} />
+          <Chip label="One-time" selected={frequency === "once"} onPress={() => { haptics.selection(); setFrequency("once"); }} />
         </View>
 
         {/* bill type */}
