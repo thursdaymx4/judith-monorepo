@@ -37,8 +37,16 @@ export interface Bill {
   house?: string;
   kind?: BillKind;
   subtype?: "Rent" | "Mortgage";
-  /** Billing cadence. Defaults to monthly when omitted. */
-  frequency?: "monthly" | "annual";
+  /**
+   * Billing cadence. Defaults to monthly when omitted.
+   *  - "monthly": recurs every month (most utilities, subs, rent)
+   *  - "annual":  recurs once a year on the same date (insurance, domain renewal)
+   *  - "once":    one-time payment with no future occurrence (tuition, hospital
+   *               bill, BIR/SSS payment, wedding vendor). Treated like "annual"
+   *               for cycle/projection logic (no monthly rolling), but never
+   *               re-appears after it's marked paid.
+   */
+  frequency?: "monthly" | "annual" | "once";
   /** Amount paid so far this cycle (0 or omitted = not yet paid). */
   amountPaid?: number;
   /** Unpaid balance rolled forward from the previous cycle. */
@@ -116,7 +124,7 @@ export function ccLinkedRecurringForMonth(
     .filter((b) => b.parentCardId === card.id && isPaidViaCard(b))
     .filter((b) => {
       if (b.dueDate > dim) return false; // e.g. day 30 in a 28-day month
-      if (b.frequency === "annual") {
+      if (b.frequency !== "monthly") {
         const nextDue = new Date(today.getTime());
         nextDue.setDate(nextDue.getDate() + b.dueDays);
         return nextDue.getFullYear() === year && nextDue.getMonth() === monthIndex;
@@ -480,7 +488,7 @@ export function nextOccurrence(
   b: Pick<Bill, "dueDate" | "dueDays" | "dueLabel" | "frequency">,
   today: Date = new Date(),
 ): { dueDays: number; dueLabel: string } {
-  if (b.frequency === "annual") return { dueDays: b.dueDays, dueLabel: b.dueLabel };
+  if (b.frequency !== "monthly") return { dueDays: b.dueDays, dueLabel: b.dueLabel };
   const base = startOfDay(today);
   const dayFor = (y: number, m: number) => Math.min(b.dueDate, daysInMonth(y, m));
   let candidate = new Date(base.getFullYear(), base.getMonth(), dayFor(base.getFullYear(), base.getMonth()));
@@ -509,7 +517,7 @@ export function currentCycleDue(
   b: Pick<Bill, "dueDate" | "dueDays" | "dueLabel" | "frequency">,
   today: Date = new Date(),
 ): { dueDays: number; dueLabel: string } {
-  if (b.frequency === "annual") return { dueDays: b.dueDays, dueLabel: b.dueLabel };
+  if (b.frequency !== "monthly") return { dueDays: b.dueDays, dueLabel: b.dueLabel };
   const base = startOfDay(today);
   const day = Math.min(b.dueDate, daysInMonth(base.getFullYear(), base.getMonth()));
   const target = new Date(base.getFullYear(), base.getMonth(), day);
@@ -540,7 +548,7 @@ function resolveNextDue(sub: ScannedSubscription, today: Date): Date {
       // Never surface a date already in the past — roll it forward by cadence.
       let d = startOfDay(parsed);
       while (d < base) {
-        d = sub.frequency === "annual"
+        d = sub.frequency !== "monthly"
           ? new Date(d.getFullYear() + 1, d.getMonth(), d.getDate())
           : new Date(d.getFullYear(), d.getMonth() + 1, Math.min(d.getDate(), daysInMonth(d.getFullYear(), d.getMonth() + 1)));
       }
@@ -554,7 +562,7 @@ function resolveNextDue(sub: ScannedSubscription, today: Date): Date {
     // No exact date: advance by the subscription's own cadence. Annual rolls a
     // full year (we only know the day-of-month, so keep the month); monthly
     // rolls to next month.
-    if (sub.frequency === "annual") {
+    if (sub.frequency !== "monthly") {
       const y = base.getFullYear() + 1;
       const m = base.getMonth();
       candidate = new Date(y, m, dayFor(y, m));
@@ -613,9 +621,10 @@ export function makeManualBill(
     cat: string;
     amount: number;
     dueDay: number;
-    /** 1–12. For annual bills: the calendar month the bill falls due each year. */
+    /** 1–12. For annual bills: the calendar month the bill falls due each year.
+     *  For "once" bills: the calendar month the one-time payment is due. */
     dueMonth?: number;
-    frequency?: "monthly" | "annual";
+    frequency?: "monthly" | "annual" | "once";
     kind?: "Fixed" | "Variable";
     house?: string;
     isBusiness?: boolean;
@@ -631,20 +640,27 @@ export function makeManualBill(
   const base = startOfDay(today);
   const day = Math.max(1, Math.min(31, Math.round(a.dueDay)));
   const dayFor = (y: number, m: number) => Math.min(day, daysInMonth(y, m));
-  const annualM = a.frequency === "annual" && a.dueMonth != null ? a.dueMonth - 1 : base.getMonth();
-  const initM = a.frequency === "annual" ? annualM : base.getMonth();
+  const annualM = a.frequency !== "monthly" && a.dueMonth != null ? a.dueMonth - 1 : base.getMonth();
+  const initM = a.frequency !== "monthly" ? annualM : base.getMonth();
   let candidate = new Date(base.getFullYear(), initM, dayFor(base.getFullYear(), initM));
   if (candidate < base) {
     if (a.frequency === "annual") {
       const y = base.getFullYear() + 1;
       candidate = new Date(y, annualM, dayFor(y, annualM));
-    } else {
+    } else if (a.frequency === "monthly") {
       const y = base.getFullYear();
       const m = base.getMonth() + 1;
       candidate = new Date(y, m, dayFor(y, m));
     }
+    // "once": keep the picked past date — it surfaces as overdue rather than
+    // silently rolling to next year (which would be wrong for a non-recurring bill).
   }
-  const dueDays = Math.max(0, Math.round((startOfDay(candidate).getTime() - base.getTime()) / 86_400_000));
+  // "once" bills can legitimately be back-dated; preserve negative dueDays
+  // so the urgency model flags them overdue. Other cadences always have a
+  // future candidate by construction.
+  const dueDays = a.frequency === "once"
+    ? Math.round((startOfDay(candidate).getTime() - base.getTime()) / 86_400_000)
+    : Math.max(0, Math.round((startOfDay(candidate).getTime() - base.getTime()) / 86_400_000));
   const sameYear = candidate.getFullYear() === base.getFullYear();
   const dueLabel = sameYear
     ? `${MONTHS[candidate.getMonth()]} ${candidate.getDate()}`
@@ -687,7 +703,7 @@ export function makeSubscriptionBill(
   );
   const sameYear = due.getFullYear() === today.getFullYear();
   const dueLabel =
-    sub.frequency === "annual" && !sameYear
+    sub.frequency !== "monthly" && !sameYear
       ? `${MONTHS[due.getMonth()]} ${due.getDate()}, ${due.getFullYear()}`
       : `${MONTHS[due.getMonth()]} ${due.getDate()}`;
   return {

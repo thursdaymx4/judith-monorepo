@@ -260,7 +260,8 @@ export default function CalendarScreen() {
   ).getTime();
 
   const viewedDueDays = (b: Bill): number => {
-    if (b.frequency === "annual") return b.dueDays;
+    // Non-monthly bills (annual, once) use their stored single-date dueDays.
+    if (b.frequency === "annual" || b.frequency === "once") return b.dueDays;
     const dayInMonth = Math.min(b.dueDate, dim);
     const target = new Date(year, monthIndex, dayInMonth).getTime();
     return Math.round((target - todayStart) / 86_400_000);
@@ -272,6 +273,15 @@ export default function CalendarScreen() {
   //                    (bills paid in the current period get a fresh cycle)
   //   past month     → 0 if paid that period, else totalOwed
   const viewedAmt = (b: Bill): number => {
+    // One-time bills don't recur: if ANY paymentHistory record shows the bill
+    // was settled, the viewed amount is 0 across all months. Otherwise it's
+    // the remaining balance. No future-month carry-forward or fresh-cycle
+    // logic applies — a one-time bill has no "next cycle."
+    if (b.frequency === "once") {
+      const everPaid = (b.paymentHistory ?? []).some((r) => r.paid >= r.totalDue);
+      if (everPaid) return 0;
+      return Math.max(0, totalOwed(b) - (b.amountPaid ?? 0));
+    }
     if (isCurrentMonth) {
       return Math.max(0, totalOwed(b) - amtPaidInPeriod(b));
     }
@@ -299,14 +309,14 @@ export default function CalendarScreen() {
   };
 
   // Bills applicable to the viewed month.
-  // Monthly bills → only from their creation month forward (no backfill).
-  // Annual bills  → only in the month their next occurrence actually falls.
+  // Monthly bills        → only from their creation month forward (no backfill).
+  // Annual / one-time    → only in the month their single due date actually falls.
   const billsForMonth = bills.filter((b) => {
     if (b.dueDate > dim) return false; // e.g. Feb 30 doesn't exist
     // Never show a bill in a month before it was first recorded.
     if (b.createdAt && viewedPeriodKey < b.createdAt.slice(0, 7)) return false;
-    if (b.frequency === "annual") {
-      // Annual: include only when the real due date falls in the viewed month
+    if (b.frequency === "annual" || b.frequency === "once") {
+      // Single-date cadences: include only when the real due date falls in the viewed month
       const nextDue = new Date(todayReal.getTime());
       nextDue.setDate(nextDue.getDate() + b.dueDays);
       return nextDue.getFullYear() === year && nextDue.getMonth() === monthIndex;

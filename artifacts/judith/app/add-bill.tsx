@@ -37,11 +37,13 @@ export default function AddBillScreen() {
   const [amount, setAmount] = useState(existing?.amount ? to2dp(existing.amount) : "");
   const [dueDay, setDueDay] = useState(existing?.dueDate ? String(existing.dueDate) : "");
   const [dueMonth, setDueMonth] = useState(() => {
-    if (existing?.frequency !== "annual" || !existing?.dueLabel) return new Date().getMonth() + 1;
+    // "annual" and "once" both pin to a specific month; "monthly" doesn't.
+    const usesPinnedMonth = existing?.frequency === "annual" || existing?.frequency === "once";
+    if (!usesPinnedMonth || !existing?.dueLabel) return new Date().getMonth() + 1;
     const m = MONTHS_SHORT.findIndex((s) => existing.dueLabel.startsWith(s));
     return m >= 0 ? m + 1 : new Date().getMonth() + 1;
   });
-  const [frequency, setFrequency] = useState<"monthly" | "annual">(existing?.frequency ?? "monthly");
+  const [frequency, setFrequency] = useState<"monthly" | "annual" | "once">(existing?.frequency ?? "monthly");
   const [kind, setKind] = useState<"Fixed" | "Variable">(existing?.kind ?? "Fixed");
   const [house, setHouse] = useState(existing?.house ?? "");
   const [isBusiness, setIsBusiness] = useState(existing?.isBusiness ?? false);
@@ -110,7 +112,8 @@ export default function AddBillScreen() {
       cat,
       amount: amt,
       dueDay: day,
-      dueMonth: frequency === "annual" ? dueMonth : undefined,
+      // Both "annual" and "once" need a pinned month; "monthly" derives from today.
+      dueMonth: frequency === "annual" || frequency === "once" ? dueMonth : undefined,
       frequency,
       kind,
       house: house.trim() || undefined,
@@ -264,7 +267,7 @@ export default function AddBillScreen() {
     );
   };
 
-  const freqSuffix = frequency === "monthly" ? "/mo" : "/yr";
+  const freqSuffix = frequency === "monthly" ? "/mo" : frequency === "annual" ? "/yr" : " once";
 
   return (
     <KeyboardAvoidingView
@@ -321,7 +324,7 @@ export default function AddBillScreen() {
             <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 }}>
               <Icon name={(CAT_ICONS[cat] ?? "spark") as never} size={12} color={t.txtLow} />
               <Low size={12}>
-                {getCategoryLabel(cat, language)}{validDay ? (frequency === "annual" ? ` · ${MONTHS_SHORT[dueMonth - 1]} ${day}` : ` · due the ${day}${ordinal(day)}`) : ""}
+                {getCategoryLabel(cat, language)}{validDay ? (frequency === "annual" || frequency === "once" ? ` · ${MONTHS_SHORT[dueMonth - 1]} ${day}` : ` · due the ${day}${ordinal(day)}`) : ""}
               </Low>
             </View>
           </View>
@@ -423,7 +426,7 @@ export default function AddBillScreen() {
             </View>
           </View>
           <View style={{ flex: 1 }}>
-            <FieldLabel text={frequency === "annual" ? "Day" : "Due day"} />
+            <FieldLabel text={frequency === "annual" || frequency === "once" ? "Day" : "Due day"} />
             <TextInput
               value={dueDay}
               onChangeText={(v) => { setDueDay(v.replace(/[^0-9]/g, "").slice(0, 2)); clearErr(); }}
@@ -434,7 +437,7 @@ export default function AddBillScreen() {
             />
           </View>
         </View>
-        {frequency === "annual" && (
+        {(frequency === "annual" || frequency === "once") && (
           <View style={{ marginTop: 12 }}>
             <FieldLabel text="Month" />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -4 }} contentContainerStyle={{ paddingHorizontal: 4, gap: 6, flexDirection: "row" }}>
@@ -449,9 +452,10 @@ export default function AddBillScreen() {
         <SectionLabel>Schedule</SectionLabel>
 
         <FieldLabel text="How often?" />
-        <View style={{ flexDirection: "row", gap: 8 }}>
+        <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
           <Chip label="Monthly" selected={frequency === "monthly"} onPress={() => { haptics.selection(); setFrequency("monthly"); }} />
           <Chip label="Yearly" selected={frequency === "annual"} onPress={() => { haptics.selection(); setFrequency("annual"); }} />
+          <Chip label="One-time" selected={frequency === "once"} onPress={() => { haptics.selection(); setFrequency("once"); }} />
         </View>
 
         {/* bill type */}

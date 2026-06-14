@@ -32,10 +32,24 @@ export function buildAskBills(bills: Bill[], today: Date = new Date()): AskBill[
       (r) => r.period === periodKey && r.paid >= r.totalDue,
     );
     const isResolvedViaCard = !!cardName;
+    // Keep the REAL amount so per-bill queries ("How much is Netflix?") can
+    // answer correctly. Whether this contributes to totals is decided by the
+    // server prompt's interpretation of chargedToCard + cardName + status.
     const amount = isResolvedViaCard
       ? totalOwed(b)
       : Math.max(0, totalOwed(b) - paidThisPeriod);
     const showPartial = !isResolvedViaCard && !isPaidThisPeriod && paidThisPeriod > 0;
+    // Status precedence:
+    //   1. fully paid this period → "paid"
+    //   2. via-card subscription → "via-card" (so Claude DOES NOT count it as
+    //      direct overdue; the cost flows through the parent CC bill which is
+    //      listed separately with its own status)
+    //   3. otherwise → the bill's own status (overdue / urgent / near / ok)
+    const status = isPaidThisPeriod
+      ? "paid"
+      : isResolvedViaCard
+        ? "via-card"
+        : b.status;
     return {
       id: b.id,
       provider: b.provider,
@@ -43,7 +57,7 @@ export function buildAskBills(bills: Bill[], today: Date = new Date()): AskBill[
       amount,
       dueDays,
       dueLabel,
-      status: isPaidThisPeriod ? "paid" : b.status,
+      status,
       dueMonth,
       isBusiness: b.isBusiness,
       businessName: b.businessName,
@@ -61,7 +75,10 @@ export function buildAskBills(bills: Bill[], today: Date = new Date()): AskBill[
 
   const projections: AskBill[] = bills
     .filter((b) => {
-      if (b.frequency === "annual") return false;
+      // Skip non-monthly cadences for next-month projections:
+      //   - "annual" bills don't recur next month
+      //   - "once" bills don't recur at all
+      if (b.frequency === "annual" || b.frequency === "once") return false;
       if (b.cat === "Credit card") return false;
       const { dueDays } = currentCycleDue(b, today);
       const dd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + dueDays);
