@@ -22,7 +22,6 @@ import { getPersona } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { enqueueAudio, fileToBase64, isAudioActive, resetAudioToPlayback, stopCurrentAudio } from "@/lib/audio";
-import { classifyAskIntent } from "@/lib/intelligence";
 import { safeBack } from "@/lib/navigation";
 import { type AddBillAction, type AskBill, askJudith, synthesizeAiReply, parseSubscriptionScreenshot, transcribe, RateLimitError, TimeoutError, ServerError, UnauthorizedError, AbortedError } from "@/lib/proxy";
 import { sttHint, isFilipino } from "@/constants/languages";
@@ -606,19 +605,6 @@ export default function AskModal() {
       // Request text only — never block the reply on server-side TTS. The text
       // renders the moment the model responds, then (if voice is wanted) we fetch
       // and play the audio as a follow-up so it trails the text instead of gating it.
-      const localIntent = await classifyAskIntent(q, bills, currency);
-      if (
-        !localIntent.shouldUseCloud &&
-        localIntent.confidence >= 0.72 &&
-        ["queryDue", "queryOverdue", "queryTotal", "queryBill"].includes(localIntent.intent)
-      ) {
-        const finalReply = localIntent.answer?.trim() || localFallback(q);
-        updateLatestMsg(finalReply);
-        requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: false }));
-        setAskHistory([...messagesRef.current]);
-        return;
-      }
-
       const { reply, action, ttsToken } = await askJudith(
         q, askBills(), persona, language, false, currency, country.name,
         monthlyIncome, country.code,
