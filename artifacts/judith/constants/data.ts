@@ -488,7 +488,12 @@ export function nextOccurrence(
   b: Pick<Bill, "dueDate" | "dueDays" | "dueLabel" | "frequency">,
   today: Date = new Date(),
 ): { dueDays: number; dueLabel: string } {
-  if (b.frequency !== "monthly") return { dueDays: b.dueDays, dueLabel: b.dueLabel };
+  // Only annual + once bills use their stored single-date snapshot. Bills with
+  // an undefined frequency (legacy/seed/imported) default to monthly behaviour
+  // so their countdown stays live instead of freezing at creation time.
+  if (b.frequency === "annual" || b.frequency === "once") {
+    return { dueDays: b.dueDays, dueLabel: b.dueLabel };
+  }
   const base = startOfDay(today);
   const dayFor = (y: number, m: number) => Math.min(b.dueDate, daysInMonth(y, m));
   let candidate = new Date(base.getFullYear(), base.getMonth(), dayFor(base.getFullYear(), base.getMonth()));
@@ -517,7 +522,11 @@ export function currentCycleDue(
   b: Pick<Bill, "dueDate" | "dueDays" | "dueLabel" | "frequency">,
   today: Date = new Date(),
 ): { dueDays: number; dueLabel: string } {
-  if (b.frequency !== "monthly") return { dueDays: b.dueDays, dueLabel: b.dueLabel };
+  // Same default-monthly behaviour as nextOccurrence: undefined frequency
+  // (legacy/seed bills) falls into the live-recompute path.
+  if (b.frequency === "annual" || b.frequency === "once") {
+    return { dueDays: b.dueDays, dueLabel: b.dueLabel };
+  }
   const base = startOfDay(today);
   const day = Math.min(b.dueDate, daysInMonth(base.getFullYear(), base.getMonth()));
   const target = new Date(base.getFullYear(), base.getMonth(), day);
