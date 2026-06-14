@@ -458,8 +458,8 @@ export function getAllProviderEntries(): ProviderEntry[] {
 
 export function getQuickAsks(_countryCode: string): string[] {
   return [
-    "What's due this week?",
-    "How much bills do I still have to pay for this month?",
+    "What's due this week and how much?",
+    "Remaining bills that needs to get paid",
     "What's the total due for all my credit cards this month?",
     "What's my estimated total bill for next month?",
     "How much will be left from my income next month after bills?",
