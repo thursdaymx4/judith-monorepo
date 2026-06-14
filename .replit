@@ -1,4 +1,4 @@
-modules = ["nodejs-24", "python-3.11", "postgresql-16"]
+modules = ["nodejs-24"]
 
 [deployment]
 router = "application"
@@ -11,89 +11,10 @@ env = { "CI" = "true" }
 [workflows]
 runButton = "Project"
 
-[[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-<<<<<<< Updated upstream
-# Auto-pregen tasks REMOVED 2026-06-14 — they were re-generating every
-# persona voice sample on each Replit Run/Publish, burning ~300 ElevenLabs
-# credits per cycle. The standalone "Pregen Onboarding Audio" and
-# "Pregen Persona Samples" workflows below are still available to run
-# manually from the Replit sidebar when persona text or voice IDs change.
-
-=======
->>>>>>> Stashed changes
-[[workflows.workflow]]
-name = "Pregen Onboarding Audio"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pnpm --filter @workspace/api-server run pregen-onb-voice"
-
-[workflows.workflow.metadata]
-outputType = "console"
-
-[[workflows.workflow]]
-name = "Pregen Persona Samples"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pnpm --filter @workspace/api-server run pregen-persona-samples"
-
-[workflows.workflow.metadata]
-outputType = "console"
-
 [agent]
 stack = "PNPM_WORKSPACE"
 expertMode = true
-integrations = ["revenuecat:1.0.0"]
 
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
-
-[[ports]]
-localPort = 8080
-externalPort = 80
-
-[[ports]]
-localPort = 8081
-externalPort = 8081
-
-[[ports]]
-localPort = 8082
-externalPort = 3002
-
-[[ports]]
-localPort = 20100
-externalPort = 3001
-
-[[ports]]
-localPort = 20349
-externalPort = 5173
-
-[[ports]]
-localPort = 21238
-externalPort = 4200
-
-[[ports]]
-localPort = 25567
-externalPort = 3000
-
-[[ports]]
-localPort = 25568
-externalPort = 3003
-
-[nix]
-channel = "stable-25_05"
-
-[userenv]
-
-[userenv.shared]
-GITHUB_REPO = "https://github.com/thursdaymx4/judith-monorepo.git"
-CI = "true"
-EXPO_PUBLIC_DOMAIN = "judithforduedates.com"
