@@ -16,14 +16,6 @@ name = "Project"
 mode = "parallel"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Pregen Onboarding Audio"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Pregen Persona Samples"
-
 [[workflows.workflow]]
 name = "Pregen Onboarding Audio"
 author = "agent"
