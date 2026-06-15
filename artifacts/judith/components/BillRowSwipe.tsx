@@ -99,17 +99,25 @@ export function BillRowSwipe({ bill, enableMarkPaid, children }: Props) {
         style={[
           {
             width: 88,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: t.accent,
             borderRadius: t.radius.md,
             marginRight: 6,
           },
           aStyle,
         ]}
       >
-        <ActionLabel icon="check" label="Paid" tint={t.onAccent} />
+        <Pressable
+          onPress={onMarkPaid}
+          style={{
+            flex: 1,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: t.accent,
+            borderRadius: t.radius.md,
+          }}
+        >
+          <ActionLabel icon="check" label="Paid" tint={t.onAccent} />
+        </Pressable>
       </Animated.View>
     );
   };

@@ -580,12 +580,18 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
           const justPaid = !!targetAfter?.paymentHistory?.some(
             (r) => r.period === pKey && r.paid >= r.totalDue,
           );
-          const eligible = isStreakEligible(targetBefore);
-          if (justPaid && eligible && targetAfter) {
-            const streak = computeBillStreak(targetAfter, today);
+          // Fire the cover for EVERY mark-paid transition, per spec. Streak
+          // count uses the helper which returns 0 for non-eligible bills
+          // (via-card + once); the cover's copy skips the streak phrase
+          // automatically when count is 0, so the celebration still feels
+          // appropriate without claiming a streak that doesn't apply.
+          if (justPaid && targetAfter) {
+            const streak = isStreakEligible(targetBefore)
+              ? computeBillStreak(targetAfter, today)
+              : null;
             setPaidSuccess({
               billId: id,
-              streakMonths: streak.currentMonths,
+              streakMonths: streak?.currentMonths ?? 0,
               wasOverdue: wasOverdueBefore,
             });
           }
@@ -685,20 +691,23 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
 
           return { ...s, bills };
         });
-        // Mirror the same celebratory trigger as togglePaid: fire when this
-        // call actually flipped the bill to paid AND the bill is streak-eligible.
+        // Mirror togglePaid: fire on every mark-paid transition. Streak count
+        // is 0 for non-eligible bills (via-card + once) and the cover's copy
+        // skips the streak phrase when count is 0, so via-card / once bills
+        // still get the celebration without claiming a streak.
         if (targetBefore) {
           const targetAfter = _state.bills.find((b) => b.id === id);
           const cp = computeNaturalPeriod(targetBefore, today);
           const justPaid = !!targetAfter?.paymentHistory?.some(
             (r) => r.period === cp && r.paid >= r.totalDue,
           );
-          const eligible = isStreakEligible(targetBefore);
-          if (justPaid && eligible && targetAfter) {
-            const streak = computeBillStreak(targetAfter, today);
+          if (justPaid && targetAfter) {
+            const streak = isStreakEligible(targetBefore)
+              ? computeBillStreak(targetAfter, today)
+              : null;
             setPaidSuccess({
               billId: id,
-              streakMonths: streak.currentMonths,
+              streakMonths: streak?.currentMonths ?? 0,
               wasOverdue: wasOverdueBefore,
             });
           }
