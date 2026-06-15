@@ -2,7 +2,6 @@ import { useRouter } from "expo-router";
 import * as Linking from "expo-linking";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -12,6 +11,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { JudithAvatar } from "@/components/JudithAvatar";
+import { JudithLoader } from "@/components/JudithLoader";
 import { Btn, Low, Txt } from "@/components/ui";
 import { useAuth } from "@/contexts/AuthContext";
 import { useJudith } from "@/contexts/JudithStore";
@@ -130,7 +130,7 @@ export default function ResetScreen() {
 
         {!ready && !err && (
           <View style={{ alignItems: "center", paddingVertical: 24, gap: 12 }}>
-            <ActivityIndicator color={t.accent} />
+            <JudithLoader variant="inline" label="" />
             <Low size={13} color={t.txtMid}>
               Verifying your reset link…
             </Low>
@@ -189,7 +189,7 @@ export default function ResetScreen() {
             onPress={submit}
             style={{ marginTop: 18 }}
           >
-            {busy && <ActivityIndicator color={t.onAccent} />}
+            {busy && <JudithLoader variant="button" />}
           </Btn>
         )}
 

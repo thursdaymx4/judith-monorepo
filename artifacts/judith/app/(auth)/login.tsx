@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,6 +11,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { JudithAvatar } from "@/components/JudithAvatar";
+import { JudithLoader } from "@/components/JudithLoader";
 import { Btn } from "@/components/ui";
 import { useAuth, type OAuthProvider } from "@/contexts/AuthContext";
 import { useJudith } from "@/contexts/JudithStore";
@@ -216,7 +216,7 @@ export default function LoginScreen() {
             label={busy === "apple" ? "" : "Continue with Apple"}
             onPress={appleSignIn}
           >
-            {busy === "apple" && <ActivityIndicator color={t.txtHi} />}
+            {busy === "apple" && <JudithLoader variant="button" />}
           </Btn>
 
           {/* Google button — prototype: <span class="g-badge">G</span> + text */}
@@ -237,7 +237,7 @@ export default function LoginScreen() {
             }}
           >
             {busy === "google" ? (
-              <ActivityIndicator color={t.txtHi} />
+              <JudithLoader variant="button" />
             ) : (
               <>
                 <Text
@@ -343,7 +343,7 @@ export default function LoginScreen() {
             label={busy === "submit" ? "" : mode === "login" ? "Log in" : "Create account"}
             onPress={submit}
           >
-            {busy === "submit" && <ActivityIndicator color={t.onAccent} />}
+            {busy === "submit" && <JudithLoader variant="button" />}
           </Btn>
 
           {/* .auth-foot: "New to Judith? Create an account" */}

@@ -1,8 +1,9 @@
 import { useRouter } from "expo-router";
 import React from "react";
-import { ActivityIndicator, Alert, Modal, Pressable, Share, Text, TextInput, View } from "react-native";
+import { Alert, Modal, Pressable, Share, Text, TextInput, View } from "react-native";
 
 import { Icon, type IconName } from "@/components/Icon";
+import { JudithLoader } from "@/components/JudithLoader";
 import { Dot, Low, Mono, Screen, SheetHeader, Txt, mix } from "@/components/ui";
 import { useAuth } from "@/contexts/AuthContext";
 import { fmtCurrency } from "@/constants/data";
@@ -539,7 +540,7 @@ export default function AccountScreen() {
           subtitle={subLabel}
           onPress={() => router.push("/plans")}
         />
-        <Row icon="wallet" title="Restore purchases" subtitle="Recover a previous subscription" onPress={restoring ? undefined : restorePurchases} right={restoring ? <ActivityIndicator size="small" color={t.txtMid} /> : undefined} />
+        <Row icon="wallet" title="Restore purchases" subtitle="Recover a previous subscription" onPress={restoring ? undefined : restorePurchases} right={restoring ? <JudithLoader variant="button" /> : undefined} />
       </View>
 
       {/* data */}

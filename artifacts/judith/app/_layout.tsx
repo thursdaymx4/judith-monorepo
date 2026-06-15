@@ -39,7 +39,8 @@ if (!__DEV__) {
 import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
-import { ActivityIndicator, AppState, LogBox, Pressable, StyleSheet, Text, View } from "react-native";
+import { AppState, LogBox, Pressable, StyleSheet, Text, View } from "react-native";
+import { JudithLoader } from "@/components/JudithLoader";
 import { resetAudioToPlayback, stopCurrentAudio } from "@/lib/audio";
 
 // expo-notifications logs this on every push-token call on the iOS simulator —
@@ -84,12 +85,7 @@ function NotConfigured() {
 }
 
 function Loading() {
-  const t = useTheme();
-  return (
-    <View style={[styles.center, { backgroundColor: t.canvas }]}>
-      <ActivityIndicator color={t.accent} size="large" />
-    </View>
-  );
+  return <JudithLoader variant="screen" />;
 }
 
 function BiometricLockScreen({ onUnlock }: { onUnlock: () => void }) {

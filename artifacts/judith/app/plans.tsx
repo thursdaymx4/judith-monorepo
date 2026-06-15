@@ -1,7 +1,6 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   Easing,
   Modal,
@@ -14,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "@/components/Icon";
 import type { IconName } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
+import { JudithLoader } from "@/components/JudithLoader";
 import { Low, Mono, Txt, mix } from "@/components/ui";
 import { getPaywallLocale, fmtFee } from "@/constants/paywallLocale";
 import { useJudith } from "@/contexts/JudithStore";
@@ -144,7 +144,7 @@ function CtaBtn({
         }}
       >
         {loading ? (
-          <ActivityIndicator color={primary ? t.onAccent : t.accent} size="small" />
+          <JudithLoader variant="button" />
         ) : (
           <>
             <Txt
@@ -438,7 +438,7 @@ export default function PlansModal() {
       {/* ── PLAN CARDS ── */}
       {loadingPkgs ? (
         <View style={{ alignItems: "center", paddingVertical: 48 }}>
-          <ActivityIndicator color={t.accent} size="large" />
+          <JudithLoader variant="inline" />
         </View>
       ) : (
         <View style={{ gap: 14 }}>
@@ -569,7 +569,7 @@ export default function PlansModal() {
         style={{ marginTop: 20, alignItems: "center", paddingVertical: 8 }}
       >
         {restoringPurchases ? (
-          <ActivityIndicator size="small" color={t.txtLow} />
+          <JudithLoader variant="button" />
         ) : (
           <Low size={12} style={{ textDecorationLine: "underline" }}>Restore purchases</Low>
         )}
