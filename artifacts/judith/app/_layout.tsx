@@ -54,6 +54,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { HandledSplash } from "@/components/HandledSplash";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { JudithProvider, useJudith } from "@/contexts/JudithStore";
+import { PaidSuccessView } from "@/components/PaidSuccessView";
 import { useBiometricLock } from "@/hooks/useBiometricLock";
 import { useNotificationSync } from "@/hooks/useNotificationSync";
 import { useOtaUpdate } from "@/hooks/useOtaUpdate";
@@ -324,6 +325,11 @@ function RootLayout() {
                         call resolves against JudithProvider. It absolute-positions
                         over RootLayoutNav and unmounts after its own fade. */}
                     {!splashDone && <HandledSplash onDone={() => setSplashDone(true)} />}
+                    {/* Global "Bill paid" celebratory cover — fired by
+                        togglePaid/markPaid when a streak-eligible bill
+                        flips to paid. Mounted here so it overlays every
+                        screen and survives navigation. */}
+                    <PaidSuccessHost />
                   </SubscriptionProvider>
                 </JudithProvider>
               </AuthProvider>
@@ -340,6 +346,23 @@ const styles = StyleSheet.create({
   title: { fontSize: 22 },
   body: { fontSize: 15, textAlign: "center", lineHeight: 22 },
 });
+
+/** Reads the ephemeral paidSuccess context from JudithStore and mounts the
+ *  celebratory cover. Kept in a tiny wrapper so the modal only re-renders
+ *  when paidSuccess (or the underlying bills) actually changes. */
+function PaidSuccessHost() {
+  const { paidSuccess, dismissPaidSuccess, bills } = useJudith();
+  const bill = paidSuccess ? (bills.find((b) => b.id === paidSuccess.billId) ?? null) : null;
+  return (
+    <PaidSuccessView
+      open={!!paidSuccess}
+      bill={bill}
+      streakMonths={paidSuccess?.streakMonths ?? 0}
+      wasOverdue={paidSuccess?.wasOverdue ?? false}
+      onDone={dismissPaidSuccess}
+    />
+  );
+}
 
 // Sentry.wrap installs the error boundary that captures unhandled render
 // errors with full component stack frames + a "view stacktrace" link in the

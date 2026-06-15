@@ -3,6 +3,7 @@ import { AppState } from "react-native";
 import { router } from "expo-router";
 import { loadFromICloud, saveToICloud } from "@/lib/icloud-backup";
 import { parseProtectedObject, serializeProtectedObject } from "@/lib/securePersist";
+import { computeBillStreak, isStreakEligible } from "@/lib/billStreak";
 import { clearIntentCommands, readIntentCommands } from "judith-widget-bridge";
 import React, {
   createContext,
@@ -242,6 +243,11 @@ interface JudithStoreValue extends PersistShape {
   money: (n: number) => string;
   toast: string;
   showToast: (msg: string) => void;
+  /** Ephemeral context for the celebratory success cover that opens after a
+   *  bill flips to paid. `null` = no modal showing. Set by togglePaid/markPaid
+   *  on the transition to paid; cleared by `dismissPaidSuccess` (Done CTA). */
+  paidSuccess: { billId: string; streakMonths: number; wasOverdue: boolean } | null;
+  dismissPaidSuccess: () => void;
   /* bill ops */
   togglePaid: (id: string, period?: string) => void;
   markPaid: (id: string) => void;
@@ -328,6 +334,8 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
   const setState = _setState;
   const [hydrated, setHydrated] = useState(false);
   const [toast, setToast] = useState("");
+  const [paidSuccess, setPaidSuccess] = useState<{ billId: string; streakMonths: number; wasOverdue: boolean } | null>(null);
+  const dismissPaidSuccess = useCallback(() => setPaidSuccess(null), []);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Track which key we last hydrated from so we re-hydrate on account switch.
@@ -432,8 +440,15 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       money: (n: number) => formatMoney(n, state.currency),
       toast,
       showToast,
+      paidSuccess,
+      dismissPaidSuccess,
       togglePaid: (id, period) => {
         const today = new Date();
+        // Snapshot the bill BEFORE the toggle so we can decide whether to fire
+        // the celebratory success cover. We only want it on the on→off
+        // transition (just paid), not when un-paying.
+        const targetBefore = _state.bills.find((b) => b.id === id);
+        const wasOverdueBefore = (targetBefore?.dueDays ?? 0) < 0;
         setState((s) => {
           const target = s.bills.find((b) => b.id === id);
           if (!target) return s;
@@ -553,9 +568,33 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
           });
           return { ...s, bills };
         });
+        // After setState, fire the celebratory success cover if this toggle
+        // flipped the bill to paid. Skip via-card charges (the auto-paid
+        // sub-bill is meaningless to celebrate — the parent card statement
+        // is what the user actually paid) and "once" bills (no recurring
+        // streak concept, but still worth a small confirmation eventually).
+        if (targetBefore) {
+          const targetAfter = _state.bills.find((b) => b.id === id);
+          const cp = computeNaturalPeriod(targetBefore, today);
+          const pKey = period ?? cp;
+          const justPaid = !!targetAfter?.paymentHistory?.some(
+            (r) => r.period === pKey && r.paid >= r.totalDue,
+          );
+          const eligible = isStreakEligible(targetBefore);
+          if (justPaid && eligible && targetAfter) {
+            const streak = computeBillStreak(targetAfter, today);
+            setPaidSuccess({
+              billId: id,
+              streakMonths: streak.currentMonths,
+              wasOverdue: wasOverdueBefore,
+            });
+          }
+        }
       },
       markPaid: (id) => {
         const today = new Date();
+        const targetBefore = _state.bills.find((b) => b.id === id);
+        const wasOverdueBefore = (targetBefore?.dueDays ?? 0) < 0;
         setState((s) => {
           const target = s.bills.find((b) => b.id === id);
           if (!target) return s;
@@ -646,6 +685,24 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
 
           return { ...s, bills };
         });
+        // Mirror the same celebratory trigger as togglePaid: fire when this
+        // call actually flipped the bill to paid AND the bill is streak-eligible.
+        if (targetBefore) {
+          const targetAfter = _state.bills.find((b) => b.id === id);
+          const cp = computeNaturalPeriod(targetBefore, today);
+          const justPaid = !!targetAfter?.paymentHistory?.some(
+            (r) => r.period === cp && r.paid >= r.totalDue,
+          );
+          const eligible = isStreakEligible(targetBefore);
+          if (justPaid && eligible && targetAfter) {
+            const streak = computeBillStreak(targetAfter, today);
+            setPaidSuccess({
+              billId: id,
+              streakMonths: streak.currentMonths,
+              wasOverdue: wasOverdueBefore,
+            });
+          }
+        }
       },
       markUnpaid: (id) =>
         mapBills((b) => (b.id === id ? { ...b, status: "due" as const, amountPaid: 0 } : b)),
@@ -848,7 +905,7 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
         return true;
       },
     };
-  }, [state, hydrated, patch, mapBills, toast, showToast, storageKey, user?.id]);
+  }, [state, hydrated, patch, mapBills, toast, showToast, paidSuccess, dismissPaidSuccess, storageKey, user?.id]);
 
   // Latest-value ref. Updated synchronously during render so action wrappers
   // (created once via the useMemo below) can always delegate to the freshest
@@ -1010,6 +1067,8 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       restoreFromCloud: make("restoreFromCloud"),
       // Toast
       showToast: make("showToast"),
+      // Paid-success modal
+      dismissPaidSuccess: make("dismissPaidSuccess"),
       // State fields — only present so the type lines up. DON'T read these
       // off `useJudithActions()`; subscribe via `useJudithSelect` instead.
       // Provide null/empty placeholders so accidental reads fail loudly.
