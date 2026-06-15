@@ -16,9 +16,9 @@
  *     payment); offering it would record a misleading payment record
  *   - paid bills shouldn't show a mark-paid swipe
  */
-import React from "react";
+import React, { useRef } from "react";
 import { Alert, Pressable, View } from "react-native";
-import ReanimatedSwipeable from "react-native-gesture-handler/ReanimatedSwipeable";
+import ReanimatedSwipeable, { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
 import Animated, { SharedValue, useAnimatedStyle } from "react-native-reanimated";
 
 import { Icon } from "@/components/Icon";
@@ -43,6 +43,11 @@ export function BillRowSwipe({ bill, enableMarkPaid, children }: Props) {
   const t = useTheme();
   const router = useRouter();
   const { togglePaid, deleteBill, snooze, showToast } = useJudith();
+  const swipeRef = useRef<SwipeableMethods | null>(null);
+  // Always close the row after any action so the swipe state never lingers
+  // (without this, a full-swipe leaves the row visually stuck in its open
+  // position and blocks every subsequent tap + scroll on that row).
+  const closeRow = () => swipeRef.current?.close();
 
   const viaCard = isPaidViaCard(bill);
   const isPaid = bill.status === "paid";
@@ -51,15 +56,18 @@ export function BillRowSwipe({ bill, enableMarkPaid, children }: Props) {
   const onMarkPaid = () => {
     haptics.success();
     togglePaid(bill.id);
+    closeRow();
   };
   const onEdit = () => {
     haptics.selection();
+    closeRow();
     router.push(`/add-bill?id=${bill.id}`);
   };
   const onSnooze = () => {
     haptics.light();
     snooze(bill.id, 1);
     showToast(`Snoozed ${bill.provider} 1 day`);
+    closeRow();
   };
   const onDelete = () => {
     haptics.error();
@@ -67,7 +75,7 @@ export function BillRowSwipe({ bill, enableMarkPaid, children }: Props) {
       "Delete this bill?",
       `${bill.provider} will be permanently removed.`,
       [
-        { text: "Cancel", style: "cancel" },
+        { text: "Cancel", style: "cancel", onPress: () => closeRow() },
         {
           text: "Delete",
           style: "destructive",
@@ -75,6 +83,7 @@ export function BillRowSwipe({ bill, enableMarkPaid, children }: Props) {
             deleteBill(bill.id);
             haptics.success();
             showToast(`Deleted ${bill.provider}`);
+            closeRow();
           },
         },
       ],
@@ -135,6 +144,7 @@ export function BillRowSwipe({ bill, enableMarkPaid, children }: Props) {
 
   return (
     <ReanimatedSwipeable
+      ref={swipeRef}
       friction={2}
       leftThreshold={88}
       rightThreshold={80}
@@ -143,7 +153,9 @@ export function BillRowSwipe({ bill, enableMarkPaid, children }: Props) {
       renderLeftActions={allowMarkPaid ? renderLeft : undefined}
       renderRightActions={renderRight}
       onSwipeableOpen={(dir) => {
-        // Full-swipe = fire the primary action and close.
+        // Full-swipe left = fire mark-paid and immediately close the row so
+        // the gesture state doesn't leave it stuck in its open position
+        // (which silently blocks every tap + scroll on the row).
         if (dir === "left" && allowMarkPaid) onMarkPaid();
       }}
     >
