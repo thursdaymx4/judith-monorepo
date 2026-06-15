@@ -16,10 +16,11 @@
  * via a Modal in app/_layout.tsx.
  */
 import React, { useEffect } from "react";
-import { Modal, Pressable, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import Animated, {
   FadeIn,
   FadeInDown,
+  FadeOut,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -101,7 +102,11 @@ export function PaidSuccessView({ open, bill, streakMonths, wasOverdue, onDone, 
   const avatarStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   const glowStyle = useAnimatedStyle(() => ({ opacity: glowOpacity.value }));
 
-  if (!bill) return null;
+  // Render NOTHING when there's no bill to show. Using a Reanimated overlay
+  // rather than RN's <Modal> so React owns the full lifecycle — no orphaned
+  // native UIViewController hanging around to swallow touches after dismiss
+  // (which was freezing Home after a few mark-paid cycles).
+  if (!open || !bill) return null;
   const provider = bill.provider || "Bill";
   const amount = totalOwed(bill);
   const headline = wasOverdue ? caughtUpHeadline(persona) : onTimeHeadline(persona, provider);
@@ -116,18 +121,23 @@ export function PaidSuccessView({ open, bill, streakMonths, wasOverdue, onDone, 
   const subtext = `${streakPhrase}${money(amount)} logged.`;
 
   return (
-    <Modal visible={open} animationType="fade" transparent onRequestClose={onDone}>
-      <View
-        style={{
-          flex: 1,
+    <Animated.View
+      entering={reducedMotion ? FadeIn.duration(0) : FadeIn.duration(220)}
+      exiting={reducedMotion ? FadeOut.duration(0) : FadeOut.duration(180)}
+      style={[
+        StyleSheet.absoluteFillObject,
+        {
           backgroundColor: t.canvas,
           paddingTop: insets.top + 20,
           paddingBottom: insets.bottom + 20,
           paddingHorizontal: 24,
           justifyContent: "center",
           alignItems: "center",
-        }}
-      >
+          zIndex: 9999,
+          elevation: 9999,
+        },
+      ]}
+    >
         <Confetti accent={t.accent} />
 
         {/* avatar with soft mint glow */}
@@ -200,7 +210,6 @@ export function PaidSuccessView({ open, bill, streakMonths, wasOverdue, onDone, 
           onPress={onDone}
           style={{ position: "absolute", top: 0, left: 0, right: 0, height: insets.top + 60 }}
         />
-      </View>
-    </Modal>
+    </Animated.View>
   );
 }
