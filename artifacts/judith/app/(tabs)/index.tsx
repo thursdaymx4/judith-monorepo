@@ -6,6 +6,7 @@ import { Defs, LinearGradient as SvgGradient, Path, Stop, Svg } from "react-nati
 
 import { Icon, type IconName } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
+import { BillRowSwipe } from "@/components/BillRowSwipe";
 import {
   BellBtn,
   Card,
@@ -568,6 +569,7 @@ export default function HomeScreen() {
           const last = i === visible.length - 1;
           return (
             <StaggerRow key={b.id} index={i} reduce={reduce} style={{ marginBottom: last ? 0 : 12 }}>
+            <BillRowSwipe bill={b}>
             <SpringPressRow
               onPress={() => openBill(b)}
               style={{ flexDirection: "row", alignItems: "stretch", gap: 10 }}
@@ -671,6 +673,7 @@ export default function HomeScreen() {
                 );
               })()}
             </SpringPressRow>
+            </BillRowSwipe>
             </StaggerRow>
           );
         })}

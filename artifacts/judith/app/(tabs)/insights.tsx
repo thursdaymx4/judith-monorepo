@@ -10,6 +10,7 @@ import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Low, Mono, ProviderLogo, Screen, Txt, mix } from "@/components/ui";
 import { currentCycleDue, isPaidViaCard, totalOwed, type Bill } from "@/constants/data";
+import { computeBillStreak, isStreakEligible } from "@/lib/billStreak";
 import { getCategoryLabel } from "@/constants/categoryLocale";
 import { CAT_COLORS } from "@/constants/theme";
 import { useJudith } from "@/contexts/JudithStore";
@@ -797,6 +798,13 @@ export default function InsightsScreen() {
       )}
 
       {/* ask Judith */}
+      {/* ── TOP STREAKS ────────────────────────────────────────
+         Best 3 bills by current on-time streak. Skips one-time +
+         via-card bills (not streak-eligible) and bills with no
+         streak yet so the section only appears once the user has
+         something to be proud of. */}
+      <TopStreaks bills={bills} router={router} accent={t.accent} surface2={t.surface2} txtMid={t.txtMid} hair={t.hair} />
+
       <Pressable
         onPress={() => router.push("/ask")}
         style={({ pressed }) => [
@@ -812,5 +820,76 @@ export default function InsightsScreen() {
         <Icon name="mic" size={18} color={t.txtMid} />
       </Pressable>
     </Screen>
+  );
+}
+
+/** Compact "best 3 streaks" panel for the Insights tab. */
+function TopStreaks({
+  bills,
+  router,
+  accent,
+  surface2,
+  txtMid,
+  hair,
+}: {
+  bills: Bill[];
+  router: ReturnType<typeof useRouter>;
+  accent: string;
+  surface2: string;
+  txtMid: string;
+  hair: string;
+}) {
+  const top = useMemo(() => {
+    return bills
+      .filter(isStreakEligible)
+      .map((b) => ({ bill: b, streak: computeBillStreak(b) }))
+      .filter((entry) => entry.streak.currentMonths > 0)
+      .sort((a, b) => b.streak.currentMonths - a.streak.currentMonths)
+      .slice(0, 3);
+  }, [bills]);
+
+  if (top.length === 0) return null;
+  return (
+    <View style={{ marginTop: 22 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 10 }}>
+        <Icon name="flame" size={14} color={accent} />
+        <Txt size={13} weight="semibold">Top streaks</Txt>
+      </View>
+      <View style={{ borderWidth: 1, borderColor: hair, borderRadius: 16, backgroundColor: surface2, overflow: "hidden" }}>
+        {top.map((entry, i) => {
+          const b = entry.bill;
+          const unit = b.frequency === "annual" ? "yr" : "mo";
+          const count = b.frequency === "annual" ? entry.streak.yearStreak : entry.streak.currentMonths;
+          return (
+            <Pressable
+              key={b.id}
+              onPress={() => router.push(`/bill/${b.id}`)}
+              style={({ pressed }) => [
+                {
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 10,
+                  paddingHorizontal: 14,
+                  paddingVertical: 12,
+                  borderTopWidth: i === 0 ? 0 : 1,
+                  borderTopColor: hair,
+                },
+                pressed && { opacity: 0.7 },
+              ]}
+            >
+              <ProviderLogo provider={b.provider} cat={b.cat} size={32} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Txt size={14} weight="semibold" numberOfLines={1}>{b.provider}</Txt>
+                <Low size={11}>{Math.round(entry.streak.onTimeRate * 100)}% on-time · best {entry.streak.bestMonths}</Low>
+              </View>
+              <View style={{ flexDirection: "row", alignItems: "baseline", gap: 4 }}>
+                <Mono size={18} weight="bold" color={accent}>{count}</Mono>
+                <Low size={11} color={txtMid}>{unit}</Low>
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
   );
 }

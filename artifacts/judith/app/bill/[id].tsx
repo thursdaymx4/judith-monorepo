@@ -4,6 +4,7 @@ import { Alert, Pressable, TextInput, View } from "react-native";
 
 import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
+import { BillStreakCard } from "@/components/BillStreakCard";
 import { Btn, Card, Low, Mono, ProviderLogo, Screen, SectionLabel, SheetHeader, Txt } from "@/components/ui";
 import {
   ccProjectedFuture,
@@ -588,6 +589,11 @@ export default function BillDetailModal() {
           </Low>
         </View>
       )}
+
+      {/* ── ON-TIME STREAK CARD ─────────────────────────────── */}
+      {/* Renders nothing for one-time + via-card bills (see isStreakEligible). */}
+      <SectionLabel style={{ marginTop: 22 }}>Streak</SectionLabel>
+      <BillStreakCard bill={bill} />
 
       {/* ── 6-MONTH TREND CHART ─────────────────────────────── */}
       <SectionLabel style={{ marginTop: 22 }}>6-month trend</SectionLabel>
