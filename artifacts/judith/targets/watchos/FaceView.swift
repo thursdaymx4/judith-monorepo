@@ -4,8 +4,10 @@ import SwiftUI
 
 struct FaceView: View {
     @EnvironmentObject var store: WatchStore
+    @EnvironmentObject var connectivity: ConnectivityService
 
     private var fraction: Double { store.paidFraction }
+    private var needsRefresh: Bool { store.isPayloadStale && !connectivity.isPhoneReachable }
 
     private var ringColor: Color {
         if store.unpaidCount == 0 { return .judithAccent }
@@ -52,7 +54,11 @@ struct FaceView: View {
                 .padding(.top, 6)
 
                 // ── Total owed / all-paid state ───────────────────────────
-                if store.totalOwed > 0 {
+                if needsRefresh {
+                    Label("Open iPhone to refresh", systemImage: "arrow.clockwise")
+                        .font(.system(Font.TextStyle.caption, design: .rounded).weight(.semibold))
+                        .foregroundStyle(Color.judithNear)
+                } else if store.totalOwed > 0 {
                     Text(store.payload?.totalOwedDisplay ?? "")
                         .font(.judithMonoLarge)
                         .foregroundStyle(Color.judithAccent)
@@ -61,6 +67,10 @@ struct FaceView: View {
                         .font(.system(Font.TextStyle.footnote, design: .rounded).weight(.semibold))
                         .foregroundStyle(Color.judithAccent)
                 }
+
+                Text(store.lastSyncLabel)
+                    .font(.system(Font.TextStyle.caption2, design: .rounded))
+                    .foregroundStyle(needsRefresh ? Color.judithNear : Color.txtLow)
 
                 // ── Next bill chip ────────────────────────────────────────
                 if let next = store.upcomingBills.first {

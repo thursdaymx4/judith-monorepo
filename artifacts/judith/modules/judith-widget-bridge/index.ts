@@ -10,6 +10,7 @@ import { NativeModules, Platform } from "react-native";
 
 type Bridge = {
   writePayload: (json: string) => void;
+  writeAskAccess?: (tier: string, asksLeft: number) => void;
   readIntentCommands?: () => string;
   clearIntentCommands?: (idsJson: string) => void;
   foundationModelStatus?: () => Promise<string>;
@@ -100,6 +101,10 @@ function getBridge(): Bridge | null {
  */
 export function writePayload(json: string): void {
   getBridge()?.writePayload(json);
+}
+
+export function writeAskAccess(tier: string, asksLeft: number): void {
+  getBridge()?.writeAskAccess?.(tier, asksLeft);
 }
 
 export function readIntentCommands(): string {

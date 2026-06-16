@@ -28,9 +28,12 @@ export function buildAskBills(bills: Bill[], today: Date = new Date()): AskBill[
       : null;
     const rec = (b.paymentHistory ?? []).find((r) => r.period === periodKey);
     const paidThisPeriod = rec ? rec.paid : (b.amountPaid ?? 0);
-    const isPaidThisPeriod = (b.paymentHistory ?? []).some(
+    const hasSettledHistory = (b.paymentHistory ?? []).some(
       (r) => r.period === periodKey && r.paid >= r.totalDue,
     );
+    const isPaidThisPeriod =
+      hasSettledHistory ||
+      (b.status === "paid" && paidThisPeriod >= totalOwed(b));
     const isResolvedViaCard = !!cardName;
     // Keep the REAL amount so per-bill queries ("How much is Netflix?") can
     // answer correctly. Whether this contributes to totals is decided by the
@@ -98,7 +101,7 @@ export function buildAskBills(bills: Bill[], today: Date = new Date()): AskBill[
         : `${MONTH_NAMES[nxMonth]} ${dayInMonth}, ${nxYear}`;
       const isPaidCurrent = (b.paymentHistory ?? []).some(
         (r) => r.period === periodKey && r.paid >= r.totalDue,
-      );
+      ) || (b.status === "paid" && (b.amountPaid ?? 0) >= totalOwed(b));
       const hasPartial = (b.amountPaid ?? 0) > 0;
       const effectiveCarry = hasPartial
         ? Math.max(0, totalOwed(b) - (b.amountPaid ?? 0))

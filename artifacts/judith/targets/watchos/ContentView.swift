@@ -45,11 +45,15 @@ struct ContentView: View {
             // Re-check the App Group flag whenever we come back to the
             // foreground — covers the Action Button press while the app
             // was in the background.
-            if phase == .active { launchFlags.refresh() }
+            if phase == .active {
+                launchFlags.refresh()
+                connectivity.requestPayloadRefresh()
+            }
         }
         .task {
             // Cover cold-start: refresh once after the view tree is mounted.
             launchFlags.refresh()
+            connectivity.requestPayloadRefresh()
         }
     }
 

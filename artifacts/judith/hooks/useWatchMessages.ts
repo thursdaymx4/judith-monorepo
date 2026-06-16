@@ -16,67 +16,16 @@
  */
 import { useEffect, useRef } from "react";
 import { useJudith } from "@/contexts/JudithStore";
-import { askJudith, type AskBill } from "@/lib/proxy";
+import { askJudith } from "@/lib/proxy";
 import {
   currentCycleDue,
   makeBillFromAction,
-  totalOwed,
   type Bill,
 } from "@/constants/data";
-import {
-  amountPaidThisMonth,
-  isPaidThisMonth,
-  remainingThisMonth,
-} from "@/lib/currentCycle";
-import { WatchConnectivity } from "@/lib/watch";
+import { buildAskBills } from "@/lib/buildAskBills";
+import { syncBillsToWatch, WatchConnectivity } from "@/lib/watch";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function buildAskBills(bills: Bill[]): AskBill[] {
-  const today = new Date();
-
-  return bills.map((bill) => {
-    const { dueDays, dueLabel } = currentCycleDue(bill, today);
-    const dueDate = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      bill.dueDate ?? 1,
-    );
-    if (dueDate < today) dueDate.setMonth(dueDate.getMonth() + 1);
-    const dueMonth = `${dueDate.getFullYear()}-${String(
-      dueDate.getMonth() + 1,
-    ).padStart(2, "0")}`;
-
-    const paidThisMonth = isPaidThisMonth(bill, today);
-    const paidAmount = amountPaidThisMonth(bill, today);
-    const cardName = bill.chargedToCard && bill.parentCardId
-      ? (bills.find((c) => c.id === bill.parentCardId)?.provider ?? null)
-      : null;
-    const isResolvedViaCard = !!cardName;
-    const amount = bill.cat === "Credit card"
-      ? totalOwed(bill)
-      : isResolvedViaCard
-        ? totalOwed(bill)
-        : remainingThisMonth(bill, today);
-    const showPartial = !isResolvedViaCard && !paidThisMonth && paidAmount > 0;
-
-    return {
-      id: bill.id,
-      provider: bill.provider,
-      cat: bill.cat,
-      amount,
-      dueDays,
-      dueLabel,
-      dueMonth,
-      status: paidThisMonth ? "paid" : bill.status,
-      isBusiness: bill.isBusiness,
-      chargedToCard: bill.chargedToCard,
-      cardName,
-      amountPaid: paidAmount,
-      ...(showPartial ? { paidThisPeriod: paidAmount, originalTotal: totalOwed(bill) } : {}),
-    };
-  });
-}
 
 function normalizeText(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -202,6 +151,10 @@ export function useWatchMessages() {
     country,
     monthlyIncome,
     incomeByMonth,
+    payCycle,
+    paydayDay,
+    paydaySemi,
+    paydayWeekday,
     markPaid,
     payPartial,
     updateBillAmount,
@@ -216,10 +169,32 @@ export function useWatchMessages() {
   const countryRef = useRef(country);
   const monthlyIncomeRef = useRef(monthlyIncome);
   const incomeByMonthRef = useRef(incomeByMonth);
+  const payCycleRef = useRef(payCycle);
+  const paydayDayRef = useRef(paydayDay);
+  const paydaySemiRef = useRef(paydaySemi);
+  const paydayWeekdayRef = useRef(paydayWeekday);
   const markPaidRef = useRef(markPaid);
   const payPartialRef = useRef(payPartial);
   const updateBillAmountRef = useRef(updateBillAmount);
   const saveBillRef = useRef(saveBill);
+
+  const syncCurrentPayload = () =>
+    syncBillsToWatch(
+      billsRef.current,
+      personaRef.current,
+      currencyRef.current,
+      true,
+      {
+        countryName: countryRef.current?.name,
+        countryCode: countryRef.current?.code,
+        monthlyIncome: monthlyIncomeRef.current,
+        incomeByMonth: incomeByMonthRef.current,
+        payCycle: payCycleRef.current,
+        paydayDay: paydayDayRef.current,
+        paydaySemi: paydaySemiRef.current,
+        paydayWeekday: paydayWeekdayRef.current,
+      },
+    ).catch(() => {});
 
   useEffect(() => { billsRef.current = bills; }, [bills]);
   useEffect(() => { personaRef.current = persona; }, [persona]);
@@ -227,6 +202,10 @@ export function useWatchMessages() {
   useEffect(() => { countryRef.current = country; }, [country]);
   useEffect(() => { monthlyIncomeRef.current = monthlyIncome; }, [monthlyIncome]);
   useEffect(() => { incomeByMonthRef.current = incomeByMonth; }, [incomeByMonth]);
+  useEffect(() => { payCycleRef.current = payCycle; }, [payCycle]);
+  useEffect(() => { paydayDayRef.current = paydayDay; }, [paydayDay]);
+  useEffect(() => { paydaySemiRef.current = paydaySemi; }, [paydaySemi]);
+  useEffect(() => { paydayWeekdayRef.current = paydayWeekday; }, [paydayWeekday]);
   useEffect(() => { markPaidRef.current = markPaid; }, [markPaid]);
   useEffect(() => { payPartialRef.current = payPartial; }, [payPartial]);
   useEffect(() => { updateBillAmountRef.current = updateBillAmount; }, [updateBillAmount]);
@@ -254,6 +233,12 @@ export function useWatchMessages() {
         const reply = (args[1] ?? null) as ((response: Record<string, unknown>) => void) | null;
         if (!message) return;
         const action = message.action as string | undefined;
+
+        if (action === "refreshWatchPayload") {
+          syncCurrentPayload();
+          reply?.({ ok: true });
+          return;
+        }
 
         if (action === "ask") {
           const query = (message.query as string | undefined) ?? "";
@@ -359,6 +344,8 @@ export function useWatchMessages() {
           const p = item as Record<string, unknown>;
           if (p.action === "markPaid" && typeof p.billId === "string") {
             markPaidRef.current(p.billId);
+          } else if (p.action === "refreshWatchPayload") {
+            syncCurrentPayload();
           }
         }
       });

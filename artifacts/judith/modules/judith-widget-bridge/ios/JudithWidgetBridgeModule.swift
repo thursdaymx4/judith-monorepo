@@ -16,6 +16,7 @@ public final class JudithWidgetBridgeModule: Module {
     private enum Config {
         static let appGroupID = "group.com.app.judith"
         static let payloadCacheKey = "judith.payload_v2"
+        static let askAccessKey = "judith.ask_access_v1"
         static let intentCommandsKey = "judith.intent_commands_v1"
         static let spotlightDomain = "com.app.judith.bills"
         static let spotlightIndexName = "JudithBills"
@@ -53,6 +54,23 @@ public final class JudithWidgetBridgeModule: Module {
             defaults.set(data, forKey: Config.payloadCacheKey)
             indexBillsForSpotlight(data: data)
             WidgetCenter.shared.reloadAllTimelines()
+        }
+
+        Function("writeAskAccess") { (tier: String, asksLeft: Int) in
+            guard let defaults = UserDefaults(suiteName: Config.appGroupID) else {
+                return
+            }
+
+            let payload: [String: Any] = [
+                "tier": tier,
+                "asksLeft": max(0, asksLeft),
+                "updatedAt": ISO8601DateFormatter().string(from: Date()),
+            ]
+            guard JSONSerialization.isValidJSONObject(payload),
+                  let data = try? JSONSerialization.data(withJSONObject: payload) else {
+                return
+            }
+            defaults.set(data, forKey: Config.askAccessKey)
         }
 
         Function("readIntentCommands") { () -> String in

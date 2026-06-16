@@ -16,18 +16,44 @@ import { useWatchMessages } from "@/hooks/useWatchMessages";
  * - Safe to mount unconditionally: no-ops in Expo Go and on Android.
  */
 export function useWatchSync() {
-  const { bills, toggles, persona, currency } = useJudith();
+  const {
+    bills,
+    toggles,
+    persona,
+    currency,
+    country,
+    monthlyIncome,
+    incomeByMonth,
+    payCycle,
+    paydayDay,
+    paydaySemi,
+    paydayWeekday,
+  } = useJudith();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const billsRef    = useRef(bills);
   const togglesRef  = useRef(toggles);
   const personaRef  = useRef(persona);
   const currencyRef = useRef(currency);
+  const countryRef = useRef(country);
+  const monthlyIncomeRef = useRef(monthlyIncome);
+  const incomeByMonthRef = useRef(incomeByMonth);
+  const payCycleRef = useRef(payCycle);
+  const paydayDayRef = useRef(paydayDay);
+  const paydaySemiRef = useRef(paydaySemi);
+  const paydayWeekdayRef = useRef(paydayWeekday);
 
   billsRef.current    = bills;
   togglesRef.current  = toggles;
   personaRef.current  = persona;
   currencyRef.current = currency;
+  countryRef.current = country;
+  monthlyIncomeRef.current = monthlyIncome;
+  incomeByMonthRef.current = incomeByMonth;
+  payCycleRef.current = payCycle;
+  paydayDayRef.current = paydayDay;
+  paydaySemiRef.current = paydaySemi;
+  paydayWeekdayRef.current = paydayWeekday;
 
   const scheduleSync = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -37,6 +63,16 @@ export function useWatchSync() {
         personaRef.current,
         currencyRef.current,
         true,
+        {
+          countryName: countryRef.current.name,
+          countryCode: countryRef.current.code,
+          monthlyIncome: monthlyIncomeRef.current,
+          incomeByMonth: incomeByMonthRef.current,
+          payCycle: payCycleRef.current,
+          paydayDay: paydayDayRef.current,
+          paydaySemi: paydaySemiRef.current,
+          paydayWeekday: paydayWeekdayRef.current,
+        },
       ).catch(() => {});
     }, 500);
   };
@@ -47,7 +83,7 @@ export function useWatchSync() {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bills, toggles.watch, persona, currency]);
+  }, [bills, toggles.watch, persona, currency, country, monthlyIncome, incomeByMonth, payCycle, paydayDay, paydaySemi, paydayWeekday]);
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state: AppStateStatus) => {

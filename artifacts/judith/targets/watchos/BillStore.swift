@@ -49,6 +49,26 @@ final class WatchStore: ObservableObject {
     var overdueTotal: Double { payload?.overdueTotal ?? 0 }
     var next7Total: Double { payload?.next7Total ?? 0 }
 
+    var lastSyncDate: Date? {
+        guard let generatedAt = payload?.generatedAt else { return nil }
+        return ISO8601DateFormatter().date(from: generatedAt)
+    }
+
+    var isPayloadStale: Bool {
+        guard let lastSyncDate else { return true }
+        return Date().timeIntervalSince(lastSyncDate) > 6 * 60 * 60
+    }
+
+    var lastSyncLabel: String {
+        guard let lastSyncDate else { return "Not synced yet" }
+        let minutes = max(0, Int(Date().timeIntervalSince(lastSyncDate) / 60))
+        if minutes < 1 { return "Synced just now" }
+        if minutes < 60 { return "Synced \(minutes)m ago" }
+        let hours = minutes / 60
+        if hours < 24 { return "Synced \(hours)h ago" }
+        return "Synced \(hours / 24)d ago"
+    }
+
     // MARK: — Apply incoming payload
 
     func applyPayload(_ p: WatchPayload) {

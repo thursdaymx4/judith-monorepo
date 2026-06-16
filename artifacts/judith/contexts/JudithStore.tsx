@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import { loadFromICloud, saveToICloud } from "@/lib/icloud-backup";
 import { parseProtectedObject, serializeProtectedObject } from "@/lib/securePersist";
 import { computeBillStreak, isStreakEligible } from "@/lib/billStreak";
-import { clearIntentCommands, readIntentCommands } from "judith-widget-bridge";
+import { clearIntentCommands, readIntentCommands, writeAskAccess } from "judith-widget-bridge";
 import React, {
   createContext,
   useCallback,
@@ -1004,6 +1004,10 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     drainIntentCommands();
   }, [drainIntentCommands]);
+
+  useEffect(() => {
+    writeAskAccess(state.tier, state.asksLeft);
+  }, [state.tier, state.asksLeft]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {

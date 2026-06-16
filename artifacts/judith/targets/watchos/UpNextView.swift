@@ -4,8 +4,11 @@ import SwiftUI
 
 struct UpNextView: View {
     @EnvironmentObject var store: WatchStore
+    @EnvironmentObject var connectivity: ConnectivityService
     @State private var paidBill: UpcomingBill? = nil
     @State private var showPaidConfirm = false
+
+    private var needsRefresh: Bool { store.isPayloadStale && !connectivity.isPhoneReachable }
 
     var body: some View {
         NavigationStack {
@@ -17,9 +20,9 @@ struct UpNextView: View {
                             Text("Up next")
                                 .font(.system(Font.TextStyle.headline, design: .rounded).weight(.bold))
                                 .foregroundStyle(Color.txtHi)
-                            Text("\(store.unpaidCount) unpaid")
+                            Text(needsRefresh ? "Needs refresh" : "\(store.unpaidCount) unpaid")
                                 .font(.caption2)
-                                .foregroundStyle(Color.txtMid)
+                                .foregroundStyle(needsRefresh ? Color.judithNear : Color.txtMid)
                         }
                         Spacer()
                         Text(store.payload?.totalOwedDisplay ?? "—")
@@ -31,7 +34,7 @@ struct UpNextView: View {
 
                 if store.upcomingBills.isEmpty {
                     Section {
-                        Text("All paid up 🎉")
+                        Text(needsRefresh ? "Open Judith on iPhone to refresh." : "All paid up")
                             .font(.footnote)
                             .foregroundStyle(Color.txtMid)
                             .frame(maxWidth: .infinity, alignment: .center)

@@ -51,6 +51,11 @@ const ttsSigningKey =
   process.env.SUPABASE_SERVICE_ROLE_KEY ||
   process.env.ELEVENLABS_API_KEY ||
   "";
+const watchSigningKey =
+  process.env.WATCH_TOKEN_SIGNING_SECRET ||
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.TTS_SIGNING_SECRET ||
+  "";
 
 function signAiReply(text: string, exp: number): string {
   return createHmac("sha256", ttsSigningKey).update(`${exp}|${text}`).digest("hex");
@@ -76,6 +81,37 @@ function verifyAiReplyToken(token: unknown, text: string): boolean {
   } catch {
     return false;
   }
+}
+
+function signWatchToken(userId: string, exp: number): string {
+  return createHmac("sha256", watchSigningKey).update(`${userId}.${exp}`).digest("base64url");
+}
+
+function makeWatchToken(userId: string): string | null {
+  if (!watchSigningKey) return null;
+  const exp = Date.now() + 90 * 24 * 60 * 60 * 1000;
+  return `${userId}.${exp}.${signWatchToken(userId, exp)}`;
+}
+
+function verifyWatchToken(raw: unknown): { userId: string } | null {
+  if (!watchSigningKey || typeof raw !== "string") return null;
+  const parts = raw.split(".");
+  if (parts.length !== 3) return null;
+  const [userId, expRaw, sig] = parts as [string, string, string];
+  const exp = Number(expRaw);
+  if (!userId || !Number.isFinite(exp) || exp < Date.now()) return null;
+  const expected = signWatchToken(userId, exp);
+  if (sig.length !== expected.length) return null;
+  try {
+    if (!timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+  } catch {
+    return null;
+  }
+  return { userId };
+}
+
+function watchBearer(req: Request): string | null {
+  return bearerToken(req.headers.authorization) ?? null;
 }
 
 function coercePersona(value: unknown): PersonaId {
@@ -329,15 +365,20 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     .filter((b) => (b.dueDays ?? 0) >= 0 && (b.dueDays ?? 0) <= 7)
     .reduce((s, b) => s + (b.amount ?? 0), 0);
 
-  // Bills the user has ALREADY PAID this month — so Judith can answer
-  // "how much have I paid this month?" and "did I pay X?" without scraping
-  // the BILLS section. Uses originalTotal (the full amount) when present
-  // since `amount` is 0 for fully-paid bills; falls back to paidThisPeriod.
-  const paidThisMonth = payable.filter((b) => b.status === "paid" && isThisMonth(b));
-  const paidThisMonthAmt = paidThisMonth.reduce(
-    (s, b) => s + (b.originalTotal ?? b.paidThisPeriod ?? 0),
-    0,
-  );
+  // Bills the user has paid money toward this month, including both settled
+  // bills and in-progress partial payments. The client sends `paidThisPeriod`
+  // as the actual cash/payment amount; `amount` is the remaining balance.
+  const amountPaidForBill = (b: ClientBill): number => {
+    if (b.paidThisPeriod != null && b.paidThisPeriod > 0) return b.paidThisPeriod;
+    if (b.status === "paid" && b.originalTotal != null && b.originalTotal > 0) return b.originalTotal;
+    return 0;
+  };
+  const paidThisMonth = payable.filter((b) => isThisMonth(b) && amountPaidForBill(b) > 0);
+  const fullyPaidThisMonth = paidThisMonth.filter((b) => b.status === "paid");
+  const partiallyPaidThisMonth = paidThisMonth.filter((b) => b.status !== "paid");
+  const paidThisMonthAmt = paidThisMonth.reduce((s, b) => s + amountPaidForBill(b), 0);
+  const fullyPaidThisMonthAmt = fullyPaidThisMonth.reduce((s, b) => s + amountPaidForBill(b), 0);
+  const partiallyPaidThisMonthAmt = partiallyPaidThisMonth.reduce((s, b) => s + amountPaidForBill(b), 0);
 
   // Month keys needed by both monthLines and the income-remaining section.
   const curMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
@@ -472,7 +513,9 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     const paid = b.paidThisPeriod ?? 0;
     const orig = b.originalTotal ?? 0;
     const paidTag = paid > 0 && orig > 0
-      ? ` [PARTIALLY PAID this month: ${curStr(cur, paid)} of ${curStr(cur, orig)} — amount shown is REMAINING balance]`
+      ? b.status === "paid"
+        ? ` [PAID this month: ${curStr(cur, paid)} of ${curStr(cur, orig)} — amount shown is REMAINING balance]`
+        : ` [PARTIALLY PAID this month: ${curStr(cur, paid)} of ${curStr(cur, orig)} — amount shown is REMAINING balance]`
       : "";
     // For via-card bills the only correct status label is "auto-paid via
     // card" — the raw client-side status ("overdue"/"urgent"/etc.) would
@@ -493,13 +536,14 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
   if (hasAnyIncome) {
     const curEntry = monthMap.get(curMonthKey);
     const nxtEntry = monthMap.get(nextMonthKey);
-    const nxtBills = nxtEntry?.total ?? 0;
+    const curBills = curEntry ? curEntry.projected + curEntry.scheduled : 0;
+    const nxtBills = nxtEntry ? nxtEntry.projected + nxtEntry.scheduled : 0;
     const nxtLabel = nextDate.toLocaleString("en-US", { month: "long", year: "numeric" });
 
     if (curEntry && curIncome != null) {
-      const leftThisMonth = curIncome - curEntry.total;
+      const leftThisMonth = curIncome - curBills;
       incomeLines.push(
-        `This month: ${curStr(cur, curIncome)} income − ${curStr(cur, curEntry.total)} bills = ${curStr(cur, leftThisMonth)} left${leftThisMonth < 0 ? " (bills exceed income this month)" : ""}.`,
+        `This month: ${curStr(cur, curIncome)} income − ${curStr(cur, curBills)} bills = ${curStr(cur, leftThisMonth)} left${leftThisMonth < 0 ? " (bills exceed income this month)" : ""}.`,
       );
     }
 
@@ -642,9 +686,18 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     ...(remainingPaydaysLine ? [remainingPaydaysLine] : []),
     `Total still due (unpaid): ${curStr(cur, total)}.`,
     `Total of bills due within 7 days: ${curStr(cur, dueThisWeek)}.`,
+    fullyPaidThisMonth.length === 0
+      ? `Fully paid bills this month: none.`
+      : `Fully paid bills this month: ${fullyPaidThisMonth.length} bill${fullyPaidThisMonth.length === 1 ? "" : "s"} totalling ${curStr(cur, fullyPaidThisMonthAmt)} (${fullyPaidThisMonth.map((b) => b.provider ?? "Bill").join(", ")}). Use this for "what bills have I paid?", "which bills are paid?", and "how many bills have I paid?" questions.`,
+    partiallyPaidThisMonth.length === 0
+      ? `Partial payments this month: none.`
+      : `Partial payments this month: ${curStr(cur, partiallyPaidThisMonthAmt)} across ${partiallyPaidThisMonth.length} bill${partiallyPaidThisMonth.length === 1 ? "" : "s"} (${partiallyPaidThisMonth.map((b) => `${b.provider ?? "Bill"} ${curStr(cur, amountPaidForBill(b))}`).join(", ")}). These are NOT fully paid bills; mention them only when the user asks about partial payments, credit-card payments, or total money paid so far.`,
     paidThisMonth.length === 0
-      ? `Paid this month: none yet.`
-      : `Paid this month: ${curStr(cur, paidThisMonthAmt)} across ${paidThisMonth.length} bill${paidThisMonth.length === 1 ? "" : "s"} (${paidThisMonth.map((b) => b.provider ?? "Bill").join(", ")}). Use this for "how much have I paid this month?" and "did I pay X?" questions — do NOT include these in due/overdue totals.`,
+      ? `Total money paid this month: ${curStr(cur, 0)}.`
+      : `Total money paid this month: ${curStr(cur, paidThisMonthAmt)} actual money paid across fully paid bills plus partial payments (${paidThisMonth.map((b) => {
+          const label = b.provider ?? "Bill";
+          return b.status === "paid" ? label : `${label} partial ${curStr(cur, amountPaidForBill(b))}`;
+        }).join(", ")}). Use this exact figure for "how much money have I paid this month?" and "how much have I paid already?" questions. For "paid bills" questions, use ONLY the Fully paid bills line above — do NOT count partial payments as paid bills. Do NOT include paid money in due/overdue totals.`,
     bizUnpaid.length > 0
       ? `Business bills still unpaid (directly payable): ${bizUnpaid.length} bill${bizUnpaid.length === 1 ? "" : "s"} totalling ${curStr(cur, bizTotal)}.`
       : "Business bills still unpaid (directly payable): none.",
@@ -714,6 +767,79 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
   return parts.join("\n");
 }
 
+function paidQuestionAnswer(text: string, bills: ClientBill[], today: Date, cur = "₱"): string | null {
+  const normalized = text.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const asksPaid =
+    /\bpaid\b/.test(normalized) ||
+    normalized.includes("paid already") ||
+    normalized.includes("paid this month") ||
+    normalized.includes("have i paid");
+  if (!asksPaid) return null;
+
+  const asksTotalMoney =
+    normalized.includes("how much") ||
+    normalized.includes("total") ||
+    normalized.includes("amount") ||
+    normalized.includes("money") ||
+    normalized.includes("so far") ||
+    normalized.includes("already");
+  const asksPaidBills =
+    normalized.includes("which bill") ||
+    normalized.includes("what bill") ||
+    normalized.includes("paid bill") ||
+    normalized.includes("how many bill");
+  if (!asksTotalMoney && !asksPaidBills) return null;
+
+  const isViaCard = (b: ClientBill) => !!b.chargedToCard;
+  const daysLeftInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate() - today.getDate();
+  const isThisMonth = (b: ClientBill) => !b.isProjection && (b.dueDays ?? 0) <= daysLeftInMonth;
+  const amountPaidForBill = (b: ClientBill): number => {
+    if (b.paidThisPeriod != null && b.paidThisPeriod > 0) return b.paidThisPeriod;
+    if (b.status === "paid" && b.originalTotal != null && b.originalTotal > 0) return b.originalTotal;
+    return 0;
+  };
+
+  const paidRows = bills
+    .filter((b) => !isViaCard(b) && isThisMonth(b) && amountPaidForBill(b) > 0)
+    .map((b) => ({
+      provider: b.provider ?? "Bill",
+      amountPaid: amountPaidForBill(b),
+      remaining: Math.max(0, b.amount ?? 0),
+      fullyPaid: b.status === "paid",
+    }));
+  const fullyPaid = paidRows.filter((b) => b.fullyPaid);
+  const partial = paidRows.filter((b) => !b.fullyPaid);
+  const totalPaid = paidRows.reduce((sum, b) => sum + b.amountPaid, 0);
+
+  const list = (items: { provider: string; amountPaid: number }[]) =>
+    items.map((b) => `${curStr(cur, b.amountPaid)} on ${b.provider}`).join(", ");
+  const partialList = partial
+    .map((b) => `${curStr(cur, b.amountPaid)} partial on ${b.provider}${b.remaining > 0 ? `, leaving ${curStr(cur, b.remaining)} unpaid` : ""}`)
+    .join(", ");
+
+  if (asksPaidBills && !asksTotalMoney) {
+    if (fullyPaid.length === 0) {
+      return partial.length === 0
+        ? "You haven't marked any bills paid this month yet."
+        : `No bills are fully paid this month yet. You do have partial payments: ${partialList}.`;
+    }
+    const suffix = partial.length > 0 ? ` You also have partial payments: ${partialList}.` : "";
+    return `You've fully paid ${fullyPaid.length} bill${fullyPaid.length === 1 ? "" : "s"} this month: ${list(fullyPaid)}.${suffix}`;
+  }
+
+  if (paidRows.length === 0) {
+    return `You've paid ${curStr(cur, 0)} so far this month.`;
+  }
+
+  const fullyClause = fullyPaid.length > 0
+    ? ` across ${fullyPaid.length} fully paid bill${fullyPaid.length === 1 ? "" : "s"} — ${list(fullyPaid)}`
+    : "";
+  const partialClause = partial.length > 0
+    ? `${fullyPaid.length > 0 ? ". Plus " : " — "}${partialList}`
+    : "";
+  return `You've paid ${curStr(cur, totalPaid)} so far this month${fullyClause}${partialClause}.`;
+}
+
 async function loadUserData(userId: string) {
   const admin = getSupabaseAdmin();
   const [profileRes, billsRes] = await Promise.all([
@@ -743,6 +869,192 @@ async function requireUser(req: Request, res: Response) {
   // not re-open destructive operations.
   return { id: "guest", email: undefined, role: "guest" } as const;
 }
+
+router.post("/watch-token", async (req, res) => {
+  try {
+    const user = await requireUser(req, res);
+    if (!user) return;
+    if (user.id === "guest") {
+      res.status(401).json({ error: "Sign in required" });
+      return;
+    }
+    const token = makeWatchToken(user.id);
+    if (!token) {
+      res.status(500).json({ error: "Watch token signing is not configured" });
+      return;
+    }
+    res.json({ token });
+  } catch (err) {
+    logger.error({ err }, "watch-token failed");
+    res.status(500).json({ error: "Could not create watch token" });
+  }
+});
+
+router.post("/watch-snapshot", async (req, res) => {
+  try {
+    const user = await requireUser(req, res);
+    if (!user) return;
+    if (user.id === "guest") {
+      res.status(401).json({ error: "Sign in required" });
+      return;
+    }
+    const {
+      payload,
+      askBills,
+      persona,
+      currency,
+      countryName,
+      countryCode,
+      monthlyIncome,
+      incomeByMonth,
+      payCycle,
+      paydayDay,
+      paydaySemi,
+      paydayWeekday,
+    } = req.body ?? {};
+    if (!payload || typeof payload !== "object" || !Array.isArray(askBills)) {
+      res.status(400).json({ error: "payload and askBills are required" });
+      return;
+    }
+    if (askBills.length > 300) {
+      res.status(413).json({ error: "too many bills in snapshot" });
+      return;
+    }
+    const admin = getSupabaseAdmin();
+    const { error } = await admin.from("watch_snapshots").upsert({
+      user_id: user.id,
+      updated_at: new Date().toISOString(),
+      payload,
+      ask_bills: askBills,
+      persona: typeof persona === "string" ? persona : null,
+      currency: typeof currency === "string" ? currency : null,
+      country_name: typeof countryName === "string" ? countryName : null,
+      country_code: typeof countryCode === "string" ? countryCode : null,
+      monthly_income: typeof monthlyIncome === "number" ? monthlyIncome : null,
+      income_by_month: incomeByMonth && typeof incomeByMonth === "object" && !Array.isArray(incomeByMonth) ? incomeByMonth : null,
+      pay_cycle: typeof payCycle === "string" ? payCycle : null,
+      payday_day: typeof paydayDay === "number" ? paydayDay : null,
+      payday_semi: Array.isArray(paydaySemi) ? paydaySemi : null,
+      payday_weekday: typeof paydayWeekday === "number" ? paydayWeekday : null,
+    });
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "watch-snapshot failed");
+    res.status(500).json({ error: "Could not save watch snapshot" });
+  }
+});
+
+async function loadWatchSnapshot(req: Request, res: Response) {
+  const verified = verifyWatchToken(watchBearer(req));
+  if (!verified) {
+    res.status(401).json({ error: "Invalid watch token" });
+    return null;
+  }
+  const admin = getSupabaseAdmin();
+  const { data, error } = await admin
+    .from("watch_snapshots")
+    .select("*")
+    .eq("user_id", verified.userId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) {
+    res.status(404).json({ error: "No watch snapshot yet" });
+    return null;
+  }
+  return data as Record<string, unknown>;
+}
+
+function snapshotNumber(value: unknown): number | undefined {
+  const n = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function snapshotNumberPair(value: unknown): [number, number] | undefined {
+  if (!Array.isArray(value) || value.length < 2) return undefined;
+  const first = snapshotNumber(value[0]);
+  const second = snapshotNumber(value[1]);
+  return first != null && second != null ? [first, second] : undefined;
+}
+
+router.get("/watch-summary", async (req, res) => {
+  try {
+    const snapshot = await loadWatchSnapshot(req, res);
+    if (!snapshot) return;
+    res.json({
+      payload: snapshot.payload,
+      updatedAt: snapshot.updated_at,
+    });
+  } catch (err) {
+    logger.error({ err }, "watch-summary failed");
+    res.status(500).json({ error: "Could not load watch summary" });
+  }
+});
+
+router.post("/watch-ask", askLimiter, async (req, res) => {
+  try {
+    const snapshot = await loadWatchSnapshot(req, res);
+    if (!snapshot) return;
+    const { text, localDate, localWeekday: rawLocalWeekday } = req.body ?? {};
+    if (typeof text !== "string" || !text.trim()) {
+      res.status(400).json({ error: "text is required" });
+      return;
+    }
+    if (text.length > 4000) {
+      res.status(413).json({ error: "text too long (max 4000 chars)" });
+      return;
+    }
+
+    const askBills = Array.isArray(snapshot.ask_bills) ? snapshot.ask_bills : [];
+    const today = parseLocalDate(localDate);
+    const cur = typeof snapshot.currency === "string" && snapshot.currency.trim() ? snapshot.currency.trim() : "₱";
+    const country = typeof snapshot.country_name === "string" && snapshot.country_name.trim() ? snapshot.country_name.trim() : "the Philippines";
+    const countryCode = typeof snapshot.country_code === "string" && snapshot.country_code.trim() ? snapshot.country_code.trim() : undefined;
+    const persona = coercePersona(snapshot.persona);
+    const monthlyIncome = snapshotNumber(snapshot.monthly_income);
+    const incomeByMonth =
+      snapshot.income_by_month && typeof snapshot.income_by_month === "object" && !Array.isArray(snapshot.income_by_month)
+        ? snapshot.income_by_month as Record<string, number>
+        : undefined;
+    const payCycle = typeof snapshot.pay_cycle === "string" ? snapshot.pay_cycle : undefined;
+    const paydayDay = snapshotNumber(snapshot.payday_day);
+    const paydaySemi = snapshotNumberPair(snapshot.payday_semi);
+    const paydayWeekday = snapshotNumber(snapshot.payday_weekday);
+    const safeLocalWeekday = typeof rawLocalWeekday === "string" && rawLocalWeekday.trim() ? rawLocalWeekday.trim() : undefined;
+    const context = buildClientContext(
+      askBills as ClientBill[],
+      today,
+      cur,
+      monthlyIncome,
+      incomeByMonth,
+      payCycle,
+      paydayDay,
+      paydaySemi,
+      paydayWeekday,
+      safeLocalWeekday,
+    );
+    const deterministicPaidAnswer = paidQuestionAnswer(text, askBills as ClientBill[], today, cur);
+    if (deterministicPaidAnswer) {
+      res.json({ answer: deterministicPaidAnswer });
+      return;
+    }
+
+    const anthropic = getAnthropic();
+    const systemStr = `${systemPrompt(persona, "en", country, cur, countryCode)}\n\nBILL CONTEXT (the only source of truth):\n${context}`;
+    const message = await anthropic.messages.create({
+      model: pickModel(text, 0),
+      max_tokens: 160,
+      system: systemStr,
+      messages: [{ role: "user", content: text.trim() }],
+    });
+    const rawReply = message.content.map((b) => (b.type === "text" ? b.text : "")).join(" ").trim();
+    const { cleanText: reply } = parseAction(rawReply);
+    res.json({ answer: reply });
+  } catch (err) {
+    logger.error({ err }, "watch-ask failed");
+    res.status(500).json({ error: "Judith could not respond right now" });
+  }
+});
 // POST /api/judith/delete-account -> { ok: true }
 // Permanently removes the authenticated user's bills, profile, and auth account.
 router.post("/delete-account", async (req, res) => {
@@ -928,6 +1240,35 @@ router.post("/ask", askLimiter, async (req, res) => {
           if (error) logger.warn({ err: error }, "ask_logs insert failed");
         });
     };
+
+    const deterministicPaidAnswer = paidQuestionAnswer(text, bodyBills as ClientBill[], today, cur);
+    if (deterministicPaidAnswer) {
+      const start = Date.now();
+      const { audioBase64, mime, ttsOk, ttsChars, ttsMs } = await doTts(deterministicPaidAnswer);
+      const totalMs = Date.now() - start;
+      if (req.body?.stream === true) {
+        res.setHeader("Content-Type", "text/event-stream");
+        res.setHeader("Cache-Control", "no-cache");
+        res.setHeader("Connection", "keep-alive");
+        res.setHeader("X-Accel-Buffering", "no");
+        res.flushHeaders();
+        if (audioBase64) {
+          res.write(`data: ${JSON.stringify({ type: "audio", audioBase64, mime })}\n\n`);
+        }
+        res.write(`data: ${JSON.stringify({ type: "done", reply: deterministicPaidAnswer, action: null, audioBase64: null, mime, ttsToken: makeAiReplyToken(deterministicPaidAnswer) })}\n\n`);
+        res.end();
+      } else {
+        res.json({
+          reply: deterministicPaidAnswer,
+          audioBase64,
+          mime,
+          action: null,
+          ttsToken: makeAiReplyToken(deterministicPaidAnswer),
+        });
+      }
+      doLog(deterministicPaidAnswer, ttsOk, ttsChars, 0, 0, 0, ttsMs, totalMs, "deterministic-paid-summary");
+      return;
+    }
 
     if (req.body?.stream === true) {
       res.setHeader("Content-Type", "text/event-stream");

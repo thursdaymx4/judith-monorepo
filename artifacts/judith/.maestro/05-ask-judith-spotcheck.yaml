@@ -1,0 +1,355 @@
+appId: com.app.judith
+name: Ask Judith — 20 text-only spot-check questions
+
+# Runs the common Ask Judith questions through the chat path only.
+# The deep-link flag `chatOnly=1` disables spoken follow-up audio, so this
+# flow does not consume ElevenLabs API even on a Voice-tier account.
+---
+- launchApp:
+    clearState: false
+- waitForAnimationToEnd
+- openLink: "judith:///ask?chatOnly=1"
+- waitForAnimationToEnd
+- assertVisible: "Ask Judith"
+- assertVisible:
+    accessibilityText: "Ask Judith question input ready"
+
+- tapOn:
+    accessibilityText: "Ask Judith question input ready"
+- eraseText: 200
+- inputText: "What's due this week and how much?"
+- pressKey: Enter
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      accessibilityText: "Ask Judith question input ready"
+    timeout: 45000
+- assertNotVisible: "May problema sa server"
+- assertNotVisible: "Something went wrong on my end"
+- assertNotVisible: "I can't connect to the server"
+- assertNotVisible: "Hindi ako makakonekta sa server"
+- assertNotVisible: "Sorry, that took too long"
+- assertNotVisible: "Pasensya, ang tagal ng sagot"
+
+- tapOn:
+    accessibilityText: "Ask Judith question input ready"
+- eraseText: 200
+- inputText: "Remaining bills that needs to get paid this month"
+- pressKey: Enter
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      accessibilityText: "Ask Judith question input ready"
+    timeout: 45000
+- assertNotVisible: "May problema sa server"
+- assertNotVisible: "Something went wrong on my end"
+- assertNotVisible: "I can't connect to the server"
+- assertNotVisible: "Hindi ako makakonekta sa server"
+- assertNotVisible: "Sorry, that took too long"
+- assertNotVisible: "Pasensya, ang tagal ng sagot"
+
+- tapOn:
+    accessibilityText: "Ask Judith question input ready"
+- eraseText: 200
+- inputText: "What's the total due for all my credit cards this month?"
+- pressKey: Enter
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      accessibilityText: "Ask Judith question input ready"
+    timeout: 45000
+- assertNotVisible: "May problema sa server"
+- assertNotVisible: "Something went wrong on my end"
+- assertNotVisible: "I can't connect to the server"
+- assertNotVisible: "Hindi ako makakonekta sa server"
+- assertNotVisible: "Sorry, that took too long"
+- assertNotVisible: "Pasensya, ang tagal ng sagot"
+
+- tapOn:
+    accessibilityText: "Ask Judith question input ready"
+- eraseText: 200
+- inputText: "What's my estimated total bill for next month?"
+- pressKey: Enter
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      accessibilityText: "Ask Judith question input ready"
+    timeout: 45000
+- assertNotVisible: "May problema sa server"
+- assertNotVisible: "Something went wrong on my end"
+- assertNotVisible: "I can't connect to the server"
+- assertNotVisible: "Hindi ako makakonekta sa server"
+- assertNotVisible: "Sorry, that took too long"
+- assertNotVisible: "Pasensya, ang tagal ng sagot"
+
+- tapOn:
+    accessibilityText: "Ask Judith question input ready"
+- eraseText: 200
+- inputText: "How much will be left from my income next month after bills?"
+- pressKey: Enter
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      accessibilityText: "Ask Judith question input ready"
+    timeout: 45000
+- assertNotVisible: "May problema sa server"
+- assertNotVisible: "Something went wrong on my end"
+- assertNotVisible: "I can't connect to the server"
+- assertNotVisible: "Hindi ako makakonekta sa server"
+- assertNotVisible: "Sorry, that took too long"
+- assertNotVisible: "Pasensya, ang tagal ng sagot"
+
+- tapOn:
+    accessibilityText: "Ask Judith question input ready"
+- eraseText: 200
+- inputText: "Can I afford to go on vacation next month?"
+- pressKey: Enter
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      accessibilityText: "Ask Judith question input ready"
+    timeout: 45000
+- assertNotVisible: "May problema sa server"
+- assertNotVisible: "Something went wrong on my end"
+- assertNotVisible: "I can't connect to the server"
+- assertNotVisible: "Hindi ako makakonekta sa server"
+- assertNotVisible: "Sorry, that took too long"
+- assertNotVisible: "Pasensya, ang tagal ng sagot"
+
+- tapOn:
+    accessibilityText: "Ask Judith question input ready"
+- eraseText: 200
+- inputText: "How much have I paid this month?"
+- pressKey: Enter
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      accessibilityText: "Ask Judith question input ready"
+    timeout: 45000
+- assertNotVisible: "May problema sa server"
+- assertNotVisible: "Something went wrong on my end"
+- assertNotVisible: "I can't connect to the server"
+- assertNotVisible: "Hindi ako makakonekta sa server"
+- assertNotVisible: "Sorry, that took too long"
+- assertNotVisible: "Pasensya, ang tagal ng sagot"
+
+- tapOn:
+    accessibilityText: "Ask Judith question input ready"
+- eraseText: 200
+- inputText: "Which bills have I already paid this month?"
+- pressKey: Enter
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      accessibilityText: "Ask Judith question input ready"
+    timeout: 45000
+- assertNotVisible: "May problema sa server"
+- assertNotVisible: "Something went wrong on my end"
+- assertNotVisible: "I can't connect to the server"
+- assertNotVisible: "Hindi ako makakonekta sa server"
+- assertNotVisible: "Sorry, that took too long"
+- assertNotVisible: "Pasensya, ang tagal ng sagot"
+
+- tapOn:
+    accessibilityText: "Ask Judith question input ready"
+- eraseText: 200
+- inputText: "How much do I still owe this month?"
+- pressKey: Enter
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      accessibilityText: "Ask Judith question input ready"
+    timeout: 45000
+- assertNotVisible: "May problema sa server"
+- assertNotVisible: "Something went wrong on my end"
+- assertNotVisible: "I can't connect to the server"
+- assertNotVisible: "Hindi ako makakonekta sa server"
+- assertNotVisible: "Sorry, that took too long"
+- assertNotVisible: "Pasensya, ang tagal ng sagot"
+
+- tapOn:
+    accessibilityText: "Ask Judith question input ready"
+- eraseText: 200
+- inputText: "What bills are overdue and how much?"
+- pressKey: Enter
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      accessibilityText: "Ask Judith question input ready"
+    timeout: 45000
+- assertNotVisible: "May problema sa server"
+- assertNotVisible: "Something went wrong on my end"
+- assertNotVisible: "I can't connect to the server"
+- assertNotVisible: "Hindi ako makakonekta sa server"
+- assertNotVisible: "Sorry, that took too long"
+- assertNotVisible: "Pasensya, ang tagal ng sagot"
+
+- tapOn:
+    accessibilityText: "Ask Judith question input ready"
+- eraseText: 200
+- inputText: "Which bill should I pay first?"
+- pressKey: Enter
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      accessibilityText: "Ask Judith question input ready"
+    timeout: 45000
+- assertNotVisible: "May problema sa server"
+- assertNotVisible: "Something went wrong on my end"
+- assertNotVisible: "I can't connect to the server"
+- assertNotVisible: "Hindi ako makakonekta sa server"
+- assertNotVisible: "Sorry, that took too long"
+- assertNotVisible: "Pasensya, ang tagal ng sagot"
+
+- tapOn:
+    accessibilityText: "Ask Judith question input ready"
+- eraseText: 200
+- inputText: "What's due today?"
+- pressKey: Enter
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      accessibilityText: "Ask Judith question input ready"
+    timeout: 45000
+- assertNotVisible: "May problema sa server"
+- assertNotVisible: "Something went wrong on my end"
+- assertNotVisible: "I can't connect to the server"
+- assertNotVisible: "Hindi ako makakonekta sa server"
+- assertNotVisible: "Sorry, that took too long"
+- assertNotVisible: "Pasensya, ang tagal ng sagot"
+
+- tapOn:
+    accessibilityText: "Ask Judith question input ready"
+- eraseText: 200
+- inputText: "What's due tomorrow?"
+- pressKey: Enter
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      accessibilityText: "Ask Judith question input ready"
+    timeout: 45000
+- assertNotVisible: "May problema sa server"
+- assertNotVisible: "Something went wrong on my end"
+- assertNotVisible: "I can't connect to the server"
+- assertNotVisible: "Hindi ako makakonekta sa server"
+- assertNotVisible: "Sorry, that took too long"
+- assertNotVisible: "Pasensya, ang tagal ng sagot"
+
+- tapOn:
+    accessibilityText: "Ask Judith question input ready"
+- eraseText: 200
+- inputText: "What bills are due in the next 7 days?"
+- pressKey: Enter
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      accessibilityText: "Ask Judith question input ready"
+    timeout: 45000
+- assertNotVisible: "May problema sa server"
+- assertNotVisible: "Something went wrong on my end"
+- assertNotVisible: "I can't connect to the server"
+- assertNotVisible: "Hindi ako makakonekta sa server"
+- assertNotVisible: "Sorry, that took too long"
+- assertNotVisible: "Pasensya, ang tagal ng sagot"
+
+- tapOn:
+    accessibilityText: "Ask Judith question input ready"
+- eraseText: 200
+- inputText: "How much is due before my next payday?"
+- pressKey: Enter
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      accessibilityText: "Ask Judith question input ready"
+    timeout: 45000
+- assertNotVisible: "May problema sa server"
+- assertNotVisible: "Something went wrong on my end"
+- assertNotVisible: "I can't connect to the server"
+- assertNotVisible: "Hindi ako makakonekta sa server"
+- assertNotVisible: "Sorry, that took too long"
+- assertNotVisible: "Pasensya, ang tagal ng sagot"
+
+- tapOn:
+    accessibilityText: "Ask Judith question input ready"
+- eraseText: 200
+- inputText: "Will my next paycheck cover the bills due before then?"
+- pressKey: Enter
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      accessibilityText: "Ask Judith question input ready"
+    timeout: 45000
+- assertNotVisible: "May problema sa server"
+- assertNotVisible: "Something went wrong on my end"
+- assertNotVisible: "I can't connect to the server"
+- assertNotVisible: "Hindi ako makakonekta sa server"
+- assertNotVisible: "Sorry, that took too long"
+- assertNotVisible: "Pasensya, ang tagal ng sagot"
+
+- tapOn:
+    accessibilityText: "Ask Judith question input ready"
+- eraseText: 200
+- inputText: "How much do I spend on subscriptions this month?"
+- pressKey: Enter
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      accessibilityText: "Ask Judith question input ready"
+    timeout: 45000
+- assertNotVisible: "May problema sa server"
+- assertNotVisible: "Something went wrong on my end"
+- assertNotVisible: "I can't connect to the server"
+- assertNotVisible: "Hindi ako makakonekta sa server"
+- assertNotVisible: "Sorry, that took too long"
+- assertNotVisible: "Pasensya, ang tagal ng sagot"
+
+- tapOn:
+    accessibilityText: "Ask Judith question input ready"
+- eraseText: 200
+- inputText: "How much do I spend on utilities this month?"
+- pressKey: Enter
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      accessibilityText: "Ask Judith question input ready"
+    timeout: 45000
+- assertNotVisible: "May problema sa server"
+- assertNotVisible: "Something went wrong on my end"
+- assertNotVisible: "I can't connect to the server"
+- assertNotVisible: "Hindi ako makakonekta sa server"
+- assertNotVisible: "Sorry, that took too long"
+- assertNotVisible: "Pasensya, ang tagal ng sagot"
+
+- tapOn:
+    accessibilityText: "Ask Judith question input ready"
+- eraseText: 200
+- inputText: "What business bills still need to be paid?"
+- pressKey: Enter
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      accessibilityText: "Ask Judith question input ready"
+    timeout: 45000
+- assertNotVisible: "May problema sa server"
+- assertNotVisible: "Something went wrong on my end"
+- assertNotVisible: "I can't connect to the server"
+- assertNotVisible: "Hindi ako makakonekta sa server"
+- assertNotVisible: "Sorry, that took too long"
+- assertNotVisible: "Pasensya, ang tagal ng sagot"
+
+- tapOn:
+    accessibilityText: "Ask Judith question input ready"
+- eraseText: 200
+- inputText: "What are my largest bills this month?"
+- pressKey: Enter
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      accessibilityText: "Ask Judith question input ready"
+    timeout: 45000
+- assertNotVisible: "May problema sa server"
+- assertNotVisible: "Something went wrong on my end"
+- assertNotVisible: "I can't connect to the server"
+- assertNotVisible: "Hindi ako makakonekta sa server"
+- assertNotVisible: "Sorry, that took too long"
+- assertNotVisible: "Pasensya, ang tagal ng sagot"

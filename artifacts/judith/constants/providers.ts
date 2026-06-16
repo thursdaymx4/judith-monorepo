@@ -456,15 +456,31 @@ export function getAllProviderEntries(): ProviderEntry[] {
    Quick asks — country-aware
    ═══════════════════════════════════════════════════════════════════════ */
 
+export const ASK_SPOT_CHECK_QUESTIONS = [
+  "What's due this week and how much?",
+  "Remaining bills that needs to get paid this month",
+  "What's the total due for all my credit cards this month?",
+  "What's my estimated total bill for next month?",
+  "How much will be left from my income next month after bills?",
+  "Can I afford to go on vacation next month?",
+  "How much have I paid this month?",
+  "Which bills have I already paid this month?",
+  "How much do I still owe this month?",
+  "What bills are overdue and how much?",
+  "Which bill should I pay first?",
+  "What's due today?",
+  "What's due tomorrow?",
+  "What bills are due in the next 7 days?",
+  "How much is due before my next payday?",
+  "Will my next paycheck cover the bills due before then?",
+  "How much do I spend on subscriptions this month?",
+  "How much do I spend on utilities this month?",
+  "What business bills still need to be paid?",
+  "What are my largest bills this month?",
+] as const;
+
 export function getQuickAsks(_countryCode: string): string[] {
-  return [
-    "What's due this week and how much?",
-    "Remaining bills that needs to get paid this month",
-    "What's the total due for all my credit cards this month?",
-    "What's my estimated total bill for next month?",
-    "How much will be left from my income next month after bills?",
-    "Can I afford to go on vacation next month?",
-  ];
+  return [...ASK_SPOT_CHECK_QUESTIONS];
 }
 
 /* ═══════════════════════════════════════════════════════════════════════

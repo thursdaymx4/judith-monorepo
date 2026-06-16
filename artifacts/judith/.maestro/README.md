@@ -26,6 +26,7 @@ maestro test .maestro/                       # run all flows
 maestro test .maestro/00-smoke.yaml          # just smoke
 maestro test .maestro/01-ask-judith.yaml     # Ask Judith round-trip
 maestro test .maestro/02-tab-navigation.yaml # tab render check
+maestro test .maestro/05-ask-judith-spotcheck.yaml # 20 text-only Ask questions
 ```
 
 `maestro studio` opens a live inspector you can use to grab element
@@ -38,6 +39,7 @@ ids / accessibility labels when adding new flows.
 | `00-smoke.yaml` | App fails to boot, splash hangs, missing native module, JS crash on launch |
 | `01-ask-judith.yaml` | Ask returns generic server-error message, reply never arrives, bundle ships broken `/ask` path |
 | `02-tab-navigation.yaml` | A tab screen white-screens or kicks the user back to Home |
+| `05-ask-judith-spotcheck.yaml` | Runs the 20 common Ask questions in chat-only mode for manual correctness review without ElevenLabs usage |
 
 ## Adding new flows
 

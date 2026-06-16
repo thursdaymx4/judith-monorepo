@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 // MARK: — App configuration
@@ -5,10 +6,12 @@ import SwiftUI
 enum Config {
     // MARK: — App Group (must match the capability added in Xcode)
     static let appGroupID        = "group.com.app.judith"
+    static let apiBaseURL        = URL(string: "https://judithforduedates.com/api/judith")!
 
     // MARK: — UserDefaults keys (shared via App Group with widget extension)
     static let payloadCacheKey   = "judith.payload_v2"   // WatchPayload JSON
     static let streakKey         = "judith.streak"
+    static let watchTokenKey     = "judith.watch_token"
 }
 
 // MARK: — Design tokens (mirrors constants/theme.ts)

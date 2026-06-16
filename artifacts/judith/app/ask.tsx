@@ -15,7 +15,7 @@ import { haptics } from "@/lib/haptics";
 import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Chip, Low, Muted, Pill, SpeechBubble, Txt, mix } from "@/components/ui";
-import { makeBillFromAction, makeSubscriptionBill, currentCycleDue, nextOccurrence, totalOwed, ccProjectedFuture } from "@/constants/data";
+import { makeBillFromAction, makeSubscriptionBill, currentCycleDue, nextOccurrence, totalOwed } from "@/constants/data";
 import type { AskMsg } from "@/contexts/JudithStore";
 import { getQuickAsks } from "@/constants/providers";
 import { getPersona } from "@/constants/personas";
@@ -23,7 +23,8 @@ import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { enqueueAudio, fileToBase64, isAudioActive, resetAudioToPlayback, stopCurrentAudio } from "@/lib/audio";
 import { safeBack } from "@/lib/navigation";
-import { type AddBillAction, type AskBill, askJudith, synthesizeAiReply, parseSubscriptionScreenshot, transcribe, RateLimitError, TimeoutError, ServerError, UnauthorizedError, AbortedError } from "@/lib/proxy";
+import { type AddBillAction, askJudith, synthesizeAiReply, parseSubscriptionScreenshot, transcribe, RateLimitError, TimeoutError, ServerError, UnauthorizedError, AbortedError } from "@/lib/proxy";
+import { buildAskBills } from "@/lib/buildAskBills";
 import { sttHint, isFilipino } from "@/constants/languages";
 
 /**
@@ -347,160 +348,6 @@ export default function AskModal() {
   const started = messages.length > 0 || busy;
   const p = getPersona(persona);
 
-  const askBills = (): AskBill[] => {
-    const today = new Date();
-    const periodKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
-
-    // ── Current-cycle entries (overdue-aware, mirrors home screen) ────────
-    const current = bills.map((b) => {
-      // Recompute the due date LIVE from the bill's day-of-month, using the same
-      // overdue-aware logic as the home screen (currentCycleDue). This keeps an
-      // overdue bill in the CURRENT month with a NEGATIVE offset instead of
-      // rolling it forward to next month — otherwise Judith drops overdue bills
-      // from "what's due this month" and under-reports the total (home and Ask
-      // would disagree). The signed offset also files the bill in the right month.
-      const { dueDays, dueLabel } = currentCycleDue(b, today);
-      const dueDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + dueDays);
-      const dueMonth = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, "0")}`;
-      const cardName = b.chargedToCard && b.parentCardId
-        ? (bills.find((c) => c.id === b.parentCardId)?.provider ?? null)
-        : null;
-      // For PAYABLE bills: send the remaining balance (full amount minus what's
-      // already been paid this period). Mirrors the home screen's remaining().
-      // For VIA-CARD bills: always send the full cost — their payment flows
-      // through the parent CC statement, not as a direct payment on this bill,
-      // so amountPaid on the child bill is meaningless and must not reduce the
-      // reported cost (doing so causes Ask to under-report category totals vs
-      // what the home screen shows).
-      const rec = (b.paymentHistory ?? []).find((r) => r.period === periodKey);
-      const paidThisPeriod = rec ? rec.paid : (b.amountPaid ?? 0);
-      const isPaidThisPeriod = (b.paymentHistory ?? []).some(
-        (r) => r.period === periodKey && r.paid >= r.totalDue,
-      );
-      const isResolvedViaCard = !!cardName;
-      const amount = isResolvedViaCard
-        ? totalOwed(b)
-        : Math.max(0, totalOwed(b) - paidThisPeriod);
-      // Only ship partial-payment context for non-via-card payable bills with
-      // an actual partial payment recorded. Via-card amounts don't reduce
-      // `amount`, so a "paid" tag would be misleading there.
-      const showPartial = !isResolvedViaCard && !isPaidThisPeriod && paidThisPeriod > 0;
-      return {
-        id: b.id,
-        provider: b.provider,
-        cat: b.cat,
-        amount,
-        dueDays,
-        dueLabel,
-        status: isPaidThisPeriod ? "paid" : b.status,
-        dueMonth,
-        isBusiness: b.isBusiness,
-        businessName: b.businessName,
-        chargedToCard: b.chargedToCard,
-        cardName,
-        ...(showPartial ? { paidThisPeriod, originalTotal: totalOwed(b) } : {}),
-      };
-    });
-    // NOTE on status: we send "paid" whenever THIS period is settled
-    // (isPaidThisPeriod), for via-card bills too. The home screen excludes any
-    // bill where isPaidThisMonth() is true from its category totals; mirroring
-    // that here keeps Ask's category sums in lockstep with home. A paid via-card
-    // bill (e.g. an overdue subscription already settled) must NOT keep counting
-    // toward the category total just because it's charged to a card.
-
-    // ── Next-month projections (estimated recurring cycle) ────────────────
-    // Project every monthly (non-annual) bill one calendar month forward so the
-    // AI's MONTHLY TOTALS section includes a July estimate. This mirrors the
-    // Calendar screen's viewedAmt logic for future months.
-    const nxYear = today.getMonth() === 11 ? today.getFullYear() + 1 : today.getFullYear();
-    const nxMonth = (today.getMonth() + 1) % 12; // 0-indexed
-    const nxKey = `${nxYear}-${String(nxMonth + 1).padStart(2, "0")}`;
-    const nxDaysInMonth = new Date(nxYear, nxMonth + 1, 0).getDate();
-    const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-
-    const projections: AskBill[] = bills
-      .filter((b) => {
-        if (b.frequency === "annual") return false; // annual bills don't recur monthly
-        if (b.cat === "Credit card") return false;  // handled separately below
-        // Skip if currentCycleDue already lands in next month (avoid duplicate)
-        const { dueDays } = currentCycleDue(b, today);
-        const dd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + dueDays);
-        return `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, "0")}` !== nxKey;
-      })
-      .map((b) => {
-        const dayInMonth = Math.min(b.dueDate, nxDaysInMonth);
-        const nxDue = new Date(nxYear, nxMonth, dayInMonth);
-        const dueDays = Math.round((nxDue.getTime() - today.getTime()) / 86_400_000);
-        const dueLabel = nxYear === today.getFullYear()
-          ? `${monthNames[nxMonth]} ${dayInMonth}`
-          : `${monthNames[nxMonth]} ${dayInMonth}, ${nxYear}`;
-
-        // Mirror calendar's viewedAmt for future months exactly:
-        // paid current cycle → fresh base amount (no carry-over)
-        // unpaid/partial    → base amount + effective carry
-        // Using b.amount (not totalOwed) as the base so stale carryOver
-        // from prior cycles doesn't inflate the next-month projection.
-        const isPaidCurrent = (b.paymentHistory ?? []).some(
-          (r) => r.period === periodKey && r.paid >= r.totalDue,
-        );
-        const hasPartial = (b.amountPaid ?? 0) > 0;
-        const effectiveCarry = hasPartial
-          ? Math.max(0, totalOwed(b) - (b.amountPaid ?? 0))
-          : (b.carryOver ?? 0);
-        const amount = isPaidCurrent ? b.amount : b.amount + effectiveCarry;
-
-        const cardName = b.chargedToCard && b.parentCardId
-          ? (bills.find((c) => c.id === b.parentCardId)?.provider ?? null)
-          : null;
-
-        return {
-          id: b.id,
-          provider: b.provider,
-          cat: b.cat,
-          amount,
-          dueDays,
-          dueLabel,
-          status: "upcoming",
-          dueMonth: nxKey,
-          isBusiness: b.isBusiness,
-          businessName: b.businessName,
-          chargedToCard: b.chargedToCard,
-          cardName,
-          isProjection: true,
-        };
-      });
-
-    // Credit-card next-month projections — use ccProjectedFuture (outstanding
-    // remainder + recurring charges re-billed onto the card), matching what
-    // the Calendar shows for future months. This avoids the regular formula
-    // which would just re-use the current statement amount verbatim.
-    const ccProjections: AskBill[] = bills
-      .filter((b) => b.cat === "Credit card")
-      .map((b) => {
-        const dayInMonth = Math.min(b.dueDate, nxDaysInMonth);
-        const nxDue = new Date(nxYear, nxMonth, dayInMonth);
-        const dueDays = Math.round((nxDue.getTime() - today.getTime()) / 86_400_000);
-        const dueLabel = nxYear === today.getFullYear()
-          ? `${monthNames[nxMonth]} ${dayInMonth}`
-          : `${monthNames[nxMonth]} ${dayInMonth}, ${nxYear}`;
-        return {
-          provider: b.provider,
-          cat: b.cat,
-          amount: ccProjectedFuture(b, bills, nxYear, nxMonth, today),
-          dueDays,
-          dueLabel,
-          status: "upcoming" as const,
-          dueMonth: nxKey,
-          isBusiness: b.isBusiness,
-          chargedToCard: false,
-          cardName: null,
-          isProjection: true,
-        };
-      });
-
-    return [...current, ...projections, ...ccProjections];
-  };
-
   const localFallback = (q: string): string => {
     if (!BILL_WORDS.test(q)) {
       return "That's outside my lane — I only handle your bills and due dates. Ask me anything about those and I'm all yours.";
@@ -594,7 +441,7 @@ export default function AskModal() {
     try {
       // Speak aloud only when the user hasn't muted replies (voice tier) — saves TTS cost and stays silent in public.
       // The mute only applies to the voice tier; other tiers (e.g. free with asks left) are unaffected.
-      const wantVoice = canUseVoice() && (!voiceTier || speakAloud);
+      const wantVoice = !forceTextOnly && canUseVoice() && (!voiceTier || speakAloud);
       // Send the last 5 messages as conversation history (excluding the just-appended user turn).
       const MAX_HISTORY = 5;
       const historyMsgs = messagesRef.current.slice(0, -1).slice(-MAX_HISTORY).map((m) => ({
@@ -606,7 +453,7 @@ export default function AskModal() {
       // renders the moment the model responds, then (if voice is wanted) we fetch
       // and play the audio as a follow-up so it trails the text instead of gating it.
       const { reply, action, ttsToken } = await askJudith(
-        q, askBills(), persona, language, false, currency, country.name,
+        q, buildAskBills(bills), persona, language, false, currency, country.name,
         monthlyIncome, country.code,
         Object.keys(incomeByMonth).length > 0 ? incomeByMonth : undefined,
         payCycle, paydayDay, paydaySemi, paydayWeekday,
@@ -872,7 +719,8 @@ export default function AskModal() {
   useEffect(() => { stopRecordingRef.current = stopRecording; });
 
   // ── Entry intent from the home menu (scan / voice) — run once on open ──
-  const { intent } = useLocalSearchParams<{ intent?: string }>();
+  const { intent, chatOnly } = useLocalSearchParams<{ intent?: string; chatOnly?: string }>();
+  const forceTextOnly = chatOnly === "1" || chatOnly === "true";
   const intentHandled = useRef(false);
   useEffect(() => {
     if (intentHandled.current) return;
@@ -1309,6 +1157,7 @@ export default function AskModal() {
           value={busy ? "" : input}
           onChangeText={busy ? undefined : setInput}
           editable={!locked && !busy && rateLimitSecs <= 0}
+          accessibilityLabel={busy ? "Ask Judith is thinking" : "Ask Judith question input ready"}
           placeholder={
             locked ? "Out of asks — upgrade to keep asking"
             : busy ? "Judith is thinking\u2026"

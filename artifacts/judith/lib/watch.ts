@@ -15,6 +15,8 @@ import { Platform } from "react-native";
 import { currentCycleDue, isPaidViaCard, type Bill } from "@/constants/data";
 import type { PersonaId } from "@/constants/personas";
 import { amountPaidThisMonth, isPaidThisMonth, remainingThisMonth } from "@/lib/currentCycle";
+import { buildAskBills } from "@/lib/buildAskBills";
+import { supabase } from "@/lib/supabase";
 import { writePayload as writeWidgetPayload } from "judith-widget-bridge";
 
 let WatchConnectivity: Record<string, unknown> | null = null;
@@ -73,6 +75,17 @@ export interface WatchPayload {
   overdueTotal: number;
   /** Sum of remaining balances on payable bills due in the next 7 days (overdue excluded — matches phone hero "next 7 days"). */
   next7Total: number;
+}
+
+export interface WatchSnapshotContext {
+  countryName?: string;
+  countryCode?: string;
+  monthlyIncome?: number;
+  incomeByMonth?: Record<string, number>;
+  payCycle?: "monthly" | "semi-monthly" | "weekly";
+  paydayDay?: number;
+  paydaySemi?: [number, number];
+  paydayWeekday?: number;
 }
 
 // ─── Payload builder ──────────────────────────────────────────────────────────
@@ -163,6 +176,61 @@ function buildPayload(bills: Bill[], persona: PersonaId, currency: string): Watc
   };
 }
 
+async function authHeaders(): Promise<Record<string, string> | null> {
+  try {
+    const session = (await supabase?.auth.getSession())?.data.session;
+    if (!session?.access_token) return null;
+    return { Authorization: `Bearer ${session.access_token}` };
+  } catch {
+    return null;
+  }
+}
+
+async function postWatchJson<T>(path: string, body: unknown): Promise<T | null> {
+  const headers = await authHeaders();
+  const domain = process.env.EXPO_PUBLIC_DOMAIN;
+  if (!headers || !domain) return null;
+  try {
+    const res = await fetch(`https://${domain}/api/judith${path}`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return null;
+    return await res.json() as T;
+  } catch {
+    return null;
+  }
+}
+
+async function provisionWatchToken(): Promise<string | null> {
+  const result = await postWatchJson<{ token?: string }>("/watch-token", {});
+  return typeof result?.token === "string" ? result.token : null;
+}
+
+async function uploadWatchSnapshot(
+  payload: WatchPayload,
+  bills: Bill[],
+  persona: PersonaId,
+  currency: string,
+  context?: WatchSnapshotContext,
+): Promise<void> {
+  await postWatchJson("/watch-snapshot", {
+    payload,
+    askBills: buildAskBills(bills),
+    persona,
+    currency,
+    countryName: context?.countryName,
+    countryCode: context?.countryCode,
+    monthlyIncome: context?.monthlyIncome,
+    incomeByMonth: context?.incomeByMonth,
+    payCycle: context?.payCycle,
+    paydayDay: context?.paydayDay,
+    paydaySemi: context?.paydaySemi,
+    paydayWeekday: context?.paydayWeekday,
+  });
+}
+
 // ─── Push to Watch ─────────────────────────────────────────────────────────────
 
 /**
@@ -178,11 +246,16 @@ export async function syncBillsToWatch(
   persona: PersonaId,
   currency: string,
   watchEnabled = true,
+  context?: WatchSnapshotContext,
 ): Promise<void> {
   if (Platform.OS !== "ios") return;
 
   const payload     = buildPayload(bills, persona, currency);
   const payloadJson = JSON.stringify(payload);
+  const [watchToken] = await Promise.all([
+    provisionWatchToken(),
+    uploadWatchSnapshot(payload, bills, persona, currency, context),
+  ]);
 
   // ── iOS widget extension ─────────────────────────────────────────────────
   // Always write to the App Group so homescreen / lockscreen widgets refresh.
@@ -199,7 +272,10 @@ export async function syncBillsToWatch(
       WatchConnectivity.updateApplicationContext as (
         p: Record<string, unknown>,
       ) => void
-    )({ judith_payload_v2: payloadJson });
+    )({
+      judith_payload_v2: payloadJson,
+      ...(watchToken ? { judith_watch_token: watchToken } : {}),
+    });
   } catch {
     // No paired watch, Expo Go stub, or native module absent — silent no-op
   }
