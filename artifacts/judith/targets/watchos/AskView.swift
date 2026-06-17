@@ -192,7 +192,6 @@ struct AskView: View {
                 },
                 onCancel: {
                     showVoiceRecorder = false
-                    if case .capturing = viewState { viewState = .idle }
                 }
             )
         }
@@ -237,9 +236,16 @@ struct AskView: View {
     /// Open the Siri-style waveform recorder. Used by the "Speak to Judith"
     /// CTA, the Action-Button auto-start path, and the retry button on the
     /// error state.
+    ///
+    /// IMPORTANT: do NOT mutate viewState here. The cover is full-screen, so
+    /// what's behind it is invisible to the user. If we set .capturing here
+    /// and the user taps ✕, the cover-dismiss animation lands before the
+    /// onCancel state-reset propagates — the user is briefly stranded on the
+    /// legacy ".capturing" UI ("Open dictation or Scribble…") with no way
+    /// out. Keeping viewState = .idle means the chooser is already rendered
+    /// behind the cover and appears the instant the cover closes.
     private func beginVoiceAsk() {
         guard canStartInput else { return }
-        viewState = .capturing
         showVoiceRecorder = true
     }
 
