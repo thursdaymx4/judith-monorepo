@@ -48,7 +48,7 @@ import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { getCategoryLabel } from "@/constants/categoryLocale";
 import { useTheme } from "@/hooks/useTheme";
 import { haptics } from "@/lib/haptics";
-import { getTierPackages, purchaseForTier, type TierPackages } from "@/lib/purchases";
+import { getTierPackages, purchaseForTier, isPurchasesConfigured, type TierPackages } from "@/lib/purchases";
 import { fileToBase64, playBase64Mp3, stopCurrentAudio } from "@/lib/audio";
 import { transcribeOnboarding, synthOnboarding, fetchSampleOnboarding, parseBillOnboarding, parseSubscriptionScreenshot, askOnboarding, RateLimitError, TimeoutError } from "@/lib/proxy";
 import { speak as speakOnboarding, preview as previewOnboarding, prefetchPreview, cancelAll as cancelOnboardingAudio, currentSignal as onboardingSignal, ONBOARDING_WELCOME_LINE } from "@/lib/onboardingAudio";
@@ -5564,6 +5564,9 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
   useOnbVoice(JUDITH_VOICE.paywall[persona][paywallIsFil ? 'fil' : 'en'], persona, language);
   const [pick, setPick] = useState<'chat' | 'voice'>('voice');
   const [buying, setBuying] = useState(false);
+  /** When non-null, a StoreKit purchase just succeeded — show the congrats
+   *  overlay before advancing to the next onboarding screen. */
+  const [purchased, setPurchased] = useState<'chat' | 'voice' | null>(null);
 
   // Pull the store's localized prices (e.g. "$4.99", "£4.99") so every region
   // shows its real App Store / Play price. Falls back to the formatted default
@@ -5604,12 +5607,15 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
   //   - pkg present → real Apple sheet via purchaseForTier(); on success
   //     subscribe() + next(); on cancel/error stay on screen.
   const handleSubscribe = async () => {
+    if (!isPurchasesConfigured) {
+      showToast('Purchases not configured on this build');
+      return;
+    }
     const pkg = packages[sel.id];
     if (!pkg) {
       if (__DEV__) {
         subscribe(sel.id);
-        showToast(sel.id === 'voice' ? 'Voice Ask activated ✓ (dev)' : 'Chat Ask activated ✓ (dev)');
-        next();
+        setPurchased(sel.id);
         return;
       }
       showToast('Purchase unavailable — please try again later');
@@ -5620,12 +5626,9 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
       const newTier = await purchaseForTier(pkg);
       if (newTier !== 'free') {
         subscribe(newTier);
-        showToast(newTier === 'voice' ? 'Voice Ask activated ✓' : 'Chat Ask activated ✓');
-        next();
+        setPurchased(newTier === 'voice' ? 'voice' : 'chat');
       } else {
-        // User cancelled the Apple sheet — stay on the paywall so they can
-        // retry or pick "Start with 8 free asks".
-        showToast('Purchase cancelled');
+        // Apple sheet shown and dismissed — silent. Stay on paywall.
       }
     } catch {
       showToast('Purchase failed — try again');
@@ -5808,6 +5811,36 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
           onPress={() => { if (!buying) next(); }}
         />
       </CtaBar>
+
+      {/* ── Purchase congrats — shown after StoreKit succeeds, before the
+          onboarding flow moves on. "Continue" advances to next(). ── */}
+      <Modal
+        visible={purchased != null}
+        transparent
+        animationType='fade'
+        onRequestClose={() => { setPurchased(null); next(); }}
+        statusBarTranslucent
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', padding: 26 }}>
+          <View style={{ width: '100%', maxWidth: 360, borderRadius: 22, backgroundColor: t.surface2, padding: 24, alignItems: 'center' }}>
+            <JudithAvatar persona={persona} size={84} state='speaking' mood='joy' />
+            <Txt size={22} weight='bold' style={{ marginTop: 14, textAlign: 'center' }}>
+              You&apos;re all set!
+            </Txt>
+            <Low size={14} style={{ marginTop: 8, textAlign: 'center', maxWidth: 280 }}>
+              {purchased === 'voice'
+                ? 'Voice Ask is active. You can now speak your questions and hear Judith out loud.'
+                : 'Chat Ask is active. Ask Judith anything about your bills — unlimited.'}
+            </Low>
+            <Pressable
+              onPress={() => { setPurchased(null); next(); }}
+              style={{ marginTop: 22, alignSelf: 'stretch', backgroundColor: t.accent, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}
+            >
+              <Txt size={16} weight='semibold' color={t.onAccent}>Continue</Txt>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </>
   );
 }

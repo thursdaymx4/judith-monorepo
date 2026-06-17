@@ -16,12 +16,12 @@ import type { IconName } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { JudithLoader } from "@/components/JudithLoader";
 import { PRIVACY_URL, TERMS_URL, openLegal } from "@/constants/legal";
-import { Low, Mono, Txt, mix } from "@/components/ui";
+import { Low, Mono, Muted, Txt, mix } from "@/components/ui";
 import { getPaywallLocale, fmtFee } from "@/constants/paywallLocale";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { safeBack } from "@/lib/navigation";
-import { getTierPackages, purchaseForTier, restorePurchases, type TierPackages } from "@/lib/purchases";
+import { getTierPackages, purchaseForTier, restorePurchases, isPurchasesConfigured, type TierPackages } from "@/lib/purchases";
 import type { PurchasesPackage } from "react-native-purchases";
 
 /* ---- thin separator ---- */
@@ -183,6 +183,9 @@ export default function PlansModal() {
   const [buyingTier, setBuyingTier] = useState<"chat" | "voice" | null>(null);
   const [confirmPending, setConfirmPending] = useState<{ tier: "chat" | "voice"; pkg: PurchasesPackage } | null>(null);
   const [restoringPurchases, setRestoringPurchases] = useState(false);
+  /** Shown after a successful StoreKit transaction so the user gets an
+   *  explicit "You're all set!" before the screen pops back. */
+  const [purchasedTier, setPurchasedTier] = useState<"chat" | "voice" | null>(null);
 
   const locale = getPaywallLocale(country.code);
   const fmt = (n: number) => fmtFee(country.cur, n);
@@ -217,6 +220,13 @@ export default function PlansModal() {
   }, [focus, loadingPkgs]);
 
   const executeBuy = async (targetTier: "chat" | "voice", pkg: PurchasesPackage | null) => {
+    if (!isPurchasesConfigured) {
+      // Distinct from "Purchase unavailable" so we can tell whether the
+      // build was shipped without an RC API key vs. RC connected but the
+      // product is missing.
+      showToast("Purchases not configured on this build");
+      return;
+    }
     if (!pkg) {
       // No StoreKit package available — historically this was a "preview
       // mode" fallback that granted the tier for free so Expo Go / web could
@@ -227,8 +237,7 @@ export default function PlansModal() {
       // keep the old free-grant convenience for engineering testing.
       if (__DEV__) {
         subscribe(targetTier);
-        showToast(targetTier === "chat" ? "Chat Ask activated ✓ (dev)" : "Voice Ask activated ✓ (dev)");
-        safeBack(router);
+        setPurchasedTier(targetTier);
         return;
       }
       showToast("Purchase unavailable — please try again later");
@@ -239,10 +248,10 @@ export default function PlansModal() {
       const newTier = await purchaseForTier(pkg);
       if (newTier !== "free") {
         subscribe(newTier);
-        showToast(newTier === "voice" ? "Voice Ask activated ✓" : "Chat Ask activated ✓");
-        safeBack(router);
+        setPurchasedTier(newTier === "voice" ? "voice" : "chat");
       } else {
-        showToast("Purchase cancelled");
+        // Apple sheet shown and dismissed — silent. "Purchase cancelled"
+        // reads as an error to users who deliberately backed out.
       }
     } catch {
       showToast("Purchase failed — try again");
@@ -679,6 +688,39 @@ export default function PlansModal() {
         </View>
       </Modal>
     )}
+
+    {/* ── Purchase congrats — fires the moment the StoreKit transaction
+        completes. Dismiss returns to wherever the user came from
+        (Settings, Ask Judith, etc.) via safeBack. ── */}
+    <Modal
+      visible={purchasedTier != null}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setPurchasedTier(null)}
+      statusBarTranslucent
+    >
+      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center", padding: 26 }}>
+        <View style={{ width: "100%", maxWidth: 360, borderRadius: 22, backgroundColor: t.surface2, padding: 24, alignItems: "center" }}>
+          <JudithAvatar persona={persona} size={84} state="speaking" mood="joy" />
+          <Txt size={22} weight="bold" style={{ marginTop: 14, textAlign: "center" }}>
+            You're all set!
+          </Txt>
+          <Muted size={14.5} style={{ marginTop: 8, textAlign: "center", maxWidth: 280 }}>
+            {purchasedTier === "voice"
+              ? "Voice Ask is active. You can now speak your questions and hear Judith out loud."
+              : "Chat Ask is active. Ask Judith anything about your bills — unlimited."}
+          </Muted>
+          <Pressable
+            onPress={() => { setPurchasedTier(null); safeBack(router); }}
+            style={{ marginTop: 22, alignSelf: "stretch", backgroundColor: t.accent, borderRadius: 14, paddingVertical: 14, alignItems: "center" }}
+          >
+            <Txt size={16} weight="semibold" color={t.onAccent}>
+              {purchasedTier === "voice" ? "Start speaking" : "Start asking"}
+            </Txt>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
     </>
   );
 }
