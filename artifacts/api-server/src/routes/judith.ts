@@ -1135,7 +1135,14 @@ router.post("/delete-account", deleteAccountLimiter, async (req, res) => {
       .from("profiles")
       .delete()
       .eq("id", user.id);
-    if (profilesErr) throw profilesErr;
+    // Tolerate "relation does not exist" (Postgres 42P01) — the profiles
+    // table is optional in Judith deployments; loadUserData() already
+    // handles its absence by falling back to defaults. Any other error
+    // (RLS, conflict, etc.) still throws so the deletion is atomic with
+    // the auth.users delete below.
+    if (profilesErr && (profilesErr as { code?: string }).code !== "42P01") {
+      throw profilesErr;
+    }
     const { error: authErr } = await admin.auth.admin.deleteUser(user.id);
     if (authErr) throw authErr;
     res.json({ ok: true });
