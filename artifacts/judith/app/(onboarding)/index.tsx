@@ -48,7 +48,7 @@ import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { getCategoryLabel } from "@/constants/categoryLocale";
 import { useTheme } from "@/hooks/useTheme";
 import { haptics } from "@/lib/haptics";
-import { getTierPackages, type TierPackages } from "@/lib/purchases";
+import { getTierPackages, purchaseForTier, type TierPackages } from "@/lib/purchases";
 import { fileToBase64, playBase64Mp3, stopCurrentAudio } from "@/lib/audio";
 import { transcribeOnboarding, synthOnboarding, fetchSampleOnboarding, parseBillOnboarding, parseSubscriptionScreenshot, askOnboarding, RateLimitError, TimeoutError } from "@/lib/proxy";
 import { speak as speakOnboarding, preview as previewOnboarding, prefetchPreview, cancelAll as cancelOnboardingAudio, currentSignal as onboardingSignal, ONBOARDING_WELCOME_LINE } from "@/lib/onboardingAudio";
@@ -5555,6 +5555,7 @@ function ScreenNotifications({ ctx }: { ctx: Ctx }) {
 
 function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
   const { t, persona, language, next } = ctx;
+  const { subscribe, showToast } = useJudith();
   const cur = ctx.country.cur;
   const locale = getPaywallLocale(ctx.country.code);
   const fmt = (n: number) => fmtFee(cur, n);
@@ -5562,6 +5563,7 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
   const paywallIsFil = isFilipino(language);
   useOnbVoice(JUDITH_VOICE.paywall[persona][paywallIsFil ? 'fil' : 'en'], persona, language);
   const [pick, setPick] = useState<'chat' | 'voice'>('voice');
+  const [buying, setBuying] = useState(false);
 
   // Pull the store's localized prices (e.g. "$4.99", "£4.99") so every region
   // shows its real App Store / Play price. Falls back to the formatted default
@@ -5592,6 +5594,45 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
     { id: 'voice', name: 'Voice Ask', price: 199, sub: 'Everything in Chat + speak & listen', tag: 'Includes Chat' },
   ];
   const sel = tiers.find((x) => x.id === pick) ?? tiers[1]!;
+
+  // Trigger the real StoreKit / RevenueCat purchase from this onboarding
+  // screen. Mirrors plans.tsx executeBuy:
+  //   - production + no pkg → toast "unavailable", stay on screen (the
+  //     pre-fix behavior of silently granting the tier was an App Store
+  //     review violation flagged in build 44).
+  //   - __DEV__ + no pkg → grant the tier for engineering testing.
+  //   - pkg present → real Apple sheet via purchaseForTier(); on success
+  //     subscribe() + next(); on cancel/error stay on screen.
+  const handleSubscribe = async () => {
+    const pkg = packages[sel.id];
+    if (!pkg) {
+      if (__DEV__) {
+        subscribe(sel.id);
+        showToast(sel.id === 'voice' ? 'Voice Ask activated ✓ (dev)' : 'Chat Ask activated ✓ (dev)');
+        next();
+        return;
+      }
+      showToast('Purchase unavailable — please try again later');
+      return;
+    }
+    setBuying(true);
+    try {
+      const newTier = await purchaseForTier(pkg);
+      if (newTier !== 'free') {
+        subscribe(newTier);
+        showToast(newTier === 'voice' ? 'Voice Ask activated ✓' : 'Chat Ask activated ✓');
+        next();
+      } else {
+        // User cancelled the Apple sheet — stay on the paywall so they can
+        // retry or pick "Start with 8 free asks".
+        showToast('Purchase cancelled');
+      }
+    } catch {
+      showToast('Purchase failed — try again');
+    } finally {
+      setBuying(false);
+    }
+  };
 
   return (
     <>
@@ -5756,8 +5797,16 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
       </Scroll>
 
       <CtaBar>
-        <Btn label={'Subscribe · ' + priceFor(sel.id) + '/mo'} onPress={next} />
-        <Btn label='Start with 8 free asks' variant='ghost' onPress={next} />
+        <Btn
+          label={buying ? 'Opening…' : ('Subscribe · ' + priceFor(sel.id) + '/mo')}
+          onPress={() => { if (!buying && !loadingPkgs) void handleSubscribe(); }}
+          style={(buying || loadingPkgs) ? { opacity: 0.5 } : undefined}
+        />
+        <Btn
+          label='Start with 8 free asks'
+          variant='ghost'
+          onPress={() => { if (!buying) next(); }}
+        />
       </CtaBar>
     </>
   );
