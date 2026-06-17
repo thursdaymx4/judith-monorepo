@@ -75,6 +75,7 @@
     "expo-local-authentication": "~17.0.8",
     "expo-notifications": "~0.32.17",
     "expo-updates": "^29.0.18",
+    "judith-financekit": "file:./modules/judith-financekit",
     "judith-widget-bridge": "file:./modules/judith-widget-bridge",
     "react": "19.1.0",
     "react-native": "0.81.5",

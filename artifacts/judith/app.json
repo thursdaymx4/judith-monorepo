@@ -26,7 +26,8 @@
         "com.apple.security.application-groups": [
           "group.com.app.judith",
           "group.com.app.judith"
-        ]
+        ],
+        "com.apple.developer.financekit": ["transactions"]
       },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
