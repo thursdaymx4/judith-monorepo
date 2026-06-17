@@ -835,12 +835,19 @@ export default function AccountScreen() {
 
       {/* delete-account modal */}
       <Modal visible={deleteOpen} transparent animationType="fade" onRequestClose={() => setDeleteOpen(false)} statusBarTranslucent>
-        <Pressable
-          onPress={() => setDeleteOpen(false)}
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center", padding: 26 }}
-        >
+        {/* Layout: an absolutely-positioned tap-to-dismiss backdrop SIBLING
+            to the card, instead of the card nested INSIDE a Pressable
+            backdrop. Nesting two Pressables here intercepts the Delete
+            button's touch on iOS (the inner onPress used `e.stopPropagation`
+            which isn't a real Pressable API — it threw silently and the
+            tap was eaten), which is why typing "delete" then tapping the
+            confirm button appeared to do nothing. */}
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center", padding: 26 }}>
           <Pressable
-            onPress={(e) => e.stopPropagation()}
+            onPress={() => setDeleteOpen(false)}
+            style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+          />
+          <View
             style={{ width: "100%", maxWidth: 380, borderRadius: 18, borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface2, padding: 22 }}
           >
             <View
@@ -920,8 +927,8 @@ export default function AccountScreen() {
                 </Txt>
               </Pressable>
             </View>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </Screen>
   );
