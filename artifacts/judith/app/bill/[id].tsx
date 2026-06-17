@@ -12,6 +12,7 @@ import {
   isPartialBill,
   partialPct,
   totalOwed,
+  usualRange,
   type Bill,
   type BillCycleRecord,
 } from "@/constants/data";
@@ -608,6 +609,22 @@ export default function BillDetailModal() {
           <Low size={12}>{paid ? "Paid" : overdue ? "Amount overdue" : isFuturePeriod ? "Amount due" : "Amount due"}</Low>
           <Mono size={26} weight="bold" color={paid ? t.semantic.ok : t.semantic[viewedCls]}>{money(isCurrentPeriod && partial && !paid ? remaining : viewedOwed)}</Mono>
         </View>
+        {/* Usual range — only meaningful for variable bills (electric, water,
+            credit-card statements). Shows the min / max of actual paid
+            amounts across the last 6 settled cycles so the user has a
+            reality check on the static "amount" they originally typed in. */}
+        {bill.kind === "Variable" && (() => {
+          const range = usualRange(bill.paymentHistory, 6);
+          if (!range) return null;
+          const label = range.min === range.max
+            ? `Usual: ${money(range.min)}`
+            : `Usual: ${money(range.min)}–${money(range.max)}`;
+          return (
+            <View style={{ alignItems: "center", paddingBottom: 4 }}>
+              <Low size={11}>{label} · last {range.sampleSize} {range.sampleSize === 1 ? "month" : "months"}</Low>
+            </View>
+          );
+        })()}
         {/* A settled credit-card statement carries no balance into a future month,
             so there's nothing to pay ahead until the next statement arrives. */}
         {ccFutureSettled && (

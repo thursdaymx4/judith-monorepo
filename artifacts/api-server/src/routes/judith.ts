@@ -298,6 +298,11 @@ interface ClientBill {
   /** Original full amount before partial payment was subtracted. Lets Judith
    *  answer "how much have I paid?" — `amount` field is the REMAINING balance. */
   originalTotal?: number | null;
+  /** Actual paid amounts from the last up-to-6 settled cycles, most-recent
+   *  first. Sent for VARIABLE bills only (electric, water, credit-card
+   *  statements). Lets Judith answer "what's my usual range for X?" with
+   *  real data instead of treating the static amount as truth. */
+  recentPaidAmounts?: number[] | null;
 }
 
 function curStr(cur: string, n: number): string {
@@ -526,7 +531,25 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     // card" — the raw client-side status ("overdue"/"urgent"/etc.) would
     // contradict the `when` clause above and re-introduce double-counting.
     const statusLabel = isResolvedViaCardLine ? "auto-paid via card" : (b.status ?? "upcoming");
-    return `- ${idTag}${b.provider ?? "Bill"} (${b.cat ?? "Other"})${bizTag}${cardTag}${estTag}${paidTag}: ${curStr(cur, b.amount ?? 0)}, ${when}, ${statusLabel}.`;
+    // Variable-bill "usual" range — only emitted when the client sent at
+    // least 2 settled cycles of paid-amount history. Gives Claude real
+    // numbers for "what's a typical Meralco bill?" instead of forcing it
+    // to treat the static `amount` (which the user typed in months ago)
+    // as the truth. Median anchors next-month projections; the min-max
+    // pair anchors range questions.
+    const recent = Array.isArray(b.recentPaidAmounts) ? b.recentPaidAmounts.filter((n): n is number => typeof n === "number" && Number.isFinite(n) && n > 0) : [];
+    let usualTag = "";
+    if (recent.length >= 2) {
+      const sorted = [...recent].sort((a, b) => a - b);
+      const min = sorted[0]!;
+      const max = sorted[sorted.length - 1]!;
+      const median = sorted.length % 2 === 1
+        ? sorted[(sorted.length - 1) / 2]!
+        : (sorted[sorted.length / 2 - 1]! + sorted[sorted.length / 2]!) / 2;
+      const rangeLabel = min === max ? curStr(cur, min) : `${curStr(cur, min)}–${curStr(cur, max)}`;
+      usualTag = ` [USUAL RANGE: ${rangeLabel} over last ${recent.length} settled month${recent.length === 1 ? "" : "s"}; median ${curStr(cur, median)}. Use this for "what's a typical X bill?" or projecting next month — NOT the static amount above.]`;
+    }
+    return `- ${idTag}${b.provider ?? "Bill"} (${b.cat ?? "Other"})${bizTag}${cardTag}${estTag}${paidTag}${usualTag}: ${curStr(cur, b.amount ?? 0)}, ${when}, ${statusLabel}.`;
   });
 
   // ── Pre-computed income-remaining figures ──────────────────────────────

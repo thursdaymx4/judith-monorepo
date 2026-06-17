@@ -90,6 +90,47 @@ export function totalOwed(b: Pick<Bill, "amount" | "carryOver">): number {
 }
 
 /**
+ * "Usual" payment range for a variable bill, computed from up to the last
+ * `windowSize` settled cycles. Returns `null` when fewer than 2 settled
+ * cycles exist (a single data point can't form a range).
+ *
+ * Powering Phase 1 of the amount-learning work: variable bills (Meralco,
+ * Maynilad, etc.) hide their true volatility behind a single static
+ * "amount" the user typed in months ago. By rendering "Usual: ₱X–Y" next
+ * to the static figure on the bill detail page and feeding the same
+ * numbers to Ask Judith, the user gets a useful range without us having
+ * to read their bank.
+ *
+ * Range = min/max of the `paid` field across the last N cycles. Median is
+ * the middle entry of a sorted copy and is used for next-month projection
+ * (median is more robust than mean against the occasional billing
+ * anomaly — a missed reading on the electric meter, etc.).
+ */
+export function usualRange(
+  paymentHistory: BillCycleRecord[] | undefined,
+  windowSize: number = 6,
+): { min: number; max: number; median: number; sampleSize: number } | null {
+  if (!paymentHistory || paymentHistory.length === 0) return null;
+  // Only count cycles where the user actually paid something — partial
+  // cycles still settle a real amount and are valid signal.
+  const amounts = paymentHistory
+    .slice(0, windowSize)
+    .map((r) => r.paid)
+    .filter((n) => Number.isFinite(n) && n > 0);
+  if (amounts.length < 2) return null;
+  const sorted = [...amounts].sort((a, b) => a - b);
+  const median = sorted.length % 2 === 1
+    ? sorted[(sorted.length - 1) / 2]!
+    : (sorted[sorted.length / 2 - 1]! + sorted[sorted.length / 2]!) / 2;
+  return {
+    min: sorted[0]!,
+    max: sorted[sorted.length - 1]!,
+    median,
+    sampleSize: amounts.length,
+  };
+}
+
+/**
  * Outstanding balance on a credit-card statement that hasn't been re-billed yet
  * — used for the current statement AND any future month until the next statement
  * arrives. Unlike a recurring utility, a credit card is a revolving balance, not

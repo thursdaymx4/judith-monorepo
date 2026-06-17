@@ -57,6 +57,17 @@ export function buildAskBills(bills: Bill[], today: Date = new Date()): AskBill[
       : isResolvedViaCard
         ? "via-card"
         : b.status;
+    // For variable bills with 2+ settled cycles, ship the last 6 actual
+    // paid amounts so the server's BILL CONTEXT can show Claude a real
+    // range ("Usually $X-$Y, last paid $Z") instead of treating the
+    // static `amount` as the truth. Fixed bills don't need this (the
+    // amount doesn't change cycle-to-cycle).
+    const recentPaidAmounts = b.kind === "Variable"
+      ? (b.paymentHistory ?? [])
+          .slice(0, 6)
+          .map((r) => r.paid)
+          .filter((n) => Number.isFinite(n) && n > 0)
+      : [];
     return {
       id: b.id,
       provider: b.provider,
@@ -72,6 +83,7 @@ export function buildAskBills(bills: Bill[], today: Date = new Date()): AskBill[
       cardName,
       ...(showPartial ? { paidThisPeriod, originalTotal: totalOwed(b) } : {}),
       ...(showFullyPaid ? { paidThisPeriod, originalTotal: totalOwed(b) } : {}),
+      ...(recentPaidAmounts.length >= 2 ? { recentPaidAmounts } : {}),
     };
   });
 

@@ -42,6 +42,14 @@ export interface AskBill {
   /** Original full amount before partial payment was subtracted. Required
    *  alongside paidThisPeriod so the server can render "X paid of Y total". */
   originalTotal?: number;
+  /**
+   * Actual paid amounts from the last up-to-6 settled cycles, most-recent
+   * first. Sent for VARIABLE bills only (electric, water, credit-card
+   * statements) so the server can give Claude a real range — "Usually
+   * pays $X-$Y" — instead of pretending the static `amount` is the truth.
+   * Omitted entirely when there are fewer than 2 settled cycles.
+   */
+  recentPaidAmounts?: number[];
 }
 
 /**
