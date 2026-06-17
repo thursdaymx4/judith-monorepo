@@ -398,6 +398,30 @@ var FIL_TEXT = {
   marites: "Besh, chismis muna! Si Judith 'to \u2014 at alam ko na lahat ng bills mo! Grabe, 'di ba? Wala kang makakalimutan, promise. Mag-update ka ha!",
   britney: "Judith. Bills mo, due dates, amounts \u2014 naka-track na lahat. 'Yun lang."
 };
+var ILO_TEXT = {
+  professional: "Kablaaw, siak ni Judith. Ipalagipko kenka sakbay ti aldaw ti panagbayadmo.",
+  funny: "Kablaaw! Siak ni Judith \u2014 ti pinaka-responsible nga kaibigan pagdating iti bills. Adda ak ditoy!",
+  sarcastic: "Siak ni Judith. Ilagiputek dagiti bills mo. Wen, kasapulan ti maysa.",
+  mom: "Ading, siak ni Judith. Bantayan ko dagiti bills mo \u2014 saan ka ag-alaala.",
+  marites: "Hoy! Siak ni Judith \u2014 amok amin dagiti bills mo! Nakakaingganyo, 'di ba?",
+  britney: "Judith. Bills mo, due dates \u2014 naka-track amin."
+};
+var CEB_TEXT = {
+  professional: "Uy, si Judith ni. Pahinumduman tika sa dili pa ma-due ang imong bayranan.",
+  funny: "Uy! Si Judith ni \u2014 ang pinaka-responsible nimong amigo sa bills. Naa ko, promise!",
+  sarcastic: "Si Judith ni. Pahinumduman tika sa imong bills. Kay ikaw? Kinahanglan nimo.",
+  mom: "Anak, si Judith ni. Bantayan ko ang imong mga bayad \u2014 ayaw kabalaka.",
+  marites: "Hoy! Si Judith ni \u2014 nahibal-an nako tanan imong bills! Grabe, 'di ba?",
+  britney: "Judith. Imong bills, due dates \u2014 tracked."
+};
+var HIL_TEXT = {
+  professional: "Kumusta, si Judith ko. Pahibaluon ko ikaw antes mag-due ang imo bayaron.",
+  funny: "Kumusta! Si Judith ko \u2014 ang pinaka-responsible nga abyan mo sa bills. Nag-abot na!",
+  sarcastic: "Si Judith ko. Pahibaluon ko ikaw sa imo mga bayad. Oo, kinahanglan nimo.",
+  mom: "Anak, si Judith ko. Bantayan ko ang imo mga bayad \u2014 indi mag-alala.",
+  marites: "Hoy! Si Judith ko \u2014 nahibaluan ko na tanan imo bills! Makapainteres, 'di ba?",
+  britney: "Judith. Imo bills, due dates \u2014 tracked."
+};
 var OTHER_LANG_TEXT = {
   es: {
     professional: "Soy Judith, tu asistente de fechas de vencimiento. Me encargo de que nunca te pille por sorpresa una mora.",
@@ -654,11 +678,14 @@ var OTHER_LANG_TEXT = {
 };
 var generated = 0;
 var skipped = 0;
-console.log("\u2500\u2500 EN + FIL \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500");
+console.log("\u2500\u2500 EN + FIL + PH dialects \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500");
 for (const persona of ALL_PERSONAS) {
   for (const { key, label, getText, getVoiceId } of [
     { key: "en", label: "EN", getText: (p) => EN_TEXT[p], getVoiceId: (p) => DEFAULT_VOICE_IDS[p] },
-    { key: "fil", label: "FIL", getText: (p) => FIL_TEXT[p], getVoiceId: (p) => FILIPINO_VOICE_IDS[p] }
+    { key: "fil", label: "FIL", getText: (p) => FIL_TEXT[p], getVoiceId: (p) => FILIPINO_VOICE_IDS[p] },
+    { key: "ilo", label: "ILO", getText: (p) => ILO_TEXT[p], getVoiceId: (p) => FILIPINO_VOICE_IDS[p] },
+    { key: "ceb", label: "CEB", getText: (p) => CEB_TEXT[p], getVoiceId: (p) => FILIPINO_VOICE_IDS[p] },
+    { key: "hil", label: "HIL", getText: (p) => HIL_TEXT[p], getVoiceId: (p) => FILIPINO_VOICE_IDS[p] }
   ]) {
     const already = await hasSampleAudio(persona, key);
     if (already) {
