@@ -835,19 +835,19 @@ export default function AccountScreen() {
 
       {/* delete-account modal */}
       <Modal visible={deleteOpen} transparent animationType="fade" onRequestClose={() => setDeleteOpen(false)} statusBarTranslucent>
-        {/* Layout: an absolutely-positioned tap-to-dismiss backdrop SIBLING
-            to the card, instead of the card nested INSIDE a Pressable
-            backdrop. Nesting two Pressables here intercepts the Delete
-            button's touch on iOS (the inner onPress used `e.stopPropagation`
-            which isn't a real Pressable API — it threw silently and the
-            tap was eaten), which is why typing "delete" then tapping the
-            confirm button appeared to do nothing. */}
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center", padding: 26 }}>
-          <Pressable
-            onPress={() => setDeleteOpen(false)}
-            style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-          />
+        {/* Layout: outer Pressable backdrop dismisses on tap. The inner card
+            View claims the touch responder for any tap inside its bounds via
+            onStartShouldSetResponder, so the backdrop's onPress NEVER fires
+            for taps inside the card. Inner Pressables (Cancel/Delete) still
+            receive their own taps because RN grants the responder to the
+            deepest claimant. The previous sibling-absolute-Pressable layout
+            had the backdrop intercept the Delete tap on iOS. */}
+        <Pressable
+          onPress={() => setDeleteOpen(false)}
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center", padding: 26 }}
+        >
           <View
+            onStartShouldSetResponder={() => true}
             style={{ width: "100%", maxWidth: 380, borderRadius: 18, borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface2, padding: 22 }}
           >
             <View
@@ -928,7 +928,7 @@ export default function AccountScreen() {
               </Pressable>
             </View>
           </View>
-        </View>
+        </Pressable>
       </Modal>
     </Screen>
   );

@@ -1935,6 +1935,27 @@ router.post("/ask-onboarding", askOnboardingGlobalCap, askOnboardingLimiter, asy
     const cur: string = typeof currency === "string" && currency.trim() ? currency.trim() : "₱";
     const voiceId = getVoiceId(persona, lang);
     const bills = Array.isArray(bodyBills) ? (bodyBills as ClientBill[]) : [];
+
+    // Guard: a user who finished onboarding without adding any bills has no
+    // data for Judith to total. Without this short-circuit the model still
+    // sees the template question ("What's my estimated total bill for next
+    // month?") and confabulates a number from nothing — Carlo caught this
+    // showing "Rp4,137,840" for an empty account. Return a fixed, persona-
+    // neutral line that points the user back to adding bills, and skip the
+    // Anthropic call entirely.
+    if (bills.length === 0) {
+      const emptyReply = "You haven't added any bills yet — once you do, I can give you exact totals and remind you before each one is due.";
+      let emptyAudio: string | null = null;
+      try {
+        const audio = await synthesize(emptyReply, voiceId, { live: false, speed: getSpeakingSpeed(persona) }).catch(() => null);
+        if (audio) emptyAudio = audio.base64;
+      } catch (ttsErr) {
+        logger.error({ err: ttsErr }, "tts failed during empty-bills ask-onboarding");
+      }
+      res.json({ reply: emptyReply, audioBase64: emptyAudio, mime: "audio/mpeg", action: null });
+      return;
+    }
+
     const context = buildClientContext(bills, parseLocalDate(localDate), cur);
 
     // Categories the user explicitly checked on the bill-list screen. When
@@ -2823,7 +2844,20 @@ router.get("/sample-onboarding", sampleOnboardingGlobalCap, sampleOnboardingLimi
     const persona = coercePersona(req.query["persona"]);
     const language = typeof req.query["language"] === "string" ? req.query["language"] : undefined;
     const text = getSampleText(persona, language);
+
+    // Fast path: serve from the GCS pregen cache when we have one. Persona
+    // samples are keyed per dialect (see sampleLangKey), so ceb/ilo/hil each
+    // hit their own slot once pregen has baked them.
+    const cacheLang = language ?? "en-US";
+    const cached = await getSampleAudio(persona, cacheLang);
+    if (cached) {
+      res.json({ text, audioBase64: cached.base64, mime: cached.mime });
+      return;
+    }
+
+    // Cache miss — live synth, then write to GCS so the next request is fast.
     const audio = await synthesize(text, getVoiceId(persona, language), { live: true, speed: getSpeakingSpeed(persona) });
+    setSampleAudio(persona, cacheLang, audio.base64).catch(() => {});
     res.json({ text, audioBase64: audio.base64, mime: audio.mime });
   } catch (err) {
     logger.error({ err }, "sample-onboarding failed");

@@ -1044,7 +1044,11 @@ function ScreenLanguage({ ctx }: { ctx: Ctx }) {
   const langReqId = useRef(0);
 
   const filSample = (code: string) => {
-    if (isFilipino(code)) {
+    // Only the top-level Tagalog/Taglish row gets the Taglish preview line.
+    // Cebuano/Ilocano/Hiligaynon use their dialect-specific samples from
+    // languages.ts — otherwise the preview speaks Taglish regardless of which
+    // dialect the user tapped.
+    if (code === "fil") {
       return `Tara! Ayusin natin ang mga bills mo${name ? ` ${name}` : ""}.`;
     }
     return langSample(code);
@@ -1231,7 +1235,11 @@ function ScreenPersona({ ctx }: { ctx: Ctx }) {
   // prefetchPreview deliberately doesn't open a session — it just primes the
   // server cache in the background.
   useEffect(() => {
-    if (!isFilipino(language)) {
+    // Skip prefetch only for Tagalog ("fil") — that one uses a client-supplied
+    // name-personalized line via /tts-onboarding, so /sample-onboarding pregen
+    // wouldn't help. Every other language (incl. ceb/ilo/hil) goes through the
+    // pregen-backed sample endpoint, so we warm it.
+    if (language !== "fil") {
       visiblePersonas.forEach((p) => { prefetchPreview(p.id, language); });
     }
   }, []);
@@ -1246,10 +1254,16 @@ function ScreenPersona({ ctx }: { ctx: Ctx }) {
     // server-cached sample audio. Both go through the shared session, so
     // rapid taps cleanly supersede each other instead of stacking.
     try {
-      if (isFilipino(language)) {
+      if (language === "fil") {
+        // Tagalog/Taglish — speak the name-personalized client line via TTS.
         const text = PERSONA_FIL_SAMPLES[id](name);
         await speakOnboarding(text, id, language);
       } else {
+        // Everything else (including ceb/ilo/hil) — route through the server's
+        // pregen-backed /sample-onboarding endpoint, which selects the right
+        // dialect-specific persona line server-side (see SAMPLE_LINES_ILO /
+        // _CEB / _HIL in routes/judith.ts and the dialect-keyed GCS pregen
+        // cache slot from pregen-persona-samples.ts).
         await previewOnboarding(id, language);
       }
     } finally {

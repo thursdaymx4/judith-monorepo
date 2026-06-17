@@ -6,9 +6,10 @@
  * plays instantly without a live ElevenLabs call.
  *
  * Scope:
- *   6 personas × 2 language groups (en + fil) = 12 files
- *   5 personas × 35 other language codes       = 175 files
- *   Total: 187 files (resumable — skips already-cached files)
+ *   6 personas × 5 PH language slots (en + fil + ilo + ceb + hil) = 30 files
+ *   6 personas × en_PH (Filipino-accented English)               =  6 files
+ *   5 personas × 35 other language codes                          = 175 files
+ *   Total: 211 files (resumable — skips already-cached files)
  *
  * Run:
  *   pnpm --filter @workspace/api-server run pregen-persona-samples
@@ -71,6 +72,37 @@ const FIL_TEXT: Record<PersonaId, string> = {
     "Besh, chismis muna! Si Judith 'to — at alam ko na lahat ng bills mo! Grabe, 'di ba? Wala kang makakalimutan, promise. Mag-update ka ha!",
   britney:
     "Judith. Bills mo, due dates, amounts — naka-track na lahat. 'Yun lang.",
+};
+
+// Non-Tagalog Filipino dialects. Text MUST stay in sync with SAMPLE_LINES_ILO /
+// SAMPLE_LINES_CEB / SAMPLE_LINES_HIL in src/routes/judith.ts — both the route
+// (live-synth path) and this script (pregen path) must produce identical audio
+// for any given (persona × dialect) slot.
+const ILO_TEXT: Record<PersonaId, string> = {
+  professional: "Kablaaw, siak ni Judith. Ipalagipko kenka sakbay ti aldaw ti panagbayadmo.",
+  funny: "Kablaaw! Siak ni Judith — ti pinaka-responsible nga kaibigan pagdating iti bills. Adda ak ditoy!",
+  sarcastic: "Siak ni Judith. Ilagiputek dagiti bills mo. Wen, kasapulan ti maysa.",
+  mom: "Ading, siak ni Judith. Bantayan ko dagiti bills mo — saan ka ag-alaala.",
+  marites: "Hoy! Siak ni Judith — amok amin dagiti bills mo! Nakakaingganyo, 'di ba?",
+  britney: "Judith. Bills mo, due dates — naka-track amin.",
+};
+
+const CEB_TEXT: Record<PersonaId, string> = {
+  professional: "Uy, si Judith ni. Pahinumduman tika sa dili pa ma-due ang imong bayranan.",
+  funny: "Uy! Si Judith ni — ang pinaka-responsible nimong amigo sa bills. Naa ko, promise!",
+  sarcastic: "Si Judith ni. Pahinumduman tika sa imong bills. Kay ikaw? Kinahanglan nimo.",
+  mom: "Anak, si Judith ni. Bantayan ko ang imong mga bayad — ayaw kabalaka.",
+  marites: "Hoy! Si Judith ni — nahibal-an nako tanan imong bills! Grabe, 'di ba?",
+  britney: "Judith. Imong bills, due dates — tracked.",
+};
+
+const HIL_TEXT: Record<PersonaId, string> = {
+  professional: "Kumusta, si Judith ko. Pahibaluon ko ikaw antes mag-due ang imo bayaron.",
+  funny: "Kumusta! Si Judith ko — ang pinaka-responsible nga abyan mo sa bills. Nag-abot na!",
+  sarcastic: "Si Judith ko. Pahibaluon ko ikaw sa imo mga bayad. Oo, kinahanglan nimo.",
+  mom: "Anak, si Judith ko. Bantayan ko ang imo mga bayad — indi mag-alala.",
+  marites: "Hoy! Si Judith ko — nahibaluan ko na tanan imo bills! Makapainteres, 'di ba?",
+  britney: "Judith. Imo bills, due dates — tracked.",
 };
 
 type BasePersonaText = Record<"professional" | "funny" | "sarcastic" | "mom" | "marites", string>;
@@ -477,12 +509,19 @@ const OTHER_LANG_TEXT: Record<string, BasePersonaText> = {
 let generated = 0;
 let skipped = 0;
 
-console.log("── EN + FIL ─────────────────────────────────");
+console.log("── EN + FIL + PH dialects ──────────────────");
 
 for (const persona of ALL_PERSONAS) {
+  // All Philippine dialects share the FILIPINO_VOICE_IDS voices — ElevenLabs'
+  // multilingual model handles Cebuano/Ilocano/Hiligaynon text fine when paired
+  // with a Filipino-native voice. Each dialect gets its own GCS slot so taps
+  // play the dialect-specific persona line, not generic Taglish.
   for (const { key, label, getText, getVoiceId } of [
     { key: "en" as const, label: "EN", getText: (p: PersonaId) => EN_TEXT[p], getVoiceId: (p: PersonaId) => DEFAULT_VOICE_IDS[p] },
     { key: "fil" as const, label: "FIL", getText: (p: PersonaId) => FIL_TEXT[p], getVoiceId: (p: PersonaId) => FILIPINO_VOICE_IDS[p] },
+    { key: "ilo" as const, label: "ILO", getText: (p: PersonaId) => ILO_TEXT[p], getVoiceId: (p: PersonaId) => FILIPINO_VOICE_IDS[p] },
+    { key: "ceb" as const, label: "CEB", getText: (p: PersonaId) => CEB_TEXT[p], getVoiceId: (p: PersonaId) => FILIPINO_VOICE_IDS[p] },
+    { key: "hil" as const, label: "HIL", getText: (p: PersonaId) => HIL_TEXT[p], getVoiceId: (p: PersonaId) => FILIPINO_VOICE_IDS[p] },
   ]) {
     const already = await hasSampleAudio(persona, key);
     if (already) {
