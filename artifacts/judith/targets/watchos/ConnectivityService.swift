@@ -65,20 +65,27 @@ final class ConnectivityService: NSObject, WCSessionDelegate, ObservableObject {
         case serverError(String)
     }
 
-    func sendAsk(query: String) async throws -> String {
+    /// One turn of the watch Ask conversation. `role` is "user" or
+    /// "assistant"; mirrors the shape the phone /ask endpoint expects.
+    struct AskTurn: Codable, Hashable {
+        let role: String
+        let text: String
+    }
+
+    func sendAsk(query: String, history: [AskTurn] = []) async throws -> String {
         if WCSession.default.isReachable {
             do {
-                return try await sendAskToPhone(query: query)
+                return try await sendAskToPhone(query: query, history: history)
             } catch {
                 if hasWatchToken {
-                    return try await sendAskToBackend(query: query)
+                    return try await sendAskToBackend(query: query, history: history)
                 }
                 throw error
             }
         }
 
         guard hasWatchToken else { throw AskError.phoneNotReachable }
-        return try await sendAskToBackend(query: query)
+        return try await sendAskToBackend(query: query, history: history)
     }
 
     // MARK: — Watch → Phone: request latest summary
@@ -141,11 +148,18 @@ final class ConnectivityService: NSObject, WCSessionDelegate, ObservableObject {
         watchToken?.isEmpty == false
     }
 
-    private func sendAskToPhone(query: String) async throws -> String {
+    private func sendAskToPhone(query: String, history: [AskTurn]) async throws -> String {
         guard WCSession.default.isReachable else { throw AskError.phoneNotReachable }
+        var payload: [String: Any] = ["action": "ask", "query": query]
+        if !history.isEmpty {
+            // WCSession.sendMessage only accepts plist-safe types — convert
+            // each turn to a [String: String] so the phone handler can read
+            // it as a plain array of dictionaries.
+            payload["history"] = history.map { ["role": $0.role, "text": $0.text] }
+        }
         return try await withCheckedThrowingContinuation { cont in
             WCSession.default.sendMessage(
-                ["action": "ask", "query": query],
+                payload,
                 replyHandler: { reply in
                     if let answer = reply["answer"] as? String {
                         cont.resume(returning: answer)
@@ -171,11 +185,12 @@ final class ConnectivityService: NSObject, WCSessionDelegate, ObservableObject {
         }
     }
 
-    private func sendAskToBackend(query: String) async throws -> String {
+    private func sendAskToBackend(query: String, history: [AskTurn]) async throws -> String {
         let request = WatchAskRequest(
             text: query,
             localDate: Self.localDateString(),
-            localWeekday: Self.localWeekdayString()
+            localWeekday: Self.localWeekdayString(),
+            history: history.isEmpty ? nil : history
         )
         let response: WatchAskResponse = try await sendBackendRequest(
             path: "watch-ask",
@@ -255,6 +270,7 @@ private struct WatchAskRequest: Encodable {
     let text: String
     let localDate: String
     let localWeekday: String
+    let history: [ConnectivityService.AskTurn]?
 }
 
 private struct WatchAskResponse: Decodable {

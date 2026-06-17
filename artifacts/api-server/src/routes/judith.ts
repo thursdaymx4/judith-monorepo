@@ -999,7 +999,7 @@ router.post("/watch-ask", askLimiter, async (req, res) => {
   try {
     const snapshot = await loadWatchSnapshot(req, res);
     if (!snapshot) return;
-    const { text, localDate, localWeekday: rawLocalWeekday } = req.body ?? {};
+    const { text, localDate, localWeekday: rawLocalWeekday, history: bodyHistory } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
       res.status(400).json({ error: "text is required" });
       return;
@@ -1043,13 +1043,31 @@ router.post("/watch-ask", askLimiter, async (req, res) => {
       return;
     }
 
+    // Sanitize conversation history sent by the watch. Cap at 5 turns to keep
+    // cost + latency under control — matches the phone /ask endpoint so a
+    // wrist follow-up like "what about the next month?" carries the prior
+    // Q+A into Claude's context.
+    type WatchAnthropicMessage = { role: "user" | "assistant"; content: string };
+    const historyMessages: WatchAnthropicMessage[] = [];
+    if (Array.isArray(bodyHistory)) {
+      for (const turn of bodyHistory.slice(-5)) {
+        if (
+          turn && typeof turn === "object" &&
+          (turn.role === "user" || turn.role === "assistant") &&
+          typeof turn.text === "string" && turn.text.trim()
+        ) {
+          historyMessages.push({ role: turn.role as "user" | "assistant", content: turn.text.trim() });
+        }
+      }
+    }
+
     const anthropic = getAnthropic();
     const systemStr = `${systemPrompt(persona, "en", country, cur, countryCode)}\n\nBILL CONTEXT (the only source of truth):\n${context}`;
     const message = await anthropic.messages.create({
-      model: pickModel(text, 0),
+      model: pickModel(text, historyMessages.length),
       max_tokens: 160,
       system: systemStr,
-      messages: [{ role: "user", content: text.trim() }],
+      messages: [...historyMessages, { role: "user", content: text.trim() }],
     });
     const rawReply = message.content.map((b) => (b.type === "text" ? b.text : "")).join(" ").trim();
     const { cleanText: reply } = parseAction(rawReply);

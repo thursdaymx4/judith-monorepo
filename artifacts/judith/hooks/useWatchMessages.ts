@@ -242,6 +242,24 @@ export function useWatchMessages() {
 
         if (action === "ask") {
           const query = (message.query as string | undefined) ?? "";
+          // Watch may include prior Q+A turns so the phone /ask call carries
+          // continuation context. Shape matches askJudith's `history` param:
+          // [{role: "user" | "assistant", text: string}]. Sanitize here so a
+          // malformed message can't blow up the ask.
+          const rawHistory = (message.history as unknown[] | undefined) ?? [];
+          const watchHistory: Array<{ role: "user" | "assistant"; text: string }> = [];
+          for (const turn of rawHistory.slice(-5)) {
+            if (
+              turn && typeof turn === "object" &&
+              (("role" in turn && (turn as { role?: unknown }).role === "user") ||
+                ((turn as { role?: unknown }).role === "assistant")) &&
+              typeof (turn as { text?: unknown }).text === "string" &&
+              ((turn as { text: string }).text).trim()
+            ) {
+              const t = turn as { role: "user" | "assistant"; text: string };
+              watchHistory.push({ role: t.role, text: t.text.trim() });
+            }
+          }
           try {
             const currentBills = billsRef.current;
             const partialPayment = extractPartialPayment(query);
@@ -284,6 +302,11 @@ export function useWatchMessages() {
               monthlyIncomeRef.current,
               countryRef.current?.code,
               incomeByMonthRef.current,
+              undefined, // payCycle — not forwarded from watch
+              undefined, // paydayDay
+              undefined, // paydaySemi
+              undefined, // paydayWeekday
+              watchHistory.length > 0 ? watchHistory : undefined,
             );
             if (result.action?.type === "add_bill") {
               const bill = makeBillFromAction(result.action);

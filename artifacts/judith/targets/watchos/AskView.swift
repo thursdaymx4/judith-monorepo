@@ -12,6 +12,12 @@ struct AskView: View {
     @State private var viewState: AskState = .idle
     @State private var autoStartedOnAppear = false
 
+    /// Running conversation log so follow-up questions ("what about next
+    /// month?") carry the prior turns to the backend. Capped to the last 5
+    /// turns by the server. Cleared only when the user fully resets the
+    /// conversation — "Ask again" preserves it.
+    @State private var history: [ConnectivityService.AskTurn] = []
+
     /// TabView selection binding owned by ContentView. AskView reasserts
     /// `selectedTab = tagValue` after every WatchKit interop call so the
     /// user stays on the "Judith is thinking…" / answered screen instead
@@ -37,7 +43,7 @@ struct AskView: View {
 
                     VStack(spacing: 8) {
                         Button {
-                            beginAskFlow()
+                            beginAskFlow(voiceOnly: true)
                         } label: {
                             HStack(spacing: 6) {
                                 Image(systemName: "mic.fill")
@@ -52,7 +58,7 @@ struct AskView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 12))
 
                         Button {
-                            beginAskFlow()
+                            beginAskFlow(voiceOnly: false)
                         } label: {
                             HStack(spacing: 6) {
                                 Image(systemName: "hand.draw.fill")
@@ -151,7 +157,7 @@ struct AskView: View {
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 8)
                     Button("Ask Judith") {
-                        beginAskFlow()
+                        beginAskFlow(voiceOnly: true)
                     }
                     .buttonStyle(.bordered)
                     .tint(Color.judithAccent)
@@ -165,7 +171,11 @@ struct AskView: View {
         .onAppear {
             guard shouldAutoStartAsk else { return }
             autoStartedOnAppear = true
-            beginAskFlow()
+            // Action-Button / Siri auto-start should mirror the Siri long-
+            // press UX: skip the speak/scribble chooser and go straight to
+            // dictation. The user can still scrolldown for type/scribble
+            // after cancelling the dictation modal.
+            beginAskFlow(voiceOnly: true)
         }
         .onDisappear {
             autoStartedOnAppear = false
@@ -203,9 +213,9 @@ struct AskView: View {
 
     // MARK: — Actions
 
-    private func beginAskFlow() {
+    private func beginAskFlow(voiceOnly: Bool) {
         guard canStartInput else { return }
-        Task { await requestInputAndAsk() }
+        Task { await requestInputAndAsk(voiceOnly: voiceOnly) }
     }
 
     private var canStartInput: Bool {
@@ -218,10 +228,10 @@ struct AskView: View {
     }
 
     @MainActor
-    private func requestInputAndAsk() async {
+    private func requestInputAndAsk(voiceOnly: Bool) async {
         viewState = .capturing
 
-        let captured = await presentTextInput()
+        let captured = await presentTextInput(voiceOnly: voiceOnly)
 
         // The WatchKit text-input controller dismissed — reassert our tab
         // selection so SwiftUI doesn't drop us onto a different page when
@@ -240,12 +250,18 @@ struct AskView: View {
     }
 
     @MainActor
-    private func presentTextInput() async -> String? {
+    private func presentTextInput(voiceOnly: Bool) async -> String? {
         guard let controller = WKExtension.shared().visibleInterfaceController else {
             return nil
         }
 
-        let suggestions = [
+        // Per Apple's WKInterfaceController docs: passing an EMPTY suggestion
+        // array makes presentTextInputController skip the chooser entirely
+        // and open the dictation UI directly — matching the Siri long-press
+        // UX Carlo wants from the Action Button + "Speak to Judith" CTA. The
+        // suggestions array is reserved for the explicit "Type or Scribble"
+        // path, which still benefits from canned prompts.
+        let suggestions: [String] = voiceOnly ? [] : [
             "What's due this week and how much?",
             "Remaining bills that needs to get paid this month",
             "What's the total due for all my credit cards this month?",
@@ -292,9 +308,20 @@ struct AskView: View {
         query = trimmed
         viewState = .asking
 
+        // Snapshot history BEFORE appending the new turn so the server sees
+        // only prior turns as context and the current question stays in the
+        // `text` field — same shape the phone /ask endpoint expects.
+        let priorHistory = history
         Task {
             do {
-                let answer = try await connectivity.sendAsk(query: trimmed)
+                let answer = try await connectivity.sendAsk(query: trimmed, history: priorHistory)
+                history.append(.init(role: "user", text: trimmed))
+                history.append(.init(role: "assistant", text: answer))
+                // Cap locally at the same 5 turns the server caps at, so a
+                // long session doesn't grow the @State array unboundedly.
+                if history.count > 5 {
+                    history.removeFirst(history.count - 5)
+                }
                 viewState = .answered(answer)
                 speak(answer)
             } catch ConnectivityService.AskError.phoneNotReachable {
