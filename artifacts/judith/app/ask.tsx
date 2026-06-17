@@ -26,6 +26,8 @@ import { safeBack } from "@/lib/navigation";
 import { type AddBillAction, askJudith, synthesizeAiReply, parseSubscriptionScreenshot, transcribe, RateLimitError, TimeoutError, ServerError, UnauthorizedError, AbortedError } from "@/lib/proxy";
 import { buildAskBills } from "@/lib/buildAskBills";
 import { sttHint, isFilipino } from "@/constants/languages";
+import { getPackageForTier, purchaseForTier, isPurchasesConfigured } from "@/lib/purchases";
+import { PRIVACY_URL, TERMS_URL, openLegal } from "@/constants/legal";
 
 /**
  * Returns true when the STT transcription is purely background-noise annotations
@@ -125,7 +127,7 @@ export default function AskModal() {
   const t = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { bills, asksLeft, tier, persona, language, country, currency, monthlyIncome, incomeByMonth, payCycle, paydayDay, paydaySemi, paydayWeekday, consumeAsk, addAsks, canUseVoice, saveBill, markPaid, payPartial, updateBillAmount, showToast, toggles, setToggle, askHistory, setAskHistory, clearAskHistory, hydrated, customQuestions, addCustomQuestion, deleteCustomQuestion } = useJudith();
+  const { bills, asksLeft, tier, persona, language, country, currency, monthlyIncome, incomeByMonth, payCycle, paydayDay, paydaySemi, paydayWeekday, consumeAsk, addAsks, canUseVoice, saveBill, markPaid, payPartial, updateBillAmount, showToast, toggles, setToggle, askHistory, setAskHistory, clearAskHistory, hydrated, customQuestions, addCustomQuestion, deleteCustomQuestion, subscribe } = useJudith();
   // Voice tier can mute spoken replies (e.g. in public) and get text-only answers.
   const speakAloud = toggles.voiceReplies;
   const voiceTier = tier === "voice";
@@ -138,6 +140,64 @@ export default function AskModal() {
     return () => clearTimeout(id);
   }, [rateLimitSecs]);
   const [voiceUpgradeVisible, setVoiceUpgradeVisible] = React.useState(false);
+  /** When non-null, we just completed a successful purchase — show the
+   *  inline congrats card so the user knows the entitlement is live. */
+  const [purchasedTier, setPurchasedTier] = React.useState<"chat" | "voice" | null>(null);
+  /** Disables the in-modal CTAs while StoreKit / RC is in flight. */
+  const [buyingTier, setBuyingTier] = React.useState<"chat" | "voice" | null>(null);
+
+  /**
+   * Trigger a direct StoreKit purchase from any in-screen paywall surface
+   * (the voice-upgrade modal AND the out-of-asks empty state). Mirrors
+   * plans.tsx's executeBuy semantics so behavior is identical wherever the
+   * user buys from:
+   *   - production + missing RC package → toast "Purchase unavailable"
+   *   - __DEV__ + missing package       → engineering free-grant for testing
+   *   - package present                 → real Apple sheet via
+   *                                       purchaseForTier(); on success
+   *                                       subscribe(tier) + congrats card.
+   * The CTAs disable themselves via buyingTier so the user can't double-tap
+   * into a duplicate purchase.
+   */
+  const buyTierFromAsk = async (targetTier: "chat" | "voice") => {
+    if (buyingTier) return;
+    if (!isPurchasesConfigured) {
+      // Production builds MUST have EXPO_PUBLIC_REVENUECAT_API_KEY_IOS set;
+      // surface a distinct error so we don't silently look like "cancelled".
+      showToast("Purchases not configured on this build");
+      return;
+    }
+    setBuyingTier(targetTier);
+    try {
+      const pkg = await getPackageForTier(targetTier);
+      if (!pkg) {
+        if (__DEV__) {
+          subscribe(targetTier);
+          setPurchasedTier(targetTier);
+          setVoiceUpgradeVisible(false);
+          showToast(targetTier === "voice" ? "Voice Ask activated ✓ (dev)" : "Chat Ask activated ✓ (dev)");
+          return;
+        }
+        showToast("Purchase unavailable — please try again later");
+        return;
+      }
+      const newTier = await purchaseForTier(pkg);
+      if (newTier !== "free") {
+        subscribe(newTier);
+        setPurchasedTier(newTier === "voice" ? "voice" : "chat");
+        setVoiceUpgradeVisible(false);
+      } else {
+        // Apple sheet was shown and dismissed without buying — silent. Avoid
+        // "Purchase failed" toast here because the user explicitly chose to
+        // back out.
+      }
+    } catch {
+      showToast("Purchase failed — try again");
+    } finally {
+      setBuyingTier(null);
+    }
+  };
+
   const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
 
   const isPaid = tier === "chat" || tier === "voice";
@@ -843,8 +903,58 @@ export default function AskModal() {
                   style={{ marginTop: 6, maxWidth: 270, textAlign: "center" }}
                 >
                   Reminders and bill tracking stay free forever. To keep asking
-                  Judith out loud, pick a plan.
+                  Judith, pick a plan.
                 </Muted>
+              </View>
+
+              {/* Inline purchase CTAs — tap fires the Apple sheet directly
+                  via buyTierFromAsk, no detour through /plans. */}
+              <View style={{ alignSelf: "stretch", marginTop: 18, gap: 10 }}>
+                <Pressable
+                  onPress={() => { if (!buyingTier) void buyTierFromAsk("chat"); }}
+                  style={{
+                    borderWidth: 1.5,
+                    borderColor: t.accent,
+                    borderRadius: 14,
+                    paddingVertical: 14,
+                    alignItems: "center",
+                    backgroundColor: mix(t.accent, t.canvas, 0.08),
+                    opacity: buyingTier === "chat" ? 0.7 : 1,
+                  }}
+                >
+                  <Txt size={15} weight="semibold" color={t.accent}>
+                    {buyingTier === "chat" ? "Opening Apple…" : "Get Chat Ask"}
+                  </Txt>
+                  <Low size={11} style={{ marginTop: 2 }}>Unlimited text asks</Low>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => { if (!buyingTier) void buyTierFromAsk("voice"); }}
+                  style={{
+                    backgroundColor: t.accent,
+                    borderRadius: 14,
+                    paddingVertical: 14,
+                    alignItems: "center",
+                    opacity: buyingTier === "voice" ? 0.7 : 1,
+                  }}
+                >
+                  <Txt size={15} weight="semibold" color={t.onAccent}>
+                    {buyingTier === "voice" ? "Opening Apple…" : "Get Voice Ask"}
+                  </Txt>
+                  <Low size={11} color={t.onAccent} style={{ marginTop: 2, opacity: 0.85 }}>
+                    Speak & listen — includes Chat Ask
+                  </Low>
+                </Pressable>
+
+                <Low size={10.5} style={{ textAlign: "center", marginTop: 4 }}>
+                  Cancel anytime · managed by the App Store
+                </Low>
+                <Low size={10.5} style={{ textAlign: "center" }}>
+                  By subscribing, you agree to our{" "}
+                  <Low size={10.5} color={t.accent} style={{ textDecorationLine: "underline" }} onPress={() => openLegal(TERMS_URL)}>Terms of Use</Low>
+                  {" "}&{" "}
+                  <Low size={10.5} color={t.accent} style={{ textDecorationLine: "underline" }} onPress={() => openLegal(PRIVACY_URL)}>Privacy Policy</Low>.
+                </Low>
               </View>
             </View>
           ) : (
@@ -1438,12 +1548,16 @@ export default function AskModal() {
         </View>
       </Modal>
 
-      {/* Voice upgrade nudge — shown when a Chat Ask subscriber taps the mic */}
+      {/* Voice upgrade nudge — shown when a Chat Ask subscriber taps the mic.
+          Triggers StoreKit DIRECTLY (no redirect to /plans), so the user
+          gets the Apple sheet from this same modal. App Store guideline
+          3.1.2 wants the purchase mechanism close to the value prop, not
+          buried in a settings hop. */}
       <Modal
         visible={voiceUpgradeVisible}
         transparent
         animationType="slide"
-        onRequestClose={() => setVoiceUpgradeVisible(false)}
+        onRequestClose={() => { if (!buyingTier) setVoiceUpgradeVisible(false); }}
         statusBarTranslucent
       >
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}>
@@ -1463,26 +1577,71 @@ export default function AskModal() {
             <Txt size={22} weight="bold" style={{ textAlign: "center", marginBottom: 8 }}>
               Voice asks need Voice Ask
             </Txt>
-            <Muted size={14.5} style={{ textAlign: "center", maxWidth: 300, alignSelf: "center", marginBottom: 24 }}>
-              Your Chat Ask plan covers unlimited text questions. Upgrade to Voice Ask (₱199/mo) to speak and listen hands-free.
+            <Muted size={14.5} style={{ textAlign: "center", maxWidth: 300, alignSelf: "center", marginBottom: 14 }}>
+              Your Chat Ask plan covers unlimited text questions. Upgrade to Voice Ask to speak and listen hands-free.
             </Muted>
             <Pressable
-              onPress={() => { setVoiceUpgradeVisible(false); router.push("/plans?focus=voice"); }}
+              onPress={() => { if (!buyingTier) void buyTierFromAsk("voice"); }}
               style={{
                 backgroundColor: t.accent,
                 borderRadius: 14,
                 paddingVertical: 15,
                 alignItems: "center",
                 marginBottom: 10,
+                opacity: buyingTier === "voice" ? 0.7 : 1,
               }}
             >
-              <Txt size={16} weight="semibold" color={t.onAccent}>Upgrade to Voice Ask</Txt>
+              <Txt size={16} weight="semibold" color={t.onAccent}>
+                {buyingTier === "voice" ? "Opening Apple…" : "Upgrade to Voice Ask"}
+              </Txt>
             </Pressable>
+            <Low size={10.5} style={{ textAlign: "center", marginBottom: 4 }}>
+              Cancel anytime · managed by the App Store
+            </Low>
+            <Low size={10.5} style={{ textAlign: "center", marginBottom: 10 }}>
+              By subscribing, you agree to our{" "}
+              <Low size={10.5} color={t.accent} style={{ textDecorationLine: "underline" }} onPress={() => openLegal(TERMS_URL)}>Terms of Use</Low>
+              {" "}&{" "}
+              <Low size={10.5} color={t.accent} style={{ textDecorationLine: "underline" }} onPress={() => openLegal(PRIVACY_URL)}>Privacy Policy</Low>.
+            </Low>
             <Pressable
-              onPress={() => setVoiceUpgradeVisible(false)}
-              style={{ paddingVertical: 12, alignItems: "center" }}
+              onPress={() => { if (!buyingTier) setVoiceUpgradeVisible(false); }}
+              style={{ paddingVertical: 10, alignItems: "center" }}
             >
               <Txt size={15} color={t.txtMid}>Keep typing — it's fine</Txt>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Purchase congrats — fires from any in-screen paywall (voice modal
+          OR out-of-asks empty state) the moment the StoreKit transaction
+          completes. Sits as the last sibling so it overlays everything. */}
+      <Modal
+        visible={purchasedTier != null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPurchasedTier(null)}
+        statusBarTranslucent
+      >
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center", padding: 26 }}>
+          <View style={{ width: "100%", maxWidth: 360, borderRadius: 22, backgroundColor: t.surface2, padding: 24, alignItems: "center" }}>
+            <JudithAvatar persona={persona} size={84} state="speaking" mood="joy" />
+            <Txt size={22} weight="bold" style={{ marginTop: 14, textAlign: "center" }}>
+              You're all set!
+            </Txt>
+            <Muted size={14.5} style={{ marginTop: 8, textAlign: "center", maxWidth: 280 }}>
+              {purchasedTier === "voice"
+                ? "Voice Ask is active. You can now speak your questions and hear Judith out loud."
+                : "Chat Ask is active. Ask Judith anything about your bills — unlimited."}
+            </Muted>
+            <Pressable
+              onPress={() => setPurchasedTier(null)}
+              style={{ marginTop: 22, alignSelf: "stretch", backgroundColor: t.accent, borderRadius: 14, paddingVertical: 14, alignItems: "center" }}
+            >
+              <Txt size={16} weight="semibold" color={t.onAccent}>
+                {purchasedTier === "voice" ? "Start speaking" : "Start asking"}
+              </Txt>
             </Pressable>
           </View>
         </View>

@@ -1,0 +1,9 @@
+{
+  "name": "judith-financekit",
+  "version": "1.0.0",
+  "description": "FinanceKit bridge for on-device discovery of recurring bills from Apple Card / Apple Cash transactions. iOS 17.4+ only; silently unavailable everywhere else.",
+  "main": "./index",
+  "peerDependencies": {
+    "expo-modules-core": "*"
+  }
+}

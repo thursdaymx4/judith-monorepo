@@ -104,6 +104,22 @@ export const askLimiter              = userLimiter(HOUR, 40);
 export const sttTtsLimiter           = userLimiter(HOUR, 60);
 export const sampleVoicesLimiter     = userLimiter(HOUR, 30);
 export const parseLimiter            = userLimiter(HOUR, 20);
+
+// Account deletion is destructive + irreversible — a stolen token in a loop
+// must not be able to wipe a user repeatedly. 3/hr is generous for a real
+// user (who deletes once) and tight enough to blunt token abuse.
+export const deleteAccountLimiter    = userLimiter(HOUR, 3);
+
+// Watch endpoints: paired watchOS app calls these. The token is refreshed
+// rarely (~once per device pairing). Snapshot writes fire on bill mutations.
+// Summary reads fire when the watch face wakes — can be frequent.
+export const watchTokenLimiter       = userLimiter(HOUR, 12);
+export const watchSnapshotLimiter    = userLimiter(HOUR, 60);
+export const watchSummaryLimiter     = userLimiter(HOUR, 120);
+// Watch STT: each "Speak to Judith" tap on the watch sends ~1 short audio
+// clip. 60/hr covers heavy real-user use (1/min sustained) without giving
+// a stolen watch token room to burn through ElevenLabs Scribe.
+export const watchSttLimiter         = userLimiter(HOUR, 60);
 // Dev/test sessions loop through onboarding many times — give much more headroom.
 const isDev = process.env.NODE_ENV !== "production";
 export const askOnboardingLimiter    = ipLimiter(HOUR, isDev ? 500 : 60);

@@ -33,6 +33,11 @@ import {
   parseGlobalCap,
   sttTtsOnboardingGlobalCap,
   sampleOnboardingGlobalCap,
+  deleteAccountLimiter,
+  watchTokenLimiter,
+  watchSnapshotLimiter,
+  watchSummaryLimiter,
+  watchSttLimiter,
 } from "../middleware/rateLimit";
 
 const router: IRouter = Router();
@@ -293,6 +298,11 @@ interface ClientBill {
   /** Original full amount before partial payment was subtracted. Lets Judith
    *  answer "how much have I paid?" — `amount` field is the REMAINING balance. */
   originalTotal?: number | null;
+  /** Actual paid amounts from the last up-to-6 settled cycles, most-recent
+   *  first. Sent for VARIABLE bills only (electric, water, credit-card
+   *  statements). Lets Judith answer "what's my usual range for X?" with
+   *  real data instead of treating the static amount as truth. */
+  recentPaidAmounts?: number[] | null;
 }
 
 function curStr(cur: string, n: number): string {
@@ -521,7 +531,25 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
     // card" — the raw client-side status ("overdue"/"urgent"/etc.) would
     // contradict the `when` clause above and re-introduce double-counting.
     const statusLabel = isResolvedViaCardLine ? "auto-paid via card" : (b.status ?? "upcoming");
-    return `- ${idTag}${b.provider ?? "Bill"} (${b.cat ?? "Other"})${bizTag}${cardTag}${estTag}${paidTag}: ${curStr(cur, b.amount ?? 0)}, ${when}, ${statusLabel}.`;
+    // Variable-bill "usual" range — only emitted when the client sent at
+    // least 2 settled cycles of paid-amount history. Gives Claude real
+    // numbers for "what's a typical Meralco bill?" instead of forcing it
+    // to treat the static `amount` (which the user typed in months ago)
+    // as the truth. Median anchors next-month projections; the min-max
+    // pair anchors range questions.
+    const recent = Array.isArray(b.recentPaidAmounts) ? b.recentPaidAmounts.filter((n): n is number => typeof n === "number" && Number.isFinite(n) && n > 0) : [];
+    let usualTag = "";
+    if (recent.length >= 2) {
+      const sorted = [...recent].sort((a, b) => a - b);
+      const min = sorted[0]!;
+      const max = sorted[sorted.length - 1]!;
+      const median = sorted.length % 2 === 1
+        ? sorted[(sorted.length - 1) / 2]!
+        : (sorted[sorted.length / 2 - 1]! + sorted[sorted.length / 2]!) / 2;
+      const rangeLabel = min === max ? curStr(cur, min) : `${curStr(cur, min)}–${curStr(cur, max)}`;
+      usualTag = ` [USUAL RANGE: ${rangeLabel} over last ${recent.length} settled month${recent.length === 1 ? "" : "s"}; median ${curStr(cur, median)}. Use this for "what's a typical X bill?" or projecting next month — NOT the static amount above.]`;
+    }
+    return `- ${idTag}${b.provider ?? "Bill"} (${b.cat ?? "Other"})${bizTag}${cardTag}${estTag}${paidTag}${usualTag}: ${curStr(cur, b.amount ?? 0)}, ${when}, ${statusLabel}.`;
   });
 
   // ── Pre-computed income-remaining figures ──────────────────────────────
@@ -870,7 +898,7 @@ async function requireUser(req: Request, res: Response) {
   return { id: "guest", email: undefined, role: "guest" } as const;
 }
 
-router.post("/watch-token", async (req, res) => {
+router.post("/watch-token", watchTokenLimiter, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
@@ -890,7 +918,7 @@ router.post("/watch-token", async (req, res) => {
   }
 });
 
-router.post("/watch-snapshot", async (req, res) => {
+router.post("/watch-snapshot", watchSnapshotLimiter, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
@@ -977,7 +1005,7 @@ function snapshotNumberPair(value: unknown): [number, number] | undefined {
   return first != null && second != null ? [first, second] : undefined;
 }
 
-router.get("/watch-summary", async (req, res) => {
+router.get("/watch-summary", watchSummaryLimiter, async (req, res) => {
   try {
     const snapshot = await loadWatchSnapshot(req, res);
     if (!snapshot) return;
@@ -995,7 +1023,7 @@ router.post("/watch-ask", askLimiter, async (req, res) => {
   try {
     const snapshot = await loadWatchSnapshot(req, res);
     if (!snapshot) return;
-    const { text, localDate, localWeekday: rawLocalWeekday } = req.body ?? {};
+    const { text, localDate, localWeekday: rawLocalWeekday, history: bodyHistory } = req.body ?? {};
     if (typeof text !== "string" || !text.trim()) {
       res.status(400).json({ error: "text is required" });
       return;
@@ -1039,13 +1067,31 @@ router.post("/watch-ask", askLimiter, async (req, res) => {
       return;
     }
 
+    // Sanitize conversation history sent by the watch. Cap at 5 turns to keep
+    // cost + latency under control — matches the phone /ask endpoint so a
+    // wrist follow-up like "what about the next month?" carries the prior
+    // Q+A into Claude's context.
+    type WatchAnthropicMessage = { role: "user" | "assistant"; content: string };
+    const historyMessages: WatchAnthropicMessage[] = [];
+    if (Array.isArray(bodyHistory)) {
+      for (const turn of bodyHistory.slice(-5)) {
+        if (
+          turn && typeof turn === "object" &&
+          (turn.role === "user" || turn.role === "assistant") &&
+          typeof turn.text === "string" && turn.text.trim()
+        ) {
+          historyMessages.push({ role: turn.role as "user" | "assistant", content: turn.text.trim() });
+        }
+      }
+    }
+
     const anthropic = getAnthropic();
     const systemStr = `${systemPrompt(persona, "en", country, cur, countryCode)}\n\nBILL CONTEXT (the only source of truth):\n${context}`;
     const message = await anthropic.messages.create({
-      model: pickModel(text, 0),
+      model: pickModel(text, historyMessages.length),
       max_tokens: 160,
       system: systemStr,
-      messages: [{ role: "user", content: text.trim() }],
+      messages: [...historyMessages, { role: "user", content: text.trim() }],
     });
     const rawReply = message.content.map((b) => (b.type === "text" ? b.text : "")).join(" ").trim();
     const { cleanText: reply } = parseAction(rawReply);
@@ -1055,9 +1101,46 @@ router.post("/watch-ask", askLimiter, async (req, res) => {
     res.status(500).json({ error: "Judith could not respond right now" });
   }
 });
+
+// POST /api/judith/watch-stt  { audioBase64, mimeType } -> { text }
+// Speech-to-text endpoint for the watch's "Speak to Judith" recorder. Auth is
+// the watch HMAC token (same as every other /watch-* route) — the phone STT
+// route uses a Supabase JWT which the watch app doesn't hold.
+router.post("/watch-stt", watchSttLimiter, async (req, res) => {
+  try {
+    const verified = verifyWatchToken(watchBearer(req));
+    if (!verified) {
+      res.status(401).json({ error: "Invalid watch token" });
+      return;
+    }
+    const { audioBase64, mimeType } = req.body ?? {};
+    if (typeof audioBase64 !== "string" || !audioBase64) {
+      res.status(400).json({ error: "audioBase64 is required" });
+      return;
+    }
+    const buffer = Buffer.from(audioBase64, "base64");
+    // 5MB ceiling — single watch dictation is typically <200KB; this bounds
+    // a malicious or buggy client from feeding multi-minute payloads into
+    // ElevenLabs Scribe.
+    if (buffer.length > 5 * 1024 * 1024) {
+      res.status(413).json({ error: "audio too large (max 5MB)" });
+      return;
+    }
+    const text = await transcribe(
+      buffer,
+      typeof mimeType === "string" ? mimeType : "audio/m4a",
+      undefined,
+    );
+    res.json({ text });
+  } catch (err) {
+    logger.error({ err }, "watch-stt failed");
+    res.status(500).json({ error: "Transcription failed" });
+  }
+});
+
 // POST /api/judith/delete-account -> { ok: true }
 // Permanently removes the authenticated user's bills, profile, and auth account.
-router.post("/delete-account", async (req, res) => {
+router.post("/delete-account", deleteAccountLimiter, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
@@ -1071,7 +1154,18 @@ router.post("/delete-account", async (req, res) => {
       .delete()
       .eq("user_id", user.id);
     if (billsErr) throw billsErr;
-    await admin.from("profiles").delete().eq("id", user.id);
+    const { error: profilesErr } = await admin
+      .from("profiles")
+      .delete()
+      .eq("id", user.id);
+    // Tolerate "relation does not exist" (Postgres 42P01) — the profiles
+    // table is optional in Judith deployments; loadUserData() already
+    // handles its absence by falling back to defaults. Any other error
+    // (RLS, conflict, etc.) still throws so the deletion is atomic with
+    // the auth.users delete below.
+    if (profilesErr && (profilesErr as { code?: string }).code !== "42P01") {
+      throw profilesErr;
+    }
     const { error: authErr } = await admin.auth.admin.deleteUser(user.id);
     if (authErr) throw authErr;
     res.json({ ok: true });

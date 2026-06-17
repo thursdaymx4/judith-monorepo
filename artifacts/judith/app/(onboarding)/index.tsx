@@ -48,11 +48,13 @@ import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { getCategoryLabel } from "@/constants/categoryLocale";
 import { useTheme } from "@/hooks/useTheme";
 import { haptics } from "@/lib/haptics";
-import { getTierPackages, type TierPackages } from "@/lib/purchases";
+import { getTierPackages, purchaseForTier, isPurchasesConfigured, type TierPackages } from "@/lib/purchases";
 import { fileToBase64, playBase64Mp3, stopCurrentAudio } from "@/lib/audio";
 import { transcribeOnboarding, synthOnboarding, fetchSampleOnboarding, parseBillOnboarding, parseSubscriptionScreenshot, askOnboarding, RateLimitError, TimeoutError } from "@/lib/proxy";
 import { speak as speakOnboarding, preview as previewOnboarding, prefetchPreview, cancelAll as cancelOnboardingAudio, currentSignal as onboardingSignal, ONBOARDING_WELCOME_LINE } from "@/lib/onboardingAudio";
 import { requestPermission } from "@/lib/notifications";
+import * as FK from "judith-financekit";
+import { makeBillFromAction } from "@/constants/data";
 import type { Theme } from "@/constants/theme";
 
 /* ------------------------------------------------------------------ */
@@ -5555,6 +5557,7 @@ function ScreenNotifications({ ctx }: { ctx: Ctx }) {
 
 function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
   const { t, persona, language, next } = ctx;
+  const { subscribe, showToast } = useJudith();
   const cur = ctx.country.cur;
   const locale = getPaywallLocale(ctx.country.code);
   const fmt = (n: number) => fmtFee(cur, n);
@@ -5562,6 +5565,10 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
   const paywallIsFil = isFilipino(language);
   useOnbVoice(JUDITH_VOICE.paywall[persona][paywallIsFil ? 'fil' : 'en'], persona, language);
   const [pick, setPick] = useState<'chat' | 'voice'>('voice');
+  const [buying, setBuying] = useState(false);
+  /** When non-null, a StoreKit purchase just succeeded — show the congrats
+   *  overlay before advancing to the next onboarding screen. */
+  const [purchased, setPurchased] = useState<'chat' | 'voice' | null>(null);
 
   // Pull the store's localized prices (e.g. "$4.99", "£4.99") so every region
   // shows its real App Store / Play price. Falls back to the formatted default
@@ -5592,6 +5599,45 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
     { id: 'voice', name: 'Voice Ask', price: 199, sub: 'Everything in Chat + speak & listen', tag: 'Includes Chat' },
   ];
   const sel = tiers.find((x) => x.id === pick) ?? tiers[1]!;
+
+  // Trigger the real StoreKit / RevenueCat purchase from this onboarding
+  // screen. Mirrors plans.tsx executeBuy:
+  //   - production + no pkg → toast "unavailable", stay on screen (the
+  //     pre-fix behavior of silently granting the tier was an App Store
+  //     review violation flagged in build 44).
+  //   - __DEV__ + no pkg → grant the tier for engineering testing.
+  //   - pkg present → real Apple sheet via purchaseForTier(); on success
+  //     subscribe() + next(); on cancel/error stay on screen.
+  const handleSubscribe = async () => {
+    if (!isPurchasesConfigured) {
+      showToast('Purchases not configured on this build');
+      return;
+    }
+    const pkg = packages[sel.id];
+    if (!pkg) {
+      if (__DEV__) {
+        subscribe(sel.id);
+        setPurchased(sel.id);
+        return;
+      }
+      showToast('Purchase unavailable — please try again later');
+      return;
+    }
+    setBuying(true);
+    try {
+      const newTier = await purchaseForTier(pkg);
+      if (newTier !== 'free') {
+        subscribe(newTier);
+        setPurchased(newTier === 'voice' ? 'voice' : 'chat');
+      } else {
+        // Apple sheet shown and dismissed — silent. Stay on paywall.
+      }
+    } catch {
+      showToast('Purchase failed — try again');
+    } finally {
+      setBuying(false);
+    }
+  };
 
   return (
     <>
@@ -5756,9 +5802,47 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
       </Scroll>
 
       <CtaBar>
-        <Btn label={'Subscribe · ' + priceFor(sel.id) + '/mo'} onPress={next} />
-        <Btn label='Start with 8 free asks' variant='ghost' onPress={next} />
+        <Btn
+          label={buying ? 'Opening…' : ('Subscribe · ' + priceFor(sel.id) + '/mo')}
+          onPress={() => { if (!buying && !loadingPkgs) void handleSubscribe(); }}
+          style={(buying || loadingPkgs) ? { opacity: 0.5 } : undefined}
+        />
+        <Btn
+          label='Start with 8 free asks'
+          variant='ghost'
+          onPress={() => { if (!buying) next(); }}
+        />
       </CtaBar>
+
+      {/* ── Purchase congrats — shown after StoreKit succeeds, before the
+          onboarding flow moves on. "Continue" advances to next(). ── */}
+      <Modal
+        visible={purchased != null}
+        transparent
+        animationType='fade'
+        onRequestClose={() => { setPurchased(null); next(); }}
+        statusBarTranslucent
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', padding: 26 }}>
+          <View style={{ width: '100%', maxWidth: 360, borderRadius: 22, backgroundColor: t.surface2, padding: 24, alignItems: 'center' }}>
+            <JudithAvatar persona={persona} size={84} state='speaking' mood='joy' />
+            <Txt size={22} weight='bold' style={{ marginTop: 14, textAlign: 'center' }}>
+              You&apos;re all set!
+            </Txt>
+            <Low size={14} style={{ marginTop: 8, textAlign: 'center', maxWidth: 280 }}>
+              {purchased === 'voice'
+                ? 'Voice Ask is active. You can now speak your questions and hear Judith out loud.'
+                : 'Chat Ask is active. Ask Judith anything about your bills — unlimited.'}
+            </Low>
+            <Pressable
+              onPress={() => { setPurchased(null); next(); }}
+              style={{ marginTop: 22, alignSelf: 'stretch', backgroundColor: t.accent, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}
+            >
+              <Txt size={16} weight='semibold' color={t.onAccent}>Continue</Txt>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </>
   );
 }
@@ -5838,6 +5922,221 @@ function SweepOverlay({ onDone }: { onDone: () => void }) {
   );
 }
 
+/* ================================================================== */
+/* FinanceKit auto-discovery (US Apple Card users, opt-in)              */
+/* ================================================================== */
+
+/** Lightweight merchant-name → bill-category heuristic. Used only as a
+ *  first guess when seeding a candidate from FinanceKit — the user can
+ *  override the category any time after the bill is added. */
+function guessCategoryFromMerchant(merchant: string): string {
+  const m = merchant.toLowerCase();
+  if (/(netflix|hulu|disney|hbo|max|spotify|apple music|youtube)/.test(m)) return "TV / Streaming";
+  if (/(verizon|t-mobile|at&t|metropcs|cricket|google fi)/.test(m)) return "Mobile";
+  if (/(comcast|xfinity|spectrum|optimum|cox communications)/.test(m)) return "Internet";
+  if (/(coned|con edison|pge|pg&e|duke energy|electric|power)/.test(m)) return "Electricity";
+  if (/(water|sewer|nyc dep)/.test(m)) return "Water";
+  if (/(geico|state farm|allstate|progressive|insurance)/.test(m)) return "Insurance";
+  if (/(chase|amex|american express|capital one|discover|citi)/.test(m)) return "Credit card";
+  if (/(loan|sallie mae|nelnet|navient)/.test(m)) return "Loans";
+  return "Other";
+}
+
+function ScreenFkDiscovery({ ctx }: { ctx: Ctx }) {
+  const { t, persona, next } = ctx;
+  const { saveBill, showToast } = useJudith();
+
+  type Phase = "checking" | "intro" | "asking" | "loading" | "results" | "denied" | "empty";
+  const [phase, setPhase] = useState<Phase>("checking");
+  const [candidates, setCandidates] = useState<FK.BillCandidate[]>([]);
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [busy, setBusy] = useState(false);
+
+  // Availability gate: if FK isn't present (Android, pre-iOS-17.4, no Apple
+  // Card history, Expo Go), silently skip the screen so onboarding flows
+  // through unchanged for everyone outside the eligible US Apple Card
+  // population. This matches the "Flow X" decision Carlo confirmed: never
+  // block onboarding on FK absence.
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const available = await FK.isAvailable();
+      if (!alive) return;
+      if (!available) {
+        next();
+        return;
+      }
+      setPhase("intro");
+    })();
+    return () => { alive = false; };
+  }, [next]);
+
+  const connect = async () => {
+    setPhase("asking");
+    const status = await FK.requestAuthorization();
+    if (status !== "authorized") {
+      setPhase("denied");
+      return;
+    }
+    setPhase("loading");
+    const found = await FK.findRecurringBills({ days: 90 });
+    setCandidates(found);
+    const initial: Record<string, boolean> = {};
+    // Default-check anything with confidence ≥ 0.6 (the strong patterns).
+    // Weaker candidates land unchecked so we never accidentally seed a bill
+    // the user doesn't actually pay every month.
+    found.forEach((c: FK.BillCandidate, i: number) => {
+      initial[`${i}`] = c.confidence >= 0.6;
+    });
+    setSelected(initial);
+    setPhase(found.length === 0 ? "empty" : "results");
+  };
+
+  const addSelectedAndContinue = () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      let added = 0;
+      candidates.forEach((c, i) => {
+        if (!selected[`${i}`]) return;
+        const bill = makeBillFromAction({
+          provider: c.provider,
+          cat: guessCategoryFromMerchant(c.provider),
+          amount: Math.round(c.medianAmount),
+          dueDay: c.typicalDueDay,
+        });
+        saveBill(bill);
+        added += 1;
+      });
+      if (added > 0) {
+        showToast(`Added ${added} bill${added === 1 ? "" : "s"} ✓`);
+      }
+    } finally {
+      setBusy(false);
+      next();
+    }
+  };
+
+  if (phase === "checking" || phase === "asking") {
+    return (
+      <>
+        <Scroll center>
+          <View style={{ width: 84, height: 84, borderRadius: 42, alignItems: "center", justifyContent: "center", backgroundColor: mix(t.accent, t.canvas, 0.14) }}>
+            <Icon name="card" size={32} color={t.accent} />
+          </View>
+          <Lede style={{ marginTop: 14, textAlign: "center" }}>
+            {phase === "asking" ? "Waiting for your approval…" : "Checking your account…"}
+          </Lede>
+        </Scroll>
+      </>
+    );
+  }
+
+  if (phase === "intro" || phase === "denied" || phase === "empty") {
+    const headline =
+      phase === "denied" ? "No problem — we'll keep going."
+      : phase === "empty" ? "Didn't spot any recurring patterns."
+      : "Got an Apple Card?";
+    const body =
+      phase === "denied"
+        ? "You can always add your bills manually. Tap Continue."
+        : phase === "empty"
+          ? "We checked the last 90 days but couldn't find a recurring pattern yet. You can always add bills manually."
+          : "I can scan the last 90 days of your Apple Card / Apple Cash transactions and surface any recurring bills I find. Nothing leaves your phone.";
+    return (
+      <>
+        <Scroll>
+          <View style={{ alignItems: "center", paddingTop: 8, paddingBottom: 18 }}>
+            <JudithAvatar persona={persona} size={60} state="idle" />
+          </View>
+          <Kicker>{phase === "intro" ? "One-tap setup" : "All good"}</Kicker>
+          <Title style={{ lineHeight: 34 }}>{headline}</Title>
+          <Lede style={{ marginTop: 8 }}>{body}</Lede>
+          {phase === "intro" && (
+            <View style={{ gap: 10, marginTop: 22 }}>
+              {[
+                { icon: "lock" as const, text: "On-device only — your transactions never leave your phone." },
+                { icon: "spark" as const, text: "I only pick out recurring bills, not every purchase." },
+                { icon: "check" as const, text: "Review each one before it's added — nothing is automatic." },
+              ].map(({ icon, text }) => (
+                <View key={text} style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderColor: withAlpha(t.accent, 0.25), backgroundColor: mix(t.accent, t.canvas, 0.09) }}>
+                  <Icon name={icon} size={14} color={t.accent} />
+                  <Txt size={13.5} color={t.txtMid} style={{ flex: 1 }}>{text}</Txt>
+                </View>
+              ))}
+            </View>
+          )}
+        </Scroll>
+        <CtaBar>
+          {phase === "intro" ? (
+            <>
+              <Btn label="Connect Apple Card" onPress={connect} />
+              <Btn label="Skip — I'll add manually" variant="ghost" onPress={next} />
+            </>
+          ) : (
+            <Btn label="Continue" onPress={next} />
+          )}
+        </CtaBar>
+      </>
+    );
+  }
+
+  // phase === "results"
+  const selectedCount = Object.values(selected).filter(Boolean).length;
+  return (
+    <>
+      <Scroll>
+        <View style={{ alignItems: "center", paddingTop: 8, paddingBottom: 14 }}>
+          <JudithAvatar persona={persona} size={56} state="idle" />
+        </View>
+        <Kicker>Found these</Kicker>
+        <Title>I spotted {candidates.length} recurring bill{candidates.length === 1 ? "" : "s"}.</Title>
+        <Lede style={{ marginTop: 6 }}>Uncheck anything that isn't actually a monthly bill. Amounts and due dates are estimates — you can edit them anytime.</Lede>
+
+        <View style={{ gap: 9, marginTop: 16 }}>
+          {candidates.map((c, i) => {
+            const id = `${i}`;
+            const on = selected[id] === true;
+            const cat = guessCategoryFromMerchant(c.provider);
+            return (
+              <Pressable
+                key={id}
+                onPress={() => setSelected((s) => ({ ...s, [id]: !on }))}
+                style={{
+                  padding: 14,
+                  borderRadius: t.radius.md,
+                  borderWidth: on ? 1.5 : 1,
+                  borderColor: on ? t.accent : t.hair,
+                  backgroundColor: on ? mix(t.accent, t.surface2, 0.1) : t.surface2,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 12,
+                }}
+              >
+                <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: on ? t.accent : t.hair, alignItems: "center", justifyContent: "center", backgroundColor: on ? t.accent : "transparent" }}>
+                  {on && <Icon name="check" size={12} color={t.onAccent} />}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Txt size={15} weight="semibold">{c.provider}</Txt>
+                  <Low size={12} style={{ marginTop: 2 }}>{cat} · ~day {c.typicalDueDay} · {c.occurrences}× in 90 days</Low>
+                </View>
+                <Mono size={16} weight="bold">${Math.round(c.medianAmount).toLocaleString()}</Mono>
+              </Pressable>
+            );
+          })}
+        </View>
+      </Scroll>
+      <CtaBar>
+        <Btn
+          label={selectedCount === 0 ? "Skip — none of these" : `Add ${selectedCount} bill${selectedCount === 1 ? "" : "s"}`}
+          onPress={addSelectedAndContinue}
+        />
+        <Btn label="Skip all" variant="ghost" onPress={next} />
+      </CtaBar>
+    </>
+  );
+}
+
 const FLOW: { id: string; C: (p: { ctx: Ctx }) => React.ReactElement }[] = [
   { id: "welcome", C: ScreenWelcome },
   { id: "name", C: ScreenName },
@@ -5854,6 +6153,7 @@ const FLOW: { id: string; C: (p: { ctx: Ctx }) => React.ReactElement }[] = [
   { id: "income", C: ScreenMonthlyIncome },
   { id: "paycycle", C: ScreenPayCycle },
   { id: "billsummary", C: ScreenBillSummary },
+  { id: "fkdiscovery", C: ScreenFkDiscovery },
   { id: "feature1", C: ScreenFeature1 },
   { id: "feature2", C: ScreenFeature2 },
   { id: "feature3", C: ScreenFeature3 },
@@ -5862,7 +6162,7 @@ const FLOW: { id: string; C: (p: { ctx: Ctx }) => React.ReactElement }[] = [
 ];
 const SETUP = ["name", "country", "language", "persona", "problem", "stakes", "intro", "billpicker", "voice"];
 const NO_BACK = ["welcome", "personalizing"];
-const SKIPPABLE = ["country", "persona", "income", "paycycle", "notifications"];
+const SKIPPABLE = ["country", "persona", "income", "paycycle", "notifications", "fkdiscovery"];
 const SAVE_FROM = 0;
 
 export default function OnboardingScreen() {

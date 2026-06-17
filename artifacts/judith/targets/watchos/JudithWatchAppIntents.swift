@@ -311,7 +311,13 @@ struct JudithWatchAppShortcuts: AppShortcutsProvider {
                 "\(.applicationName), open ask",
                 "Open \(.applicationName) ask"
             ],
-            shortTitle: "Ask Judith",
+            // Watch-side shortTitle is intentionally suffixed so the Apple
+            // Watch Action Button picker distinguishes this watchOS intent
+            // from the iOS OpenJudithAskIntent. Both apps share the
+            // "Judith" name, so without this the picker rows are identical
+            // and users bind the wrong one (which opens the phone app
+            // instead of the watch app).
+            shortTitle: "Ask Judith using Watch",
             systemImageName: "mic.fill"
         )
 
