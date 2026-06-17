@@ -107,6 +107,15 @@ struct AskView: View {
                         .font(.system(Font.TextStyle.caption, design: .rounded))
                         .foregroundStyle(Color.txtMid)
                         .padding(.top, 8)
+                    // watchOS suspends the app when the wrist drops, which
+                    // pauses the in-flight URL request. A small hint nudges
+                    // the user to keep the watch face up; if they don't,
+                    // ConnectivityService's 30s timeout surfaces a retryable
+                    // error instead of an indefinite spinner.
+                    Text("Keep your wrist raised")
+                        .font(.system(Font.TextStyle.caption2, design: .rounded))
+                        .foregroundStyle(Color.txtLow)
+                        .padding(.top, 2)
 
                 case .answered(let reply):
                     VStack(alignment: .leading, spacing: 8) {

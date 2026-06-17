@@ -235,12 +235,24 @@ final class ConnectivityService: NSObject, WCSessionDelegate, ObservableObject {
         request.httpMethod = method
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        // Hard cap. Without this, lowering the wrist suspends the watch app
+        // AND its in-flight URLSession request — the spinner stays "thinking"
+        // forever with no way to recover except force-quit. 30s is generous
+        // (typical ask completes in 3-8s) and gives the user a recoverable
+        // error path. URLSession honors this timer even across the lift-down
+        // -lift-up lifecycle once the app resumes.
+        request.timeoutInterval = 30
         if let body {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try encoder.encode(body)
         }
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch let err as URLError where err.code == .timedOut {
+            throw AskError.serverError("Took too long — keep your wrist raised and try again.")
+        }
         guard let http = response as? HTTPURLResponse else { throw AskError.invalidReply }
         guard (200..<300).contains(http.statusCode) else {
             if let error = try? decoder.decode(BackendErrorResponse.self, from: data),
