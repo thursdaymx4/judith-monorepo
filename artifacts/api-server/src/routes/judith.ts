@@ -33,6 +33,10 @@ import {
   parseGlobalCap,
   sttTtsOnboardingGlobalCap,
   sampleOnboardingGlobalCap,
+  deleteAccountLimiter,
+  watchTokenLimiter,
+  watchSnapshotLimiter,
+  watchSummaryLimiter,
 } from "../middleware/rateLimit";
 
 const router: IRouter = Router();
@@ -870,7 +874,7 @@ async function requireUser(req: Request, res: Response) {
   return { id: "guest", email: undefined, role: "guest" } as const;
 }
 
-router.post("/watch-token", async (req, res) => {
+router.post("/watch-token", watchTokenLimiter, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
@@ -890,7 +894,7 @@ router.post("/watch-token", async (req, res) => {
   }
 });
 
-router.post("/watch-snapshot", async (req, res) => {
+router.post("/watch-snapshot", watchSnapshotLimiter, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
@@ -977,7 +981,7 @@ function snapshotNumberPair(value: unknown): [number, number] | undefined {
   return first != null && second != null ? [first, second] : undefined;
 }
 
-router.get("/watch-summary", async (req, res) => {
+router.get("/watch-summary", watchSummaryLimiter, async (req, res) => {
   try {
     const snapshot = await loadWatchSnapshot(req, res);
     if (!snapshot) return;
@@ -1057,7 +1061,7 @@ router.post("/watch-ask", askLimiter, async (req, res) => {
 });
 // POST /api/judith/delete-account -> { ok: true }
 // Permanently removes the authenticated user's bills, profile, and auth account.
-router.post("/delete-account", async (req, res) => {
+router.post("/delete-account", deleteAccountLimiter, async (req, res) => {
   try {
     const user = await requireUser(req, res);
     if (!user) return;
@@ -1071,7 +1075,11 @@ router.post("/delete-account", async (req, res) => {
       .delete()
       .eq("user_id", user.id);
     if (billsErr) throw billsErr;
-    await admin.from("profiles").delete().eq("id", user.id);
+    const { error: profilesErr } = await admin
+      .from("profiles")
+      .delete()
+      .eq("id", user.id);
+    if (profilesErr) throw profilesErr;
     const { error: authErr } = await admin.auth.admin.deleteUser(user.id);
     if (authErr) throw authErr;
     res.json({ ok: true });

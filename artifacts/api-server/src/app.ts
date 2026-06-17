@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
@@ -67,5 +67,20 @@ app.use((req, res, next) =>
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
 app.use("/api", router);
+
+// Global error handler. The 4-arg signature (err, req, res, next) is what
+// makes Express treat this as an error-handling middleware. Without it, an
+// unhandled throw or rejected promise inside a route would leave the response
+// hanging until the client timed out (or worse, with newer Node versions,
+// crash the process via unhandledRejection). Every route handler already
+// wraps its body in try/catch, so this is a backstop — but the cost of one
+// missed `next(err)` somewhere in the codebase shouldn't be a hung request.
+app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
+  logger.error({ err, path: req.path, method: req.method }, "unhandled route error");
+  if (res.headersSent) {
+    return next(err);
+  }
+  res.status(500).json({ error: "Server error" });
+});
 
 export default app;
