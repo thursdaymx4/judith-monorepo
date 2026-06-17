@@ -174,6 +174,30 @@ final class ConnectivityService: NSObject, WCSessionDelegate, ObservableObject {
         }
     }
 
+    /// Upload a recorded .m4a clip from VoiceRecorderView to /watch-stt and
+    /// return the transcription. Requires the device to have a watch token
+    /// already provisioned (hasWatchToken == true) — call sites should fall
+    /// back to the chooser-based flow if the token isn't present.
+    func transcribeAudio(at url: URL) async throws -> String {
+        guard hasWatchToken else { throw AskError.phoneNotReachable }
+        let data: Data
+        do {
+            data = try Data(contentsOf: url)
+        } catch {
+            throw AskError.invalidReply
+        }
+        let body = WatchSttRequest(
+            audioBase64: data.base64EncodedString(),
+            mimeType: "audio/m4a"
+        )
+        let response: WatchSttResponse = try await sendBackendRequest(
+            path: "watch-stt",
+            method: "POST",
+            body: body
+        )
+        return response.text
+    }
+
     private func fetchSummaryFromBackend() async throws {
         let response: WatchSummaryResponse = try await sendBackendRequest(
             path: "watch-summary",
@@ -275,6 +299,15 @@ private struct WatchAskRequest: Encodable {
 
 private struct WatchAskResponse: Decodable {
     let answer: String
+}
+
+private struct WatchSttRequest: Encodable {
+    let audioBase64: String
+    let mimeType: String
+}
+
+private struct WatchSttResponse: Decodable {
+    let text: String
 }
 
 private struct BackendErrorResponse: Decodable {

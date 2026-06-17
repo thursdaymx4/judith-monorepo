@@ -472,7 +472,13 @@ struct JudithAppShortcuts: AppShortcutsProvider {
                 "\(.applicationName), open ask",
                 "Open ask in \(.applicationName)"
             ],
-            shortTitle: "Ask Judith",
+            // Phone-side shortTitle is intentionally suffixed so the Apple
+            // Watch Action Button picker can distinguish this iOS intent
+            // from the watchOS OpenJudithAskWatchIntent (which uses
+            // "Ask Judith using Watch"). Without this disambiguation, the
+            // picker shows two identical "Ask Judith" rows and the user
+            // unknowingly binds the phone variant.
+            shortTitle: "Ask Judith using Phone",
             systemImageName: "mic.fill"
         )
 

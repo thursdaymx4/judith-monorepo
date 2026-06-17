@@ -18,6 +18,12 @@ struct AskView: View {
     /// conversation — "Ask again" preserves it.
     @State private var history: [ConnectivityService.AskTurn] = []
 
+    /// Drives the full-screen voice recorder sheet. Tapping "Speak to Judith"
+    /// (or auto-start from the Action Button) flips this to true so the user
+    /// gets the Siri-style waveform UI instead of WatchKit's text-input
+    /// chooser. "Type or Scribble" continues to use presentTextInputController.
+    @State private var showVoiceRecorder = false
+
     /// TabView selection binding owned by ContentView. AskView reasserts
     /// `selectedTab = tagValue` after every WatchKit interop call so the
     /// user stays on the "Judith is thinking…" / answered screen instead
@@ -43,7 +49,7 @@ struct AskView: View {
 
                     VStack(spacing: 8) {
                         Button {
-                            beginAskFlow(voiceOnly: true)
+                            beginVoiceAsk()
                         } label: {
                             HStack(spacing: 6) {
                                 Image(systemName: "mic.fill")
@@ -157,7 +163,7 @@ struct AskView: View {
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 8)
                     Button("Ask Judith") {
-                        beginAskFlow(voiceOnly: true)
+                        beginVoiceAsk()
                     }
                     .buttonStyle(.bordered)
                     .tint(Color.judithAccent)
@@ -171,14 +177,24 @@ struct AskView: View {
         .onAppear {
             guard shouldAutoStartAsk else { return }
             autoStartedOnAppear = true
-            // Action-Button / Siri auto-start should mirror the Siri long-
-            // press UX: skip the speak/scribble chooser and go straight to
-            // dictation. The user can still scrolldown for type/scribble
-            // after cancelling the dictation modal.
-            beginAskFlow(voiceOnly: true)
+            // Action-Button / Siri auto-start opens the Siri-style waveform
+            // recorder directly — one press, mic on, no chooser.
+            beginVoiceAsk()
         }
         .onDisappear {
             autoStartedOnAppear = false
+        }
+        .fullScreenCover(isPresented: $showVoiceRecorder) {
+            VoiceRecorderView(
+                onDone: { url in
+                    showVoiceRecorder = false
+                    Task { await transcribeAndAsk(audioURL: url) }
+                },
+                onCancel: {
+                    showVoiceRecorder = false
+                    if case .capturing = viewState { viewState = .idle }
+                }
+            )
         }
     }
 
@@ -216,6 +232,41 @@ struct AskView: View {
     private func beginAskFlow(voiceOnly: Bool) {
         guard canStartInput else { return }
         Task { await requestInputAndAsk(voiceOnly: voiceOnly) }
+    }
+
+    /// Open the Siri-style waveform recorder. Used by the "Speak to Judith"
+    /// CTA, the Action-Button auto-start path, and the retry button on the
+    /// error state.
+    private func beginVoiceAsk() {
+        guard canStartInput else { return }
+        viewState = .capturing
+        showVoiceRecorder = true
+    }
+
+    /// Upload the recorded clip from VoiceRecorderView to /watch-stt and
+    /// feed the transcription into the existing submitQuery path. The temp
+    /// .m4a file is deleted whether transcription succeeds or fails so the
+    /// watch isn't left with growing audio files in tmp.
+    @MainActor
+    private func transcribeAndAsk(audioURL: URL) async {
+        defer { try? FileManager.default.removeItem(at: audioURL) }
+        viewState = .asking
+        do {
+            let text = try await connectivity.transcribeAudio(at: audioURL)
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            // Defensive: ElevenLabs Scribe sometimes returns empty/whitespace
+            // for sub-second clips. Don't ship that to /watch-ask.
+            guard !trimmed.isEmpty else {
+                viewState = .error("Couldn't hear that. Try again.")
+                return
+            }
+            query = trimmed
+            submitQuery()
+        } catch ConnectivityService.AskError.phoneNotReachable {
+            viewState = .error("Pair your watch with Judith on iPhone first.")
+        } catch {
+            viewState = .error("Couldn't transcribe that. Try again.")
+        }
     }
 
     private var canStartInput: Bool {

@@ -116,6 +116,10 @@ export const deleteAccountLimiter    = userLimiter(HOUR, 3);
 export const watchTokenLimiter       = userLimiter(HOUR, 12);
 export const watchSnapshotLimiter    = userLimiter(HOUR, 60);
 export const watchSummaryLimiter     = userLimiter(HOUR, 120);
+// Watch STT: each "Speak to Judith" tap on the watch sends ~1 short audio
+// clip. 60/hr covers heavy real-user use (1/min sustained) without giving
+// a stolen watch token room to burn through ElevenLabs Scribe.
+export const watchSttLimiter         = userLimiter(HOUR, 60);
 // Dev/test sessions loop through onboarding many times — give much more headroom.
 const isDev = process.env.NODE_ENV !== "production";
 export const askOnboardingLimiter    = ipLimiter(HOUR, isDev ? 500 : 60);

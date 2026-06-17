@@ -37,6 +37,7 @@ import {
   watchTokenLimiter,
   watchSnapshotLimiter,
   watchSummaryLimiter,
+  watchSttLimiter,
 } from "../middleware/rateLimit";
 
 const router: IRouter = Router();
@@ -1077,6 +1078,43 @@ router.post("/watch-ask", askLimiter, async (req, res) => {
     res.status(500).json({ error: "Judith could not respond right now" });
   }
 });
+
+// POST /api/judith/watch-stt  { audioBase64, mimeType } -> { text }
+// Speech-to-text endpoint for the watch's "Speak to Judith" recorder. Auth is
+// the watch HMAC token (same as every other /watch-* route) — the phone STT
+// route uses a Supabase JWT which the watch app doesn't hold.
+router.post("/watch-stt", watchSttLimiter, async (req, res) => {
+  try {
+    const verified = verifyWatchToken(watchBearer(req));
+    if (!verified) {
+      res.status(401).json({ error: "Invalid watch token" });
+      return;
+    }
+    const { audioBase64, mimeType } = req.body ?? {};
+    if (typeof audioBase64 !== "string" || !audioBase64) {
+      res.status(400).json({ error: "audioBase64 is required" });
+      return;
+    }
+    const buffer = Buffer.from(audioBase64, "base64");
+    // 5MB ceiling — single watch dictation is typically <200KB; this bounds
+    // a malicious or buggy client from feeding multi-minute payloads into
+    // ElevenLabs Scribe.
+    if (buffer.length > 5 * 1024 * 1024) {
+      res.status(413).json({ error: "audio too large (max 5MB)" });
+      return;
+    }
+    const text = await transcribe(
+      buffer,
+      typeof mimeType === "string" ? mimeType : "audio/m4a",
+      undefined,
+    );
+    res.json({ text });
+  } catch (err) {
+    logger.error({ err }, "watch-stt failed");
+    res.status(500).json({ error: "Transcription failed" });
+  }
+});
+
 // POST /api/judith/delete-account -> { ok: true }
 // Permanently removes the authenticated user's bills, profile, and auth account.
 router.post("/delete-account", deleteAccountLimiter, async (req, res) => {
