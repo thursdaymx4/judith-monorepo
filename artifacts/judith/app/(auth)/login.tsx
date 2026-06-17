@@ -22,7 +22,7 @@ type Busy = null | "submit" | "google" | "apple";
 export default function LoginScreen() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
-  const { persona, setGuest } = useJudith();
+  const { persona, setGuest, setName } = useJudith();
   const {
     signInWithPassword,
     signUp,
@@ -99,7 +99,15 @@ export default function LoginScreen() {
     setBusy("apple");
     try {
       if (appleAuthAvailable) {
-        await signInWithApple();
+        // Apple releases credential.fullName ONLY on the user's first sign-in
+        // (subsequent sign-ins return nulls). Persist immediately so the
+        // onboarding name screen can auto-skip — App Store guideline 4
+        // forbids re-asking the user for a name Apple has already provided.
+        const result = await signInWithApple();
+        const given = result?.givenName?.trim() ?? "";
+        const family = result?.familyName?.trim() ?? "";
+        const display = [given, family].filter(Boolean).join(" ");
+        if (display) setName(display);
       } else {
         await signInWithProvider("apple");
       }

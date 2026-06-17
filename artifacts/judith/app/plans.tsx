@@ -4,6 +4,7 @@ import {
   Animated,
   Easing,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   View,
@@ -14,6 +15,7 @@ import { Icon } from "@/components/Icon";
 import type { IconName } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { JudithLoader } from "@/components/JudithLoader";
+import { PRIVACY_URL, TERMS_URL, openLegal } from "@/constants/legal";
 import { Low, Mono, Txt, mix } from "@/components/ui";
 import { getPaywallLocale, fmtFee } from "@/constants/paywallLocale";
 import { useJudith } from "@/contexts/JudithStore";
@@ -216,9 +218,20 @@ export default function PlansModal() {
 
   const executeBuy = async (targetTier: "chat" | "voice", pkg: PurchasesPackage | null) => {
     if (!pkg) {
-      subscribe(targetTier);
-      showToast(targetTier === "chat" ? "Chat Ask activated ✓" : "Voice Ask activated ✓");
-      safeBack(router);
+      // No StoreKit package available — historically this was a "preview
+      // mode" fallback that granted the tier for free so Expo Go / web could
+      // exercise the gated UI. App Store review (June 2026) flagged this as
+      // automatically awarding the IAP without triggering the purchase flow.
+      // In production we MUST never grant a paid tier without StoreKit
+      // confirming the transaction. Show an error instead; only dev builds
+      // keep the old free-grant convenience for engineering testing.
+      if (__DEV__) {
+        subscribe(targetTier);
+        showToast(targetTier === "chat" ? "Chat Ask activated ✓ (dev)" : "Voice Ask activated ✓ (dev)");
+        safeBack(router);
+        return;
+      }
+      showToast("Purchase unavailable — please try again later");
       return;
     }
     setBuyingTier(targetTier);
@@ -557,7 +570,7 @@ export default function PlansModal() {
           ))}
         </View>
         <Low size={11} style={{ textAlign: "center", lineHeight: 16, marginTop: 4 }}>
-          Managed by the App Store / Google Play.{"\n"}
+          Managed by the {Platform.OS === "android" ? "Google Play" : "App"} Store.{"\n"}
           Prices shown in your local currency.
         </Low>
       </View>
@@ -574,6 +587,34 @@ export default function PlansModal() {
           <Low size={12} style={{ textDecorationLine: "underline" }}>Restore purchases</Low>
         )}
       </Pressable>
+
+      {/* ── LEGAL LINKS — required by App Store guideline 3.1.2(c) for any
+            screen offering an auto-renewable subscription. Must be visible
+            and functional from the subscription page itself, not buried in
+            Settings. ── */}
+      <View style={{ marginTop: 18, alignItems: "center", paddingHorizontal: 24 }}>
+        <Low size={11} style={{ textAlign: "center", lineHeight: 16 }}>
+          By subscribing, you agree to our{" "}
+          <Low
+            size={11}
+            color={t.accent}
+            style={{ textDecorationLine: "underline" }}
+            onPress={() => openLegal(TERMS_URL)}
+          >
+            Terms of Use (EULA)
+          </Low>
+          {" "}and{" "}
+          <Low
+            size={11}
+            color={t.accent}
+            style={{ textDecorationLine: "underline" }}
+            onPress={() => openLegal(PRIVACY_URL)}
+          >
+            Privacy Policy
+          </Low>
+          .
+        </Low>
+      </View>
     </ScrollView>
 
     {/* ── DEV-MODE test purchase confirmation ── */}

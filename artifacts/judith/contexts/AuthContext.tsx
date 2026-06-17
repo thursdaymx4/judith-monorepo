@@ -32,7 +32,13 @@ interface AuthContextValue {
     password: string,
   ) => Promise<{ needsConfirmation: boolean }>;
   signInWithProvider: (provider: OAuthProvider) => Promise<void>;
-  signInWithApple: () => Promise<void>;
+  /** Returns the display name Apple released to us on FIRST sign-in
+   *  (Apple only releases the name once — every subsequent sign-in
+   *  returns null fullName, per Apple's privacy design). Caller should
+   *  persist this immediately so the app never asks for the name again.
+   *  null means: don't ask (Apple decided not to share, or user has
+   *  signed in with Apple before on this account). */
+  signInWithApple: () => Promise<{ givenName: string | null; familyName: string | null } | null>;
   resetPassword: (email: string) => Promise<void>;
   establishSessionFromUrl: (url: string) => Promise<boolean>;
   updatePassword: (password: string) => Promise<void>;
@@ -196,7 +202,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             nonce: hashedNonce,
           });
         } catch (e) {
-          if ((e as { code?: string })?.code === "ERR_REQUEST_CANCELED") return;
+          if ((e as { code?: string })?.code === "ERR_REQUEST_CANCELED") return null;
           throw e;
         }
         if (!credential.identityToken) {
@@ -208,6 +214,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           nonce: rawNonce,
         });
         if (error) throw error;
+        // Apple only releases credential.fullName on the FIRST authorization;
+        // every subsequent sign-in returns null fields. Surface whatever Apple
+        // gave us so the caller can persist it and the app never has to ask
+        // for the name again (App Store guideline 4 requirement).
+        const fullName = credential.fullName;
+        return {
+          givenName: fullName?.givenName ?? null,
+          familyName: fullName?.familyName ?? null,
+        };
       },
       async resetPassword(email: string) {
         if (!supabase) throw new Error("Supabase not configured");

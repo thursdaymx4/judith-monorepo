@@ -1345,6 +1345,17 @@ function ScreenPersona({ ctx }: { ctx: Ctx }) {
 function ScreenName({ ctx }: { ctx: Ctx }) {
   const { t, persona, name, setName, next } = ctx;
   useOnbVoice("One more thing — what should I call you?", persona, ctx.language);
+  // Apple Sign-In (and other providers) may pre-populate `name` before the
+  // user reaches this step. Per App Store guideline 4, when a name is already
+  // available we MUST NOT re-ask. Skip the screen automatically.
+  const autoSkipped = useRef(false);
+  useEffect(() => {
+    if (autoSkipped.current) return;
+    if ((name ?? "").trim().length > 0) {
+      autoSkipped.current = true;
+      next();
+    }
+  }, [name, next]);
   const [val, setVal] = useState(name);
   const trimmed = val.trim();
   const submit = () => {
@@ -5721,7 +5732,7 @@ function ScreenAskPaywall({ ctx }: { ctx: Ctx }) {
             );
           })}
         </View>
-        <Low size={11} style={{ textAlign: 'center' }}>Cancel anytime · managed by App Store / Google Play</Low>
+        <Low size={11} style={{ textAlign: 'center' }}>Cancel anytime · managed by {Platform.OS === 'android' ? 'Google Play' : 'the App'} Store</Low>
         <Low size={11} style={{ textAlign: 'center', marginTop: 8, lineHeight: 16 }}>
           By continuing, you agree to our{' '}
           <Txt size={11} weight='medium' color={t.accent} style={{ textDecorationLine: 'underline' }} onPress={() => openLegal(TERMS_URL)}>Terms of Use</Txt>

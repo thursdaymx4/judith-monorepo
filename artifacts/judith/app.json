@@ -86,7 +86,7 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "Pinapayagan ang Judith na gamitin ang mikropono para marinig ang mga tanong mo."
+          "microphonePermission": "Judith uses the microphone so you can speak your bill questions and dictate new bills hands-free."
         }
       ],
       "expo-notifications",
