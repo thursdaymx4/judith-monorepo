@@ -12,6 +12,7 @@ private enum JudithIntentsConfig {
 private struct JudithIntentBill: Codable, Identifiable, Hashable {
     let id: String
     let provider: String
+    let cat: String?
     let amount: Double
     let dueDays: Int
     let dueLabel: String
@@ -74,6 +75,7 @@ private enum JudithPayloadStore {
             JudithBillEntity(
                 id: bill.id,
                 provider: bill.provider,
+                cat: bill.cat,
                 amount: bill.amount,
                 currency: payload.currency,
                 dueDays: bill.dueDays,
@@ -148,6 +150,7 @@ struct JudithBillEntity: AppEntity, Identifiable, Hashable {
 
     let id: String
     let provider: String
+    let cat: String?
     let amount: Double
     let currency: String
     let dueDays: Int
@@ -159,6 +162,19 @@ struct JudithBillEntity: AppEntity, Identifiable, Hashable {
         if dueDays == 1 { return "due tomorrow" }
         if dueDays < 0 { return "\(-dueDays) days overdue" }
         return "due in \(dueDays) days"
+    }
+
+    var isCreditCard: Bool {
+        let category = cat?.lowercased() ?? ""
+        let name = provider.lowercased()
+        return category.contains("credit") && category.contains("card") ||
+            name.contains("credit card") ||
+            name.contains("visa") ||
+            name.contains("mastercard") ||
+            name.contains("master card") ||
+            name.contains("amex") ||
+            name.contains("american express") ||
+            name.contains("sapphire")
     }
 
     var displayRepresentation: DisplayRepresentation {
@@ -295,6 +311,36 @@ struct QueryJudithMonthlyTotalIntent: AppIntent {
         let amount = "\(payload.currency)\(payload.totalOwed.formattedForJudithIntent)"
         let billWord = payload.unpaidCount == 1 ? "bill" : "bills"
         return .result(dialog: "You still owe \(amount) across \(payload.unpaidCount) unpaid \(billWord) this month.")
+    }
+}
+
+@available(iOS 16.0, *)
+struct QueryJudithCreditCardTotalIntent: AppIntent {
+    static var title: LocalizedStringResource = "Check Credit Card Total"
+    static var description = IntentDescription("Ask Judith for the total unpaid amount across all credit card bills.")
+    static var openAppWhenRun = false
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        guard JudithPayloadStore.load() != nil else {
+            return .result(dialog: "Judith does not have your latest bills yet. Open Judith once to sync your bills.")
+        }
+
+        let cards = JudithPayloadStore.bills
+            .filter { $0.isCreditCard }
+            .sorted { $0.dueDays == $1.dueDays ? $0.provider < $1.provider : $0.dueDays < $1.dueDays }
+
+        guard !cards.isEmpty else {
+            return .result(dialog: "You have no unpaid credit card bills in Judith right now.")
+        }
+
+        let total = cards.reduce(0) { $0 + $1.amount }
+        let currency = cards.first?.currency ?? ""
+        let billWord = cards.count == 1 ? "credit card bill" : "credit card bills"
+        let names = cards.prefix(3).map { $0.provider }.joined(separator: ", ")
+        let suffix = cards.count > 3 ? ", and \(cards.count - 3) more" : ""
+        return .result(
+            dialog: "You owe \(currency)\(total.formattedForJudithIntent) across \(cards.count) unpaid \(billWord): \(names)\(suffix)."
+        )
     }
 }
 
@@ -516,6 +562,18 @@ struct JudithAppShortcuts: AppShortcutsProvider {
         )
 
         AppShortcut(
+            intent: QueryJudithCreditCardTotalIntent(),
+            phrases: [
+                "\(.applicationName) credit card total",
+                "\(.applicationName), how much do I owe on credit cards",
+                "\(.applicationName), total my credit card bills",
+                "Ask \(.applicationName) how much I owe on credit cards"
+            ],
+            shortTitle: "Credit Cards",
+            systemImageName: "creditcard"
+        )
+
+        AppShortcut(
             intent: QueryJudithNextBillIntent(),
             phrases: [
                 "\(.applicationName) next bill",
@@ -548,17 +606,6 @@ struct JudithAppShortcuts: AppShortcutsProvider {
             ],
             shortTitle: "Mark Paid",
             systemImageName: "checkmark.circle"
-        )
-
-        AppShortcut(
-            intent: SnoozeJudithBillIntent(),
-            phrases: [
-                "\(.applicationName) snooze \(\.$bill)",
-                "\(.applicationName), remind me about \(\.$bill) later",
-                "\(.applicationName) snooze a bill"
-            ],
-            shortTitle: "Snooze Bill",
-            systemImageName: "bell.slash"
         )
 
         AppShortcut(
