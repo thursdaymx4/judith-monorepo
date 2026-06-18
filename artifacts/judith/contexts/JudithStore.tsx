@@ -85,6 +85,19 @@ export interface Toggles {
   nudges: boolean;
   /** Voice tier only: speak Judith's answers aloud. Off = text/chat reply only (e.g. in public). */
   voiceReplies: boolean;
+  /**
+   * Phase 3: send a notification when Judith spots a transaction that looks
+   * like one of the user's bills. User taps to confirm the mark-paid. ON by
+   * default — the user still has to tap, so this is the safe path.
+   */
+  autoPaySuggest: boolean;
+  /**
+   * Phase 3: when confidence is very high, automatically mark the bill paid
+   * AND send a "Marked paid — Undo?" confirmation notification. OFF by default
+   * per App Store review guidance — silent financial state changes are the
+   * highest-risk FK pattern, so this requires explicit user opt-in.
+   */
+  autoPayMark: boolean;
 }
 
 interface PersistShape {
@@ -146,7 +159,7 @@ const DEFAULTS: PersistShape = {
   accent: "mint",
   countryCode: DEFAULT_COUNTRY.code,
   currency: DEFAULT_COUNTRY.cur,
-  toggles: { dueReminders: true, widget: true, watch: true, nudges: true, voiceReplies: true },
+  toggles: { dueReminders: true, widget: true, watch: true, nudges: true, voiceReplies: true, autoPaySuggest: true, autoPayMark: false },
   reduceMotion: false,
   faceIdLock: false,
   onboarded: false,
@@ -897,12 +910,15 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
         AsyncStorage.removeItem(storageKey).catch(() => {});
       },
       loadDemoData: () => {
-        setState({ ...DEFAULTS, ...DEMO_PRESET });
+        // Demo presets pre-date the autoPaySuggest/autoPayMark toggles, so
+        // their `toggles` objects are missing those keys. Spread defaults
+        // first so any field absent from the preset falls back cleanly.
+        setState({ ...DEFAULTS, ...DEMO_PRESET, toggles: { ...DEFAULTS.toggles, ...DEMO_PRESET.toggles } });
       },
       loadDemoAccount: (code: string) => {
         const acct = DEMO_ACCOUNTS.find((a) => a.code === code);
         const preset = acct?.preset ?? DEMO_ACCOUNTS[DEMO_ACCOUNTS.length - 1]!.preset;
-        setState({ ...DEFAULTS, ...preset } as PersistShape);
+        setState({ ...DEFAULTS, ...preset, toggles: { ...DEFAULTS.toggles, ...preset.toggles } } as PersistShape);
       },
       restoreFromCloud: async () => {
         if (!user?.id) return false;
