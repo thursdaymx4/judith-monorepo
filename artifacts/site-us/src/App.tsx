@@ -1,6 +1,8 @@
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import Landing from "@/pages/Landing";
 import Support from "@/pages/Support";
+import Changelog from "@/pages/Changelog";
+import VsSiri from "@/pages/VsSiri";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -8,6 +10,8 @@ function Router() {
     <Switch>
       <Route path="/" component={Landing} />
       <Route path="/support" component={Support} />
+      <Route path="/changelog" component={Changelog} />
+      <Route path="/vs-siri" component={VsSiri} />
       <Route component={NotFound} />
     </Switch>
   );

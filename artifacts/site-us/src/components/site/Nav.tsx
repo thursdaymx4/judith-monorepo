@@ -10,6 +10,7 @@ const LINKS = [
   { label: "How it works", href: `${BASE}#ask`, hash: true },
   { label: "Features", href: `${BASE}#features`, hash: true },
   { label: "Pricing", href: `${BASE}#pricing`, hash: true },
+  { label: "What's New", href: "/changelog", hash: false },
   { label: "Support", href: "/support", hash: false },
 ];
 

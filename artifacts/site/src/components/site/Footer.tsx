@@ -38,6 +38,8 @@ export function Footer() {
               <FooterA href={`${import.meta.env.BASE_URL}#pricing`}>
                 Pricing
               </FooterA>
+              <FooterLink href="/changelog">What's New</FooterLink>
+              <FooterLink href="/vs-siri">Judith vs Siri</FooterLink>
             </FooterCol>
             <FooterCol title="Support">
               <FooterLink href="/support">Help &amp; FAQ</FooterLink>
