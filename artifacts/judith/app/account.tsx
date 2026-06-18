@@ -382,8 +382,12 @@ export default function AccountScreen() {
       restart();
       setDeleteOpen(false);
       setDeleteText("");
-    } catch {
-      showToast("Couldn’t delete your account — try again");
+    } catch (e) {
+      const message =
+        e instanceof Error && e.message === "request_timed_out"
+          ? "Deletion took too long — check your connection and try again"
+          : "Couldn’t delete your account — try again";
+      showToast(message);
     } finally {
       setDeleting(false);
     }
@@ -835,19 +839,12 @@ export default function AccountScreen() {
 
       {/* delete-account modal */}
       <Modal visible={deleteOpen} transparent animationType="fade" onRequestClose={() => setDeleteOpen(false)} statusBarTranslucent>
-        {/* Layout: outer Pressable backdrop dismisses on tap. The inner card
-            View claims the touch responder for any tap inside its bounds via
-            onStartShouldSetResponder, so the backdrop's onPress NEVER fires
-            for taps inside the card. Inner Pressables (Cancel/Delete) still
-            receive their own taps because RN grants the responder to the
-            deepest claimant. The previous sibling-absolute-Pressable layout
-            had the backdrop intercept the Delete tap on iOS. */}
-        <Pressable
-          onPress={() => setDeleteOpen(false)}
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center", padding: 26 }}
-        >
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 26 }}>
+          <Pressable
+            onPress={() => { if (!deleting) setDeleteOpen(false); }}
+            style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(0,0,0,0.6)" }}
+          />
           <View
-            onStartShouldSetResponder={() => true}
             style={{ width: "100%", maxWidth: 380, borderRadius: 18, borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface2, padding: 22 }}
           >
             <View
@@ -903,8 +900,9 @@ export default function AccountScreen() {
             />
             <View style={{ flexDirection: "row", gap: 10, marginTop: 18 }}>
               <Pressable
-                onPress={() => setDeleteOpen(false)}
-                style={{ flex: 1, alignItems: "center", paddingVertical: 13, borderRadius: 11, borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface3 }}
+                onPress={() => { if (!deleting) setDeleteOpen(false); }}
+                disabled={deleting}
+                style={{ flex: 1, alignItems: "center", paddingVertical: 13, borderRadius: 11, borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface3, opacity: deleting ? 0.5 : 1 }}
               >
                 <Txt size={14} weight="medium">
                   Cancel
@@ -912,23 +910,27 @@ export default function AccountScreen() {
               </Pressable>
               <Pressable
                 onPress={deleteAccount}
-                disabled={!canDelete}
+                disabled={!canDelete || deleting}
                 style={{
                   flex: 1,
                   alignItems: "center",
                   paddingVertical: 13,
                   borderRadius: 11,
                   backgroundColor: canDelete ? "#ff645f" : mix("#ff645f", t.surface2, 0.3),
-                  opacity: canDelete ? 1 : 0.5,
+                  opacity: canDelete && !deleting ? 1 : 0.5,
                 }}
               >
-                <Txt size={14} weight="semibold" color="#ffffff">
-                  Delete account
-                </Txt>
+                {deleting ? (
+                  <JudithLoader variant="button" />
+                ) : (
+                  <Txt size={14} weight="semibold" color="#ffffff">
+                    Delete account
+                  </Txt>
+                )}
               </Pressable>
             </View>
           </View>
-        </Pressable>
+        </View>
       </Modal>
     </Screen>
   );

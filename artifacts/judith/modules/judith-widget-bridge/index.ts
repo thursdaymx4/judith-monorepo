@@ -115,6 +115,37 @@ export function clearIntentCommands(ids: string[]): void {
   getBridge()?.clearIntentCommands?.(JSON.stringify(ids));
 }
 
+// ─── Phase 3 Sprint 3 — Auto-pay background scan ──────────────────────────
+// All four are no-ops on Android / Expo Go. JS calls writeAutoPaySnapshot
+// any time bills, toggles, currency, or the blacklist change so the BG
+// task picks up fresh inputs. After the BG task runs, JS reads + clears
+// pending entries on next app launch.
+
+export function writeAutoPaySnapshot(json: string): void {
+  const fn = getBridge() as { writeAutoPaySnapshot?: (j: string) => void } | undefined;
+  fn?.writeAutoPaySnapshot?.(json);
+}
+
+export function readAutoPayPending(): string {
+  const fn = getBridge() as { readAutoPayPending?: () => string } | undefined;
+  return fn?.readAutoPayPending?.() ?? "[]";
+}
+
+export function clearAutoPayPending(): void {
+  const fn = getBridge() as { clearAutoPayPending?: () => void } | undefined;
+  fn?.clearAutoPayPending?.();
+}
+
+export function scheduleAutoPayBGTask(): boolean {
+  const fn = getBridge() as { scheduleAutoPayBGTask?: () => boolean } | undefined;
+  return fn?.scheduleAutoPayBGTask?.() ?? false;
+}
+
+export function cancelAutoPayBGTask(): void {
+  const fn = getBridge() as { cancelAutoPayBGTask?: () => void } | undefined;
+  fn?.cancelAutoPayBGTask?.();
+}
+
 function parseJson<T>(raw: string | undefined, fallback: T): T {
   if (!raw) return fallback;
   try {

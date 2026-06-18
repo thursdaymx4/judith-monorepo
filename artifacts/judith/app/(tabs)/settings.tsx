@@ -18,6 +18,7 @@ import { DEMO_ACCOUNTS } from "@/constants/demoAccounts";
 import { requestPermission } from "@/lib/notifications";
 import { getICloudInfo, isICloudAvailable } from "@/lib/icloud-backup";
 import { cancelAll as cancelPersonaPreview, preview as playPersonaPreview, prefetchPreview } from "@/lib/onboardingAudio";
+import { scanAndApply, type ScanResult } from "@/lib/financeMatching";
 import type { PersonaId } from "@/constants/personas";
 
 function initialsOf(name: string): string {
@@ -272,6 +273,16 @@ const DEVICE_TOGGLES: ToggleDef[] = [
   { key: "watch", icon: "watch", t: "Apple Watch", s: "Glanceable on your wrist" },
 ];
 
+// Phase 3 — FinanceKit auto-pay detection. On a non-eligible device
+// (Android, no Apple Card history, pre-iOS-17.4) the toggles still
+// flip but the underlying scan no-ops. Off-by-default for auto-mark
+// is deliberate: App Store guidance treats silent financial state
+// changes as the highest-risk FK pattern.
+const AUTO_PAY_TOGGLES: ToggleDef[] = [
+  { key: "autoPaySuggest", icon: "bell",  t: "Suggest mark-paid",  s: "Notify me when a bill clears on Apple Card" },
+  { key: "autoPayMark",    icon: "spark", t: "Auto-mark when sure", s: "When I'm confident, mark it paid for you (with undo)" },
+];
+
 // Simple lowercase substring match used by the top search field.
 function matches(needle: string, ...haystacks: (string | undefined)[]): boolean {
   const n = needle.trim().toLowerCase();
@@ -307,10 +318,35 @@ export default function SettingsScreen() {
   // Picking only what Settings uses keeps the surface obvious.
   const {
     setPersona, setLanguage, setToggle, setReduceMotion, setTheme,
-    restart, loadDemoAccount, setCountry, setCurrency, restoreFromCloud,
+    restart, loadDemoAccount, setCountry, setCurrency, restoreFromCloud, markPaid,
   } = useJudithActions();
   const { user } = useAuth();
   const email = user?.email ?? (guest ? "Guest account" : "—");
+
+  // Phase 3 — manual "Scan now" entry point. Calls the FinanceKit matcher
+  // against the user's bills, applies any auto-marks the user opted into,
+  // and shows a tiny toast / inline summary. Real bills come from the
+  // store; we read them on click so the user can scan immediately after
+  // adding a bill without remounting.
+  const [scanning, setScanning] = useState(false);
+  const [lastScan, setLastScan] = useState<ScanResult | null>(null);
+  const billsForScan = useJudithSelect((s) => s.bills);
+  const onScanNow = useCallback(async () => {
+    if (scanning) return;
+    setScanning(true);
+    try {
+      const result = await scanAndApply({
+        bills: billsForScan.map((b) => ({ id: b.id, provider: b.provider, amount: b.amount })),
+        currency,
+        suggestEnabled: toggles.autoPaySuggest,
+        autoMarkEnabled: toggles.autoPayMark,
+        markPaid,
+      });
+      setLastScan(result);
+    } finally {
+      setScanning(false);
+    }
+  }, [scanning, billsForScan, currency, toggles.autoPaySuggest, toggles.autoPayMark, markPaid]);
 
   // ── Top-level UI state ────────────────────────────────────────────────
   const [searchQ, setSearchQ] = useState("");
@@ -506,6 +542,14 @@ export default function SettingsScreen() {
   const visWidget = !searchActive || m("Home-screen widget", "lock screen widget add to home");
   const visDevPreview = !searchActive || m("Preview on your devices");
   const visDevices = !searchActive || visDeviceRows.some(Boolean) || visWidget || visDevPreview;
+
+  // Auto-pay detection (FinanceKit)
+  const visAutoPayRows = searchActive
+    ? AUTO_PAY_TOGGLES.map((d) => m(d.t, d.s))
+    : AUTO_PAY_TOGGLES.map(() => true);
+  const visAutoPayScan = !searchActive || m("Scan now", "Run a manual scan");
+  const visAutoPayActivity = !searchActive || m("Auto-pay activity", "View what Judith matched");
+  const visAutoPay = !searchActive || visAutoPayRows.some(Boolean) || visAutoPayScan || visAutoPayActivity;
 
   // Backup
   const visBackupRow = !searchActive || m("iCloud backup", lastBackupLabel);
@@ -876,6 +920,49 @@ export default function SettingsScreen() {
             iconColor={t.accent}
             title="Preview on your devices"
             subtitle="Widgets & Apple Watch concepts"
+          />
+        )}
+      </Section>
+
+      {/* ── AUTO-PAY DETECTION (FinanceKit) ─── */}
+      <Section
+        title="Auto-pay detection"
+        footer="Apple Card and Apple Cash users only. Nothing leaves your phone — Judith reads your authorized transactions on-device to see which bills cleared. Toggle off both rows to disable entirely."
+        hidden={!visAutoPay}
+      >
+        {AUTO_PAY_TOGGLES.filter((_, i) => visAutoPayRows[i]).map((d, idx) => {
+          const on = toggles[d.key];
+          return (
+            <Row
+              key={d.key}
+              first={idx === 0}
+              icon={d.icon}
+              iconColor={on ? t.accent : t.txtMid}
+              title={d.t}
+              subtitle={d.s}
+              right={<Toggle on={on} onPress={() => setToggle(d.key, !on)} />}
+            />
+          );
+        })}
+        {visAutoPayScan && (
+          <Row
+            icon="spark"
+            iconColor={t.accent}
+            title={scanning ? "Scanning…" : "Scan now"}
+            subtitle={
+              lastScan
+                ? `${lastScan.totalCandidates} candidates · ${lastScan.autoMarked} marked · ${lastScan.suggested} suggested`
+                : "Run a manual scan against your bills"
+            }
+            onPress={scanning ? undefined : onScanNow}
+          />
+        )}
+        {visAutoPayActivity && (
+          <Row
+            icon="grid"
+            title="Auto-pay activity"
+            subtitle="See what Judith matched and undo if wrong"
+            onPress={() => router.push("/auto-pay-activity" as never)}
           />
         )}
       </Section>

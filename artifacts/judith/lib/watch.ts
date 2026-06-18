@@ -34,6 +34,8 @@ export { WatchConnectivity };
 export interface UpcomingBill {
   id: string;
   provider: string;
+  /** App category, e.g. "Credit card". */
+  cat?: string;
   /** Remaining amount due this cycle for this bill row. */
   amount: number;
   dueDays: number;
@@ -161,6 +163,7 @@ function buildPayload(bills: Bill[], persona: PersonaId, currency: string): Watc
     upcomingBills: payableUpcoming.map((b) => ({
       id: b.id,
       provider: b.provider,
+      cat: b.cat,
       amount: remainingThisMonth(b, today),
       dueDays: b.dueDays,
       dueLabel: b.dueLabel,

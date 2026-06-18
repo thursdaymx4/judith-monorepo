@@ -8,6 +8,7 @@ import SwiftUI
 struct UpcomingBill: Codable, Identifiable, Hashable {
     let id: String
     let provider: String
+    let cat: String?
     let amount: Double
     let dueDays: Int
     let dueLabel: String

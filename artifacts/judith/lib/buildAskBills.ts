@@ -7,7 +7,7 @@
  * Lifted on 2026-06-14 after a divergent watch implementation produced
  * inflated unpaid totals on the watch ($1,246 vs phone's $1,168).
  */
-import { ccProjectedFuture, currentCycleDue, totalOwed, type Bill } from "@/constants/data";
+import { ccProjectedFuture, currentCycleDue, getFundingSource, totalOwed, type Bill } from "@/constants/data";
 import type { AskBill } from "@/lib/proxy";
 
 const MONTH_NAMES = [
@@ -68,6 +68,7 @@ export function buildAskBills(bills: Bill[], today: Date = new Date()): AskBill[
           .map((r) => r.paid)
           .filter((n) => Number.isFinite(n) && n > 0)
       : [];
+    const fundingSource = getFundingSource(b);
     return {
       id: b.id,
       provider: b.provider,
@@ -81,6 +82,8 @@ export function buildAskBills(bills: Bill[], today: Date = new Date()): AskBill[
       businessName: b.businessName,
       chargedToCard: b.chargedToCard,
       cardName,
+      fundingSource,
+      fundingSourceName: b.fundingSourceName ?? null,
       ...(showPartial ? { paidThisPeriod, originalTotal: totalOwed(b) } : {}),
       ...(showFullyPaid ? { paidThisPeriod, originalTotal: totalOwed(b) } : {}),
       ...(recentPaidAmounts.length >= 2 ? { recentPaidAmounts } : {}),
@@ -122,6 +125,7 @@ export function buildAskBills(bills: Bill[], today: Date = new Date()): AskBill[
       const cardName = b.chargedToCard && b.parentCardId
         ? (bills.find((c) => c.id === b.parentCardId)?.provider ?? null)
         : null;
+      const fundingSource = getFundingSource(b);
       return {
         id: b.id,
         provider: b.provider,
@@ -135,6 +139,8 @@ export function buildAskBills(bills: Bill[], today: Date = new Date()): AskBill[
         businessName: b.businessName,
         chargedToCard: b.chargedToCard,
         cardName,
+        fundingSource,
+        fundingSourceName: b.fundingSourceName ?? null,
         isProjection: true,
       };
     });

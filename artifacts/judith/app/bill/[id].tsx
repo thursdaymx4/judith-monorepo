@@ -9,6 +9,7 @@ import { Btn, Card, Low, Mono, ProviderLogo, Screen, SectionLabel, SheetHeader, 
 import {
   ccProjectedFuture,
   fmtCurrency,
+  getFundingSource,
   isPartialBill,
   partialPct,
   totalOwed,
@@ -435,14 +436,23 @@ export default function BillDetailModal() {
           <Low size={12} numberOfLines={1}>
             {bill.cat}{bill.house ? ` · ${bill.house}` : ""}
           </Low>
-          {bill.chargedToCard && (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
-              <Icon name="card" size={11} color={t.accent} />
-              <Low size={11} color={t.accent} weight="medium" numberOfLines={1}>
-                {parentCard ? `via ${parentCard.provider}` : "via card"}
-              </Low>
-            </View>
-          )}
+          {(() => {
+            const fs = getFundingSource(bill);
+            if (fs === "manual") return null;
+            const icon: "card" | "bank" | "wallet" = fs;
+            const label =
+              fs === "card"   ? (parentCard ? `via ${parentCard.provider}` : "via card") :
+              fs === "bank"   ? `via ${bill.fundingSourceName || "bank"}` :
+                                `via ${bill.fundingSourceName || "wallet"}`;
+            return (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                <Icon name={icon} size={11} color={t.accent} />
+                <Low size={11} color={t.accent} weight="medium" numberOfLines={1}>
+                  {label}
+                </Low>
+              </View>
+            );
+          })()}
         </View>
         <View style={{ alignItems: "flex-end", gap: 3 }}>
           <Mono size={22} weight="bold" color={statusColor}>{money(viewedOwed)}</Mono>

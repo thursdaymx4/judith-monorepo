@@ -19,6 +19,7 @@ try {
 import { Icon } from "@/components/Icon";
 import { Btn, Chip, Low, Mono, ProviderLogo, RoundBtn, SectionLabel, Txt } from "@/components/ui";
 import { CAT_ICONS, PROVIDERS, findDuplicate, fmtCurrency, makeManualBill } from "@/constants/data";
+import { walletNameFor } from "@/constants/countries";
 import { getCategoryLabel, getVisibleCategories } from "@/constants/categoryLocale";
 import { getProviders, getProviderPlaceholder } from "@/constants/providers";
 import { useJudith } from "@/contexts/JudithStore";
@@ -82,6 +83,11 @@ export default function AddBillScreen() {
   const [statementDay, setStatementDay] = useState(existing?.statementDay ?? 5);
   const [chargedToCard, setChargedToCard] = useState(existing?.chargedToCard ?? false);
   const [parentCardId, setParentCardId] = useState<string | undefined>(existing?.parentCardId);
+  const [fundingSource, setFundingSource] = useState<"manual" | "card" | "bank" | "wallet">(
+    existing?.fundingSource ??
+      (existing?.chargedToCard && existing?.parentCardId ? "card" : "manual"),
+  );
+  const [fundingSourceName, setFundingSourceName] = useState<string>(existing?.fundingSourceName ?? "");
   const [err, setErr] = useState("");
 
   const suggestions = useMemo(() => getProviders(country.code, cat), [country.code, cat]);
@@ -149,8 +155,13 @@ export default function AddBillScreen() {
       reminderDays: remDays,
       reminderHour: remHour,
       statementDay: cat === "Credit card" ? statementDay : undefined,
-      chargedToCard: canLinkCard && chargedToCard ? true : undefined,
-      parentCardId: canLinkCard && chargedToCard ? parentCardId : undefined,
+      chargedToCard: canLinkCard && fundingSource === "card" ? true : undefined,
+      parentCardId: canLinkCard && fundingSource === "card" ? parentCardId : undefined,
+      fundingSource: canLinkCard ? fundingSource : "manual",
+      fundingSourceName:
+        canLinkCard && (fundingSource === "bank" || fundingSource === "wallet") && fundingSourceName.trim()
+          ? fundingSourceName.trim()
+          : undefined,
     });
 
     if (isEdit && existing) {
@@ -641,54 +652,89 @@ export default function AddBillScreen() {
           </View>
         )}
 
-        {/* auto-charged to a credit card */}
-        {canLinkCard && (
-          <View style={{ marginTop: 18 }}>
-            <FieldLabel text="Auto-charged to a card?" opt />
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              <Chip
-                label="No"
-                selected={!chargedToCard}
-                onPress={() => { haptics.selection(); setChargedToCard(false); setParentCardId(undefined); }}
-              />
-              <Chip
-                label="Yes, via card"
-                icon="card"
-                selected={chargedToCard}
-                onPress={() => { haptics.selection(); setChargedToCard(true); }}
-              />
-            </View>
-            {chargedToCard && (
-              <View style={{ marginTop: 10 }}>
-                {cardChoices.length > 0 ? (
-                  <>
-                    <Low size={12} style={{ marginBottom: 8 }}>Which card pays this?</Low>
-                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                      {cardChoices.map((c) => (
-                        <Chip
-                          key={c.id}
-                          label={c.provider}
-                          icon="card"
-                          selected={parentCardId === c.id}
-                          onPress={() => { haptics.selection(); setParentCardId(c.id); }}
-                        />
-                      ))}
-                    </View>
-                  </>
-                ) : (
-                  <Low size={12}>
-                    No credit cards yet — add one and you can link it here later.
-                  </Low>
-                )}
+        {/* how is this bill paid? */}
+        {canLinkCard && (() => {
+          const walletLabel = walletNameFor(country.code);
+          const options: { id: "manual" | "card" | "bank" | "wallet"; label: string; icon?: "card" | "bank" | "wallet" }[] = [
+            { id: "manual", label: "Manual" },
+            { id: "card",   label: "Card",     icon: "card" },
+            { id: "bank",   label: "Bank",     icon: "bank" },
+            { id: "wallet", label: walletLabel, icon: "wallet" },
+          ];
+          const pickFs = (next: "manual" | "card" | "bank" | "wallet") => {
+            haptics.selection();
+            setFundingSource(next);
+            setChargedToCard(next === "card");
+            if (next !== "card") setParentCardId(undefined);
+            if (next === "wallet" && !fundingSourceName.trim()) setFundingSourceName(walletLabel);
+            if (next === "manual" || next === "card") setFundingSourceName("");
+          };
+          return (
+            <View style={{ marginTop: 18 }}>
+              <FieldLabel text="How is this paid?" opt />
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                {options.map((opt) => (
+                  <Chip
+                    key={opt.id}
+                    label={opt.label}
+                    icon={opt.icon}
+                    selected={fundingSource === opt.id}
+                    onPress={() => pickFs(opt.id)}
+                  />
+                ))}
               </View>
-            )}
-            <Low size={12} style={{ marginTop: 7 }}>
-              {chargedToCard
-                ? "Judith won't nudge you to pay this directly — she'll watch the linked card instead."
-                : "Turn this on for bills that auto-bill to a credit card."}
-            </Low>
-          </View>
-        )}
+              {fundingSource === "card" && (
+                <View style={{ marginTop: 10 }}>
+                  {cardChoices.length > 0 ? (
+                    <>
+                      <Low size={12} style={{ marginBottom: 8 }}>Which card pays this?</Low>
+                      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                        {cardChoices.map((c) => (
+                          <Chip
+                            key={c.id}
+                            label={c.provider}
+                            icon="card"
+                            selected={parentCardId === c.id}
+                            onPress={() => { haptics.selection(); setParentCardId(c.id); }}
+                          />
+                        ))}
+                      </View>
+                    </>
+                  ) : (
+                    <Low size={12}>
+                      No credit cards yet — add one and you can link it here later.
+                    </Low>
+                  )}
+                </View>
+              )}
+              {(fundingSource === "bank" || fundingSource === "wallet") && (
+                <View style={{ marginTop: 10 }}>
+                  <Low size={12} style={{ marginBottom: 8 }}>
+                    {fundingSource === "bank" ? "Which bank account?" : "Which wallet?"}
+                  </Low>
+                  <TextInput
+                    value={fundingSourceName}
+                    onChangeText={setFundingSourceName}
+                    placeholder={fundingSource === "bank" ? "e.g. BPI checking" : walletLabel}
+                    placeholderTextColor={t.txtLow}
+                    style={inputStyle}
+                    returnKeyType="done"
+                    maxLength={48}
+                  />
+                </View>
+              )}
+              <Low size={12} style={{ marginTop: 7 }}>
+                {fundingSource === "card"
+                  ? "Judith won't nudge you to pay this directly — she'll watch the linked card instead."
+                  : fundingSource === "bank"
+                    ? "Judith will treat this as auto-debited from your bank."
+                    : fundingSource === "wallet"
+                      ? `Judith will treat this as auto-paid via ${fundingSourceName || walletLabel}.`
+                      : "Set how this bill is paid so Judith can answer questions about it."}
+              </Low>
+            </View>
+          );
+        })()}
 
         {/* house / property tag */}
         <View style={{ marginTop: 18 }}>

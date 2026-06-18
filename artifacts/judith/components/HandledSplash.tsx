@@ -9,6 +9,7 @@ import Animated, {
   withSequence,
   withSpring,
   withTiming,
+  type SharedValue,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BreathingBackdrop } from "@/components/BreathingBackdrop";
@@ -316,7 +317,7 @@ function FloatingChip({
   theme,
 }: {
   chip: Chip;
-  progress: Animated.SharedValue<number>;
+  progress: SharedValue<number>;
   theme: ReturnType<typeof useTheme>;
 }) {
   const style = useAnimatedStyle(() => ({

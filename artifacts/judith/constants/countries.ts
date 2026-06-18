@@ -183,6 +183,74 @@ export const MOM_ENDEARMENT: Record<string, string> = {
   NZ: "Love",
 };
 
+/**
+ * Default e-wallet name per country — used to pre-fill the "Wallet" funding
+ * source label on the bill funding-source picker. Users can override the
+ * label with any free text (e.g. "Maya", "Coins.ph"), so this is just a
+ * sensible starting point.
+ *
+ * "E-wallet" is the generic fallback for countries without a dominant
+ * national wallet — the user can rename it.
+ */
+export const WALLET_NAMES: Record<string, string> = {
+  PH: "GCash",
+  ID: "GoPay",
+  MY: "Touch 'n Go",
+  SG: "PayNow",
+  TH: "PromptPay",
+  VN: "MoMo",
+  JP: "PayPay",
+  KR: "KakaoPay",
+  CN: "WeChat Pay",
+  HK: "Octopus",
+  TW: "Line Pay",
+  IN: "UPI",
+  US: "Apple Cash",
+  CA: "Interac",
+  MX: "Mercado Pago",
+  BR: "Pix",
+  AR: "Mercado Pago",
+  CO: "Nequi",
+  CL: "MACH",
+  GB: "Revolut",
+  IE: "Revolut",
+  ES: "Bizum",
+  PT: "MB Way",
+  FR: "Lydia",
+  DE: "PayPal",
+  IT: "PayPal",
+  NL: "Tikkie",
+  BE: "Payconiq",
+  SE: "Swish",
+  DK: "MobilePay",
+  NO: "Vipps",
+  FI: "MobilePay",
+  PL: "BLIK",
+  CZ: "PayPal",
+  SK: "PayPal",
+  RO: "Revolut",
+  BG: "Revolut",
+  HR: "Revolut",
+  GR: "Revolut",
+  HU: "Revolut",
+  UA: "monobank",
+  RU: "SBP",
+  TR: "Papara",
+  SA: "STC Pay",
+  AE: "Careem Pay",
+  EG: "Fawry",
+  NG: "Opay",
+  ZA: "SnapScan",
+  AU: "PayID",
+  NZ: "POLi",
+};
+
+/** Returns the country's default wallet name, or "E-wallet" if unknown. */
+export function walletNameFor(countryCode: string | undefined | null): string {
+  if (!countryCode) return "E-wallet";
+  return WALLET_NAMES[countryCode] ?? "E-wallet";
+}
+
 export const DEFAULT_COUNTRY = COUNTRIES[0]!; // Philippines
 
 /**
