@@ -3933,14 +3933,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                 </>
               ) : (
                 <>
-                  <Btn
-                    label="Log this bill →"
-                    onPress={() => {
-                      haptics.selection();
-                      setManualReturn("prompt");
-                      openForm({ cat: sample.cat, icon: sample.icon });
-                    }}
-                  />
+                  <Btn label="Log this bill →" onPress={() => { haptics.success(); saveForm(); }} />
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 1 }}>
                     <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
                     <Low size={12}>or speak</Low>
