@@ -27,11 +27,13 @@
           "group.com.app.judith",
           "group.com.app.judith"
         ],
-        "com.apple.developer.financekit": ["transactions"]
+        "com.apple.developer.financekit": ["financial-data"]
       },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSFinancialDataUsageDescription": "Judith uses your authorized financial transactions to detect bill payments and suggest recurring bills."
+        "NSFinancialDataUsageDescription": "Judith uses your authorized financial transactions to detect bill payments and suggest recurring bills.",
+        "UIBackgroundModes": ["fetch", "processing"],
+        "BGTaskSchedulerPermittedIdentifiers": ["com.app.judith.autopay-scan"]
       }
     },
     "android": {

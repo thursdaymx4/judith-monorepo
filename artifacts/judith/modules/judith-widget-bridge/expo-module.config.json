@@ -1,6 +1,7 @@
 {
   "platforms": ["ios"],
   "ios": {
-    "modules": ["JudithWidgetBridgeModule"]
+    "modules": ["JudithWidgetBridgeModule"],
+    "appDelegateSubscribers": ["JudithWidgetBridgeAppDelegate"]
   }
 }

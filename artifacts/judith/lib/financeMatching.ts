@@ -18,7 +18,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import {
+  clearAutoPayPending,
   findRecentBillPaymentMatches,
+  readAutoPayPending,
+  scheduleAutoPayBGTask,
+  writeAutoPaySnapshot,
   type FinanceBillPaymentMatch,
 } from "judith-widget-bridge";
 
@@ -298,6 +302,108 @@ async function scheduleNotification(spec: NotifSpec): Promise<void> {
 function formatMoney(currency: string, amount: number): string {
   const rounded = Math.round(amount).toLocaleString("en-US");
   return `${currency || "$"}${rounded}`;
+}
+
+// ─── Sprint 3 — Background scan synchronization ──────────────────────────
+// JS owns the source of truth (Supabase via JudithStore, plus the
+// AsyncStorage activity log + blacklist). The Swift BG task is a read-only
+// consumer of the snapshot we write here. After the BG task fires, JS reads
+// + drains the pending queue on the next app launch and reconciles each
+// entry into the activity log + bill state.
+
+export interface AutoPaySnapshotInput {
+  bills: Array<{ id: string; provider: string; amount: number }>;
+  currency: string;
+  suggestEnabled: boolean;
+  autoMarkEnabled: boolean;
+}
+
+/**
+ * Serialize the user's current bills + toggles + currency + the existing
+ * blacklist into App Group UserDefaults so the BG task has fresh inputs
+ * for its next run. Also re-schedules the BG task — iOS coalesces, so a
+ * fresh submit on every snapshot write is fine and ensures background
+ * processing keeps running even if the OS dropped the prior request
+ * (Low Power Mode, Background App Refresh off, etc.).
+ *
+ * Call any time bills mutate OR the toggles change. No-op when both
+ * toggles are off (we also cancel the scheduled task in that case so we
+ * don't burn the user's background-refresh budget on nothing).
+ */
+export async function syncBackgroundSnapshot(snap: AutoPaySnapshotInput): Promise<void> {
+  const blacklist = await loadBlacklist();
+  const payload = {
+    bills: snap.bills,
+    currency: snap.currency,
+    suggestEnabled: snap.suggestEnabled,
+    autoMarkEnabled: snap.autoMarkEnabled,
+    blacklist,
+  };
+  writeAutoPaySnapshot(JSON.stringify(payload));
+  if (snap.suggestEnabled || snap.autoMarkEnabled) {
+    scheduleAutoPayBGTask();
+  }
+}
+
+/**
+ * Drain the pending queue the BG task left behind. For each entry:
+ *   - Append to the AsyncStorage activity log (so the in-app Activity
+ *     screen reflects the BG-fired notifications)
+ *   - If the entry is an auto-mark, apply markPaid() to bring the bill
+ *     state in line with what the user already saw in the notification
+ *   - Skip entries that are already represented in the log (defensive —
+ *     covers the case where the user tapped the notification action
+ *     before the app launched, which already wrote a confirmed/undone
+ *     row via handleAutoPayResponse)
+ */
+export async function consumePendingMatches(
+  markPaid: (billId: string) => void,
+): Promise<void> {
+  let pending: unknown;
+  try {
+    pending = JSON.parse(readAutoPayPending());
+  } catch {
+    pending = [];
+  }
+  if (!Array.isArray(pending) || pending.length === 0) {
+    clearAutoPayPending();
+    return;
+  }
+
+  const existing = await loadActivity();
+  const existingIds = new Set(existing.map((e) => e.id));
+
+  for (const raw of pending) {
+    if (!raw || typeof raw !== "object") continue;
+    const r = raw as Partial<ActivityEntry>;
+    if (typeof r.id !== "string" || existingIds.has(r.id)) continue;
+    if (typeof r.billId !== "string") continue;
+    if (typeof r.billProvider !== "string") continue;
+    if (typeof r.amount !== "number") continue;
+    if (typeof r.txnId !== "string") continue;
+    if (typeof r.confidence !== "number") continue;
+    if (r.kind !== "auto-marked" && r.kind !== "suggested") continue;
+
+    const entry: ActivityEntry = {
+      id: r.id,
+      ts: typeof r.ts === "number" ? r.ts : Date.now(),
+      kind: r.kind,
+      billId: r.billId,
+      billProvider: r.billProvider,
+      amount: r.amount,
+      currency: typeof r.currency === "string" ? r.currency : "",
+      txnId: r.txnId,
+      confidence: r.confidence,
+    };
+
+    await appendActivity(entry);
+
+    if (entry.kind === "auto-marked") {
+      markPaid(entry.billId);
+    }
+  }
+
+  clearAutoPayPending();
 }
 
 /**

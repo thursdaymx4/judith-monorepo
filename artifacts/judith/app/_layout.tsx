@@ -63,6 +63,8 @@ import { useWatchSync } from "@/hooks/useWatchSync";
 import { useTheme } from "@/hooks/useTheme";
 import { registerNotificationCategories, syncRemotePushRegistrationToSession } from "@/lib/notifications";
 import { handleAutoPayResponse, registerAutoPayCategories } from "@/lib/notificationActions";
+import { consumePendingMatches, syncBackgroundSnapshot } from "@/lib/financeMatching";
+import { cancelAutoPayBGTask } from "judith-widget-bridge";
 import { configurePurchases, identifyUser, resetUser, getActiveTier } from "@/lib/purchases";
 import { SubscriptionProvider } from "@/lib/SubscriptionProvider";
 
@@ -134,7 +136,7 @@ function BiometricLockScreen({ onUnlock }: { onUnlock: () => void }) {
 
 function RootLayoutNav() {
   const { session, loading, configured, recoveryActive } = useAuth();
-  const { onboarded, hydrated, guest, faceIdLock, tier, subscribe, markPaid, snooze } = useJudith();
+  const { onboarded, hydrated, guest, faceIdLock, tier, subscribe, markPaid, snooze, bills, toggles, currency } = useJudith();
   const t = useTheme();
   const router = useRouter();
 
@@ -180,6 +182,34 @@ function RootLayoutNav() {
   // financeMatching.ts can carry working "Mark Paid" / "Undo" / "Not this
   // one" buttons. Idempotent; safe across remounts.
   useEffect(() => { registerAutoPayCategories().catch(() => {}); }, []);
+
+  // Phase 3 Sprint 3 — consume any pending matches the BG task wrote
+  // while the app was closed. Runs once per fresh hydration so a cold
+  // start that landed on a notification action also runs the reconciler
+  // BEFORE the user reaches Activity / Home.
+  useEffect(() => {
+    if (!hydrated || !isOnboarded) return;
+    void consumePendingMatches(markPaid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, isOnboarded]);
+
+  // Phase 3 Sprint 3 — push a fresh snapshot to the BG task any time
+  // bills, toggles, or currency change. Cancels the scheduled BG task
+  // when both toggles flip off so we don't waste the user's Background
+  // App Refresh budget on no-op scans.
+  useEffect(() => {
+    if (!hydrated || !isOnboarded) return;
+    if (!toggles.autoPaySuggest && !toggles.autoPayMark) {
+      cancelAutoPayBGTask();
+      return;
+    }
+    void syncBackgroundSnapshot({
+      bills: bills.map((b) => ({ id: b.id, provider: b.provider, amount: b.amount })),
+      currency,
+      suggestEnabled: toggles.autoPaySuggest,
+      autoMarkEnabled: toggles.autoPayMark,
+    });
+  }, [hydrated, isOnboarded, bills, toggles.autoPaySuggest, toggles.autoPayMark, currency]);
 
   // Pull and apply OTA updates promptly (first reopen, not the second).
   useOtaUpdate();
