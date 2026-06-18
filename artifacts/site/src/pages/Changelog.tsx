@@ -50,7 +50,7 @@ const GROUPS: Group[] = [
       {
         icon: Mic,
         title: "Ask Siri, anywhere",
-        body: "\"Hey Siri, what's on my Apple Card this month?\" \"How much do I have left after bills?\" Judith now plugs into Siri via App Intents on both iPhone and Apple Watch — no need to open the app for the quick stuff.",
+        body: "\"Judith, what's on my Apple Card this month?\" \"How much do I have left after bills?\" Judith now plugs into Siri via App Intents on both iPhone and Apple Watch — no need to open the app for the quick stuff.",
       },
       {
         icon: BellRing,
