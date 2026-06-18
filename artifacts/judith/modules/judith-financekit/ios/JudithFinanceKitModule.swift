@@ -24,21 +24,81 @@ public final class JudithFinanceKitModule: Module {
         Name("JudithFinanceKitModule")
 
         AsyncFunction("isAvailable") { () -> Bool in
-            await Self.computeAvailability()
+            #if DEBUG
+            if Self.isMockEnabled { return true }
+            #endif
+            return await Self.computeAvailability()
         }
 
         AsyncFunction("currentAuthorizationStatus") { () -> String in
-            await Self.computeAuthorizationStatus().rawJSValue
+            #if DEBUG
+            if Self.isMockEnabled { return "authorized" }
+            #endif
+            return await Self.computeAuthorizationStatus().rawJSValue
         }
 
         AsyncFunction("requestAuthorization") { () -> String in
-            await Self.computeRequestAuthorization().rawJSValue
+            #if DEBUG
+            if Self.isMockEnabled { return "authorized" }
+            #endif
+            return await Self.computeRequestAuthorization().rawJSValue
         }
 
         AsyncFunction("findRecurringBills") { (days: Int) -> [[String: Any]] in
-            await Self.findRecurringBills(days: max(1, min(days, 365)))
+            #if DEBUG
+            if Self.isMockEnabled { return Self.mockCandidates() }
+            #endif
+            return await Self.findRecurringBills(days: max(1, min(days, 365)))
+        }
+
+        // The next two are NO-OPS in production. The full
+        // implementations live behind `#if DEBUG`, so the bytecode never
+        // ships to Release / App Store builds.
+        Function("setMockEnabled") { (enabled: Bool) -> Bool in
+            #if DEBUG
+            Self.isMockEnabled = enabled
+            return enabled
+            #else
+            _ = enabled
+            return false
+            #endif
+        }
+
+        Function("isMockEnabled") { () -> Bool in
+            #if DEBUG
+            return Self.isMockEnabled
+            #else
+            return false
+            #endif
         }
     }
+
+    // MARK: — Mock mode (DEBUG only)
+
+    #if DEBUG
+    /// In-memory toggle controlled by the JS dev tools / a hidden onboarding
+    /// button. Flips the four async functions above into deterministic stub
+    /// implementations so the FK discovery screen can be exercised in
+    /// Manila on an iPhone with no Apple Card history. Never persisted,
+    /// resets to false on app relaunch.
+    private static var isMockEnabled: Bool = false
+
+    /// Six realistic-looking US recurring-bill candidates spanning streaming,
+    /// telecom, utilities, and insurance. Confidence values track what the
+    /// real clustering algorithm would emit for each profile.
+    private static func mockCandidates() -> [[String: Any]] {
+        return [
+            ["provider": "Netflix",          "medianAmount": 15.99,  "typicalDueDay": 10, "occurrences": 3, "confidence": 0.92],
+            ["provider": "Spotify",          "medianAmount": 12.99,  "typicalDueDay": 15, "occurrences": 3, "confidence": 0.91],
+            ["provider": "Disney+",          "medianAmount": 10.99,  "typicalDueDay": 7,  "occurrences": 3, "confidence": 0.90],
+            ["provider": "Verizon Wireless", "medianAmount": 85.00,  "typicalDueDay": 5,  "occurrences": 3, "confidence": 0.88],
+            // Variable amount on purpose so the user sees a lower-confidence row.
+            ["provider": "Con Edison",       "medianAmount": 142.50, "typicalDueDay": 22, "occurrences": 3, "confidence": 0.65],
+            // Only 2 occurrences in window → just above the 0.6 default-check threshold.
+            ["provider": "Geico Insurance",  "medianAmount": 168.00, "typicalDueDay": 28, "occurrences": 2, "confidence": 0.55],
+        ]
+    }
+    #endif
 
     // MARK: — Availability + auth
 

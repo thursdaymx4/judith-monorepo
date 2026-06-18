@@ -46,6 +46,10 @@ interface NativeModuleShape {
   currentAuthorizationStatus(): Promise<FKAuthStatus>;
   requestAuthorization(): Promise<FKAuthStatus>;
   findRecurringBills(days: number): Promise<BillCandidate[]>;
+  /** DEBUG-only. No-op in Release builds. */
+  setMockEnabled?(enabled: boolean): boolean;
+  /** DEBUG-only. Returns false in Release builds. */
+  isMockEnabled?(): boolean;
 }
 
 const FK = (NativeModules.JudithFinanceKitModule ?? null) as NativeModuleShape | null;
@@ -103,5 +107,36 @@ export async function findRecurringBills(
     return await FK.findRecurringBills(opts.days ?? 90);
   } catch {
     return [];
+  }
+}
+
+/**
+ * **DEBUG BUILDS ONLY.** Flips an in-memory toggle inside the Swift module
+ * so that `isAvailable()`, `requestAuthorization()`, and
+ * `findRecurringBills()` return canned data instead of hitting FinanceKit.
+ *
+ * Enables Phase-2 UI testing on iPhones with no Apple Card (e.g. all PH
+ * devices). The mock implementation lives inside `#if DEBUG` in the
+ * Swift module, so Release / App Store builds compile WITHOUT this code
+ * — calling this function in production is a silent no-op and Apple
+ * reviewers cannot enable it.
+ *
+ * The flag does not persist across app launches.
+ */
+export function setMockEnabled(enabled: boolean): boolean {
+  if (Platform.OS !== "ios" || !FK || !FK.setMockEnabled) return false;
+  try {
+    return FK.setMockEnabled(enabled);
+  } catch {
+    return false;
+  }
+}
+
+export function isMockEnabled(): boolean {
+  if (Platform.OS !== "ios" || !FK || !FK.isMockEnabled) return false;
+  try {
+    return FK.isMockEnabled();
+  } catch {
+    return false;
   }
 }

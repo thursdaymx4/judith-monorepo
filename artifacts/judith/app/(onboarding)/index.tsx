@@ -5957,12 +5957,17 @@ function ScreenFkDiscovery({ ctx }: { ctx: Ctx }) {
   // through unchanged for everyone outside the eligible US Apple Card
   // population. This matches the "Flow X" decision Carlo confirmed: never
   // block onboarding on FK absence.
+  //
+  // DEV builds intentionally render the intro EVEN when FK is unavailable,
+  // so the "Use mock FK data (dev)" button is reachable on a no-Apple-Card
+  // device. Production builds always auto-skip — the dev short-circuit
+  // depends on `__DEV__` which is stripped at build time.
   useEffect(() => {
     let alive = true;
     void (async () => {
       const available = await FK.isAvailable();
       if (!alive) return;
-      if (!available) {
+      if (!available && !__DEV__) {
         next();
         return;
       }
@@ -6071,6 +6076,22 @@ function ScreenFkDiscovery({ ctx }: { ctx: Ctx }) {
           {phase === "intro" ? (
             <>
               <Btn label="Connect Apple Card" onPress={connect} />
+              {/* Dev-only mock entry point. The button is gated on __DEV__
+                  AND the native module's mock implementation also lives
+                  behind `#if DEBUG`, so Release / App Store builds neither
+                  render this button nor have any way to flip the flag.
+                  Lets Carlo exercise the FK discovery UI on a PH iPhone
+                  with no Apple Card. */}
+              {__DEV__ && (
+                <Btn
+                  label="Use mock FK data (dev)"
+                  variant="soft"
+                  onPress={() => {
+                    FK.setMockEnabled(true);
+                    void connect();
+                  }}
+                />
+              )}
               <Btn label="Skip — I'll add manually" variant="ghost" onPress={next} />
             </>
           ) : (
