@@ -305,7 +305,7 @@ export async function deleteAccount(): Promise<{ ok: true }> {
   if (!session?.access_token) {
     throw new Error("Sign in required to delete an account");
   }
-  return postJson("/delete-account", {});
+  return postJson("/delete-account", {}, 20_000);
 }
 
 export function askJudith(

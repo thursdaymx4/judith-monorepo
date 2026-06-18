@@ -43,6 +43,7 @@ import { PERSONAS, type PersonaId } from "@/constants/personas";
 import { JUDITH_VOICE } from "@/constants/voiceLines";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle } from "react-native-svg";
+import { useAuth } from "@/contexts/AuthContext";
 import { useJudith } from "@/contexts/JudithStore";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { getCategoryLabel } from "@/constants/categoryLocale";
@@ -1360,18 +1361,23 @@ function ScreenPersona({ ctx }: { ctx: Ctx }) {
 
 function ScreenName({ ctx }: { ctx: Ctx }) {
   const { t, persona, name, setName, next } = ctx;
+  const { user } = useAuth();
+  const authProvider = (user?.app_metadata?.provider as string | undefined) ?? "";
+  const authProviders = user?.app_metadata?.providers;
+  const isAppleSignIn =
+    authProvider === "apple" ||
+    (Array.isArray(authProviders) && authProviders.includes("apple"));
   useOnbVoice("One more thing — what should I call you?", persona, ctx.language);
-  // Apple Sign-In (and other providers) may pre-populate `name` before the
-  // user reaches this step. Per App Store guideline 4, when a name is already
-  // available we MUST NOT re-ask. Skip the screen automatically.
+  // Apple may withhold fullName after the first authorization. Per App Store
+  // guideline 4, Apple-authenticated users must not be required to provide it.
   const autoSkipped = useRef(false);
   useEffect(() => {
     if (autoSkipped.current) return;
-    if ((name ?? "").trim().length > 0) {
+    if (isAppleSignIn || (name ?? "").trim().length > 0) {
       autoSkipped.current = true;
       next();
     }
-  }, [name, next]);
+  }, [isAppleSignIn, name, next]);
   const [val, setVal] = useState(name);
   const trimmed = val.trim();
   const submit = () => {
@@ -3082,7 +3088,9 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                       {form.due ? ordinal(parseInt(form.due, 10)) : "Pick a day"}
                     </Txt>
                   </View>
-                  <Icon name="chevron-right" size={13} color={t.txtLow} style={{ marginLeft: 6 }} />
+                  <View style={{ marginLeft: 6 }}>
+                    <Icon name="chevron-right" size={13} color={t.txtLow} />
+                  </View>
                 </Pressable>
               </View>
               {getProviders(ctx.country.code, activeFormCat.cat).length > 0 && (
