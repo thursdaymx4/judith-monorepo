@@ -62,6 +62,7 @@ import { useOtaUpdate } from "@/hooks/useOtaUpdate";
 import { useWatchSync } from "@/hooks/useWatchSync";
 import { useTheme } from "@/hooks/useTheme";
 import { registerNotificationCategories, syncRemotePushRegistrationToSession } from "@/lib/notifications";
+import { handleAutoPayResponse, registerAutoPayCategories } from "@/lib/notificationActions";
 import { configurePurchases, identifyUser, resetUser, getActiveTier } from "@/lib/purchases";
 import { SubscriptionProvider } from "@/lib/SubscriptionProvider";
 
@@ -175,6 +176,11 @@ function RootLayoutNav() {
   // Register notification action categories (Mark Paid / Remind Tomorrow buttons).
   useEffect(() => { registerNotificationCategories().catch(() => {}); }, []);
 
+  // Phase 3 — register Auto-pay categories so notifications fired from
+  // financeMatching.ts can carry working "Mark Paid" / "Undo" / "Not this
+  // one" buttons. Idempotent; safe across remounts.
+  useEffect(() => { registerAutoPayCategories().catch(() => {}); }, []);
+
   // Pull and apply OTA updates promptly (first reopen, not the second).
   useOtaUpdate();
 
@@ -199,18 +205,37 @@ function RootLayoutNav() {
     if (!isOnboarded) return;
 
     function handleResponse(response: Notifications.NotificationResponse) {
-      const billId = response.notification.request.content.data?.billId as string | undefined;
-      if (typeof billId !== "string") return;
+      // Auto-pay action buttons (Mark Paid / Undo / Not this one) are
+      // dispatched first. They process the activity log entry in-place and
+      // never need the bill-detail navigation below. If the handler
+      // claims the response (returns true), bill-reminder routing is
+      // skipped — prevents a double-action where the same tap both undoes
+      // an auto-mark AND pushes the user into the bill screen.
+      void handleAutoPayResponse(response, markPaid).then((handled) => {
+        if (handled) return;
 
-      const action = response.actionIdentifier;
-      if (action === "pay-now") {
-        markPaid(billId);
-      } else if (action === "remind-tomorrow") {
-        snooze(billId, 1);
-      } else {
-        // Default tap — open the bill detail
-        router.push(`/bill/${billId}`);
-      }
+        const billId = response.notification.request.content.data?.billId as string | undefined;
+        if (typeof billId !== "string") {
+          // No billId AND not an Auto-pay response — could be the default
+          // tap on an Auto-pay notification. Route to the activity log so
+          // the user can act there.
+          const category = response.notification.request.content.categoryIdentifier;
+          if (category === "SUGGEST_PAID" || category === "AUTO_MARK_UNDO") {
+            router.push("/auto-pay-activity" as never);
+          }
+          return;
+        }
+
+        const action = response.actionIdentifier;
+        if (action === "pay-now") {
+          markPaid(billId);
+        } else if (action === "remind-tomorrow") {
+          snooze(billId, 1);
+        } else {
+          // Default tap — open the bill detail
+          router.push(`/bill/${billId}`);
+        }
+      });
     }
 
     // Cold start: app was launched by tapping a notification

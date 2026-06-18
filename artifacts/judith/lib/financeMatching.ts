@@ -182,11 +182,22 @@ export async function scanAndApply(opts: ScanOptions): Promise<ScanResult> {
     opts.lookbackDays ?? 45,
   );
 
+  let matchesToProcess = apiResult.matches;
+
   if (!apiResult.supported || apiResult.authorizationStatus !== "authorized") {
-    return result;
+    // Dev-only fallback so PH iPhones (no Apple Card, no FK eligibility)
+    // can exercise the suggest / auto-mark / notification flow end-to-end.
+    // Stripped from production via __DEV__ — Release / App Store builds
+    // never reach this branch because __DEV__ is false at build time and
+    // dead-code-eliminated.
+    if (__DEV__ && opts.bills.length > 0) {
+      matchesToProcess = makeMockMatchesForDev(opts.bills);
+    } else {
+      return result;
+    }
   }
 
-  for (const m of apiResult.matches) {
+  for (const m of matchesToProcess) {
     result.totalCandidates += 1;
 
     if (m.confidence < LOW_CONF_DROP) {
@@ -287,4 +298,37 @@ async function scheduleNotification(spec: NotifSpec): Promise<void> {
 function formatMoney(currency: string, amount: number): string {
   const rounded = Math.round(amount).toLocaleString("en-US");
   return `${currency || "$"}${rounded}`;
+}
+
+/**
+ * Dev-only: generate fake FK matches against the user's first 3 bills so
+ * Phase 3 (suggest / auto-mark / notification action handlers) can be
+ * exercised end-to-end on a PH iPhone with no Apple Card. Confidence
+ * values span the bucket boundaries (0.92 high, 0.72 medium, 0.55 low)
+ * so a single Scan exercises all three paths.
+ *
+ * Guarded by `__DEV__` at the only call site above — Release builds dead-
+ * code-eliminate this and the helper is never reached.
+ */
+function makeMockMatchesForDev(
+  bills: Array<{ id: string; provider: string; amount: number }>,
+): FinanceBillPaymentMatch[] {
+  const sample = bills.slice(0, 3);
+  // Synthetic txn IDs include a timestamp so two consecutive "Scan now"
+  // taps in dev produce distinct activity entries (one per scan) instead
+  // of being deduped by the blacklist check.
+  const baseTs = Date.now();
+  const confidenceLadder = [0.92, 0.72, 0.55];
+  return sample.map((b, i) => ({
+    billId: b.id,
+    provider: b.provider,
+    transactionId: `mock-${baseTs}-${i}`,
+    merchantName: b.provider,
+    transactionDescription: `${b.provider} (mock dev match)`,
+    amount: b.amount,
+    currency: "USD",
+    transactionDate: new Date(baseTs - i * 86_400_000).toISOString(),
+    postedDate: new Date(baseTs - i * 86_400_000).toISOString(),
+    confidence: confidenceLadder[i] ?? 0.7,
+  }));
 }
