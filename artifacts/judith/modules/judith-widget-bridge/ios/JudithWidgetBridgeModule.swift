@@ -2,6 +2,7 @@ import BackgroundTasks
 import CoreSpotlight
 import ExpoModulesCore
 import Foundation
+import UIKit
 import UniformTypeIdentifiers
 import UserNotifications
 import WidgetKit
@@ -22,6 +23,7 @@ public final class JudithWidgetBridgeModule: Module {
         static let intentCommandsKey = "judith.intent_commands_v1"
         static let spotlightDomain = "com.app.judith.bills"
         static let spotlightIndexName = "JudithBills"
+        static let autoPayBGTaskIdentifier = "com.app.judith.autopay-scan"
         // Phase 3 Sprint 3 — Auto-pay background scan App Group keys.
         // JS writes the snapshot whenever bills/toggles change so the BG
         // handler has fresh inputs without needing to wake the RN runtime.
@@ -172,7 +174,7 @@ public final class JudithWidgetBridgeModule: Module {
 
         Function("cancelAutoPayBGTask") { () in
             BGTaskScheduler.shared.cancel(
-                taskRequestWithIdentifier: JudithWidgetBridgeAppDelegate.autoPayBGTaskIdentifier
+                taskRequestWithIdentifier: Config.autoPayBGTaskIdentifier
             )
         }
     }
@@ -186,7 +188,7 @@ public final class JudithWidgetBridgeModule: Module {
     /// or Background App Refresh disabled in Settings).
     static func scheduleAutoPayBGTask() -> Bool {
         let request = BGAppRefreshTaskRequest(
-            identifier: JudithWidgetBridgeAppDelegate.autoPayBGTaskIdentifier
+            identifier: Config.autoPayBGTaskIdentifier
         )
         request.earliestBeginDate = Date(timeIntervalSinceNow: 4 * 60 * 60)
         do {
@@ -269,12 +271,9 @@ public final class JudithWidgetBridgeModule: Module {
             return "[]"
         }()
 
-        // Reuse the live match path so confidence + dedup logic stays
-        // identical between BG and foreground scans. We talk through a
-        // brand-new module instance because the AppDelegate path doesn't
-        // hold a reference to the RN-side instance.
-        let module = JudithWidgetBridgeModule()
-        let matchesJson = await module.findRecentBillPaymentMatches(
+        // Reuse equivalent matching logic without constructing an Expo
+        // Module. Background tasks run outside the RN module lifecycle.
+        let matchesJson = await Self.findRecentBillPaymentMatchesForBackground(
             billsJson: candidatesJson,
             currency: currency,
             lookbackDays: 45
@@ -385,6 +384,210 @@ public final class JudithWidgetBridgeModule: Module {
         formatter.maximumFractionDigits = 0
         let rounded = formatter.string(from: NSNumber(value: amount)) ?? "\(Int(amount))"
         return "\(currency)\(rounded)"
+    }
+
+    private static func findRecentBillPaymentMatchesForBackground(
+        billsJson: String,
+        currency: String,
+        lookbackDays: Int
+    ) async -> String {
+        let bills = decodeBillPaymentCandidatesForBackground(billsJson)
+        guard !bills.isEmpty else {
+            return encodeForBackground([
+                "supported": true,
+                "authorizationStatus": "notRequired",
+                "matches": []
+            ])
+        }
+
+        #if canImport(FinanceKit)
+        if #available(iOS 17.4, *) {
+            do {
+                let store = FinanceStore.shared
+                let status = try await store.authorizationStatus()
+                guard status == .authorized else {
+                    return encodeForBackground([
+                        "supported": true,
+                        "authorizationStatus": financeAuthorizationStatusString(status),
+                        "matches": []
+                    ])
+                }
+
+                let transactionQuery = TransactionQuery(
+                    sortDescriptors: [SortDescriptor(\Transaction.transactionDate, order: .reverse)],
+                    limit: 500
+                )
+                let transactions = try await store.transactions(query: transactionQuery)
+                let since = Date().addingTimeInterval(-Double(max(1, lookbackDays)) * 24 * 60 * 60)
+                let matches = matchBillPaymentsForBackground(
+                    bills: bills,
+                    transactions: transactions,
+                    currency: currency,
+                    since: since
+                )
+
+                return encodeForBackground([
+                    "supported": true,
+                    "authorizationStatus": "authorized",
+                    "matches": matches
+                ])
+            } catch {
+                return encodeForBackground([
+                    "supported": false,
+                    "authorizationStatus": "unknown",
+                    "reason": error.localizedDescription,
+                    "matches": []
+                ])
+            }
+        }
+        #endif
+
+        return encodeForBackground([
+            "supported": false,
+            "authorizationStatus": "frameworkUnavailable",
+            "reason": "FinanceKit is unavailable in this SDK or on this OS.",
+            "matches": []
+        ])
+    }
+
+    private static func decodeBillPaymentCandidatesForBackground(_ json: String) -> [BillPaymentCandidate] {
+        guard let data = json.data(using: .utf8),
+              let decoded = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+            return []
+        }
+
+        return decoded.compactMap { object in
+            guard let id = object["id"] as? String,
+                  let provider = object["provider"] as? String else {
+                return nil
+            }
+            let amount = numericValueForBackground(object["amount"])
+            guard !id.isEmpty, !provider.isEmpty, amount > 0 else {
+                return nil
+            }
+            return BillPaymentCandidate(id: id, provider: provider, amount: amount)
+        }
+    }
+
+    private static func numericValueForBackground(_ value: Any?) -> Double {
+        if let double = value as? Double { return double }
+        if let int = value as? Int { return Double(int) }
+        if let number = value as? NSNumber { return number.doubleValue }
+        return 0
+    }
+
+    private static func normalizedTokenTextForBackground(_ value: String) -> String {
+        value
+            .lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+    }
+
+    private static func paymentTextScoreForBackground(provider: String, transactionText: String) -> Double {
+        let providerText = normalizedTokenTextForBackground(provider)
+        let transactionText = normalizedTokenTextForBackground(transactionText)
+        guard !providerText.isEmpty, !transactionText.isEmpty else {
+            return 0
+        }
+
+        if transactionText.contains(providerText) || providerText.contains(transactionText) {
+            return 0.58
+        }
+
+        let providerTokens = Set(providerText.split(separator: " ").map(String.init).filter { $0.count > 2 })
+        let transactionTokens = Set(transactionText.split(separator: " ").map(String.init).filter { $0.count > 2 })
+        guard !providerTokens.isEmpty else {
+            return 0
+        }
+
+        let overlap = providerTokens.intersection(transactionTokens).count
+        return min(0.5, Double(overlap) / Double(providerTokens.count) * 0.5)
+    }
+
+    private static func isoStringForBackground(_ date: Date?) -> String {
+        guard let date else { return "" }
+        return ISO8601DateFormatter().string(from: date)
+    }
+
+    #if canImport(FinanceKit)
+    @available(iOS 17.4, *)
+    private static func matchBillPaymentsForBackground(
+        bills: [BillPaymentCandidate],
+        transactions: [Transaction],
+        currency: String,
+        since: Date
+    ) -> [[String: Any]] {
+        var matches: [[String: Any]] = []
+        let requestedCurrency = currency.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+
+        for bill in bills {
+            var bestMatch: [String: Any]?
+            var bestScore = 0.0
+
+            for transaction in transactions {
+                guard transaction.transactionDate >= since else { continue }
+                guard transaction.status == .booked || transaction.status == .authorized else { continue }
+
+                let transactionCurrency = transaction.transactionAmount.currencyCode.uppercased()
+                if !requestedCurrency.isEmpty, transactionCurrency != requestedCurrency {
+                    continue
+                }
+
+                let transactionAmount = NSDecimalNumber(decimal: transaction.transactionAmount.amount).doubleValue
+                let amountDifference = abs(abs(transactionAmount) - bill.amount)
+                let tolerance = max(1.0, bill.amount * 0.05)
+                guard amountDifference <= tolerance else { continue }
+
+                let transactionText = [
+                    transaction.merchantName,
+                    transaction.transactionDescription,
+                    transaction.originalTransactionDescription
+                ]
+                    .compactMap { $0 }
+                    .joined(separator: " ")
+                let textScore = paymentTextScoreForBackground(provider: bill.provider, transactionText: transactionText)
+                guard textScore > 0 else { continue }
+
+                let amountScore = max(0, 0.32 * (1 - amountDifference / tolerance))
+                let directionScore = transaction.creditDebitIndicator == .debit ? 0.1 : 0.04
+                let score = min(0.99, textScore + amountScore + directionScore)
+
+                if score > bestScore {
+                    bestScore = score
+                    bestMatch = [
+                        "billId": bill.id,
+                        "provider": bill.provider,
+                        "transactionId": transaction.id.uuidString,
+                        "merchantName": transaction.merchantName ?? "",
+                        "transactionDescription": transaction.transactionDescription,
+                        "amount": abs(transactionAmount),
+                        "currency": transactionCurrency,
+                        "transactionDate": isoStringForBackground(transaction.transactionDate),
+                        "postedDate": isoStringForBackground(transaction.postedDate),
+                        "confidence": score
+                    ]
+                }
+            }
+
+            if let bestMatch, bestScore >= 0.7 {
+                matches.append(bestMatch)
+            }
+        }
+
+        return matches.sorted {
+            numericValueForBackground($0["confidence"]) > numericValueForBackground($1["confidence"])
+        }
+    }
+    #endif
+
+    private static func encodeForBackground(_ object: [String: Any]) -> String {
+        guard JSONSerialization.isValidJSONObject(object),
+              let data = try? JSONSerialization.data(withJSONObject: object),
+              let string = String(data: data, encoding: .utf8) else {
+            return "{}"
+        }
+        return string
     }
 
     private func indexBillsForSpotlight(data: Data) {
@@ -970,4 +1173,23 @@ private extension NumberFormatter {
         formatter.groupingSeparator = ","
         return formatter
     }()
+}
+
+public final class JudithWidgetBridgeAppDelegate: ExpoAppDelegateSubscriber {
+    public func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+    ) -> Bool {
+        BGTaskScheduler.shared.register(
+            forTaskWithIdentifier: "com.app.judith.autopay-scan",
+            using: nil
+        ) { task in
+            guard let refreshTask = task as? BGAppRefreshTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            JudithWidgetBridgeModule.handleAutoPayBGTask(refreshTask)
+        }
+        return true
+    }
 }

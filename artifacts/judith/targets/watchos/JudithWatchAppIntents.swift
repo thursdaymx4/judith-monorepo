@@ -49,6 +49,7 @@ private enum JudithWatchIntentPayloadStore {
             JudithWatchBillEntity(
                 id: bill.id,
                 provider: bill.provider,
+                cat: bill.cat,
                 amount: bill.amount,
                 currency: payload.currency,
                 dueDays: bill.dueDays,
@@ -66,6 +67,7 @@ struct JudithWatchBillEntity: AppEntity, Identifiable, Hashable {
 
     let id: String
     let provider: String
+    let cat: String?
     let amount: Double
     let currency: String
     let dueDays: Int
@@ -77,6 +79,19 @@ struct JudithWatchBillEntity: AppEntity, Identifiable, Hashable {
         if dueDays == 1 { return "due tomorrow" }
         if dueDays < 0 { return "\(-dueDays) days overdue" }
         return "due in \(dueDays) days"
+    }
+
+    var isCreditCard: Bool {
+        let category = cat?.lowercased() ?? ""
+        let name = provider.lowercased()
+        return category.contains("credit") && category.contains("card") ||
+            name.contains("credit card") ||
+            name.contains("visa") ||
+            name.contains("mastercard") ||
+            name.contains("master card") ||
+            name.contains("amex") ||
+            name.contains("american express") ||
+            name.contains("sapphire")
     }
 
     var displayRepresentation: DisplayRepresentation {
@@ -233,6 +248,39 @@ struct QueryJudithWatchMonthlyTotalIntent: AppIntent {
 }
 
 @available(watchOS 10.0, *)
+struct QueryJudithWatchCreditCardTotalIntent: AppIntent {
+    static var title: LocalizedStringResource = "Check Credit Card Total"
+    static var description = IntentDescription("Ask Judith for the total unpaid amount across all credit card bills.")
+    static var openAppWhenRun = false
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        guard JudithWatchIntentAccessGate.canAnswer else {
+            return .result(dialog: JudithWatchIntentAccessGate.lockedDialog)
+        }
+        guard JudithWatchIntentPayloadStore.load() != nil else {
+            return .result(dialog: "Judith does not have your latest bills yet. Open Judith once to sync your bills.")
+        }
+
+        let cards = JudithWatchIntentPayloadStore.bills
+            .filter { $0.isCreditCard }
+            .sorted { $0.dueDays == $1.dueDays ? $0.provider < $1.provider : $0.dueDays < $1.dueDays }
+
+        guard !cards.isEmpty else {
+            return .result(dialog: "You have no unpaid credit card bills in Judith right now.")
+        }
+
+        let total = cards.reduce(0) { $0 + $1.amount }
+        let currency = cards.first?.currency ?? ""
+        let billWord = cards.count == 1 ? "credit card bill" : "credit card bills"
+        let names = cards.prefix(3).map { $0.provider }.joined(separator: ", ")
+        let suffix = cards.count > 3 ? ", and \(cards.count - 3) more" : ""
+        return .result(
+            dialog: "You owe \(currency)\(total.formattedForJudithWatchIntent) across \(cards.count) unpaid \(billWord): \(names)\(suffix)."
+        )
+    }
+}
+
+@available(watchOS 10.0, *)
 struct QueryJudithWatchOverdueIntent: AppIntent {
     static var title: LocalizedStringResource = "Check Overdue Bills"
     static var description = IntentDescription("Ask Judith which bills are overdue.")
@@ -354,6 +402,18 @@ struct JudithWatchAppShortcuts: AppShortcutsProvider {
             ],
             shortTitle: "Monthly Total",
             systemImageName: "sum"
+        )
+
+        AppShortcut(
+            intent: QueryJudithWatchCreditCardTotalIntent(),
+            phrases: [
+                "\(.applicationName) credit card total",
+                "\(.applicationName), how much do I owe on credit cards",
+                "\(.applicationName), total my credit card bills",
+                "Ask \(.applicationName) how much I owe on credit cards"
+            ],
+            shortTitle: "Credit Cards",
+            systemImageName: "creditcard"
         )
 
         AppShortcut(
