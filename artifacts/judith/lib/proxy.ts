@@ -32,6 +32,18 @@ export interface AskBill {
   /** Name of the credit card this charge is auto-billed to, if known. */
   cardName?: string | null;
   /**
+   * How the bill is paid. Helps Judith answer questions like
+   * "what's auto-debited each month?" or "which bills hit my bank?".
+   *   - "manual": user pays each time (default)
+   *   - "card":   auto-charged to a tracked card (see `cardName`)
+   *   - "bank":   auto-debited from a bank account (see `fundingSourceName`)
+   *   - "wallet": paid from an e-wallet (e.g. GCash, Apple Cash — see `fundingSourceName`)
+   */
+  fundingSource?: "manual" | "card" | "bank" | "wallet";
+  /** Free-text name of the funding account (e.g. "BPI checking", "GCash").
+   *  Only meaningful for "bank" / "wallet" — card name lives in `cardName`. */
+  fundingSourceName?: string | null;
+  /**
    * True for next-month projected entries — they represent a future recurring
    * cycle that hasn't been billed yet. Server labels these as [ESTIMATED] in
    * the per-bill list and "(estimated)" in the monthly totals.

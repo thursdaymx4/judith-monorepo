@@ -41,11 +41,18 @@ const EMPTY: BillStreak = {
 
 /**
  * Does this bill qualify for a streak? Monthly + annual yes, "once" no.
- * Via-card charges also opt out — their streak belongs to the parent card.
+ * Auto-pay bills opt out — credit card, bank auto-debit, e-wallet auto-pay
+ * aren't user effort, so they don't earn streak credit. Card-linked charges
+ * also opt out because the parent card carries the streak.
  */
-export function isStreakEligible(b: Pick<Bill, "frequency" | "chargedToCard">): boolean {
+export function isStreakEligible(
+  b: Pick<Bill, "frequency" | "chargedToCard" | "fundingSource">,
+): boolean {
   if (b.frequency === "once") return false;
   if (b.chargedToCard) return false;
+  if (b.fundingSource === "card" || b.fundingSource === "bank" || b.fundingSource === "wallet") {
+    return false;
+  }
   return true;
 }
 

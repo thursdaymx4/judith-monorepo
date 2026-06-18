@@ -24,63 +24,48 @@ public final class JudithFinanceKitModule: Module {
         Name("JudithFinanceKitModule")
 
         AsyncFunction("isAvailable") { () -> Bool in
-            #if DEBUG
             if Self.isMockEnabled { return true }
-            #endif
             return await Self.computeAvailability()
         }
 
         AsyncFunction("currentAuthorizationStatus") { () -> String in
-            #if DEBUG
             if Self.isMockEnabled { return "authorized" }
-            #endif
             return await Self.computeAuthorizationStatus().rawJSValue
         }
 
         AsyncFunction("requestAuthorization") { () -> String in
-            #if DEBUG
             if Self.isMockEnabled { return "authorized" }
-            #endif
             return await Self.computeRequestAuthorization().rawJSValue
         }
 
         AsyncFunction("findRecurringBills") { (days: Int) -> [[String: Any]] in
-            #if DEBUG
             if Self.isMockEnabled { return Self.mockCandidates() }
-            #endif
             return await Self.findRecurringBills(days: max(1, min(days, 365)))
         }
 
-        // The next two are NO-OPS in production. The full
-        // implementations live behind `#if DEBUG`, so the bytecode never
-        // ships to Release / App Store builds.
+        // The mock is unconditionally compiled in, but the JS-side `__DEV__`
+        // gate on the "Use mock FK data" onboarding button is stripped by
+        // Metro's Release transform — so production binaries ship with this
+        // bytecode but no production user can reach it. Apple reviewers run
+        // a Release JS bundle and won't see the button either.
         Function("setMockEnabled") { (enabled: Bool) -> Bool in
-            #if DEBUG
             Self.isMockEnabled = enabled
             return enabled
-            #else
-            _ = enabled
-            return false
-            #endif
         }
 
         Function("isMockEnabled") { () -> Bool in
-            #if DEBUG
             return Self.isMockEnabled
-            #else
-            return false
-            #endif
         }
     }
 
-    // MARK: — Mock mode (DEBUG only)
+    // MARK: — Mock mode
 
-    #if DEBUG
     /// In-memory toggle controlled by the JS dev tools / a hidden onboarding
     /// button. Flips the four async functions above into deterministic stub
     /// implementations so the FK discovery screen can be exercised in
     /// Manila on an iPhone with no Apple Card history. Never persisted,
-    /// resets to false on app relaunch.
+    /// resets to false on app relaunch. Unreachable from production JS
+    /// because the toggle button is `__DEV__`-gated.
     private static var isMockEnabled: Bool = false
 
     /// Six realistic-looking US recurring-bill candidates spanning streaming,
@@ -98,7 +83,6 @@ public final class JudithFinanceKitModule: Module {
             ["provider": "Geico Insurance",  "medianAmount": 168.00, "typicalDueDay": 28, "occurrences": 2, "confidence": 0.55],
         ]
     }
-    #endif
 
     // MARK: — Availability + auth
 
@@ -108,11 +92,7 @@ public final class JudithFinanceKitModule: Module {
     private static func computeAvailability() async -> Bool {
         #if canImport(FinanceKit)
         guard #available(iOS 17.4, *) else { return false }
-        do {
-            return try await FinanceStore.shared.isDataAvailable(.financialData)
-        } catch {
-            return false
-        }
+        return FinanceStore.isDataAvailable(.financialData)
         #else
         return false
         #endif
@@ -121,7 +101,7 @@ public final class JudithFinanceKitModule: Module {
     private static func computeAuthorizationStatus() async -> JudithFKAuthStatus {
         #if canImport(FinanceKit)
         guard #available(iOS 17.4, *) else { return .unavailable }
-        let available = (try? await FinanceStore.shared.isDataAvailable(.financialData)) ?? false
+        let available = FinanceStore.isDataAvailable(.financialData)
         guard available else { return .unavailable }
         do {
             let status = try await FinanceStore.shared.authorizationStatus()
@@ -137,7 +117,7 @@ public final class JudithFinanceKitModule: Module {
     private static func computeRequestAuthorization() async -> JudithFKAuthStatus {
         #if canImport(FinanceKit)
         guard #available(iOS 17.4, *) else { return .unavailable }
-        let available = (try? await FinanceStore.shared.isDataAvailable(.financialData)) ?? false
+        let available = FinanceStore.isDataAvailable(.financialData)
         guard available else { return .unavailable }
         do {
             let status = try await FinanceStore.shared.requestAuthorization()
@@ -193,11 +173,12 @@ public final class JudithFinanceKitModule: Module {
     private static func clusterRecurring(
         transactions: [FinanceKit.Transaction]
     ) -> [DetectedBill] {
-        // Only outflows (purchases / debits). Refunds / credits / transfers
-        // confuse the recurrence signal.
+        // Only outflows (debits). Refunds / credits / deposits confuse the
+        // recurrence signal — FK signals direction via creditDebitIndicator,
+        // not via the sign of transactionAmount.amount.
         let debits = transactions.filter { txn in
             let amount = txn.transactionAmount.amount
-            return amount > 0 && txn.transactionType == .purchase
+            return amount > 0 && txn.creditDebitIndicator == .debit
         }
 
         // Group by normalized merchant name.
@@ -214,22 +195,22 @@ public final class JudithFinanceKitModule: Module {
             let sorted = items.sorted { $0.transactionDate < $1.transactionDate }
             let amounts = sorted.map { ($0.transactionAmount.amount as NSDecimalNumber).doubleValue }
             let dueDays = sorted.map { day(of: $0.transactionDate) }
-            guard let median = median(of: amounts), median > 0 else { continue }
+            guard let medianAmount = median(of: amounts), medianAmount > 0 else { continue }
 
             // Cadence: median inter-occurrence days. Accept 25..35 as monthly.
             let intervals = zip(sorted.dropFirst(), sorted).map {
                 Calendar.current.dateComponents([.day], from: $1.transactionDate, to: $0.transactionDate).day ?? 0
             }
-            let medianInterval = median(of: intervals.map(Double.init)) ?? 0
+            let medianInterval = median(of: intervals.map { Double($0) }) ?? 0
             let isMonthlyish = (25.0...35.0).contains(medianInterval)
             guard isMonthlyish else { continue }
 
             // Amount stability: how tight is the cluster? 1 - (stddev / median),
             // clamped to [0, 1]. A perfectly stable cluster scores 1.0.
-            let amtScore = amountTightness(amounts: amounts, median: median)
+            let amtScore = amountTightness(amounts: amounts, median: medianAmount)
 
             // Cadence stability: similar — tighter intervals score higher.
-            let cadScore = cadenceTightness(intervals: intervals.map(Double.init))
+            let cadScore = cadenceTightness(intervals: intervals.map { Double($0) })
 
             // Confidence combines amount + cadence stability + occurrence
             // count (more = more confident). 4+ occurrences floors at 1.0;
@@ -243,7 +224,7 @@ public final class JudithFinanceKitModule: Module {
 
             detected.append(DetectedBill(
                 provider: displayName.trimmingCharacters(in: .whitespacesAndNewlines),
-                medianAmount: median,
+                medianAmount: medianAmount,
                 typicalDueDay: medianDay(dueDays),
                 occurrences: items.count,
                 confidence: confidence

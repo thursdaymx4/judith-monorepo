@@ -400,6 +400,8 @@ export interface BillLike {
   isBusiness?: boolean;
   chargedToCard?: boolean;
   parentCardId?: string;
+  fundingSource?: "manual" | "card" | "bank" | "wallet";
+  fundingSourceName?: string;
 }
 
 export function BillRow({
@@ -414,6 +416,14 @@ export function BillRow({
   const t = useTheme();
   const { bills } = useJudith();
   const cardName = bills.find((c) => c.id === bill.parentCardId)?.provider ?? "card";
+  // Funding-source badge: card uses parentCardId lookup; bank/wallet use the
+  // bill's own fundingSourceName free-text; manual renders nothing.
+  const fs = bill.fundingSource ?? (bill.chargedToCard && bill.parentCardId ? "card" : "manual");
+  const badge: { icon: IconName; label: string } | null =
+    fs === "card"   ? { icon: "card",   label: `via ${cardName}` } :
+    fs === "bank"   ? { icon: "bank",   label: `via ${bill.fundingSourceName || "bank"}` } :
+    fs === "wallet" ? { icon: "wallet", label: `via ${bill.fundingSourceName || "wallet"}` } :
+    null;
   const cls = dueClass(bill.dueDays) as Urgency;
   const paid = bill.status === "paid";
   const partial = isPartialBill(bill as Parameters<typeof isPartialBill>[0]);
@@ -447,7 +457,7 @@ export function BillRow({
         <View style={{ flex: 1, minWidth: 0 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
             <Text style={{ fontFamily: t.fonts.medium, fontSize: 15, color: t.txtHi }}>{bill.provider}</Text>
-            {bill.chargedToCard && (
+            {badge && (
               <View
                 style={{
                   flexDirection: "row",
@@ -461,9 +471,9 @@ export function BillRow({
                   paddingVertical: 1,
                 }}
               >
-                <Icon name="card" size={9} color={t.accent} />
+                <Icon name={badge.icon} size={9} color={t.accent} />
                 <Text style={{ fontFamily: t.fonts.medium, fontSize: 9.5, color: t.accent, letterSpacing: 0.4 }}>
-                  {`via ${cardName}`}
+                  {badge.label}
                 </Text>
               </View>
             )}

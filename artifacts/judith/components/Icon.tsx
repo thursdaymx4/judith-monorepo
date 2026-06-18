@@ -36,6 +36,7 @@ export type IconName =
   | "refresh"
   | "play"
   | "wallet"
+  | "bank"
   | "snooze"
   | "camera"
   | "scan"
@@ -233,6 +234,14 @@ function paths(name: string, color: string): React.ReactNode {
           <Path d="M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v2" />
           <Path d="M3 7v10a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-3" />
           <Path d="M21 12h-4a2 2 0 1 0 0 4h4z" />
+        </G>
+      );
+    case "bank":
+      return (
+        <G>
+          <Path d="M3 10 12 4l9 6" />
+          <Path d="M5 10v8M9 10v8M15 10v8M19 10v8" />
+          <Path d="M3 21h18" />
         </G>
       );
     case "snooze":

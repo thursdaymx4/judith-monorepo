@@ -291,6 +291,20 @@ interface ClientBill {
   chargedToCard?: boolean | null;
   /** Name of the credit card this charge is auto-billed to, if known. */
   cardName?: string | null;
+  /**
+   * How this bill is paid:
+   *   - "manual": user pays each time
+   *   - "card":   auto-charged to a tracked credit card (cost flows through the
+   *               card statement — `chargedToCard` is also true; see exclusion below)
+   *   - "bank":   auto-debited from a bank account (independent debit; counts toward totals)
+   *   - "wallet": auto-paid from an e-wallet like GCash/Apple Cash (independent; counts toward totals)
+   * Use this to answer questions like "what's tied to Apple Cash?" or
+   * "what auto-debits from my bank?". Only "card" triggers the double-count
+   * exclusion via `chargedToCard`; bank/wallet bills count normally.
+   */
+  fundingSource?: "manual" | "card" | "bank" | "wallet" | null;
+  /** Free-text name of the funding account ("BPI checking", "GCash", "Apple Cash"). */
+  fundingSourceName?: string | null;
   /** True for next-month projected entries — future estimates, not yet billed. */
   isProjection?: boolean | null;
   /** Amount already paid toward this bill in the current cycle. Present only when > 0. */
@@ -518,6 +532,16 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
       ? (b.businessName ? ` [BUSINESS: ${b.businessName}]` : " [BUSINESS]")
       : " [PERSONAL]";
     const cardTag = isViaCard(b) ? ` [AUTO-CHARGED to ${b.cardName ?? "card"}]` : "";
+    // Bank / e-wallet auto-pay tag. Distinct from cardTag because there's no
+    // parent statement to double-count against — these bills DO count toward
+    // totals, they just aren't user effort. Lets Claude answer "what's tied
+    // to Apple Cash" or "what auto-debits from my bank?" correctly.
+    const fundingTag =
+      !isViaCard(b) && b.fundingSource === "bank"
+        ? ` [AUTO-DEBITED from ${b.fundingSourceName || "bank"} (bank account)]`
+        : !isViaCard(b) && b.fundingSource === "wallet"
+          ? ` [AUTO-PAID via ${b.fundingSourceName || "e-wallet"} (e-wallet)]`
+          : "";
     const estTag = b.isProjection ? " [ESTIMATED NEXT MONTH]" : "";
     const idTag = b.id ? `[id:${b.id}] ` : "";
     const paid = b.paidThisPeriod ?? 0;
@@ -549,7 +573,7 @@ function buildClientContext(bills: ClientBill[], today: Date, cur = "₱", month
       const rangeLabel = min === max ? curStr(cur, min) : `${curStr(cur, min)}–${curStr(cur, max)}`;
       usualTag = ` [USUAL RANGE: ${rangeLabel} over last ${recent.length} settled month${recent.length === 1 ? "" : "s"}; median ${curStr(cur, median)}. Use this for "what's a typical X bill?" or projecting next month — NOT the static amount above.]`;
     }
-    return `- ${idTag}${b.provider ?? "Bill"} (${b.cat ?? "Other"})${bizTag}${cardTag}${estTag}${paidTag}${usualTag}: ${curStr(cur, b.amount ?? 0)}, ${when}, ${statusLabel}.`;
+    return `- ${idTag}${b.provider ?? "Bill"} (${b.cat ?? "Other"})${bizTag}${cardTag}${fundingTag}${estTag}${paidTag}${usualTag}: ${curStr(cur, b.amount ?? 0)}, ${when}, ${statusLabel}.`;
   });
 
   // ── Pre-computed income-remaining figures ──────────────────────────────

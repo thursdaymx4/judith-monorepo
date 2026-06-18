@@ -29,6 +29,7 @@ import { Btn, Card, Chip, Low, mix, Mono, Txt } from "@/components/ui";
 import {
   COUNTRIES,
   countryFood,
+  walletNameFor,
   type Country,
 } from "@/constants/countries";
 import { HOUSES, findDuplicate, fmtCurrency, type Bill, type BillCycleRecord } from "@/constants/data";
@@ -300,6 +301,8 @@ interface OnbBill {
   house?: string;
   chargedToCard?: boolean;
   parentCardId?: string;
+  fundingSource?: "manual" | "card" | "bank" | "wallet";
+  fundingSourceName?: string;
   amountPaid?: number;
 }
 
@@ -2327,7 +2330,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   } | null>(null);
   const [formCat, setFormCat] = useState<{ cat: string; icon: string } | null>(null);
   const [manualReturn, setManualReturn] = useState<VMode>("prompt");
-  const [form, setForm] = useState<{ provider: string; amount: string; due: string; kind: "Fixed" | "Variable"; frequency: "monthly" | "annual"; isBusiness: boolean; businessName?: string; subtype?: string; house?: string; chargedToCard?: boolean; parentCardId?: string }>({ provider: "", amount: "", due: "", kind: "Fixed", frequency: "monthly", isBusiness: false, businessName: "", house: HOUSES[0] });
+  const [form, setForm] = useState<{ provider: string; amount: string; due: string; kind: "Fixed" | "Variable"; frequency: "monthly" | "annual"; isBusiness: boolean; businessName?: string; subtype?: string; house?: string; chargedToCard?: boolean; parentCardId?: string; fundingSource?: "manual" | "card" | "bank" | "wallet"; fundingSourceName?: string }>({ provider: "", amount: "", due: "", kind: "Fixed", frequency: "monthly", isBusiness: false, businessName: "", house: HOUSES[0], fundingSource: "manual" });
   const existingBizNames = useMemo(() => {
     const fromOnb = bills.filter((b) => b.isBusiness && b.businessName).map((b) => b.businessName!);
     const fromStore = storeBills.filter((b) => b.isBusiness && b.businessName).map((b) => b.businessName!);
@@ -2450,7 +2453,8 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   };
 
   const confirm = () => {
-    const linkCard = canLinkCard(sample.cat) && !!form.chargedToCard;
+    const fs = canLinkCard(sample.cat) ? (form.fundingSource ?? "manual") : "manual";
+    const linkCard = fs === "card";
     const billAmount = parsedBill?.amount ?? sample.amount;
     const resolvedPaid =
       paidStatus === "full" ? billAmount :
@@ -2470,6 +2474,8 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       ...(form.isBusiness ? { isBusiness: true } : {}),
       ...(form.isBusiness && form.businessName ? { businessName: form.businessName } : {}),
       ...(linkCard ? { chargedToCard: true, parentCardId: form.parentCardId } : {}),
+      ...(fs !== "manual" ? { fundingSource: fs } : {}),
+      ...((fs === "bank" || fs === "wallet") && form.fundingSourceName ? { fundingSourceName: form.fundingSourceName.trim() } : {}),
       ...(resolvedPaid > 0 ? { amountPaid: resolvedPaid } : {}),
     };
     commitBill(b, advanceAfterItem);
@@ -2505,7 +2511,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const openForm = (c: { cat: string; icon: string }) => {
     const presets: Record<string, string> = { "Rent / Mortgage": "18000", Electricity: "3450", Water: "890", Internet: "1699", Mobile: "999", "TV / Streaming": "549", "Credit card": "5200" };
     setFormCat(c);
-    setForm({ provider: "", amount: presets[c.cat] || "", due: "", kind: kindFor(c.cat), frequency: "monthly", isBusiness: false, businessName: "", subtype: c.cat === "Rent / Mortgage" ? "Rent" : undefined, house: HOUSES[0], chargedToCard: false, parentCardId: undefined });
+    setForm({ provider: "", amount: presets[c.cat] || "", due: "", kind: kindFor(c.cat), frequency: "monthly", isBusiness: false, businessName: "", subtype: c.cat === "Rent / Mortgage" ? "Rent" : undefined, house: HOUSES[0], chargedToCard: false, parentCardId: undefined, fundingSource: "manual", fundingSourceName: undefined });
     setPaidStatus("no");
     setPaidAmount("");
     setMode("manualForm");
@@ -2513,7 +2519,8 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const saveForm = () => {
     const cat = formCat ?? (phase === "scripted" ? { cat: sample.cat, icon: sample.icon } : null);
     if (!cat) return;
-    const linkCard = canLinkCard(cat.cat) && !!form.chargedToCard;
+    const fs = canLinkCard(cat.cat) ? (form.fundingSource ?? "manual") : "manual";
+    const linkCard = fs === "card";
     const formBillAmount = parseFloat(form.amount.replace(/,/g, "")) || 0;
     const formResolvedPaid =
       paidStatus === "full" ? formBillAmount :
@@ -2533,6 +2540,8 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       ...(form.isBusiness ? { isBusiness: true } : {}),
       ...(form.isBusiness && form.businessName ? { businessName: form.businessName } : {}),
       ...(linkCard ? { chargedToCard: true, parentCardId: form.parentCardId } : {}),
+      ...(fs !== "manual" ? { fundingSource: fs } : {}),
+      ...((fs === "bank" || fs === "wallet") && form.fundingSourceName ? { fundingSourceName: form.fundingSourceName.trim() } : {}),
       ...(formResolvedPaid > 0 ? { amountPaid: formResolvedPaid } : {}),
     };
     const after = () => {
@@ -2755,7 +2764,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   useEffect(() => {
     if (phase === "scripted" && sample.cat === "Phone subscription") return;
     setFormCat({ cat: sample.cat, icon: sample.icon });
-    setForm({ provider: "", amount: "", due: "", kind: kindFor(sample.cat), frequency: "monthly", isBusiness: false, businessName: "", subtype: sample.cat === "Rent / Mortgage" ? "Rent" : undefined, house: HOUSES[0], chargedToCard: false, parentCardId: undefined });
+    setForm({ provider: "", amount: "", due: "", kind: kindFor(sample.cat), frequency: "monthly", isBusiness: false, businessName: "", subtype: sample.cat === "Rent / Mortgage" ? "Rent" : undefined, house: HOUSES[0], chargedToCard: false, parentCardId: undefined, fundingSource: "manual", fundingSourceName: undefined });
     setManualReturn("prompt");
     setFocusedField(null);
     setShowDayPicker(false);
@@ -2830,25 +2839,48 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
 
   const renderCardToggle = (catName: string) => {
     if (!canLinkCard(catName)) return null;
+    const walletLabel = walletNameFor(ctx.country.code);
+    const fs = form.fundingSource ?? "manual";
+    const options: { id: "manual" | "card" | "bank" | "wallet"; label: string; icon: IconName | null }[] = [
+      { id: "manual", label: "Manual",       icon: null },
+      { id: "card",   label: "Card",         icon: "card" },
+      { id: "bank",   label: "Bank",         icon: "bank" },
+      { id: "wallet", label: walletLabel,    icon: "wallet" },
+    ];
+    const pickFs = (next: "manual" | "card" | "bank" | "wallet") => {
+      haptics.selection();
+      setForm((f) => ({
+        ...f,
+        fundingSource: next,
+        // chargedToCard / parentCardId only meaningful for "card"
+        chargedToCard: next === "card" ? true : false,
+        parentCardId: next === "card" ? f.parentCardId : undefined,
+        // pre-fill the wallet name with the country default so the user can just confirm
+        fundingSourceName:
+          next === "wallet" ? (f.fundingSourceName || walletLabel) :
+          next === "bank"   ? (f.fundingSourceName || "") :
+          undefined,
+      }));
+    };
     return (
       <View style={{ marginTop: 14, paddingHorizontal: 2 }}>
-        <Low size={12} style={{ marginBottom: 8 }}>Auto-charged to a card?</Low>
-        <View style={{ flexDirection: "row", gap: 8 }}>
-          <Pressable
-            onPress={() => { haptics.selection(); setForm((f) => ({ ...f, chargedToCard: false, parentCardId: undefined })); }}
-            style={{ flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 22, paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1, borderColor: !form.chargedToCard ? withAlpha(t.accent, 0.5) : t.hair, backgroundColor: !form.chargedToCard ? mix(t.accent, t.surface2, 0.15) : t.surface2 }}
-          >
-            <Txt size={13} weight="medium" color={!form.chargedToCard ? t.txtHi : t.txtMid}>No</Txt>
-          </Pressable>
-          <Pressable
-            onPress={() => { haptics.selection(); setForm((f) => ({ ...f, chargedToCard: true })); }}
-            style={{ flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 22, paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1, borderColor: form.chargedToCard ? withAlpha(t.accent, 0.5) : t.hair, backgroundColor: form.chargedToCard ? mix(t.accent, t.surface2, 0.15) : t.surface2 }}
-          >
-            <Icon name="card" size={13} color={form.chargedToCard ? t.accent : t.txtLow} />
-            <Txt size={13} weight="medium" color={form.chargedToCard ? t.txtHi : t.txtMid}>Yes, via card</Txt>
-          </Pressable>
+        <Low size={12} style={{ marginBottom: 8 }}>How is this paid?</Low>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+          {options.map((opt) => {
+            const on = fs === opt.id;
+            return (
+              <Pressable
+                key={opt.id}
+                onPress={() => pickFs(opt.id)}
+                style={{ flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 22, paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1, borderColor: on ? withAlpha(t.accent, 0.5) : t.hair, backgroundColor: on ? mix(t.accent, t.surface2, 0.15) : t.surface2 }}
+              >
+                {opt.icon && <Icon name={opt.icon} size={13} color={on ? t.accent : t.txtLow} />}
+                <Txt size={13} weight="medium" color={on ? t.txtHi : t.txtMid}>{opt.label}</Txt>
+              </Pressable>
+            );
+          })}
         </View>
-        {form.chargedToCard && (cardChoices.length > 0 ? (
+        {fs === "card" && (cardChoices.length > 0 ? (
           <View style={{ marginTop: 10 }}>
             <Low size={12} style={{ marginBottom: 8 }}>Which card pays this?</Low>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
@@ -2870,6 +2902,22 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
         ) : (
           <Low size={11} style={{ marginTop: 8 }}>No cards on file yet — link one later from the bill's page.</Low>
         ))}
+        {(fs === "bank" || fs === "wallet") && (
+          <View style={{ marginTop: 10 }}>
+            <Low size={12} style={{ marginBottom: 8 }}>
+              {fs === "bank" ? "Which bank account?" : "Which wallet?"}
+            </Low>
+            <TextInput
+              value={form.fundingSourceName ?? ""}
+              onChangeText={(text) => setForm((f) => ({ ...f, fundingSourceName: text }))}
+              placeholder={fs === "bank" ? "e.g. BPI checking" : walletLabel}
+              placeholderTextColor={t.txtLow}
+              style={{ borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface2, borderRadius: 12, paddingVertical: 9, paddingHorizontal: 12, fontSize: 14, color: t.txtHi }}
+              returnKeyType="done"
+              maxLength={48}
+            />
+          </View>
+        )}
       </View>
     );
   };
@@ -4253,6 +4301,8 @@ function onbBillToStoreBill(b: OnbBill): Bill {
     ...(b.isBusiness && b.businessName ? { businessName: b.businessName } : {}),
     ...(b.chargedToCard ? { chargedToCard: true } : {}),
     ...(b.parentCardId ? { parentCardId: b.parentCardId } : {}),
+    ...(b.fundingSource ? { fundingSource: b.fundingSource } : {}),
+    ...(b.fundingSourceName ? { fundingSourceName: b.fundingSourceName } : {}),
   };
 }
 

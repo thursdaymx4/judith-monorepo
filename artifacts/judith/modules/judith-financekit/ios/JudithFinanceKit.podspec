@@ -10,11 +10,13 @@ Pod::Spec.new do |s|
   s.license        = 'MIT'
   s.author         = ''
   s.homepage       = 'https://github.com/thursdaymx4/judith-monorepo'
-  # FinanceKit ships in iOS 17.4+. Setting the deployment target to 17.4
-  # for THIS pod only (the rest of the app stays on its own min) makes the
-  # Swift compiler tolerate the unguarded `import FinanceKit` below; runtime
-  # availability is gated separately via #available checks.
-  s.platforms      = { :ios => '17.4' }
+  # FinanceKit ships in iOS 17.4+, but the Swift source guards `import
+  # FinanceKit` with `#if canImport(FinanceKit)` and every FK API call with
+  # `@available(iOS 17.4, *)`. The pod's deployment target must match the
+  # host app — otherwise Expo autolinking silently drops the pod for hosts
+  # with a lower minimum, and `NativeModules.JudithFinanceKitModule` ends up
+  # null at runtime.
+  s.platforms      = { :ios => '15.1' }
   s.swift_version  = '5.4'
   s.source         = { git: '' }
   s.static_framework = true

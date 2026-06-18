@@ -82,6 +82,43 @@ export interface Bill {
   chargedToCard?: boolean;
   /** The `id` of the linked credit-card bill that covers this charge. */
   parentCardId?: string;
+  /**
+   * How this bill is typically paid. Drives the "via X" badge + Ask Judith
+   * context + streak eligibility (only `manual` bills earn streak credit —
+   * card/bank/wallet auto-pay isn't user effort).
+   *
+   * Money-math double-count exclusion stays driven by `chargedToCard` +
+   * `parentCardId` (the linked card's statement already includes the charge).
+   * `bank` and `wallet` debits have no parent entity in Judith, so they count
+   * toward totals just like manual bills.
+   *
+   * Absent on legacy bills — `getFundingSource(bill)` derives a safe default.
+   */
+  fundingSource?: "manual" | "card" | "bank" | "wallet";
+  /**
+   * Free-text name of the funding account. Examples:
+   *   - bank: "BPI checking", "Chase 1234"
+   *   - wallet: "GCash", "Apple Cash", "Venmo"
+   *   - card: the linked card's provider is used instead (parentCardId lookup)
+   * Optional — UI falls back to the country's default wallet name or a
+   * generic "via bank" / "via wallet" label when omitted.
+   */
+  fundingSourceName?: string;
+}
+
+/**
+ * Returns the bill's effective funding source, defaulting to "card" when the
+ * legacy `chargedToCard` + `parentCardId` are set (back-compat for bills
+ * saved before the four-way funding-source picker existed), and "manual"
+ * otherwise. Always returns a non-null value, so callers don't need their
+ * own fallbacks.
+ */
+export function getFundingSource(
+  b: Pick<Bill, "fundingSource" | "chargedToCard" | "parentCardId">,
+): "manual" | "card" | "bank" | "wallet" {
+  if (b.fundingSource) return b.fundingSource;
+  if (b.chargedToCard && b.parentCardId) return "card";
+  return "manual";
 }
 
 /** Total owed this cycle = current charge + any rolled-over balance. */
@@ -686,6 +723,8 @@ export function makeManualBill(
     statementDay?: number;
     chargedToCard?: boolean;
     parentCardId?: string;
+    fundingSource?: "manual" | "card" | "bank" | "wallet";
+    fundingSourceName?: string;
   },
   today: Date = new Date(),
 ): Bill {
@@ -741,6 +780,8 @@ export function makeManualBill(
     ...(a.statementDay != null ? { statementDay: a.statementDay } : {}),
     ...(a.chargedToCard ? { chargedToCard: true } : {}),
     ...(a.parentCardId ? { parentCardId: a.parentCardId } : {}),
+    ...(a.fundingSource && a.fundingSource !== "manual" ? { fundingSource: a.fundingSource } : {}),
+    ...(a.fundingSourceName ? { fundingSourceName: a.fundingSourceName } : {}),
     createdAt: base.toISOString().slice(0, 10),
   };
 }
