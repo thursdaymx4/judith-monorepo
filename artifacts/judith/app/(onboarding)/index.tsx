@@ -2306,7 +2306,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     // Fallback to group for any sample cat not in the map
     return hasGroup(s.group);
   });
-  const { saveBill, deleteBill, bills: storeBills } = useJudith();
+  const { saveBill, deleteBill, bills: storeBills, showToast } = useJudith();
   const cur = ctx.country.cur;
   const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
   // ── Voice Activity Detection refs ─────────────────────────────────
@@ -2356,7 +2356,20 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const [loanDone, setLoanDone] = useState(0);
   const [screenshotStatus, setScreenshotStatus] = useState<"idle" | "loading" | "editing">("idle");
   const [screenshotBills, setScreenshotBills] = useState<{ provider: string; amount: number | null; dueDay: number | null }[]>([]);
-  type DraftSub = { id: number; provider: string; amount: string; dueDay: string; frequency: "monthly" | "annual" };
+  type DraftSub = {
+    id: number;
+    provider: string;
+    amount: string;
+    dueDay: string;
+    frequency: "monthly" | "annual";
+    /** Funding source for this subscription. Defaults to "manual" so the
+     *  user must opt in to auto-link a card / specify a bank or wallet. */
+    fundingSource?: "manual" | "card" | "bank" | "wallet";
+    /** When fundingSource === "card", the linked credit-card bill's id. */
+    parentCardId?: string;
+    /** Free-text name for "bank" / "wallet" funding sources (e.g. "GCash"). */
+    fundingSourceName?: string;
+  };
   const [draftSubs, setDraftSubs] = useState<DraftSub[]>([]);
   const [parsedEditing, setParsedEditing] = useState(false);
   const [parsedEdits, setParsedEdits] = useState<{ provider: string; amount: string; dueDay: string; kind: "Fixed" | "Variable"; frequency: "monthly" | "annual" }>({ provider: "", amount: "", dueDay: "", kind: "Fixed", frequency: "monthly" });
@@ -2519,15 +2532,30 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const saveForm = () => {
     const cat = formCat ?? (phase === "scripted" ? { cat: sample.cat, icon: sample.icon } : null);
     if (!cat) return;
+    // Guard against the empty-form silent-save bug: pressing "Log this bill"
+    // without typing anything used to create a "TV / Streaming"-named ₱0 entry
+    // (provider fell back to the category, amount parsed as NaN → 0). Require
+    // a real provider AND a non-zero amount before persisting.
+    const trimmedProvider = (form.provider ?? "").trim();
+    const formBillAmount = parseFloat((form.amount ?? "").replace(/,/g, "")) || 0;
+    if (!trimmedProvider) {
+      haptics.error();
+      showToast(isFilipino(language) ? "Pakikumpleto: provider" : "Add the provider name");
+      return;
+    }
+    if (formBillAmount <= 0) {
+      haptics.error();
+      showToast(isFilipino(language) ? "Pakikumpleto: halaga" : "Add the amount");
+      return;
+    }
     const fs = canLinkCard(cat.cat) ? (form.fundingSource ?? "manual") : "manual";
     const linkCard = fs === "card";
-    const formBillAmount = parseFloat(form.amount.replace(/,/g, "")) || 0;
     const formResolvedPaid =
       paidStatus === "full" ? formBillAmount :
       paidStatus === "partial" ? (parseFloat(paidAmount) || 0) :
       0;
     const b: OnbBill = {
-      provider: form.provider || cat.cat,
+      provider: trimmedProvider,
       cat: cat.cat,
       icon: cat.icon,
       amount: formBillAmount,
@@ -2583,6 +2611,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
         amount: sub.amount != null ? String(sub.amount) : "",
         dueDay: sub.dueDay != null ? String(sub.dueDay) : "",
         frequency: (sub.frequency === "annual" ? "annual" : "monthly") as "monthly" | "annual",
+        fundingSource: "manual",
       })));
       setScreenshotStatus("editing");
     } catch {
@@ -2599,6 +2628,12 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       if (!sub.provider.trim()) continue;
       const amount = parseFloat(sub.amount.replace(/,/g, "")) || 0;
       const dueDay = parseInt(sub.dueDay) || 20;
+      const fs = sub.fundingSource ?? "manual";
+      const cardLinked = fs === "card" && !!sub.parentCardId;
+      const namedSource =
+        (fs === "bank" || fs === "wallet") && sub.fundingSourceName
+          ? sub.fundingSourceName.trim()
+          : undefined;
       const b: OnbBill = {
         provider: sub.provider.trim(),
         cat: "Phone subscription",
@@ -2608,6 +2643,9 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
         dueDays: dueDay,
         kind: "Fixed",
         frequency: sub.frequency,
+        ...(cardLinked ? { chargedToCard: true, parentCardId: sub.parentCardId } : {}),
+        ...(fs !== "manual" ? { fundingSource: fs } : {}),
+        ...(namedSource ? { fundingSourceName: namedSource } : {}),
       };
       addBill(b);
       saveBill(onbBillToStoreBill(b));
@@ -3252,10 +3290,85 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                         <Low size={12}>· {sub.frequency === "annual" ? "annual" : "monthly"}</Low>
                       </View>
                     </View>
+                    {/* Funding-source row — lets users link a card or specify a
+                        bank/wallet right from the scanned-subscription review,
+                        so they don't have to find each bill later just to set
+                        how it's auto-paid. */}
+                    {(() => {
+                      const walletLabel = walletNameFor(ctx.country.code);
+                      const fs = sub.fundingSource ?? "manual";
+                      const setSubFs = (next: "manual" | "card" | "bank" | "wallet") => {
+                        haptics.selection();
+                        setDraftSubs((ds) => ds.map((d, j) => j === i ? {
+                          ...d,
+                          fundingSource: next,
+                          parentCardId: next === "card" ? d.parentCardId : undefined,
+                          fundingSourceName:
+                            next === "wallet" ? (d.fundingSourceName || walletLabel) :
+                            next === "bank"   ? (d.fundingSourceName || "") :
+                            undefined,
+                        } : d));
+                      };
+                      const opts: { id: "manual" | "card" | "bank" | "wallet"; label: string; icon: IconName | null }[] = [
+                        { id: "manual", label: "Manual",      icon: null },
+                        { id: "card",   label: "Card",        icon: "card" },
+                        { id: "bank",   label: "Bank",        icon: "bank" },
+                        { id: "wallet", label: walletLabel,   icon: "wallet" },
+                      ];
+                      return (
+                        <View style={{ borderTopWidth: 1, borderTopColor: t.hair, paddingHorizontal: 13, paddingVertical: 10, gap: 8 }}>
+                          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                            {opts.map((opt) => {
+                              const on = fs === opt.id;
+                              return (
+                                <Pressable
+                                  key={opt.id}
+                                  onPress={() => setSubFs(opt.id)}
+                                  style={{ flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 18, paddingVertical: 5, paddingHorizontal: 10, borderWidth: 1, borderColor: on ? withAlpha(t.accent, 0.5) : t.hair, backgroundColor: on ? mix(t.accent, t.surface2, 0.15) : t.surface1 }}
+                                >
+                                  {opt.icon && <Icon name={opt.icon} size={11} color={on ? t.accent : t.txtLow} />}
+                                  <Txt size={12} weight="medium" color={on ? t.txtHi : t.txtMid}>{opt.label}</Txt>
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+                          {fs === "card" && (cardChoices.length > 0 ? (
+                            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                              {cardChoices.map((c) => {
+                                const on = sub.parentCardId === c.id;
+                                return (
+                                  <Pressable
+                                    key={c.id}
+                                    onPress={() => { haptics.selection(); setDraftSubs((ds) => ds.map((d, j) => j === i ? { ...d, parentCardId: c.id } : d)); }}
+                                    style={{ flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 18, paddingVertical: 5, paddingHorizontal: 10, borderWidth: 1, borderColor: on ? withAlpha(t.accent, 0.5) : t.hair, backgroundColor: on ? mix(t.accent, t.surface2, 0.15) : t.surface1 }}
+                                  >
+                                    <Icon name="card" size={10} color={on ? t.accent : t.txtLow} />
+                                    <Txt size={12} weight="medium" color={on ? t.txtHi : t.txtMid}>{c.provider}</Txt>
+                                  </Pressable>
+                                );
+                              })}
+                            </View>
+                          ) : (
+                            <Low size={11}>No cards on file yet — pick one later from the bill's page.</Low>
+                          ))}
+                          {(fs === "bank" || fs === "wallet") && (
+                            <TextInput
+                              value={sub.fundingSourceName ?? ""}
+                              onChangeText={(v) => setDraftSubs((ds) => ds.map((d, j) => j === i ? { ...d, fundingSourceName: v } : d))}
+                              placeholder={fs === "bank" ? "e.g. BPI checking" : walletLabel}
+                              placeholderTextColor={t.txtLow}
+                              style={{ borderWidth: 1, borderColor: t.hair, backgroundColor: t.surface1, borderRadius: 10, paddingVertical: 7, paddingHorizontal: 11, fontSize: 13, color: t.txtHi }}
+                              returnKeyType="done"
+                              maxLength={48}
+                            />
+                          )}
+                        </View>
+                      );
+                    })()}
                   </View>
                 ))}
                 <Pressable
-                  onPress={() => setDraftSubs((ds) => [...ds, { id: Date.now(), provider: "", amount: "", dueDay: "", frequency: "monthly" }])}
+                  onPress={() => setDraftSubs((ds) => [...ds, { id: Date.now(), provider: "", amount: "", dueDay: "", frequency: "monthly", fundingSource: "manual" }])}
                   style={{ flexDirection: "row", alignItems: "center", gap: 7, paddingVertical: 6, paddingHorizontal: 2 }}
                 >
                   <Icon name="plus" size={14} color={t.txtMid} />
@@ -3820,7 +3933,14 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                 </>
               ) : (
                 <>
-                  <Btn label="Log this bill →" onPress={() => { haptics.success(); saveForm(); }} />
+                  <Btn
+                    label="Log this bill →"
+                    onPress={() => {
+                      haptics.selection();
+                      setManualReturn("prompt");
+                      openForm({ cat: sample.cat, icon: sample.icon });
+                    }}
+                  />
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 1 }}>
                     <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
                     <Low size={12}>or speak</Low>

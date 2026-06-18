@@ -1,4 +1,5 @@
 import { useRouter } from "expo-router";
+import * as Updates from "expo-updates";
 import React from "react";
 import { Alert, Modal, Pressable, Share, Text, TextInput, View } from "react-native";
 
@@ -375,9 +376,13 @@ export default function AccountScreen() {
       if (!guest) {
         await deleteAccountRemote();
       }
-      // Sign out (and end guest mode) BEFORE clearing local data so the auth
-      // gate routes straight to the auth screen instead of flashing onboarding.
-      await signOut();
+      // After a successful server-side deletion the user no longer exists,
+      // so the normal token-revoking sign-out call would hit an invalidated
+      // session — that can hang for tens of seconds on a flaky connection
+      // and pin the spinner forever. `scope: "local"` skips the network
+      // roundtrip and just wipes the session from device storage, which is
+      // all we need here (the auth user is already gone).
+      await signOut({ scope: "local" });
       setGuest(false);
       restart();
       setDeleteOpen(false);
@@ -573,8 +578,25 @@ export default function AccountScreen() {
         />
       </View>
 
+      {/* Version + OTA marker. Mirrors Settings → About so a user
+          debugging the delete-account flow (or any OTA-shipped fix) can
+          verify which JS bundle is actually running without leaving the
+          screen. Shows the first 8 chars of the update id + its
+          createdAt date when an OTA is in effect; falls back to
+          "Embedded bundle · no OTA applied" when running the JS baked
+          into the binary. */}
       <View style={{ alignItems: "center", marginTop: 22 }}>
         <Low size={12}>Judith v1.0 · Available worldwide</Low>
+        <Low size={11} style={{ marginTop: 2 }}>
+          {`Build ${Updates.runtimeVersion ?? "—"}${Updates.channel ? ` · ${Updates.channel}` : ""}`}
+        </Low>
+        <Low size={11} style={{ marginTop: 1 }}>
+          {Updates.isEmbeddedLaunch
+            ? "Embedded bundle · no OTA applied"
+            : `OTA ${(Updates.updateId ?? "").slice(0, 8) || "—"}${
+                Updates.createdAt ? ` · ${Updates.createdAt.toISOString().slice(0, 10)}` : ""
+              }`}
+        </Low>
       </View>
 
       {/* edit-name modal */}

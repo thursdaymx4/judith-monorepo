@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.app.judith",
-      "buildNumber": "33",
+      "buildNumber": "51",
       "usesAppleSignIn": true,
       "appleTeamId": "88JK8X8BT7",
       "entitlements": {
@@ -38,7 +38,7 @@
     },
     "android": {
       "package": "com.app.judith",
-      "versionCode": 33,
+      "versionCode": 51,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon-android-fg.png",
         "backgroundColor": "#0a0b0e"

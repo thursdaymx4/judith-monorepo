@@ -42,7 +42,13 @@ interface AuthContextValue {
   resetPassword: (email: string) => Promise<void>;
   establishSessionFromUrl: (url: string) => Promise<boolean>;
   updatePassword: (password: string) => Promise<void>;
-  signOut: () => Promise<void>;
+  /**
+   * Signs the user out. Pass `{ scope: "local" }` to skip the server-side
+   * token revocation call — useful after account deletion, where the user
+   * is already gone server-side and the revoke call would hit an
+   * invalidated endpoint that can hang for tens of seconds on poor links.
+   */
+  signOut: (opts?: { scope?: "local" | "global" }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -270,9 +276,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (error) throw error;
         setRecoveryActive(false);
       },
-      async signOut() {
+      async signOut(opts) {
         setRecoveryActive(false);
-        await supabase?.auth.signOut();
+        if (!supabase) return;
+        // `scope: "local"` clears the session from device storage without
+        // hitting the auth server. Use it after account deletion (the
+        // server-side user is already gone) and as a defensive fallback
+        // for the regular sign-out: race the network call against a
+        // 5-second timer so a slow auth server can't pin the UI.
+        const scope = opts?.scope ?? "global";
+        if (scope === "local") {
+          await supabase.auth.signOut({ scope: "local" });
+          return;
+        }
+        await Promise.race([
+          supabase.auth.signOut(),
+          new Promise<void>((resolve) => setTimeout(resolve, 5000)),
+        ]).catch(() => {});
+        // Belt + suspenders: clear local session regardless of whether the
+        // server roundtrip succeeded. Auth state listeners pick this up
+        // immediately so the app routes to the auth screen on next render.
+        await supabase.auth.signOut({ scope: "local" }).catch(() => {});
       },
     }),
     [session, loading, recoveryActive, appleAuthAvailable],
