@@ -3112,14 +3112,14 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
           {mode === "prompt" && !done && isPhoneSub && screenshotStatus === "idle" && (
             <SubsMockup countryCode={ctx.country.code} cur={cur} />
           )}
-          {/* Inline form — shown directly in prompt for non-phone-sub items */}
+          {/* Inline form — shown directly in prompt for non-phone-sub items.
+              No fade-in wrapper: the previous Animated.Value-driven opacity
+              could land at 0 on certain bill transitions (TestFlight build
+              50 showed empty space below Judith's bubble for Mobile,
+              Insurance, TV/Streaming), so we keep the form visible
+              unconditionally. */}
           {mode === "prompt" && !done && !isPhoneSub && activeFormCat && (
-            <Animated.View
-              style={{
-                opacity: formEnterAnim,
-                transform: [{ translateY: formEnterAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
-              }}
-            >
+            <View>
               <View
                 style={{
                   borderRadius: 20,
@@ -3218,7 +3218,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
               {renderFrequencyToggle()}
               {renderBusinessToggle()}
               {renderCardToggle(activeFormCat.cat)}
-            </Animated.View>
+            </View>
           )}
 
           {mode === "prompt" && !done && isPhoneSub && screenshotStatus === "loading" && (
