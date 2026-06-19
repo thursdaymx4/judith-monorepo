@@ -146,7 +146,10 @@ export default function AskModal() {
   // to Anthropic (and ElevenLabs when Voice Ask is active) before the first
   // question goes out. Persisted in AsyncStorage so we only ask once per
   // device. `aiConsentLoaded === false` blocks the first ask until we know.
-  const AI_CONSENT_KEY = "judith.aiDisclosureConsent.v1";
+  // Bumped from v1 → v2 when receipt-screenshot disclosure was added.
+  // Users who accepted v1 will be re-prompted once with the updated
+  // disclosure on their next ask.
+  const AI_CONSENT_KEY = "judith.aiDisclosureConsent.v2";
   const [aiConsentAccepted, setAiConsentAccepted] = React.useState(false);
   const [aiConsentLoaded, setAiConsentLoaded] = React.useState(false);
   const [aiConsentVisible, setAiConsentVisible] = React.useState(false);
@@ -1648,22 +1651,37 @@ export default function AskModal() {
               <JudithAvatar persona={persona} size={64} state="speaking" mood="neutral" />
             </View>
             <Txt size={20} weight="bold" style={{ textAlign: "center", marginBottom: 10 }}>
-              Before Judith answers
+              Before Judith helps
             </Txt>
             <Muted size={14} style={{ textAlign: "left", marginBottom: 12 }}>
               When you ask Judith a question, she sends a small payload of
-              your bill context (provider, amount, due date, status) to
+              your bill context (provider, amount, due date, status) plus
+              your income/payday settings to
               <Txt size={14} weight="semibold"> Anthropic (Claude)</Txt> through
               our privacy-respecting server to generate the answer.
+              Inputs and outputs are retained by Anthropic for up to 30
+              days for trust-and-safety review and are not used to train
+              their models.
             </Muted>
             <Muted size={14} style={{ textAlign: "left", marginBottom: 12 }}>
-              If you turn on Voice Ask, spoken replies are synthesized by
-              <Txt size={14} weight="semibold"> ElevenLabs</Txt>.
+              When you use Voice Ask, your spoken question and Judith's
+              spoken reply are processed by
+              <Txt size={14} weight="semibold"> ElevenLabs</Txt> for
+              transcription and speech synthesis. Audio is retained by
+              ElevenLabs for up to 30 days for abuse review and is not
+              used to train their models.
+            </Muted>
+            <Muted size={14} style={{ textAlign: "left", marginBottom: 12 }}>
+              When you choose to share a payment receipt with Judith, the
+              image is sent to Anthropic for one-time analysis to extract
+              the amount, date, and payee. The image is not stored by
+              Judith and is subject to the same 30-day retention as above.
             </Muted>
             <Muted size={14} style={{ textAlign: "left", marginBottom: 16 }}>
-              We never send your name, email, or account information.
-              Bill categorization runs entirely on-device using Apple's
-              Foundation Models — nothing leaves your phone for that path.
+              We never send your name, email, or account information to
+              any of these services. Bill categorization runs entirely
+              on-device using Apple's Foundation Models — nothing leaves
+              your phone for that path.
             </Muted>
             <Low size={11} style={{ textAlign: "left", marginBottom: 18 }}>
               See the full list of processors in our{" "}
