@@ -308,35 +308,44 @@ export function useWatchMessages() {
               undefined, // paydayWeekday
               watchHistory.length > 0 ? watchHistory : undefined,
             );
-            if (result.action?.type === "add_bill") {
-              const bill = makeBillFromAction(result.action);
-              saveBillRef.current(bill);
-            } else if (result.action?.type === "mark_paid") {
-              const id = result.action.id as string | undefined;
-              if (id) markPaidRef.current(id);
-            } else if (result.action?.type === "add_payment") {
-              const id = result.action.id as string | undefined;
-              const amount = typeof result.action.amount === "number" ? result.action.amount : 0;
-              if (id && amount > 0) payPartialRef.current(id, amount);
-            } else if (result.action?.type === "update_amount") {
-              const id = result.action.id as string | undefined;
-              const amount = typeof result.action.amount === "number" ? result.action.amount : 0;
-              if (id && amount > 0) updateBillAmountRef.current(id, amount);
-            } else if (result.action?.type === "update_bill") {
-              const id = result.action.id as string | undefined;
-              const existing = id ? billsRef.current.find((b) => b.id === id) : undefined;
-              if (existing) {
-                const a = result.action;
-                const updated = {
-                  ...existing,
-                  ...(typeof a.cat === "string" && a.cat ? { cat: a.cat } : {}),
-                  ...(a.kind === "Fixed" || a.kind === "Variable" ? { kind: a.kind as "Fixed" | "Variable" } : {}),
-                  ...(typeof a.reminderDays === "number" ? { reminderDays: a.reminderDays } : {}),
-                  ...(typeof a.isBusiness === "boolean" ? { isBusiness: a.isBusiness } : {}),
-                  ...(typeof a.house === "string" && a.house ? { house: a.house } : {}),
-                  ...(typeof a.chargedToCard === "boolean" ? { chargedToCard: a.chargedToCard } : {}),
-                };
-                saveBillRef.current(updated);
+            // Apply every action the model emitted, in order. Users can ask
+            // for changes across multiple bills in a single sentence
+            // ("mark Netflix and Spotify paid", "log ₱1 on BPI and ₱1 on
+            // UnionBank") so we iterate; falling back to result.action only
+            // when the server hasn't migrated to the array shape yet.
+            const actionsToApply = (result.actions && result.actions.length > 0)
+              ? result.actions
+              : (result.action ? [result.action] : []);
+            for (const a of actionsToApply) {
+              if (a?.type === "add_bill") {
+                const bill = makeBillFromAction(a);
+                saveBillRef.current(bill);
+              } else if (a?.type === "mark_paid") {
+                const id = a.id as string | undefined;
+                if (id) markPaidRef.current(id);
+              } else if (a?.type === "add_payment") {
+                const id = a.id as string | undefined;
+                const amount = typeof a.amount === "number" ? a.amount : 0;
+                if (id && amount > 0) payPartialRef.current(id, amount);
+              } else if (a?.type === "update_amount") {
+                const id = a.id as string | undefined;
+                const amount = typeof a.amount === "number" ? a.amount : 0;
+                if (id && amount > 0) updateBillAmountRef.current(id, amount);
+              } else if (a?.type === "update_bill") {
+                const id = a.id as string | undefined;
+                const existing = id ? billsRef.current.find((b) => b.id === id) : undefined;
+                if (existing) {
+                  const updated = {
+                    ...existing,
+                    ...(typeof a.cat === "string" && a.cat ? { cat: a.cat } : {}),
+                    ...(a.kind === "Fixed" || a.kind === "Variable" ? { kind: a.kind as "Fixed" | "Variable" } : {}),
+                    ...(typeof a.reminderDays === "number" ? { reminderDays: a.reminderDays } : {}),
+                    ...(typeof a.isBusiness === "boolean" ? { isBusiness: a.isBusiness } : {}),
+                    ...(typeof a.house === "string" && a.house ? { house: a.house } : {}),
+                    ...(typeof a.chargedToCard === "boolean" ? { chargedToCard: a.chargedToCard } : {}),
+                  };
+                  saveBillRef.current(updated);
+                }
               }
             }
             reply?.({ answer: result.reply });

@@ -146,18 +146,40 @@ interface BillRow {
  * string is absent or malformed — better than crashing.
  */
 /**
- * Extracts an <<ACTION:{...}>> tag appended by the AI at the end of its reply.
- * Returns the action object and the reply text stripped of the tag (used for TTS).
+ * Extracts every <<ACTION:{...}>> tag the AI appended to its reply. Tags can
+ * appear concatenated at the end (multi-bill flow: "mark Netflix and Spotify
+ * paid" → two tags) or anywhere in the response if the model misplaces them.
+ *
+ * Returns the cleanText (stripped of every tag, for display + TTS) plus an
+ * `actions` array in the order they appeared. `action` is also returned as a
+ * legacy alias = actions[0] so callers that haven't migrated to the array
+ * shape keep working for the first action.
  */
-function parseAction(raw: string): { cleanText: string; action: Record<string, unknown> | null } {
-  const match = /<<ACTION:(\{[^>]+\})>>\s*$/.exec(raw);
-  if (!match) return { cleanText: raw.trim(), action: null };
-  try {
-    const action = JSON.parse(match[1]!) as Record<string, unknown>;
-    return { cleanText: raw.slice(0, match.index).trim(), action };
-  } catch {
-    return { cleanText: raw.trim(), action: null };
+function parseAction(raw: string): {
+  cleanText: string;
+  action: Record<string, unknown> | null;
+  actions: Record<string, unknown>[];
+} {
+  // `{[^>]+}` is intentional — JSON payloads never contain a literal `>` so
+  // this stays bounded without needing a stack-aware parser.
+  const re = /<<ACTION:(\{[^>]+\})>>/g;
+  const actions: Record<string, unknown>[] = [];
+  let cleanText = raw;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(raw)) !== null) {
+    try {
+      const parsed = JSON.parse(match[1]!) as Record<string, unknown>;
+      actions.push(parsed);
+    } catch {
+      // Malformed JSON — leave the raw tag in cleanText so the issue is
+      // visible during debugging rather than silently swallowed.
+      continue;
+    }
   }
+  // Strip every well-formed tag from the visible text. Done in a second pass
+  // so a malformed tag stays in cleanText for diagnostic purposes.
+  cleanText = raw.replace(re, "").trim();
+  return { cleanText, action: actions[0] ?? null, actions };
 }
 
 function parseLocalDate(raw: unknown): Date {
@@ -1419,7 +1441,7 @@ router.post("/ask", askLimiter, async (req, res) => {
       }
       const llmMs = Date.now() - llmStart;
 
-      const { cleanText: reply, action } = parseAction(rawText.trim());
+      const { cleanText: reply, action, actions } = parseAction(rawText.trim());
       const { audioBase64, mime, ttsOk, ttsChars, ttsMs } = await doTts(reply);
       const totalMs = Date.now() - llmStart;
       // Send audio as its own event so the done event stays small (~150 bytes).
@@ -1428,7 +1450,9 @@ router.post("/ask", askLimiter, async (req, res) => {
       if (audioBase64) {
         res.write(`data: ${JSON.stringify({ type: "audio", audioBase64, mime })}\n\n`);
       }
-      res.write(`data: ${JSON.stringify({ type: "done", reply, action: action ?? null, audioBase64: null, mime, ttsToken: makeAiReplyToken(reply) })}\n\n`);
+      // `action` (singular) kept for legacy clients that haven't migrated to
+      // the array shape yet. `actions` is the source of truth going forward.
+      res.write(`data: ${JSON.stringify({ type: "done", reply, action: action ?? null, actions, audioBase64: null, mime, ttsToken: makeAiReplyToken(reply) })}\n\n`);
       res.end();
       doLog(reply, ttsOk, ttsChars, inputTokens, outputTokens, llmMs, ttsMs, totalMs, model);
       return;
@@ -1439,12 +1463,12 @@ router.post("/ask", askLimiter, async (req, res) => {
     const llmMs = Date.now() - llmStart;
 
     const rawReply = message.content.map((b) => (b.type === "text" ? b.text : "")).join(" ").trim();
-    const { cleanText: reply, action } = parseAction(rawReply);
+    const { cleanText: reply, action, actions } = parseAction(rawReply);
     const { audioBase64, mime, ttsOk, ttsChars, ttsMs } = await doTts(reply);
     const totalMs = Date.now() - llmStart;
 
     logger.info({ model, llmMs, ttsMs, totalMs, ttsChars }, "[ask] timing");
-    res.json({ reply, audioBase64, mime, action, ttsToken: makeAiReplyToken(reply) });
+    res.json({ reply, audioBase64, mime, action, actions, ttsToken: makeAiReplyToken(reply) });
     doLog(reply, ttsOk, ttsChars, message.usage.input_tokens, message.usage.output_tokens, llmMs, ttsMs, totalMs, model);
   } catch (err) {
     logger.error({ err }, "ask failed");

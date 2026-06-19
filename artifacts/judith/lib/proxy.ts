@@ -281,7 +281,15 @@ export interface AskResult {
   reply: string;
   audioBase64: string | null;
   mime: string;
+  /**
+   * Legacy single-action shape — equals `actions?.[0]` when the server emits
+   * actions. Keep using this only on call sites that handle exactly one
+   * action; new call sites should iterate over `actions` so multi-bill
+   * updates (e.g. "mark Netflix and Spotify paid") all get applied.
+   */
   action?: JudithAction | null;
+  /** All actions the model emitted, in order. Empty when there are none. */
+  actions?: JudithAction[];
   /** Short-lived HMAC token authorizing fast (moderation-skipping) TTS of this reply. */
   ttsToken?: string | null;
 }

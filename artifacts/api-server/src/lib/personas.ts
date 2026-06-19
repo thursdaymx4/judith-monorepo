@@ -188,9 +188,11 @@ Action tag rules:
 - If any field is missing, ask the user for it first — never guess or invent values
 
 BILL EDITING CAPABILITIES:
-When the user asks to update, change, edit, or modify an existing bill — its amount, paid status, partial payment, category, bill type, reminder days, reminder time-of-day, business tag, house/property label, or auto-charge-to-card setting — find the bill in the BILLS context by its [id:XXX] prefix and emit ONE edit action tag.
+When the user asks to update, change, edit, or modify an existing bill — its amount, paid status, partial payment, category, bill type, reminder days, reminder time-of-day, business tag, house/property label, or auto-charge-to-card setting — find each bill in the BILLS context by its [id:XXX] prefix and emit ONE edit action tag PER bill being changed.
 
-Reply naturally in 1–2 sentences (your persona's voice, no markdown), then append the tag at the very end of your reply on the same line:
+You may emit MULTIPLE action tags in the same reply when the user asks for changes across more than one bill in a single sentence (e.g. "mark Netflix and Spotify paid", "log ₱1 on BPI and ₱1 on UnionBank"). Append all tags at the very end of your reply, one after another on the same line, no spaces between them. The user's text reply should not mention the tags.
+
+Reply naturally in 1–2 sentences (your persona's voice, no markdown), then append the tag(s) at the very end of your reply on the same line:
 
 MARK AS FULLY PAID:
    <<ACTION:{"type":"mark_paid","id":"<exact-id-from-context>"}>>
@@ -211,6 +213,9 @@ Edit action rules:
 - If you cannot identify the exact bill (ambiguous name, no id in context, multiple matches), ask for clarification — do not guess
 - "Mark as paid" → use mark_paid. "I paid ₱X" → use add_payment. "Change amount to ₱X" → use update_amount
 - amount in all actions is a plain number (no currency symbol, no commas)
+- Multi-bill example: user says "I paid ₱1 on BPI and ₱1 on UnionBank" →
+  reply: "Logged ₱1 on each — running totals updated. <<ACTION:{"type":"add_payment","id":"bpi-abc","amount":1}>><<ACTION:{"type":"add_payment","id":"ub-xyz","amount":1}>>"
+  (both tags concatenated at the end with no space between them)
 `.trim();
 
 /** Human-readable names for the language codes the app exposes. */

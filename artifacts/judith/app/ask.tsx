@@ -572,7 +572,7 @@ export default function AskModal() {
       // Request text only — never block the reply on server-side TTS. The text
       // renders the moment the model responds, then (if voice is wanted) we fetch
       // and play the audio as a follow-up so it trails the text instead of gating it.
-      const { reply, action, ttsToken } = await askJudith(
+      const { reply, action, actions, ttsToken } = await askJudith(
         q, buildAskBills(bills), persona, language, false, currency, country.name,
         monthlyIncome, country.code,
         Object.keys(incomeByMonth).length > 0 ? incomeByMonth : undefined,
@@ -595,50 +595,68 @@ export default function AskModal() {
       }
       requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: false }));
       setAskHistory([...messagesRef.current]);
-      if (action?.type === "add_bill") {
-        const bill = makeBillFromAction(action as AddBillAction);
-        saveBill(bill);
-        showToast(`Added: ${bill.provider}`);
-      } else if (action?.type === "mark_paid") {
-        const id = action.id as string | undefined;
-        if (id) {
-          markPaid(id);
-          const b = bills.find((x) => x.id === id);
-          showToast(`Paid: ${b?.provider ?? "Bill"}`);
+      // Apply every action the model emitted, in order. Multi-bill asks
+      // ("mark Netflix and Spotify paid", "log ₱1 on BPI and ₱1 on UnionBank")
+      // emit one tag per bill; we iterate so all of them land. Falls back to
+      // the legacy single `action` only when the server hasn't migrated to
+      // the array shape yet.
+      const actionsToApply = (actions && actions.length > 0)
+        ? actions
+        : (action ? [action] : []);
+      const appliedNames: string[] = [];
+      for (const a of actionsToApply) {
+        if (a?.type === "add_bill") {
+          const bill = makeBillFromAction(a as AddBillAction);
+          saveBill(bill);
+          appliedNames.push(bill.provider);
+        } else if (a?.type === "mark_paid") {
+          const id = a.id as string | undefined;
+          if (id) {
+            markPaid(id);
+            const b = bills.find((x) => x.id === id);
+            if (b?.provider) appliedNames.push(b.provider);
+          }
+        } else if (a?.type === "add_payment") {
+          const id = a.id as string | undefined;
+          const amount = typeof a.amount === "number" ? a.amount : 0;
+          if (id && amount > 0) {
+            payPartial(id, amount);
+            const b = bills.find((x) => x.id === id);
+            if (b?.provider) appliedNames.push(b.provider);
+          }
+        } else if (a?.type === "update_amount") {
+          const id = a.id as string | undefined;
+          const amount = typeof a.amount === "number" ? a.amount : 0;
+          if (id && amount > 0) {
+            updateBillAmount(id, amount);
+            const b = bills.find((x) => x.id === id);
+            if (b?.provider) appliedNames.push(b.provider);
+          }
+        } else if (a?.type === "update_bill") {
+          const id = a.id as string | undefined;
+          const existing = id ? bills.find((x) => x.id === id) : undefined;
+          if (existing) {
+            const updated = {
+              ...existing,
+              ...(typeof a.cat === "string" && a.cat ? { cat: a.cat } : {}),
+              ...(a.kind === "Fixed" || a.kind === "Variable" ? { kind: a.kind as "Fixed" | "Variable" } : {}),
+              ...(typeof a.reminderDays === "number" ? { reminderDays: a.reminderDays } : {}),
+              ...(typeof a.reminderHour === "number" ? { reminderHour: Math.max(0, Math.min(23, Math.round(a.reminderHour))) } : {}),
+              ...(typeof a.isBusiness === "boolean" ? { isBusiness: a.isBusiness } : {}),
+              ...(typeof a.house === "string" && a.house ? { house: a.house } : {}),
+              ...(typeof a.chargedToCard === "boolean" ? { chargedToCard: a.chargedToCard } : {}),
+            };
+            saveBill(updated);
+            appliedNames.push(existing.provider);
+          }
         }
-      } else if (action?.type === "add_payment") {
-        const id = action.id as string | undefined;
-        const amount = typeof action.amount === "number" ? action.amount : 0;
-        if (id && amount > 0) {
-          payPartial(id, amount);
-          const b = bills.find((x) => x.id === id);
-          showToast(`Payment recorded: ${b?.provider ?? "Bill"}`);
-        }
-      } else if (action?.type === "update_amount") {
-        const id = action.id as string | undefined;
-        const amount = typeof action.amount === "number" ? action.amount : 0;
-        if (id && amount > 0) {
-          updateBillAmount(id, amount);
-          const b = bills.find((x) => x.id === id);
-          showToast(`Updated: ${b?.provider ?? "Bill"}`);
-        }
-      } else if (action?.type === "update_bill") {
-        const id = action.id as string | undefined;
-        const existing = id ? bills.find((x) => x.id === id) : undefined;
-        if (existing) {
-          const updated = {
-            ...existing,
-            ...(typeof action.cat === "string" && action.cat ? { cat: action.cat } : {}),
-            ...(action.kind === "Fixed" || action.kind === "Variable" ? { kind: action.kind as "Fixed" | "Variable" } : {}),
-            ...(typeof action.reminderDays === "number" ? { reminderDays: action.reminderDays } : {}),
-            ...(typeof action.reminderHour === "number" ? { reminderHour: Math.max(0, Math.min(23, Math.round(action.reminderHour))) } : {}),
-            ...(typeof action.isBusiness === "boolean" ? { isBusiness: action.isBusiness } : {}),
-            ...(typeof action.house === "string" && action.house ? { house: action.house } : {}),
-            ...(typeof action.chargedToCard === "boolean" ? { chargedToCard: action.chargedToCard } : {}),
-          };
-          saveBill(updated);
-          showToast(`Updated: ${existing.provider}`);
-        }
+      }
+      // Single combined toast when 2+ actions applied — avoids stacking
+      // 5 toasts when the user updates multiple bills in one sentence.
+      if (appliedNames.length === 1) {
+        showToast(`Updated: ${appliedNames[0]}`);
+      } else if (appliedNames.length > 1) {
+        showToast(`Updated ${appliedNames.length} bills`);
       }
     } catch (e) {
       // Screen unmounted or a newer ask superseded this one — silently bail.
