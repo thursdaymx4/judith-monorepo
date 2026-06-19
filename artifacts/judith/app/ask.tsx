@@ -21,6 +21,7 @@ import type { AskMsg } from "@/contexts/JudithStore";
 import { getQuickAsks } from "@/constants/providers";
 import { getPersona } from "@/constants/personas";
 import { useJudith } from "@/contexts/JudithStore";
+import { useAiConsent } from "@/contexts/AiConsentContext";
 import { useTheme } from "@/hooks/useTheme";
 import { enqueueAudio, fileToBase64, isAudioActive, resetAudioToPlayback, stopCurrentAudio } from "@/lib/audio";
 import { safeBack } from "@/lib/navigation";
@@ -129,6 +130,11 @@ export default function AskModal() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { bills, asksLeft, tier, persona, language, country, currency, monthlyIncome, incomeByMonth, payCycle, paydayDay, paydaySemi, paydayWeekday, consumeAsk, addAsks, canUseVoice, saveBill, markPaid, payPartial, updateBillAmount, showToast, toggles, setToggle, askHistory, setAskHistory, clearAskHistory, hydrated, customQuestions, addCustomQuestion, deleteCustomQuestion, subscribe } = useJudith();
+  // Shared AI-consent gate (Apple 5.1.1(i)/5.1.2(i)). The legacy inline
+  // consent modal below covers the Ask Judith voice/text path; this hook
+  // covers the receipt/bill-screenshot scan paths so the user sees one
+  // unified consent before any image leaves the device.
+  const { ensure: ensureAiConsentShared } = useAiConsent();
   // Voice tier can mute spoken replies (e.g. in public) and get text-only answers.
   const speakAloud = toggles.voiceReplies;
   const voiceTier = tier === "voice";
@@ -375,6 +381,10 @@ export default function AskModal() {
   };
 
   const scanFromLibrary = async () => {
+    // Apple 5.1.1(i)/5.1.2(i): receipt/screenshot scans send images to
+    // Claude vision via our server. Explicit AI consent before the picker
+    // opens so the user can't accidentally upload before being informed.
+    if (!(await ensureAiConsentShared())) return;
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
       setErr("Photo library access is needed to scan a bill. You can type instead.");
@@ -390,6 +400,7 @@ export default function AskModal() {
   };
 
   const scanFromCamera = async () => {
+    if (!(await ensureAiConsentShared())) return;
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) {
       setErr("Camera access is needed to take a photo. You can upload one instead.");

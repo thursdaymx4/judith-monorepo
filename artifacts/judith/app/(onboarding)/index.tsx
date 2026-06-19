@@ -45,6 +45,7 @@ import { JUDITH_VOICE } from "@/constants/voiceLines";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle } from "react-native-svg";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAiConsent } from "@/contexts/AiConsentContext";
 import { useJudith } from "@/contexts/JudithStore";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { getCategoryLabel } from "@/constants/categoryLocale";
@@ -2307,6 +2308,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     return hasGroup(s.group);
   });
   const { saveBill, deleteBill, bills: storeBills, showToast } = useJudith();
+  const { ensure: ensureAiConsent } = useAiConsent();
   const cur = ctx.country.cur;
   const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
   // ── Voice Activity Detection refs ─────────────────────────────────
@@ -2581,6 +2583,10 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
 
   /* Screenshot upload — encouraged for Phone subscription category */
   const handleUploadScreenshot = async () => {
+    // Apple Guideline 5.1.1(i)/5.1.2(i): gate any data leaving the device
+    // for AI processing. The screenshot is sent to Claude vision for
+    // subscription extraction, so an upfront opt-in is required.
+    if (!(await ensureAiConsent())) return;
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
       setErr(isFilipino(language)

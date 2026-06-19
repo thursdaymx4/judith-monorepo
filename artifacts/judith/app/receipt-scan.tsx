@@ -34,6 +34,7 @@ import { safeBack } from "@/lib/navigation";
 import { scanReceipt, type ScanSource } from "@/lib/receiptScan";
 import { matchReceiptToBill, type ReceiptIntent } from "@/lib/matchReceiptToBill";
 import { getFxRate, userCurrencyCode, type FxRate } from "@/lib/fx";
+import { useAiConsent } from "@/contexts/AiConsentContext";
 
 type ScreenState =
   | { kind: "idle" }
@@ -101,6 +102,7 @@ export default function ReceiptScanScreen() {
     money,
     country,
   } = useJudith();
+  const { ensure: ensureAiConsent } = useAiConsent();
 
   const [state, setState] = useState<ScreenState>({ kind: "idle" });
   // Guard against re-running consumePendingShare on every re-render —
@@ -181,12 +183,21 @@ export default function ReceiptScanScreen() {
     void (async () => {
       const pending = await ReceiptVision.consumePendingShare();
       if (pending?.base64) {
+        // Same AI-consent gate as the camera/library entry points. The
+        // payload is already on-device, so consuming it on its own is
+        // free, but our pipeline may still hit the server fallback.
+        if (!(await ensureAiConsent())) return;
         await runScanFromBase64(pending.base64, pending.mime || "image/jpeg");
       }
     })();
-  }, []);
+  }, [ensureAiConsent]);
 
   const pickFromCamera = async () => {
+    // Apple Guideline 5.1.1(i)/5.1.2(i): explicit AI-data-share consent
+    // before any receipt photo could reach a third-party processor. We
+    // gate at the picker entry point so the user can't accidentally take
+    // a photo that goes to the server fallback without permission.
+    if (!(await ensureAiConsent())) return;
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) {
       setState({
@@ -205,6 +216,7 @@ export default function ReceiptScanScreen() {
   };
 
   const pickFromLibrary = async () => {
+    if (!(await ensureAiConsent())) return;
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
       setState({

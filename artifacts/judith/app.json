@@ -92,6 +92,13 @@
           "microphonePermission": "Judith uses the microphone so you can speak your bill questions and dictate new bills hands-free."
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Judith uses the camera so you can photograph a bill or receipt to log it. For example, snapping your Meralco statement to record this month's amount, or your Globe payment confirmation to mark the bill paid.",
+          "photosPermission": "Judith reads only the photo you pick from your library to extract bill details from it. For example, choosing a screenshot of your Netflix renewal page to add it as a recurring bill, or a receipt photo to mark an existing bill paid."
+        }
+      ],
       "expo-notifications",
       "@bacons/apple-targets",
       [

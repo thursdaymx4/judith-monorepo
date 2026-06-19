@@ -54,6 +54,7 @@ import { BreathingBackdrop } from "@/components/BreathingBackdrop";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { HandledSplash } from "@/components/HandledSplash";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { AiConsentProvider } from "@/contexts/AiConsentContext";
 import { JudithProvider, useJudith } from "@/contexts/JudithStore";
 import { PaidSuccessView } from "@/components/PaidSuccessView";
 import { useBiometricLock } from "@/hooks/useBiometricLock";
@@ -372,6 +373,7 @@ function RootLayout() {
               <AuthProvider>
                 <JudithProvider>
                   <SubscriptionProvider>
+                    <AiConsentProvider>
                     <RootLayoutNav />
                     {/* Splash sits INSIDE the provider stack so its useTheme()
                         call resolves against JudithProvider. It absolute-positions
@@ -382,6 +384,7 @@ function RootLayout() {
                         flips to paid. Mounted here so it overlays every
                         screen and survives navigation. */}
                     <PaidSuccessHost />
+                    </AiConsentProvider>
                   </SubscriptionProvider>
                 </JudithProvider>
               </AuthProvider>
