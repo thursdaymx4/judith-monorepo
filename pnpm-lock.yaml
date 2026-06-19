@@ -288,6 +288,9 @@ importers:
       judith-financekit:
         specifier: file:./modules/judith-financekit
         version: file:artifacts/judith/modules/judith-financekit(expo-modules-core@3.0.30(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))
+      judith-receipt-vision:
+        specifier: file:./modules/judith-receipt-vision
+        version: file:artifacts/judith/modules/judith-receipt-vision(expo-modules-core@3.0.30(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))
       judith-widget-bridge:
         specifier: file:./modules/judith-widget-bridge
         version: file:artifacts/judith/modules/judith-widget-bridge(expo-modules-core@3.0.30(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))
@@ -5110,6 +5113,11 @@ packages:
 
   judith-financekit@file:artifacts/judith/modules/judith-financekit:
     resolution: {directory: artifacts/judith/modules/judith-financekit, type: directory}
+    peerDependencies:
+      expo-modules-core: '*'
+
+  judith-receipt-vision@file:artifacts/judith/modules/judith-receipt-vision:
+    resolution: {directory: artifacts/judith/modules/judith-receipt-vision, type: directory}
     peerDependencies:
       expo-modules-core: '*'
 
@@ -11940,6 +11948,10 @@ snapshots:
   jsonpointer@5.0.1: {}
 
   judith-financekit@file:artifacts/judith/modules/judith-financekit(expo-modules-core@3.0.30(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)):
+    dependencies:
+      expo-modules-core: 3.0.30(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+
+  judith-receipt-vision@file:artifacts/judith/modules/judith-receipt-vision(expo-modules-core@3.0.30(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)):
     dependencies:
       expo-modules-core: 3.0.30(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
 

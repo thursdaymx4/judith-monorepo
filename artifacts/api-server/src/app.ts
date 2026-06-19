@@ -60,6 +60,7 @@ const parseJsonLarge = express.json({ limit: "8mb" });
 const PARSE_PATHS = new Set([
   "/api/judith/parse-bill",
   "/api/judith/parse-subscription-screenshot",
+  "/api/judith/receipt-scan",
 ]);
 app.use((req, res, next) =>
   PARSE_PATHS.has(req.path) ? parseJsonLarge(req, res, next) : parseJsonStandard(req, res, next),

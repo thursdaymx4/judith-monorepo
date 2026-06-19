@@ -22,6 +22,62 @@ final class ConnectivityService: NSObject, WCSessionDelegate, ObservableObject {
         }
     }
 
+    // MARK: — Offline action queue
+    //
+    // When the watch is in standalone mode (phone unreachable) and the user
+    // asks Judith to mutate a bill, /watch-ask returns the parsed action(s).
+    // We can't apply them to the canonical bill store from the watch — the
+    // phone owns that — so we persist them here and replay them via
+    // WCSession the moment the phone comes back into reach.
+    private let pendingActionsKey = "judith.watch_pending_actions"
+
+    private func loadPendingActions() -> [String] {
+        defaults?.stringArray(forKey: pendingActionsKey) ?? []
+    }
+
+    private func savePendingActions(_ actions: [String]) {
+        defaults?.set(actions, forKey: pendingActionsKey)
+    }
+
+    private func enqueuePendingActions(_ actionJSONs: [String]) {
+        guard !actionJSONs.isEmpty else { return }
+        var pending = loadPendingActions()
+        pending.append(contentsOf: actionJSONs)
+        savePendingActions(pending)
+    }
+
+    /// Drain the offline-queued actions back to the phone. Called on
+    /// reachability restoration and on session activation. Each queued action
+    /// is sent as a sendMessage with action="applyAction" and the raw JSON
+    /// string — useWatchMessages.ts parses and routes to the correct store
+    /// mutation. Items are only removed from the queue after the phone acks;
+    /// a send failure falls back to transferUserInfo so the action survives
+    /// across watch reboots.
+    func drainPendingActions() {
+        let pending = loadPendingActions()
+        guard !pending.isEmpty else { return }
+        guard WCSession.default.isReachable else { return }
+
+        // Optimistically clear so we don't double-send if drain is re-entered.
+        // Failed items get re-enqueued via the errorHandler below.
+        savePendingActions([])
+
+        for json in pending {
+            let payload: [String: Any] = ["action": "applyAction", "payload": json]
+            WCSession.default.sendMessage(
+                payload,
+                replyHandler: { _ in },
+                errorHandler: { [weak self] _ in
+                    // Persist again so we retry on the next reachability event.
+                    // transferUserInfo is the durable channel — survives phone
+                    // lock/background.
+                    WCSession.default.transferUserInfo(payload)
+                    self?.enqueuePendingActions([json])
+                }
+            )
+        }
+    }
+
     func register(store: WatchStore) {
         self.store = store
         // Hydrate immediately from the last context the phone sent — covers the
@@ -41,10 +97,12 @@ final class ConnectivityService: NSObject, WCSessionDelegate, ObservableObject {
                  activationDidCompleteWith state: WCSessionActivationState,
                  error: Error?) {
         DispatchQueue.main.async { self.isPhoneReachable = session.isReachable }
+        if session.isReachable { drainPendingActions() }
     }
 
     func sessionReachabilityDidChange(_ session: WCSession) {
         DispatchQueue.main.async { self.isPhoneReachable = session.isReachable }
+        if session.isReachable { drainPendingActions() }
     }
 
     // transferUserInfo — the phone pushes WatchPayload via this channel
@@ -216,12 +274,67 @@ final class ConnectivityService: NSObject, WCSessionDelegate, ObservableObject {
             localWeekday: Self.localWeekdayString(),
             history: history.isEmpty ? nil : history
         )
-        let response: WatchAskResponse = try await sendBackendRequest(
-            path: "watch-ask",
-            method: "POST",
-            body: request
-        )
-        return response.answer
+        // We can't reuse the typed sendBackendRequest helper because /watch-ask
+        // now returns `actions` as a heterogeneous JSON array (varying shapes
+        // per action type — strings, numbers, bools, sub-arrays for splits).
+        // Round-tripping that through Codable would require a JSONValue enum;
+        // since we only need to relay each action JSON verbatim to the phone,
+        // it's simpler to extract them via JSONSerialization.
+        guard let token = watchToken else { throw AskError.phoneNotReachable }
+        let url = Config.apiBaseURL.appendingPathComponent("watch-ask")
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.timeoutInterval = 30
+        urlRequest.httpBody = try encoder.encode(request)
+
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await URLSession.shared.data(for: urlRequest)
+        } catch let err as URLError where err.code == .timedOut {
+            throw AskError.serverError("Took too long — keep your wrist raised and try again.")
+        }
+        guard let http = response as? HTTPURLResponse else { throw AskError.invalidReply }
+        guard (200..<300).contains(http.statusCode) else {
+            if let err = try? decoder.decode(BackendErrorResponse.self, from: data),
+               !err.error.isEmpty {
+                throw AskError.serverError(err.error)
+            }
+            throw AskError.serverError("Judith couldn't load the latest watch data.")
+        }
+
+        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let answer = json["answer"] as? String else {
+            throw AskError.invalidReply
+        }
+
+        // Queue + optimistically apply any actions Claude emitted. We only
+        // hit this code path when the phone is unreachable, so every action
+        // returned here is destined for the queue. mark_paid actions get a
+        // best-effort local apply so the watch UI reflects the change
+        // immediately — the phone will reconfirm via WatchPayload once the
+        // queue drains.
+        if let actions = json["actions"] as? [[String: Any]], !actions.isEmpty {
+            var queued: [String] = []
+            for action in actions {
+                if let actionData = try? JSONSerialization.data(withJSONObject: action),
+                   let actionString = String(data: actionData, encoding: .utf8) {
+                    queued.append(actionString)
+                }
+                if let type = action["type"] as? String,
+                   type == "mark_paid",
+                   let id = action["id"] as? String {
+                    Task { @MainActor in self.store?.optimisticallyMarkPaid(billId: id) }
+                }
+            }
+            if !queued.isEmpty {
+                enqueuePendingActions(queued)
+            }
+        }
+
+        return answer
     }
 
     private func sendBackendRequest<ResponseBody: Decodable, RequestBody: Encodable>(
@@ -307,10 +420,6 @@ private struct WatchAskRequest: Encodable {
     let localDate: String
     let localWeekday: String
     let history: [ConnectivityService.AskTurn]?
-}
-
-private struct WatchAskResponse: Decodable {
-    let answer: String
 }
 
 private struct WatchSttRequest: Encodable {

@@ -1140,8 +1140,11 @@ router.post("/watch-ask", askLimiter, async (req, res) => {
       messages: [...historyMessages, { role: "user", content: text.trim() }],
     });
     const rawReply = message.content.map((b) => (b.type === "text" ? b.text : "")).join(" ").trim();
-    const { cleanText: reply } = parseAction(rawReply);
-    res.json({ answer: reply });
+    const { cleanText: reply, actions } = parseAction(rawReply);
+    // Actions are forwarded so the standalone watch path (phone unreachable)
+    // can queue them locally and replay via WCSession once the phone comes
+    // back. parseAction returns [] when the model emitted no tags.
+    res.json({ answer: reply, actions });
   } catch (err) {
     logger.error({ err }, "watch-ask failed");
     res.status(500).json({ error: "Judith could not respond right now" });
@@ -2976,6 +2979,73 @@ Rules:
   } catch (err) {
     logger.error({ err }, "parse-subscription-screenshot failed");
     res.status(500).json({ error: "Could not parse screenshot" });
+  }
+});
+
+// POST /api/judith/receipt-scan  { imageBase64, mimeType } -> { provider, amount, date }
+// Fallback path when the on-device Vision OCR pipeline (judith-receipt-vision)
+// is unavailable (Android, Expo Go, pre-iOS-13) or returned a low-confidence
+// result. The on-device path stays the default — the image only leaves the
+// device when we can't read it locally. No image is ever persisted server-side.
+router.post("/receipt-scan", parseGlobalCap, parseLimiter, async (req, res) => {
+  try {
+    const { imageBase64, mimeType } = req.body ?? {};
+    if (typeof imageBase64 !== "string" || !imageBase64) {
+      res.status(400).json({ error: "imageBase64 is required" });
+      return;
+    }
+    const mime = (typeof mimeType === "string" && mimeType
+      ? mimeType
+      : "image/jpeg") as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+    const anthropic = getAnthropic();
+    const message = await anthropic.messages.create({
+      model: ANTHROPIC_MODEL,
+      max_tokens: 240,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: { type: "base64", media_type: mime, data: imageBase64 },
+            },
+            {
+              type: "text",
+              text: `Today's date is ${new Date().toISOString().slice(0, 10)}. Extract the bill-payment details from this receipt image.
+
+Return ONLY a valid JSON object — no markdown fences, no explanation, nothing else:
+{"provider":"string|null","amount":number|null,"date":"YYYY-MM-DD"|null}
+
+Rules:
+- provider: the merchant/biller/company name as printed on the receipt (e.g. "Meralco", "Globe Telecom", "Netflix", "Costco"). Null if no clear merchant.
+- amount: the TOTAL amount paid as a plain number (e.g. 1249 for ₱1,249.00). Prefer the "Total", "Amount Paid", "Grand Total", or "Amount Due" line. Null if not visible.
+- date: the transaction/payment date as YYYY-MM-DD. Resolve dates without a year against today. Null if not visible.
+- If this image is clearly NOT a receipt (e.g. a meme, a person, a landscape), return {"provider":null,"amount":null,"date":null}.`,
+            },
+          ],
+        },
+      ],
+    });
+    const raw = message.content
+      .map((b) => (b.type === "text" ? b.text : ""))
+      .join("")
+      .trim()
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/, "")
+      .trim();
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const provider = typeof parsed["provider"] === "string" && parsed["provider"].trim()
+      ? parsed["provider"].trim()
+      : null;
+    const amountNum = parsed["amount"] != null ? Number(parsed["amount"]) : NaN;
+    const amount = Number.isFinite(amountNum) && amountNum > 0 ? amountNum : null;
+    const date = typeof parsed["date"] === "string" && /^\d{4}-\d{2}-\d{2}$/.test(parsed["date"])
+      ? parsed["date"]
+      : null;
+    res.json({ provider, amount, date });
+  } catch (err) {
+    logger.error({ err }, "receipt-scan failed");
+    res.status(500).json({ error: "Could not read receipt" });
   }
 });
 

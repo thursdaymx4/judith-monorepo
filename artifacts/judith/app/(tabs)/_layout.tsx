@@ -65,6 +65,10 @@ function TabBar({ state, navigation }: TabBarProps) {
 
 const FAB_ACTIONS: { label: string; icon: IconName; to: Href }[] = [
   { label: "Enter manually", icon: "keyboard", to: "/add-bill" },
+  // Cast until expo-router regenerates its typed-routes union (refreshes on
+  // the next `expo start` after this file lands). At runtime expo-router
+  // resolves the path from the filesystem regardless of the static union.
+  { label: "Scan a receipt", icon: "receipt", to: "/receipt-scan" as Href },
   { label: "Ask Judith", icon: "spark", to: "/ask" },
 ];
 

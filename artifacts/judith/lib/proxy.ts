@@ -726,6 +726,37 @@ export async function parseSubscriptionScreenshot(
 }
 
 /**
+ * Vision AI extraction of receipt details (merchant + total + date) when the
+ * on-device pipeline can't or won't read it. The on-device path stays the
+ * default — this is only invoked as fallback. No image is persisted server-side.
+ */
+export async function scanReceiptViaServer(
+  imageBase64: string,
+  mimeType: string,
+  signal?: AbortSignal,
+): Promise<{ provider: string | null; amount: number | null; date: string | null }> {
+  if (signal?.aborted) throw new AbortedError();
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/receipt-scan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageBase64, mimeType }),
+      signal,
+    });
+  } catch (e) {
+    if (signal?.aborted || (e as Error)?.name === "AbortError") throw new AbortedError();
+    throw e;
+  }
+  throwIfRateLimited(res);
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Receipt scan failed (${res.status}): ${detail}`);
+  }
+  return res.json() as Promise<{ provider: string | null; amount: number | null; date: string | null }>;
+}
+
+/**
  * AI-powered bill-detail extraction from transcribed speech — no auth required.
  * Returns provider, amount (₱), dueDay (1-31 | null), and kind.
  */

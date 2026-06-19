@@ -8,15 +8,21 @@
  *      — arrives via watchEvents 'user-info'; no reply needed
  *
  * Supported actions:
- *   {action: "ask",      query: string}   → calls /ask API, replies {answer}
- *   {action: "markPaid", billId: string}  → marks bill paid in local store
+ *   {action: "ask",         query: string}    → calls /ask API, replies {answer}
+ *   {action: "markPaid",    billId: string}   → marks bill paid in local store
+ *   {action: "applyAction", payload: string}  → JSON-encoded Judith action
+ *                                               drained from the watch's
+ *                                               offline queue (standalone
+ *                                               /watch-ask path). Replayed
+ *                                               with the same dispatcher used
+ *                                               by the phone Ask flow.
  *
  * Safe to mount unconditionally — no-ops when WatchConnectivity is absent
  * (Expo Go, Android, no paired watch).
  */
 import { useEffect, useRef } from "react";
 import { useJudith } from "@/contexts/JudithStore";
-import { askJudith } from "@/lib/proxy";
+import { askJudith, type JudithAction } from "@/lib/proxy";
 import {
   currentCycleDue,
   makeBillFromAction,
@@ -225,6 +231,37 @@ export function useWatchMessages() {
       }
     ).watchEvents;
 
+    // Dispatch a single Judith action against the local store. Shared by the
+    // /ask multi-action loop and the watch's offline-queue replay path so
+    // both sites stay in sync as the action vocabulary grows.
+    const applyJudithAction = (a: JudithAction | null | undefined) => {
+      if (!a) return;
+      if (a.type === "add_bill") {
+        const bill = makeBillFromAction(a);
+        saveBillRef.current(bill);
+      } else if (a.type === "mark_paid") {
+        if (a.id) markPaidRef.current(a.id);
+      } else if (a.type === "add_payment") {
+        if (a.id && a.amount > 0) payPartialRef.current(a.id, a.amount);
+      } else if (a.type === "update_amount") {
+        if (a.id && a.amount > 0) updateBillAmountRef.current(a.id, a.amount);
+      } else if (a.type === "update_bill") {
+        const existing = a.id ? billsRef.current.find((b) => b.id === a.id) : undefined;
+        if (existing) {
+          const updated = {
+            ...existing,
+            ...(typeof a.cat === "string" && a.cat ? { cat: a.cat } : {}),
+            ...(a.kind === "Fixed" || a.kind === "Variable" ? { kind: a.kind } : {}),
+            ...(typeof a.reminderDays === "number" ? { reminderDays: a.reminderDays } : {}),
+            ...(typeof a.isBusiness === "boolean" ? { isBusiness: a.isBusiness } : {}),
+            ...(typeof a.house === "string" && a.house ? { house: a.house } : {}),
+            ...(typeof a.chargedToCard === "boolean" ? { chargedToCard: a.chargedToCard } : {}),
+          };
+          saveBillRef.current(updated);
+        }
+      }
+    };
+
     // ── Channel 1: sendMessage (phone foregrounded / reachable) ──────────────
     let messageSub: { remove?: () => void } | undefined;
     if (events?.on) {
@@ -317,36 +354,7 @@ export function useWatchMessages() {
               ? result.actions
               : (result.action ? [result.action] : []);
             for (const a of actionsToApply) {
-              if (a?.type === "add_bill") {
-                const bill = makeBillFromAction(a);
-                saveBillRef.current(bill);
-              } else if (a?.type === "mark_paid") {
-                const id = a.id as string | undefined;
-                if (id) markPaidRef.current(id);
-              } else if (a?.type === "add_payment") {
-                const id = a.id as string | undefined;
-                const amount = typeof a.amount === "number" ? a.amount : 0;
-                if (id && amount > 0) payPartialRef.current(id, amount);
-              } else if (a?.type === "update_amount") {
-                const id = a.id as string | undefined;
-                const amount = typeof a.amount === "number" ? a.amount : 0;
-                if (id && amount > 0) updateBillAmountRef.current(id, amount);
-              } else if (a?.type === "update_bill") {
-                const id = a.id as string | undefined;
-                const existing = id ? billsRef.current.find((b) => b.id === id) : undefined;
-                if (existing) {
-                  const updated = {
-                    ...existing,
-                    ...(typeof a.cat === "string" && a.cat ? { cat: a.cat } : {}),
-                    ...(a.kind === "Fixed" || a.kind === "Variable" ? { kind: a.kind as "Fixed" | "Variable" } : {}),
-                    ...(typeof a.reminderDays === "number" ? { reminderDays: a.reminderDays } : {}),
-                    ...(typeof a.isBusiness === "boolean" ? { isBusiness: a.isBusiness } : {}),
-                    ...(typeof a.house === "string" && a.house ? { house: a.house } : {}),
-                    ...(typeof a.chargedToCard === "boolean" ? { chargedToCard: a.chargedToCard } : {}),
-                  };
-                  saveBillRef.current(updated);
-                }
-              }
+              applyJudithAction(a);
             }
             reply?.({ answer: result.reply });
           } catch {
@@ -357,6 +365,23 @@ export function useWatchMessages() {
         if (action === "markPaid") {
           const billId = message.billId as string | undefined;
           if (billId) markPaidRef.current(billId);
+          reply?.({ ok: true });
+        }
+
+        if (action === "applyAction") {
+          // Replay of a Judith action the watch parsed offline via
+          // /watch-ask. Payload is the action JSON serialized verbatim by
+          // the server's parseAction.
+          const payload = message.payload as string | undefined;
+          if (payload) {
+            try {
+              const parsed = JSON.parse(payload) as JudithAction;
+              applyJudithAction(parsed);
+            } catch {
+              // Malformed queue entry — drop it. Reply ok so the watch
+              // doesn't endlessly retry an unparseable payload.
+            }
+          }
           reply?.({ ok: true });
         }
       });
@@ -378,6 +403,13 @@ export function useWatchMessages() {
             markPaidRef.current(p.billId);
           } else if (p.action === "refreshWatchPayload") {
             syncCurrentPayload();
+          } else if (p.action === "applyAction" && typeof p.payload === "string") {
+            try {
+              const parsed = JSON.parse(p.payload) as JudithAction;
+              applyJudithAction(parsed);
+            } catch {
+              // Drop unparseable queue entry; see channel-1 handler above.
+            }
           }
         }
       });
