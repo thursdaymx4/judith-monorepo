@@ -3014,13 +3014,14 @@ router.post("/receipt-scan", parseGlobalCap, parseLimiter, async (req, res) => {
               text: `Today's date is ${new Date().toISOString().slice(0, 10)}. Extract the bill-payment details from this receipt image.
 
 Return ONLY a valid JSON object — no markdown fences, no explanation, nothing else:
-{"provider":"string|null","amount":number|null,"date":"YYYY-MM-DD"|null}
+{"provider":"string|null","amount":number|null,"date":"YYYY-MM-DD"|null,"currencyHint":"ISO-4217|null"}
 
 Rules:
 - provider: the merchant/biller/company name as printed on the receipt (e.g. "Meralco", "Globe Telecom", "Netflix", "Costco"). Null if no clear merchant.
 - amount: the TOTAL amount paid as a plain number (e.g. 1249 for ₱1,249.00). Prefer the "Total", "Amount Paid", "Grand Total", or "Amount Due" line. Null if not visible.
 - date: the transaction/payment date as YYYY-MM-DD. Resolve dates without a year against today. Null if not visible.
-- If this image is clearly NOT a receipt (e.g. a meme, a person, a landscape), return {"provider":null,"amount":null,"date":null}.`,
+- currencyHint: the 3-letter ISO 4217 code of the currency shown on the receipt (e.g. "PHP", "USD", "EUR", "JPY", "GBP"). Infer from symbols (₱=PHP, $=USD, €=EUR, £=GBP, ¥=JPY) or codes. Null if not determinable.
+- If this image is clearly NOT a receipt (e.g. a meme, a person, a landscape), return {"provider":null,"amount":null,"date":null,"currencyHint":null}.`,
             },
           ],
         },
@@ -3042,10 +3043,79 @@ Rules:
     const date = typeof parsed["date"] === "string" && /^\d{4}-\d{2}-\d{2}$/.test(parsed["date"])
       ? parsed["date"]
       : null;
-    res.json({ provider, amount, date });
+    const currencyHint = typeof parsed["currencyHint"] === "string" && /^[A-Z]{3}$/.test(parsed["currencyHint"])
+      ? parsed["currencyHint"]
+      : null;
+    res.json({ provider, amount, date, currencyHint });
   } catch (err) {
     logger.error({ err }, "receipt-scan failed");
     res.status(500).json({ error: "Could not read receipt" });
+  }
+});
+
+// GET /api/judith/fx-rate?from=USD&to=PHP  -> { rate, fetchedAt, source, stale? }
+// Returns the latest mid-market FX rate from ECB via frankfurter.app, cached
+// in-process for 24h. Used by the receipt-scan flow to convert a USD-tagged
+// receipt to a PHP-account user's bill amounts before matching.
+//
+// No auth: rates aren't user-specific. Rate-limited via the standard parse
+// limiter — a single 200-byte response is cheap so the limit is generous.
+type FxCacheEntry = { rate: number; fetchedAt: number; source: string; stale?: boolean };
+const fxCache = new Map<string, FxCacheEntry>();
+const FX_TTL_MS = 24 * 60 * 60 * 1000;
+
+router.get("/fx-rate", parseLimiter, async (req, res) => {
+  try {
+    const fromRaw = String(req.query["from"] ?? "").toUpperCase();
+    const toRaw = String(req.query["to"] ?? "").toUpperCase();
+    if (!/^[A-Z]{3}$/.test(fromRaw) || !/^[A-Z]{3}$/.test(toRaw)) {
+      res.status(400).json({ error: "from and to must be ISO 4217 codes" });
+      return;
+    }
+    if (fromRaw === toRaw) {
+      res.json({ rate: 1, fetchedAt: Date.now(), source: "identity" });
+      return;
+    }
+
+    const key = `${fromRaw}->${toRaw}`;
+    const cached = fxCache.get(key);
+    const now = Date.now();
+    if (cached && now - cached.fetchedAt < FX_TTL_MS) {
+      res.json(cached);
+      return;
+    }
+
+    // ECB rates via frankfurter.app — no API key, refreshes daily ~16:00 CET.
+    try {
+      const response = await fetch(
+        `https://api.frankfurter.app/latest?from=${fromRaw}&to=${toRaw}`,
+        { signal: AbortSignal.timeout(5000) },
+      );
+      if (!response.ok) throw new Error(`upstream ${response.status}`);
+      const data = (await response.json()) as { rates?: Record<string, number> };
+      const rate = data.rates?.[toRaw];
+      if (typeof rate !== "number" || !Number.isFinite(rate) || rate <= 0) {
+        throw new Error("no rate in upstream response");
+      }
+      const entry: FxCacheEntry = { rate, fetchedAt: now, source: "frankfurter" };
+      fxCache.set(key, entry);
+      res.json(entry);
+      return;
+    } catch (err) {
+      // Upstream failed — serve the last-known-good cached rate even if it's
+      // stale, so the receipt flow never breaks mid-scan. Only error out if
+      // there's nothing cached at all.
+      if (cached) {
+        const stale: FxCacheEntry = { ...cached, stale: true };
+        res.json(stale);
+        return;
+      }
+      logger.error({ err, from: fromRaw, to: toRaw }, "fx-rate fetch failed");
+      res.status(502).json({ error: "Could not fetch FX rate" });
+    }
+  } catch (err) {
+    logger.error({ err }, "fx-rate failed");
+    res.status(500).json({ error: "FX lookup failed" });
   }
 });
 

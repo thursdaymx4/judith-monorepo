@@ -82,12 +82,14 @@ public final class JudithReceiptVisionModule: Module {
         let amount = Self.extractAmount(from: lines)
         let date = Self.extractDate(from: lines)
         let provider = Self.extractProvider(from: lines)
+        let currencyHint = Self.extractCurrencyHint(from: lines)
         let confidence = Self.confidence(provider: provider, amount: amount, date: date, lineCount: lines.count)
 
         return [
             "provider": provider as Any,
             "amount": amount as Any,
             "date": date as Any,
+            "currencyHint": currencyHint as Any,
             "confidence": confidence,
         ]
     }
@@ -97,6 +99,7 @@ public final class JudithReceiptVisionModule: Module {
             "provider": NSNull(),
             "amount": NSNull(),
             "date": NSNull(),
+            "currencyHint": NSNull(),
             "confidence": 0,
         ]
     }
@@ -294,6 +297,40 @@ public final class JudithReceiptVisionModule: Module {
         // Must contain at least 2 letters to count as a merchant name.
         let letterCount = line.unicodeScalars.filter { CharacterSet.letters.contains($0) }.count
         return letterCount >= 2
+    }
+
+    // MARK: — Currency hint
+
+    /// ISO codes mapped from currency symbols + code substrings. Ordered so
+    /// disambiguating tokens win — a receipt that contains both "USD" and "$"
+    /// matches USD via the ISO code first; "$" alone falls through to USD.
+    /// "$" defaults to USD because that's the dominant case across PH / SG /
+    /// HK / non-US users who travel with US-issued cards. JS callers can
+    /// override this guess based on the user's account currency.
+    private static let currencyTokens: [(needle: String, code: String)] = [
+        ("PHP", "PHP"), ("USD", "USD"), ("EUR", "EUR"), ("GBP", "GBP"),
+        ("JPY", "JPY"), ("AUD", "AUD"), ("CAD", "CAD"), ("SGD", "SGD"),
+        ("HKD", "HKD"), ("CNY", "CNY"), ("KRW", "KRW"), ("INR", "INR"),
+        ("MXN", "MXN"), ("BRL", "BRL"), ("MYR", "MYR"), ("THB", "THB"),
+        ("IDR", "IDR"), ("VND", "VND"), ("NZD", "NZD"), ("ZAR", "ZAR"),
+        ("CHF", "CHF"), ("SEK", "SEK"), ("NOK", "NOK"), ("DKK", "DKK"),
+        ("AED", "AED"), ("SAR", "SAR"),
+        ("₱", "PHP"), ("€", "EUR"), ("£", "GBP"), ("¥", "JPY"),
+        ("₹", "INR"), ("₩", "KRW"), ("₫", "VND"), ("฿", "THB"),
+        ("RM", "MYR"), ("R$", "BRL"), ("$", "USD"),
+    ]
+
+    /// Walk the OCR lines for currency clues. Returns the ISO code (e.g.
+    /// "USD") for the first match. ISO codes are preferred over bare symbols
+    /// when both appear — they're unambiguous.
+    private static func extractCurrencyHint(from lines: [String]) -> String? {
+        let joined = lines.joined(separator: " ").uppercased()
+        for (needle, code) in currencyTokens {
+            if joined.contains(needle.uppercased()) {
+                return code
+            }
+        }
+        return nil
     }
 
     // MARK: — Confidence

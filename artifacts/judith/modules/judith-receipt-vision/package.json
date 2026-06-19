@@ -1,6 +1,6 @@
 {
   "name": "judith-receipt-vision",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "On-device receipt OCR via Apple's Vision framework. Extracts merchant/amount/date from a receipt image without the image ever leaving the device. iOS 13+ only; reports unavailability everywhere else so callers can fall back to the server.",
   "main": "./index",
   "peerDependencies": {

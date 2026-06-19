@@ -15,10 +15,17 @@ import { NativeModules, Platform } from "react-native";
 export interface ReceiptScanResult {
   /** Merchant / biller name as printed on the receipt. */
   provider: string | null;
-  /** Total amount paid as a plain number. */
+  /** Total amount paid as a plain number — denominated in `currencyHint`. */
   amount: number | null;
   /** Transaction date as YYYY-MM-DD in the device's local timezone. */
   date: string | null;
+  /**
+   * ISO 4217 code (e.g. "USD", "PHP", "EUR") inferred from currency tokens
+   * found on the receipt. Null when no token was detected. Callers use
+   * this together with the user's account currency to decide whether FX
+   * conversion is needed before matching to a bill.
+   */
+  currencyHint: string | null;
   /**
    * 0..1. Higher = clearer signal (e.g. a "Total" line was found, a date
    * was extracted, a merchant line was at the top of the receipt). Callers

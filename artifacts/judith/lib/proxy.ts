@@ -734,7 +734,7 @@ export async function scanReceiptViaServer(
   imageBase64: string,
   mimeType: string,
   signal?: AbortSignal,
-): Promise<{ provider: string | null; amount: number | null; date: string | null }> {
+): Promise<{ provider: string | null; amount: number | null; date: string | null; currencyHint: string | null }> {
   if (signal?.aborted) throw new AbortedError();
   let res: Response;
   try {
@@ -753,7 +753,32 @@ export async function scanReceiptViaServer(
     const detail = await res.text().catch(() => "");
     throw new Error(`Receipt scan failed (${res.status}): ${detail}`);
   }
-  return res.json() as Promise<{ provider: string | null; amount: number | null; date: string | null }>;
+  return res.json() as Promise<{ provider: string | null; amount: number | null; date: string | null; currencyHint: string | null }>;
+}
+
+/**
+ * Today's mid-market FX rate between two ISO 4217 codes. Source is
+ * frankfurter.app (ECB-sourced), with a 24h cache server-side so the upstream
+ * is hit at most once per pair per day. Returns null on network failure so
+ * callers can degrade to no-conversion + warning.
+ */
+export async function fetchFxRate(
+  from: string,
+  to: string,
+  signal?: AbortSignal,
+): Promise<{ rate: number; fetchedAt: number; source: string; stale?: boolean } | null> {
+  if (signal?.aborted) throw new AbortedError();
+  try {
+    const res = await fetch(
+      `${BASE}/fx-rate?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+      { signal },
+    );
+    if (!res.ok) return null;
+    return (await res.json()) as { rate: number; fetchedAt: number; source: string; stale?: boolean };
+  } catch (e) {
+    if (signal?.aborted || (e as Error)?.name === "AbortError") throw new AbortedError();
+    return null;
+  }
 }
 
 /**
