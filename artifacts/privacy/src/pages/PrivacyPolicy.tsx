@@ -178,7 +178,57 @@ export default function PrivacyPolicy() {
         </Subsection>
       </Section>
 
-      <Section title="3. Summary: What Leaves Your Device">
+      <Section title="3. Third-Party AI Processors">
+        <p style={pStyle}>
+          Judith sends limited data to two AI processors to power its assistant
+          and scanning features:
+        </p>
+        <ul style={ulStyle}>
+          <li style={{ ...liStyle, marginBottom: "16px" }}>
+            <strong>Anthropic (Claude)</strong> —{" "}
+            <a
+              href="https://anthropic.com/privacy"
+              style={linkStyle}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              anthropic.com/privacy
+            </a>
+            <br />
+            <span style={{ color: "#555" }}>
+              <em>Receives:</em> your bill context (provider name, amount, due
+              date, payment status), typed questions, and the bill/receipt images
+              you explicitly choose to scan. Retained up to 30 days for
+              trust-and-safety review. Not used to train Claude.
+            </span>
+          </li>
+          <li style={liStyle}>
+            <strong>ElevenLabs</strong> —{" "}
+            <a
+              href="https://elevenlabs.io/privacy"
+              style={linkStyle}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              elevenlabs.io/privacy
+            </a>
+            <br />
+            <span style={{ color: "#555" }}>
+              <em>Receives:</em> your voice recordings when you use voice
+              features, and the text Judith reads aloud. Retained up to 30 days
+              for abuse review. Not used to train their models.
+            </span>
+          </li>
+        </ul>
+        <p style={pStyle}>
+          We never send your name, email, contacts, payment credentials, or
+          account password to either service. You can decline AI features at
+          first use and continue using Judith for bill tracking, reminders, and
+          manual entry only.
+        </p>
+      </Section>
+
+      <Section title="4. Summary: What Leaves Your Device">
         <ul style={ulStyle}>
           <li style={liStyle}>
             <strong>Never (normal use):</strong> Your bill list, amounts, and
@@ -212,7 +262,7 @@ export default function PrivacyPolicy() {
         </ul>
       </Section>
 
-      <Section title="4. How We Use Your Information">
+      <Section title="5. How We Use Your Information">
         <ul style={ulStyle}>
           <li style={liStyle}>To provide and improve the Judith app experience</li>
           <li style={liStyle}>To authenticate your account securely</li>
@@ -229,7 +279,7 @@ export default function PrivacyPolicy() {
         </p>
       </Section>
 
-      <Section title="5. Data Storage & Security">
+      <Section title="6. Data Storage & Security">
         <p style={pStyle}>
           Your bill data is stored locally on your device and, for signed-in
           users, backed up to your private iCloud container. Authentication
@@ -245,7 +295,7 @@ export default function PrivacyPolicy() {
         </p>
       </Section>
 
-      <Section title="6. Data Retention">
+      <Section title="7. Data Retention">
         <p style={pStyle}>
           Your account information is retained as long as your account is
           active. If you delete your account, your account information and
@@ -257,7 +307,7 @@ export default function PrivacyPolicy() {
         </p>
       </Section>
 
-      <Section title="7. Your Rights">
+      <Section title="8. Your Rights">
         <p style={pStyle}>Depending on your location, you may have the right to:</p>
         <ul style={ulStyle}>
           <li style={liStyle}><strong>Access</strong> the personal data we hold about you</li>
@@ -275,7 +325,7 @@ export default function PrivacyPolicy() {
         </p>
       </Section>
 
-      <Section title="8. Children's Privacy">
+      <Section title="9. Children's Privacy">
         <p style={pStyle}>
           Judith is not intended for children under 13 years of age (or under
           16 where applicable under local law). We do not knowingly collect
@@ -285,7 +335,7 @@ export default function PrivacyPolicy() {
         </p>
       </Section>
 
-      <Section title="9. Apple Sign In & Google Sign In">
+      <Section title="10. Apple Sign In & Google Sign In">
         <p style={pStyle}>
           When you authenticate with Apple or Google, those platforms handle
           your credentials — we never see your password. We receive only a
@@ -297,7 +347,7 @@ export default function PrivacyPolicy() {
         </p>
       </Section>
 
-      <Section title="10. Changes to This Policy">
+      <Section title="11. Changes to This Policy">
         <p style={pStyle}>
           We may update this policy from time to time. When we do, we will
           update the effective date at the top of this page. Significant changes
@@ -306,7 +356,7 @@ export default function PrivacyPolicy() {
         </p>
       </Section>
 
-      <Section title="11. Contact Us">
+      <Section title="12. Contact Us">
         <p style={pStyle}>
           <strong>Thursday MX</strong> is the data controller responsible for
           your personal data under this policy. If you have questions or
