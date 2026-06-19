@@ -27,9 +27,23 @@ export interface ReceiptScanResult {
   confidence: number;
 }
 
+/**
+ * Payload the iOS Share Extension drops into the App Group when the user
+ * shares an image into Judith from Photos / Safari / a screenshot. The host
+ * app pulls + clears it on the next mount of the receipt-scan screen.
+ */
+export interface PendingShare {
+  id: string;
+  base64: string;
+  mime: string;
+  /** Unix seconds the share happened. Used to age-out stale handoffs. */
+  createdAt: number;
+}
+
 interface NativeModuleShape {
   isAvailable(): Promise<boolean>;
   recognize(imageBase64: string, mimeType: string): Promise<ReceiptScanResult>;
+  consumePendingShare(): Promise<PendingShare | null>;
 }
 
 const RV = (NativeModules.JudithReceiptVisionModule ?? null) as NativeModuleShape | null;
@@ -59,6 +73,21 @@ export async function recognize(
   if (Platform.OS !== "ios" || !RV) return null;
   try {
     return await RV.recognize(imageBase64, mimeType);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Returns the most recent image shared into Judith from the iOS Share
+ * Extension, if any, AND clears it from the App Group so the same payload
+ * isn't replayed on the next mount. Returns null on Android, Expo Go, or
+ * when nothing has been shared.
+ */
+export async function consumePendingShare(): Promise<PendingShare | null> {
+  if (Platform.OS !== "ios" || !RV) return null;
+  try {
+    return await RV.consumePendingShare();
   } catch {
     return null;
   }

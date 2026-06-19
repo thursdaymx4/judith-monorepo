@@ -10,7 +10,8 @@
  */
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import React, { useMemo, useState } from "react";
+import * as ReceiptVision from "judith-receipt-vision";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -87,6 +88,11 @@ export default function ReceiptScanScreen() {
   } = useJudith();
 
   const [state, setState] = useState<ScreenState>({ kind: "idle" });
+  // Guard against re-running consumePendingShare on every re-render —
+  // useEffect deps don't keep this stable across React Strict Mode or a
+  // params change. A ref is the simplest way to make the share handoff
+  // a one-shot per mount.
+  const consumedShareRef = useRef(false);
 
   const match = useMemo(() => {
     if (state.kind !== "result") return null;
@@ -101,14 +107,10 @@ export default function ReceiptScanScreen() {
     );
   }, [state, bills]);
 
-  const runScan = async (asset: ImagePicker.ImagePickerAsset) => {
-    if (!asset.base64) {
-      setState({ kind: "error", message: "Couldn't read that photo. Try again." });
-      return;
-    }
+  const runScanFromBase64 = async (base64: string, mime: string) => {
     setState({ kind: "scanning" });
     try {
-      const scan = await scanReceipt(asset.base64, asset.mimeType || "image/jpeg");
+      const scan = await scanReceipt(base64, mime);
       setState({
         kind: "result",
         provider: scan.provider ?? "",
@@ -123,6 +125,29 @@ export default function ReceiptScanScreen() {
       });
     }
   };
+
+  const runScan = async (asset: ImagePicker.ImagePickerAsset) => {
+    if (!asset.base64) {
+      setState({ kind: "error", message: "Couldn't read that photo. Try again." });
+      return;
+    }
+    await runScanFromBase64(asset.base64, asset.mimeType || "image/jpeg");
+  };
+
+  // Drain a pending share-extension handoff on mount. We always check
+  // (even without ?pending=1) so a stale handoff sitting in App Group
+  // UserDefaults gets cleared the next time the screen opens. The native
+  // bridge returns null when there's nothing waiting.
+  useEffect(() => {
+    if (consumedShareRef.current) return;
+    consumedShareRef.current = true;
+    void (async () => {
+      const pending = await ReceiptVision.consumePendingShare();
+      if (pending?.base64) {
+        await runScanFromBase64(pending.base64, pending.mime || "image/jpeg");
+      }
+    })();
+  }, []);
 
   const pickFromCamera = async () => {
     const perm = await ImagePicker.requestCameraPermissionsAsync();

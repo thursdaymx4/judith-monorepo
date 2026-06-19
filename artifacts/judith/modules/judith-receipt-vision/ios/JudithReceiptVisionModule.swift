@@ -22,6 +22,46 @@ public final class JudithReceiptVisionModule: Module {
         AsyncFunction("recognize") { (imageBase64: String, mimeType: String) -> [String: Any] in
             return await Self.recognize(imageBase64: imageBase64, mimeType: mimeType)
         }
+
+        AsyncFunction("consumePendingShare") { () -> [String: Any]? in
+            return Self.consumePendingShare()
+        }
+    }
+
+    // MARK: — Share extension handoff
+
+    private static let appGroupID = "group.com.app.judith"
+    private static let pendingShareKey = "judith.pendingReceiptShare"
+    /// Drop shares older than 5 minutes. Anything older than that is almost
+    /// certainly a stale handoff the user no longer cares about (e.g. they
+    /// killed the host app before it could route).
+    private static let pendingShareMaxAgeSeconds: TimeInterval = 5 * 60
+
+    private static func consumePendingShare() -> [String: Any]? {
+        guard let defaults = UserDefaults(suiteName: appGroupID),
+              let raw = defaults.dictionary(forKey: pendingShareKey) else {
+            return nil
+        }
+        // Always clear, even if the payload is malformed/stale — leaving it
+        // behind would replay forever.
+        defaults.removeObject(forKey: pendingShareKey)
+        defaults.synchronize()
+
+        guard let id = raw["id"] as? String,
+              let base64 = raw["base64"] as? String,
+              let mime = raw["mime"] as? String,
+              let createdAt = raw["createdAt"] as? TimeInterval else {
+            return nil
+        }
+        if Date().timeIntervalSince1970 - createdAt > pendingShareMaxAgeSeconds {
+            return nil
+        }
+        return [
+            "id": id,
+            "base64": base64,
+            "mime": mime,
+            "createdAt": createdAt,
+        ]
     }
 
     // MARK: — OCR pipeline
