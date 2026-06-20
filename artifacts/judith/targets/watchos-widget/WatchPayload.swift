@@ -34,6 +34,10 @@ struct WatchPayload: Codable {
     let overdueCount: Int?
     let overdueTotal: Double?
     let next7Total: Double?
+    /// Whether the user accepted the AI-data-sharing disclosure on the
+    /// paired iPhone. Mirrors the field in the watch app's Bill.swift —
+    /// the complication doesn't use it, but the codable shape must match.
+    let aiConsented: Bool?
 
     /// Amount-based paid fraction — mirrors the phone hero card. Returns nil
     /// when the cached payload predates the field so the complication can

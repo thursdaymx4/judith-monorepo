@@ -264,21 +264,34 @@ const VOICE_LINES_FIL: Record<string, string> = {
  */
 function useOnbVoice(line: string, persona: PersonaId, language = "en") {
   const played = useRef(false);
+  const { ensure: ensureAiConsent, accepted: aiAccepted } = useAiConsent();
   // Stop whatever is playing AND abort the in-flight TTS request when the
   // screen leaves. cancelOnboardingAudio covers both vs the old call which
   // only stopped playback.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => () => { cancelOnboardingAudio(); }, []);
   // Fire the TTS exactly once per mount, in the chosen language.
+  // Apple Guideline 5.1.1(i)/5.1.2(i): we MUST get explicit consent
+  // before any ElevenLabs synth runs. The audio module already gates
+  // synth on hasAiConsented(), but we also surface the consent modal
+  // here so the user actually sees + answers it the moment they land on
+  // a voice screen. Once accepted, the existing speak() call below
+  // proceeds normally.
   useEffect(() => {
     if (played.current) return;
-    played.current = true;
     const utterance = (isFilipino(language) ? VOICE_LINES_FIL[line] : undefined) ?? line;
     if (!utterance) return; // empty string = voice suppressed for this screen
-    // Fire-and-forget — speak() handles cancellation via the shared session;
-    // the screen's transition handler will abort us if the user advances.
-    void speakOnboarding(utterance, persona, language);
-  }, []);
+    void (async () => {
+      if (!(await ensureAiConsent())) return;
+      if (played.current) return;
+      played.current = true;
+      // Fire-and-forget — speak() handles cancellation via the shared
+      // session; the screen's transition handler will abort us if the
+      // user advances. speak() itself also re-checks consent.
+      void speakOnboarding(utterance, persona, language);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiAccepted]);
 }
 
 
@@ -2753,6 +2766,12 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
       setMode("prompt");
       return;
     }
+    // Apple 5.1.1(i)/5.1.2(i): both ElevenLabs (transcribe) and Claude
+    // (parseBill) fire below — gate on the shared consent before either.
+    if (!(await ensureAiConsent())) {
+      setMode("prompt");
+      return;
+    }
     setMode("transcribing");
     try {
       await recorder.stop();
@@ -4702,6 +4721,7 @@ function FeatureShell({
   idleState?: "idle" | "speaking";
 }) {
   const { t, persona, language, next, bills } = ctx;
+  const { ensure: ensureAiConsent } = useAiConsent();
   const isFil = isFilipino(language);
   const voiceLine = JUDITH_VOICE.features[persona][isFil ? "fil" : "en"][dotIdx];
   useOnbVoice(voiceLine, persona, language);
@@ -4801,6 +4821,8 @@ function FeatureShell({
   const doAsk = async (text: string) => {
     const q2 = text.trim();
     if (!q2 || askMode === "thinking") return;
+    // Apple 5.1.1(i)/5.1.2(i): /ask hits Claude + ElevenLabs. Gate.
+    if (!(await ensureAiConsent())) return;
     lastFailedQRef.current = null;
     setAskErr("");
     setMessages((m) => [...m, { role: "user", text: q2 }]);
@@ -4853,6 +4875,11 @@ function FeatureShell({
 
   const stopRec = async () => {
     setAskMode("thinking");
+    // STT to ElevenLabs + ask to Claude. Gate.
+    if (!(await ensureAiConsent())) {
+      setAskMode("idle");
+      return;
+    }
     try {
       await recorder.stop();
       const uri = recorder.uri;

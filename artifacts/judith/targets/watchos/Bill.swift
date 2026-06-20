@@ -59,6 +59,12 @@ struct WatchPayload: Codable {
     let overdueCount: Int?
     let overdueTotal: Double?
     let next7Total: Double?
+    /// Whether the user has accepted the AI-data-sharing disclosure on the
+    /// paired iPhone. Apple Guideline 5.1.1(i)/5.1.2(i): the watch must not
+    /// hit /watch-ask (Claude) or /watch-stt (ElevenLabs) until the user
+    /// has explicitly opted in. Older cached payloads decode as nil, which
+    /// the watch treats as "not consented" (safe default).
+    let aiConsented: Bool?
 
     // MARK: — Derived helpers
 

@@ -277,6 +277,8 @@ struct AskView: View {
             }
             query = trimmed
             submitQuery()
+        } catch ConnectivityService.AskError.aiConsentMissing {
+            viewState = .error("Open Judith on your iPhone and accept the AI consent to enable voice and Ask.")
         } catch ConnectivityService.AskError.phoneNotReachable {
             viewState = .error("Pair your watch with Judith on iPhone first.")
         } catch {
@@ -390,6 +392,8 @@ struct AskView: View {
                 }
                 viewState = .answered(answer)
                 speak(answer)
+            } catch ConnectivityService.AskError.aiConsentMissing {
+                viewState = .error("Open Judith on your iPhone and accept the AI consent to enable voice and Ask.")
             } catch ConnectivityService.AskError.phoneNotReachable {
                 viewState = .error("iPhone not reachable. Keep your phone nearby and open Judith.")
             } catch ConnectivityService.AskError.serverError(let message) {

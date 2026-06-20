@@ -147,40 +147,13 @@ export default function AskModal() {
     return () => clearTimeout(id);
   }, [rateLimitSecs]);
   const [voiceUpgradeVisible, setVoiceUpgradeVisible] = React.useState(false);
-  // AI-disclosure consent — required by App Store Review Guideline 2.1.
-  // The user MUST acknowledge that Ask Judith routes minimal bill context
-  // to Anthropic (and ElevenLabs when Voice Ask is active) before the first
-  // question goes out. Persisted in AsyncStorage so we only ask once per
-  // device. `aiConsentLoaded === false` blocks the first ask until we know.
-  // Bumped from v1 → v2 when receipt-screenshot disclosure was added.
-  // Users who accepted v1 will be re-prompted once with the updated
-  // disclosure on their next ask.
-  const AI_CONSENT_KEY = "judith.aiDisclosureConsent.v2";
-  const [aiConsentAccepted, setAiConsentAccepted] = React.useState(false);
-  const [aiConsentLoaded, setAiConsentLoaded] = React.useState(false);
-  const [aiConsentVisible, setAiConsentVisible] = React.useState(false);
-  // Mirror consent state into refs so the gate inside ask() reads the
-  // current value even when ask is invoked from a stale-closure context
-  // (e.g. the setTimeout in acceptAiConsent below) — otherwise the user
-  // would loop back into the consent modal after accepting.
-  const aiConsentAcceptedRef = useRef(false);
-  const aiConsentLoadedRef = useRef(false);
-  useEffect(() => { aiConsentAcceptedRef.current = aiConsentAccepted; }, [aiConsentAccepted]);
-  useEffect(() => { aiConsentLoadedRef.current = aiConsentLoaded; }, [aiConsentLoaded]);
-  // Pending question text — held while the modal is visible so we can fire
-  // the original ask() the moment the user accepts.
-  const pendingAskRef = useRef<string | null>(null);
-  useEffect(() => {
-    AsyncStorage.getItem(AI_CONSENT_KEY)
-      .then((v) => setAiConsentAccepted(v === "1"))
-      .catch(() => {})
-      .finally(() => setAiConsentLoaded(true));
-  }, []);
-  // Resume the pending question the user attempted before the consent
-  // modal appeared. Runs in the render AFTER acceptAiConsent flips state,
-  // so `ask` here is the current-render version with fresh closures
-  // (bills/busy/etc.). Effect is a no-op on the initial AsyncStorage load
-  // because pendingAskRef.current is null at that point.
+  // AI consent now lives in the shared AiConsentProvider (lib/aiConsent.ts
+  // + contexts/AiConsentContext.tsx). Every AI-touching surface in the app
+  // (Ask Judith, receipt scan, onboarding voice + parse) gates on the same
+  // one-time opt-in stored under `judith.aiDisclosureConsent.v3`. Migrated
+  // off the prior inline v2 system to give Apple reviewers a single,
+  // unmistakable consent surface that fires at the FIRST third-party AI
+  // call regardless of which screen triggers it.
   /** When non-null, we just completed a successful purchase — show the
    *  inline congrats card so the user knows the entitlement is live. */
   const [purchasedTier, setPurchasedTier] = React.useState<"chat" | "voice" | null>(null);
@@ -518,20 +491,6 @@ export default function AskModal() {
     return answer;
   };
 
-  const acceptAiConsent = () => {
-    AsyncStorage.setItem(AI_CONSENT_KEY, "1").catch(() => {});
-    setAiConsentAccepted(true);
-    setAiConsentVisible(false);
-    // The actual resume happens in the effect below — that way we invoke
-    // the current-render `ask` with fresh closures, not the handler's
-    // stale snapshot.
-  };
-
-  const declineAiConsent = () => {
-    pendingAskRef.current = null;
-    setAiConsentVisible(false);
-  };
-
   const ask = async (text: string) => {
     const q = (text || "").trim();
     if (!q || busy) return;
@@ -539,17 +498,11 @@ export default function AskModal() {
       router.push("/plans");
       return;
     }
-    // App Store Review Guideline 2.1 — disclose & get acknowledgement that
-    // Ask Judith routes bill context to third-party AI before the first
-    // question goes out. Hold the question, surface the sheet, and let the
-    // Accept handler re-invoke ask() with the same text. Ref-based reads
-    // so the gate stays accurate even when ask() is called from a setTimeout
-    // whose closure pre-dates the state update.
-    if (aiConsentLoadedRef.current && !aiConsentAcceptedRef.current) {
-      pendingAskRef.current = q;
-      setAiConsentVisible(true);
-      return;
-    }
+    // Apple Guideline 5.1.1(i)/5.1.2(i) — block until the user has
+    // explicitly accepted the AI data-sharing disclosure. The shared
+    // AiConsentProvider surfaces the modal globally and resolves to
+    // true/false on accept/decline.
+    if (!(await ensureAiConsentShared())) return;
     // Honor an active rate-limit cooldown for ALL entry points (Retry button and
     // quick-ask chips included), not just the disabled text input / mic.
     if (rateLimitSecs > 0) return;
@@ -727,21 +680,6 @@ export default function AskModal() {
       );
     }
   };
-
-  // Pending-question resume after consent. Fires AFTER acceptAiConsent
-  // commits state, so `ask` here is the current-render version with
-  // fresh closures over bills / busy / etc. No-ops on the initial
-  // AsyncStorage load because pendingAskRef.current is null then.
-  useEffect(() => {
-    if (!aiConsentAccepted) return;
-    const pending = pendingAskRef.current;
-    if (!pending) return;
-    pendingAskRef.current = null;
-    void ask(pending);
-    // ask is intentionally not in deps — we react ONLY to the consent
-    // flip, and use the current-render `ask` via lexical scope.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aiConsentAccepted]);
 
   const startRecording = async () => {
     if (busy) return;
@@ -1652,91 +1590,9 @@ export default function AskModal() {
         </View>
       </Modal>
 
-      {/* AI-disclosure consent — App Store Review Guideline 2.1.
-          Shown ONCE before the first Ask Judith question goes out, so
-          users explicitly acknowledge that bill context is sent to
-          Anthropic (and ElevenLabs for Voice Ask). Declining bounces them
-          back to the Ask screen without sending anything. Acceptance is
-          persisted to AsyncStorage so we never re-prompt on this device. */}
-      <Modal
-        visible={aiConsentVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={declineAiConsent}
-        statusBarTranslucent
-      >
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" }}>
-          <View
-            style={{
-              backgroundColor: t.canvas,
-              borderTopLeftRadius: 22,
-              borderTopRightRadius: 22,
-              paddingTop: 20,
-              paddingBottom: insets.bottom + 20,
-              paddingHorizontal: 22,
-            }}
-          >
-            <View style={{ alignItems: "center", marginBottom: 14 }}>
-              <JudithAvatar persona={persona} size={64} state="speaking" mood="neutral" />
-            </View>
-            <Txt size={20} weight="bold" style={{ textAlign: "center", marginBottom: 10 }}>
-              Before Judith helps
-            </Txt>
-            <Muted size={14} style={{ textAlign: "left", marginBottom: 12 }}>
-              When you ask Judith a question, she sends a small payload of
-              your bill context (provider, amount, due date, status) plus
-              your income/payday settings to
-              <Txt size={14} weight="semibold"> Anthropic (Claude)</Txt> through
-              our privacy-respecting server to generate the answer.
-              Inputs and outputs are retained by Anthropic for up to 30
-              days for trust-and-safety review and are not used to train
-              their models.
-            </Muted>
-            <Muted size={14} style={{ textAlign: "left", marginBottom: 12 }}>
-              When you use Voice Ask, your spoken question and Judith's
-              spoken reply are processed by
-              <Txt size={14} weight="semibold"> ElevenLabs</Txt> for
-              transcription and speech synthesis. Audio is retained by
-              ElevenLabs for up to 30 days for abuse review and is not
-              used to train their models.
-            </Muted>
-            <Muted size={14} style={{ textAlign: "left", marginBottom: 12 }}>
-              When you choose to share a payment receipt with Judith, the
-              image is sent to Anthropic for one-time analysis to extract
-              the amount, date, and payee. The image is not stored by
-              Judith and is subject to the same 30-day retention as above.
-            </Muted>
-            <Muted size={14} style={{ textAlign: "left", marginBottom: 16 }}>
-              We never send your name, email, or account information to
-              any of these services. Bill categorization runs entirely
-              on-device using Apple's Foundation Models — nothing leaves
-              your phone for that path.
-            </Muted>
-            <Low size={11} style={{ textAlign: "left", marginBottom: 18 }}>
-              See the full list of processors in our{" "}
-              <Low size={11} color={t.accent} style={{ textDecorationLine: "underline" }} onPress={() => openLegal(PRIVACY_URL)}>Privacy Policy</Low>.
-            </Low>
-            <Pressable
-              onPress={acceptAiConsent}
-              style={{
-                backgroundColor: t.accent,
-                borderRadius: 14,
-                paddingVertical: 15,
-                alignItems: "center",
-                marginBottom: 10,
-              }}
-            >
-              <Txt size={16} weight="semibold" color={t.onAccent}>Accept and continue</Txt>
-            </Pressable>
-            <Pressable
-              onPress={declineAiConsent}
-              style={{ paddingVertical: 10, alignItems: "center" }}
-            >
-              <Txt size={15} color={t.txtMid}>Not now</Txt>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+      {/* AI consent modal is now mounted globally by AiConsentProvider in
+          app/_layout.tsx — Ask Judith, receipt scan, and onboarding all
+          share the same consent surface. */}
 
       {/* Voice upgrade nudge — shown when a Chat Ask subscriber taps the mic.
           Triggers StoreKit DIRECTLY (no redirect to /plans), so the user

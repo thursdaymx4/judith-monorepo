@@ -57,41 +57,36 @@ export function AiConsentModal({ visible, persona, onAccept, onDecline }: AiCons
           <View style={{ alignItems: "center", marginBottom: 14 }}>
             <JudithAvatar persona={persona} size={64} state="speaking" />
           </View>
-          <Txt size={20} weight="bold" style={{ textAlign: "center", marginBottom: 10 }}>
-            Before Judith uses AI
+          <Txt size={20} weight="bold" style={{ textAlign: "center", marginBottom: 6 }}>
+            Allow AI features?
           </Txt>
-
-          <Muted size={14} style={{ textAlign: "left", marginBottom: 12 }}>
-            <Txt size={14} weight="semibold">Anthropic (Claude)</Txt> processes
-            text and image inputs to answer your questions, parse spoken
-            bill descriptions, and extract details from bill screenshots
-            and receipt photos. We send your bill context (provider name,
-            amount, due date, payment status), your typed questions, and
-            the images you choose to scan. Inputs are retained by Anthropic
-            for up to 30 days for trust-and-safety review and are not used
-            to train their models.
+          <Muted size={13} style={{ textAlign: "center", marginBottom: 14 }}>
+            Judith uses two third-party AI services to power voice, ask, and receipt scanning. Tap Allow to enable them.
           </Muted>
 
-          <Muted size={14} style={{ textAlign: "left", marginBottom: 12 }}>
-            <Txt size={14} weight="semibold">ElevenLabs</Txt> transcribes
-            your voice into text and synthesizes Judith's spoken replies
-            when you use voice features. Audio is retained by ElevenLabs
-            for up to 30 days for abuse review and is not used to train
-            their models.
+          <Txt size={13} weight="semibold" color={t.txtHi} style={{ marginBottom: 6 }}>
+            Anthropic (Claude)
+          </Txt>
+          <Muted size={13} style={{ marginBottom: 4 }}>• Sends: your typed questions, your bill metadata (provider, amount, due date, payment status), and any image you choose to scan</Muted>
+          <Muted size={13} style={{ marginBottom: 12 }}>• Retained up to 30 days for trust-and-safety review · not used to train their models</Muted>
+
+          <Txt size={13} weight="semibold" color={t.txtHi} style={{ marginBottom: 6 }}>
+            ElevenLabs
+          </Txt>
+          <Muted size={13} style={{ marginBottom: 4 }}>• Sends: your voice recordings (when you speak to Judith) and the text Judith says back</Muted>
+          <Muted size={13} style={{ marginBottom: 12 }}>• Retained up to 30 days for abuse review · not used to train their models</Muted>
+
+          <Txt size={13} weight="semibold" color={t.txtHi} style={{ marginBottom: 6 }}>
+            We never send
+          </Txt>
+          <Muted size={13} style={{ marginBottom: 16 }}>
+            Your name, email, contacts, account password, payment credentials, or anything else outside what's listed above. Receipt OCR runs on-device with Apple's Vision framework first — images only leave your phone when on-device recognition fails.
           </Muted>
 
-          <Muted size={14} style={{ textAlign: "left", marginBottom: 16 }}>
-            We never send your name, email, contacts, payment credentials,
-            or account password to either service. Receipt OCR runs first
-            on-device using Apple's Vision framework — the image only
-            leaves your phone if your device can't read it locally.
-          </Muted>
-
-          <Low size={11} style={{ textAlign: "left", marginBottom: 18 }}>
-            See the full list of processors in our{" "}
+          <Low size={11} style={{ textAlign: "left", marginBottom: 16 }}>
+            Full list and contact info in our{" "}
             <Low size={11} color={t.accent} style={{ textDecorationLine: "underline" }} onPress={() => openLegal(PRIVACY_URL)}>Privacy Policy</Low>.
-            You can decline and still use Judith — bill tracking, reminders,
-            and manual entry work without any AI features.
+            If you tap Don&apos;t Allow, Judith still works as a bill tracker with reminders and manual entry — no AI features.
           </Low>
 
           <Pressable
@@ -104,11 +99,11 @@ export function AiConsentModal({ visible, persona, onAccept, onDecline }: AiCons
               marginBottom: 10,
             }}
           >
-            <Txt size={16} weight="semibold" color={t.onAccent}>I agree, continue</Txt>
+            <Txt size={16} weight="semibold" color={t.onAccent}>Allow</Txt>
           </Pressable>
 
           <Pressable onPress={onDecline} style={{ paddingVertical: 10, alignItems: "center" }}>
-            <Txt size={15} color={t.txtMid}>Not now</Txt>
+            <Txt size={15} color={t.txtMid}>Don&apos;t Allow</Txt>
           </Pressable>
         </View>
       </View>

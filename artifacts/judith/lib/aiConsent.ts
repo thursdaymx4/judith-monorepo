@@ -9,7 +9,10 @@
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const AI_CONSENT_KEY = "judith.aiDisclosureConsent.v3";
+// Bumping the version key forces a re-prompt for every existing user. v4
+// rewrites the disclosure into an Apple-style "Allow / Don't Allow" sheet
+// with bulleted data lists, after Apple's repeated 5.1.1(i) review feedback.
+const AI_CONSENT_KEY = "judith.aiDisclosureConsent.v4";
 
 export async function hasAiConsented(): Promise<boolean> {
   try {
