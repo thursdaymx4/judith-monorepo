@@ -7,7 +7,7 @@
  */
 import { useRouter, type Href } from "expo-router";
 import React from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Alert, Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AltitudeChart } from "@/components/altitude/AltitudeChart";
@@ -19,6 +19,8 @@ import { Icon } from "@/components/Icon";
 import { Low, SectionLabel, Txt } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
 import { useAltitudeSnapshot } from "@/hooks/useAltitudeSnapshot";
+import { isTierChange, useAltitudePromotion } from "@/contexts/AltitudePromotionContext";
+import { useJudith } from "@/contexts/JudithStore";
 import {
   MILESTONES,
   NUDGES,
@@ -36,10 +38,36 @@ export default function AltitudeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { history, level, streak, loading } = useAltitudeSnapshot();
+  const { replay } = useAltitudePromotion();
+  const { monthlyIncome, incomeByMonth } = useJudith();
 
   const tier = tierForLevel(level);
   const meta = levelMeta(level);
   const promo = nextTier(level);
+  const hasIncome =
+    (typeof monthlyIncome === "number" && monthlyIncome > 0) ||
+    Object.values(incomeByMonth ?? {}).some((v) => typeof v === "number" && v > 0);
+
+  /** Long-press on the shield → replay the most recent promotion the user
+   *  could plausibly have seen. If they're on Level 1 we synthesize a
+   *  "Level 1 → 2" preview so QA can still trigger the overlay. */
+  const onShieldLongPress = () => {
+    const to = Math.max(2, level);
+    const from = Math.max(1, to - 1);
+    Alert.alert("Replay celebration?", "Re-runs the promotion animation. Useful for QA + Instagram captures.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Replay",
+        onPress: () =>
+          replay({
+            month: history[history.length - 1]?.month ?? "preview",
+            from,
+            to,
+            isTierChange: isTierChange(from, to),
+          }),
+      },
+    ]);
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: t.canvas }}>
@@ -62,6 +90,41 @@ export default function AltitudeScreen() {
           </Low>
         </View>
 
+        {/* Income gate — without an income figure the grade is locked to
+            Level 1 by design. Surface that explicitly with a path to fix
+            it, instead of letting the user wonder why they're "Lost at
+            Sea" after just adding bills. */}
+        {!hasIncome ? (
+          <Pressable
+            onPress={() => router.push("/account" as Href)}
+            style={({ pressed }) => [
+              {
+                padding: 14,
+                backgroundColor: t.surface1,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: tier.color,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 12,
+                opacity: pressed ? 0.85 : 1,
+              },
+            ]}
+          >
+            <Icon name="spark" size={20} color={tier.color} />
+            <View style={{ flex: 1 }}>
+              <Txt size={13} weight="semibold" color={t.txtHi}>
+                Set your income to unlock your real altitude
+              </Txt>
+              <Low size={11} style={{ marginTop: 2 }}>
+                Until then, your grade defaults to Lost at Sea — your actual
+                bills can't be ranked without it.
+              </Low>
+            </View>
+            <Icon name="chev" size={16} color={t.txtMid} />
+          </Pressable>
+        ) : null}
+
         {/* Hero: shield + neighbor previews */}
         <View style={{ alignItems: "center", paddingVertical: 8 }}>
           <View
@@ -73,9 +136,13 @@ export default function AltitudeScreen() {
             }}
           >
             <NeighborShield tier={prevTier(tier)} />
-            <View style={{ alignItems: "center" }}>
+            <Pressable
+              onLongPress={onShieldLongPress}
+              delayLongPress={650}
+              style={{ alignItems: "center" }}
+            >
               <DivisionShield level={level} size={150} />
-            </View>
+            </Pressable>
             <NeighborShield tier={nextTierObj(tier)} />
           </View>
 

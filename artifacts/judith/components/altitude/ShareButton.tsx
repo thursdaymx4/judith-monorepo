@@ -1,24 +1,28 @@
 /**
- * Share button for the Altitude screens. Composes a one-line shareable
- * status from the user's current level + streak and hands it to the
- * system share sheet via React Native's built-in Share API.
+ * Share button for the Altitude screens.
  *
- * Text-only for v1 — no image capture (would need react-native-view-shot
- * + extra plumbing). The text is the level rank + division + streak, with
- * Judith's landing URL appended so recipients can tap through.
+ * Default behaviour: capture an off-screen ShareCard via
+ * react-native-view-shot, then hand the PNG to the system share sheet via
+ * expo-sharing. Falls back to the built-in text Share API when image
+ * capture or expo-sharing is unavailable.
+ *
+ * The ShareCard is rendered inside a permanently-mounted hidden view so the
+ * capture grabs a known layout instead of a transient render-tree node.
+ * Position: absolute, top -10000, left -10000 — never visible to the user.
  */
-import React from "react";
+import React, { useRef } from "react";
 import { Pressable, Share, View } from "react-native";
+import ViewShot, { type ViewShotRef } from "react-native-view-shot";
+import * as Sharing from "expo-sharing";
 
 import { Icon } from "@/components/Icon";
+import { ShareCard, SHARE_CARD_SIZE } from "@/components/altitude/ShareCard";
 import { useTheme } from "@/hooks/useTheme";
 import { levelMeta, tierForLevel } from "@/lib/altitude";
 
 interface ShareButtonProps {
   level: number;
   streak: number;
-  /** Right offset in points. Defaults sit comfortably inside the screen
-   *  gutter for both League and Climb. */
   top?: number;
   right?: number;
 }
@@ -30,6 +34,7 @@ export function ShareButton({
   right = 18,
 }: ShareButtonProps) {
   const t = useTheme();
+  const shotRef = useRef<ViewShotRef | null>(null);
 
   const onPress = async () => {
     const tier = tierForLevel(level);
@@ -38,6 +43,27 @@ export function ShareButton({
     const message =
       `I'm ${meta.rank.toLowerCase()} on Judith — ${tier.name}${streakLine}.` +
       ` Tracking my bills so they don't run my life. https://judithforduedates.com`;
+
+    // 1. Try image share via view-shot + expo-sharing. This is the rich
+    //    path — recipients see the colored card with the shield.
+    try {
+      const sharingAvailable = await Sharing.isAvailableAsync();
+      if (sharingAvailable && shotRef.current?.capture) {
+        const uri = await shotRef.current.capture();
+        if (typeof uri === "string" && uri) {
+          await Sharing.shareAsync(uri, {
+            mimeType: "image/png",
+            dialogTitle: "Share your altitude",
+            UTI: "public.png",
+          });
+          return;
+        }
+      }
+    } catch {
+      // Capture or share failed — fall through to text.
+    }
+
+    // 2. Text fallback. RN's built-in Share works everywhere.
     try {
       await Share.share({ message });
     } catch {
@@ -46,27 +72,53 @@ export function ShareButton({
   };
 
   return (
-    <View
-      pointerEvents="box-none"
-      style={{ position: "absolute", top, right, zIndex: 50 }}
-    >
-      <Pressable
-        onPress={onPress}
-        hitSlop={10}
-        style={({ pressed }) => ({
-          width: 36,
-          height: 36,
-          borderRadius: 18,
-          backgroundColor: t.surface2,
-          borderWidth: 1,
-          borderColor: t.hair,
-          alignItems: "center",
-          justifyContent: "center",
-          opacity: pressed ? 0.85 : 1,
-        })}
+    <>
+      {/* Hidden capture surface. Positioned far off-screen with
+          collapsable=false so RN keeps the native view alive even when it
+          isn't on the visible tree — required for view-shot to find
+          something to render. */}
+      <View
+        pointerEvents="none"
+        collapsable={false}
+        style={{
+          position: "absolute",
+          top: -10000,
+          left: -10000,
+          width: SHARE_CARD_SIZE,
+          height: SHARE_CARD_SIZE,
+          opacity: 0,
+        }}
       >
-        <Icon name="share" size={16} color={t.txtHi} />
-      </Pressable>
-    </View>
+        <ViewShot
+          ref={shotRef}
+          options={{ format: "png", quality: 0.95, result: "tmpfile" }}
+        >
+          <ShareCard level={level} streak={streak} />
+        </ViewShot>
+      </View>
+
+      <View
+        pointerEvents="box-none"
+        style={{ position: "absolute", top, right, zIndex: 50 }}
+      >
+        <Pressable
+          onPress={onPress}
+          hitSlop={10}
+          style={({ pressed }) => ({
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            backgroundColor: t.surface2,
+            borderWidth: 1,
+            borderColor: t.hair,
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: pressed ? 0.85 : 1,
+          })}
+        >
+          <Icon name="share" size={16} color={t.txtHi} />
+        </Pressable>
+      </View>
+    </>
   );
 }

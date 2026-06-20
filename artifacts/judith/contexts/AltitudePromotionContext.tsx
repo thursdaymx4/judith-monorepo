@@ -31,28 +31,45 @@ interface AltitudePromotionValue {
   /** Called by the snapshot recorder when a new higher level is written. */
   notifyPromotion: (p: PendingPromotion) => Promise<void>;
   dismiss: () => Promise<void>;
+  /**
+   * Replay the celebration. Bypasses the per-month seen check; on dismiss
+   * we do NOT stamp the month as seen again so the next genuine promotion
+   * still fires. Used by the long-press affordance on the League shield.
+   */
+  replay: (p: PendingPromotion) => void;
 }
 
 const PromotionCtx = createContext<AltitudePromotionValue | null>(null);
 
 export function AltitudePromotionProvider({ children }: { children: React.ReactNode }) {
   const [pending, setPending] = useState<PendingPromotion | null>(null);
+  // Distinguishes a replay (long-press) from a real promotion. Replays
+  // skip the seen-marker write on dismiss so future genuine promotions
+  // still fire.
+  const isReplayRef = React.useRef(false);
 
   const notifyPromotion = useCallback(async (p: PendingPromotion) => {
-    // Don't replay a celebration the user already saw this calendar month.
     if (await hasSeenPromotion(p.month)) return;
+    isReplayRef.current = false;
+    setPending(p);
+  }, []);
+
+  const replay = useCallback((p: PendingPromotion) => {
+    isReplayRef.current = true;
     setPending(p);
   }, []);
 
   const dismiss = useCallback(async () => {
     const current = pending;
+    const wasReplay = isReplayRef.current;
     setPending(null);
-    if (current) await markPromotionSeen(current.month);
+    if (current && !wasReplay) await markPromotionSeen(current.month);
+    isReplayRef.current = false;
   }, [pending]);
 
   const value = useMemo(
-    () => ({ pending, notifyPromotion, dismiss }),
-    [pending, notifyPromotion, dismiss],
+    () => ({ pending, notifyPromotion, dismiss, replay }),
+    [pending, notifyPromotion, dismiss, replay],
   );
 
   return <PromotionCtx.Provider value={value}>{children}</PromotionCtx.Provider>;
@@ -66,6 +83,7 @@ export function useAltitudePromotion(): AltitudePromotionValue {
       pending: null,
       notifyPromotion: async () => {},
       dismiss: async () => {},
+      replay: () => {},
     };
   }
   return ctx;

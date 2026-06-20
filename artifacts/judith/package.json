@@ -61,10 +61,10 @@
   },
   "dependencies": {
     "@bacons/apple-targets": "^4.0.7",
-    "@react-native-community/datetimepicker": "8.4.4",
     "@expo-google-fonts/jetbrains-mono": "^0.4.1",
     "@expo-google-fonts/playfair-display": "^0.4.2",
     "@expo-google-fonts/space-grotesk": "^0.4.1",
+    "@react-native-community/datetimepicker": "8.4.4",
     "@sentry/react-native": "^8.13.0",
     "@supabase/supabase-js": "^2.106.2",
     "expo": "~54.0.35",
@@ -74,6 +74,7 @@
     "expo-file-system": "~19.0.23",
     "expo-local-authentication": "~17.0.8",
     "expo-notifications": "~0.32.17",
+    "expo-sharing": "^56.0.18",
     "expo-updates": "^29.0.18",
     "judith-financekit": "file:./modules/judith-financekit",
     "judith-receipt-vision": "file:./modules/judith-receipt-vision",
@@ -83,6 +84,7 @@
     "react-native-cloud-store": "^0.12.0",
     "react-native-purchases": "^10.2.0",
     "react-native-url-polyfill": "^3.0.0",
+    "react-native-view-shot": "^5.1.0",
     "react-native-watch-connectivity": "^1.1.0"
   }
 }

@@ -13,6 +13,7 @@ import React, { useEffect, useMemo } from "react";
 import {
   Dimensions,
   Modal,
+  PixelRatio,
   Pressable,
   StyleSheet,
   View,
@@ -221,17 +222,22 @@ const CONFETTI_COLORS = ["#F3B62F", "#74CF45", "#1FC2CC", "#7B83E0", "#FF7A7A", 
 
 function Confetti({ tint }: { tint: string }) {
   const screen = Dimensions.get("window");
+  // Adaptive density. PixelRatio gives us a rough device-tier signal —
+  // SE-class devices report ≤ 2x, current Pros report 3x. Throttle to 24
+  // pieces on lower-tier devices to keep the spring-pop frame budget
+  // happy; the high-end devices get the full 36 the spec calls for.
+  const count = PixelRatio.get() >= 3 ? 36 : 24;
   const pieces = useMemo(
     () =>
-      Array.from({ length: 36 }).map((_, i) => ({
-        x: (screen.width * (i + 0.5)) / 36 + ((i * 137) % 30) - 15,
+      Array.from({ length: count }).map((_, i) => ({
+        x: (screen.width * (i + 0.5)) / count + ((i * 137) % 30) - 15,
         delay: (i * 80) % 1200,
         duration: 1800 + ((i * 211) % 1400),
         rotate: ((i * 53) % 360) - 180,
         size: 5 + ((i * 11) % 5),
         color: i % 5 === 0 ? tint : CONFETTI_COLORS[i % CONFETTI_COLORS.length]!,
       })),
-    [screen.width, tint],
+    [screen.width, tint, count],
   );
 
   return (
