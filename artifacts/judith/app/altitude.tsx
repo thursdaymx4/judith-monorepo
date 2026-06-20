@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AltitudeChart } from "@/components/altitude/AltitudeChart";
 import { DivisionShield } from "@/components/altitude/DivisionShield";
 import { DriftBackdrop } from "@/components/altitude/DriftBackdrop";
+import { GradingExplainer } from "@/components/altitude/GradingExplainer";
 import { MiniHex } from "@/components/altitude/MiniHex";
 import { PromotionOverlay } from "@/components/altitude/PromotionOverlay";
 import { PromotionRing } from "@/components/altitude/PromotionRing";
@@ -28,6 +29,8 @@ import {
   MILESTONES,
   NUDGES,
   TIERS,
+  billsToIncomeRatio,
+  effectiveMonthlyIncome,
   levelMeta,
   nextTier,
   tierForLevel,
@@ -42,7 +45,8 @@ export default function AltitudeScreen() {
   const router = useRouter();
   const { history, level, streak, loading } = useAltitudeSnapshot();
   const { replay } = useAltitudePromotion();
-  const { monthlyIncome, incomeByMonth } = useJudith();
+  const { bills, monthlyIncome, incomeByMonth } = useJudith();
+  const [explainerVisible, setExplainerVisible] = React.useState(false);
 
   const tier = tierForLevel(level);
   const meta = levelMeta(level);
@@ -50,6 +54,11 @@ export default function AltitudeScreen() {
   const hasIncome =
     (typeof monthlyIncome === "number" && monthlyIncome > 0) ||
     Object.values(incomeByMonth ?? {}).some((v) => typeof v === "number" && v > 0);
+  // Ratio is what drives the level. Recomputed every render — cheap.
+  const ratio = billsToIncomeRatio(
+    bills,
+    effectiveMonthlyIncome(monthlyIncome, incomeByMonth, new Date()),
+  );
 
   /** Long-press on the shield → replay the most recent promotion the user
    *  could plausibly have seen. If they're on Level 1 we synthesize a
@@ -76,6 +85,12 @@ export default function AltitudeScreen() {
     <View style={{ flex: 1, backgroundColor: t.canvas }}>
       <DriftBackdrop tier={tier} />
       <PromotionOverlay />
+      <GradingExplainer
+        visible={explainerVisible}
+        onClose={() => setExplainerVisible(false)}
+        ratio={ratio}
+        currentLevel={level}
+      />
 
       {/* Modal header — close on the left, share on the right. */}
       <View
@@ -175,9 +190,26 @@ export default function AltitudeScreen() {
           <Txt size={24} weight="bold" color={tier.color} style={{ marginTop: 14 }}>
             {tier.name}
           </Txt>
-          <Low size={13} style={{ marginTop: 2 }}>
-            {meta.rank} · LV {level}
-          </Low>
+          <Pressable
+            onPress={() => setExplainerVisible(true)}
+            style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}
+          >
+            <Low size={13}>
+              {meta.rank} · LV {level}
+            </Low>
+            <View
+              style={{
+                width: 16,
+                height: 16,
+                borderRadius: 8,
+                backgroundColor: t.surface2,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Txt size={10} weight="bold" color={t.txtMid}>?</Txt>
+            </View>
+          </Pressable>
 
           {promo ? (
             <Txt

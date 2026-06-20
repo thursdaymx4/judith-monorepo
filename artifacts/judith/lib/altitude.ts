@@ -186,6 +186,63 @@ function parseDueDate(bill: Bill, today: Date): Date | null {
 }
 
 /**
+ * Bills-to-income bands (lower bound, exclusive). Index = level - 1.
+ *
+ * Re-tuned 2026-06-20 because the original spec mapped "44% of income going
+ * to bills" to Level 8 / Open Road, which doesn't survive a sanity check:
+ * after ~20% taxes and ~15% essentials (food, transport), a household at
+ * 44% bills has ~21% headroom — comfortable, not "real headroom".
+ *
+ * The new bands anchor against the standard 28/36 housing-DTI rule and
+ * HUD's rent-burden thresholds, then extend them to cover all fixed bills:
+ *
+ *   <12%  Sky Clear     — bills barely register; massive savings room
+ *   <18%  Taking Off    — generous headroom; investing comfortably
+ *   <25%  Open Road     — well below the 28% housing-only benchmark
+ *   <33%  Cruising      — at the 36% all-debt-DTI threshold
+ *   <42%  Finding Feet  — around the middle-class median for fixed bills
+ *   <55%  Treading H₂O  — paycheck-to-paycheck waterline
+ *   <70%  Almost Up     — tight, but not negative cash flow yet
+ *   <85%  Going Under   — only 15% buffer for everything else
+ *  <100%  Underwater    — negative cash flow after taxes/food
+ *   ≥100% Lost at Sea   — fixed bills alone exceed income
+ *
+ * The Level 5 waterline (55%) is the meaningful inflection — below it
+ * there's room to save, above it the household is stretched.
+ */
+export const RATIO_BANDS: { level: number; upTo: number; label: string }[] = [
+  { level: 10, upTo: 0.12, label: "under 12%" },
+  { level: 9,  upTo: 0.18, label: "12–17%" },
+  { level: 8,  upTo: 0.25, label: "18–24%" },
+  { level: 7,  upTo: 0.33, label: "25–32%" },
+  { level: 6,  upTo: 0.42, label: "33–41%" },
+  { level: 5,  upTo: 0.55, label: "42–54%" }, // waterline
+  { level: 4,  upTo: 0.70, label: "55–69%" },
+  { level: 3,  upTo: 0.85, label: "70–84%" },
+  { level: 2,  upTo: 1.00, label: "85–99%" },
+  { level: 1,  upTo: Infinity, label: "100%+" },
+];
+
+/** Sum of bill monthly-equivalents — exposed so the explainer sheet can
+ *  show the user the ratio that drove their grade. */
+export function totalMonthlyBills(bills: Bill[], today: Date = new Date()): number {
+  let total = 0;
+  for (const b of bills) total += billMonthlyEquivalent(b, today);
+  return total;
+}
+
+/** Ratio that drove the grade. Returns null when income isn't set so the
+ *  UI can render "Set your income" instead of a misleading 100%+. */
+export function billsToIncomeRatio(
+  bills: Bill[],
+  monthlyIncome: number | undefined,
+  today: Date = new Date(),
+): number | null {
+  if (!monthlyIncome || monthlyIncome <= 0) return null;
+  return totalMonthlyBills(bills, today) / monthlyIncome;
+}
+
+/**
  * Compute the level (1..10) from bills + income. Pure function — input
  * snapshot only, no I/O. Returns 1 when income is absent or zero (we don't
  * have enough information to judge — pessimistic default is safer than
@@ -197,22 +254,10 @@ export function gradeLevel(
   today: Date = new Date(),
 ): number {
   if (!monthlyIncome || monthlyIncome <= 0) return 1;
-
-  let monthlyBills = 0;
-  for (const b of bills) {
-    monthlyBills += billMonthlyEquivalent(b, today);
+  const r = totalMonthlyBills(bills, today) / monthlyIncome;
+  for (const band of RATIO_BANDS) {
+    if (r < band.upTo) return band.level;
   }
-
-  const r = monthlyBills / monthlyIncome;
-  if (r < 0.20) return 10;
-  if (r < 0.32) return 9;
-  if (r < 0.45) return 8;
-  if (r < 0.58) return 7;
-  if (r < 0.72) return 6;
-  if (r < 0.88) return 5; // waterline
-  if (r < 0.98) return 4;
-  if (r < 1.08) return 3;
-  if (r < 1.25) return 2;
   return 1;
 }
 
