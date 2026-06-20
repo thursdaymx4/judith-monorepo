@@ -12,6 +12,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AltitudeChart } from "@/components/altitude/AltitudeChart";
 import { DivisionShield } from "@/components/altitude/DivisionShield";
+import { DriftBackdrop } from "@/components/altitude/DriftBackdrop";
+import { PromotionOverlay } from "@/components/altitude/PromotionOverlay";
+import { ShareButton } from "@/components/altitude/ShareButton";
 import { Icon } from "@/components/Icon";
 import { Low, SectionLabel, Txt } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
@@ -40,6 +43,9 @@ export default function AltitudeScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.canvas }}>
+      <DriftBackdrop tier={tier} />
+      <PromotionOverlay />
+      <ShareButton level={level} streak={streak} top={insets.top + 6} />
       <ScrollView
         contentContainerStyle={{
           paddingTop: insets.top + 12,

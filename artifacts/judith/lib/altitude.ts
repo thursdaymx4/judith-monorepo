@@ -308,3 +308,25 @@ export function totalClimb(history: MonthGrade[]): number {
   if (history.length < 2) return 0;
   return history[history.length - 1]!.level - history[0]!.level;
 }
+
+// ─── Promotion tracking ──────────────────────────────────────────────────────
+
+const PROMO_SEEN_KEY_PREFIX = "judith.altitude.promotionSeen.";
+
+export async function hasSeenPromotion(month: string): Promise<boolean> {
+  try {
+    const v = await AsyncStorage.getItem(PROMO_SEEN_KEY_PREFIX + month);
+    return v === "1";
+  } catch {
+    return false;
+  }
+}
+
+export async function markPromotionSeen(month: string): Promise<void> {
+  try {
+    await AsyncStorage.setItem(PROMO_SEEN_KEY_PREFIX + month, "1");
+  } catch {
+    // Best-effort. If it fails, the worst case is one extra celebration
+    // on next launch — annoying, not broken.
+  }
+}

@@ -13,6 +13,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 
+import { isTierChange, useAltitudePromotion } from "@/contexts/AltitudePromotionContext";
 import { useJudith } from "@/contexts/JudithStore";
 import {
   climbStreak,
@@ -38,12 +39,14 @@ export interface AltitudeSnapshot {
 
 export function useAltitudeSnapshot(): AltitudeSnapshot {
   const { bills, monthlyIncome, incomeByMonth } = useJudith();
+  const { notifyPromotion } = useAltitudePromotion();
   const [history, setHistory] = useState<MonthGrade[]>([]);
   const [loading, setLoading] = useState(true);
   const initializedRef = useRef(false);
 
   /** Run a snapshot pass: re-grade the current month and persist. Idempotent
-   *  within a calendar month. */
+   *  within a calendar month. Fires a promotion event when the new level is
+   *  strictly higher than the most recent prior month's level. */
   const recordNow = async (existing: MonthGrade[]): Promise<MonthGrade[]> => {
     const today = new Date();
     const key = monthKey(today);
@@ -51,7 +54,6 @@ export function useAltitudeSnapshot(): AltitudeSnapshot {
     const level = gradeLevel(bills, income, today);
 
     const previous = existing.length > 0 ? existing[existing.length - 1]! : undefined;
-    // If this is a fresh month, check whether a milestone was newly crossed.
     const isNewMonth = !previous || previous.month !== key;
     const milestone = isNewMonth && previous
       ? newlyCrossedMilestone(previous.level, level)?.id
@@ -65,6 +67,20 @@ export function useAltitudeSnapshot(): AltitudeSnapshot {
     };
     const next = upsertMonth(existing, snapshot);
     await saveHistory(next);
+
+    // Promotion trigger: compare to the most recent *different* month so we
+    // don't fire when the user merely opens the app inside the same month
+    // and the grade ticks up. Only true cross-month rises celebrate.
+    const lastDifferent = isNewMonth ? previous : prevMonth(existing, key);
+    if (lastDifferent && level > lastDifferent.level) {
+      void notifyPromotion({
+        month: key,
+        from: lastDifferent.level,
+        to: level,
+        isTierChange: isTierChange(lastDifferent.level, level),
+      });
+    }
+
     return next;
   };
 
@@ -101,6 +117,14 @@ export function useAltitudeSnapshot(): AltitudeSnapshot {
   }, [bills, monthlyIncome, incomeByMonth, history]);
 
   const latest = history.length > 0 ? history[history.length - 1]!.level : 1;
+  // Helper for promotion-detection: scan for the most recent record whose
+  // month differs from `key`. Returns undefined when no such record exists.
+  function prevMonth(records: MonthGrade[], key: string): MonthGrade | undefined {
+    for (let i = records.length - 1; i >= 0; i--) {
+      if (records[i]!.month !== key) return records[i];
+    }
+    return undefined;
+  }
   return {
     history,
     level: latest,

@@ -10,6 +10,8 @@ import { Dimensions, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AltitudeChart } from "@/components/altitude/AltitudeChart";
+import { DriftBackdrop } from "@/components/altitude/DriftBackdrop";
+import { ShareButton } from "@/components/altitude/ShareButton";
 import { Icon } from "@/components/Icon";
 import { Low, RoundBtn, SectionLabel, Txt } from "@/components/ui";
 import { useTheme } from "@/hooks/useTheme";
@@ -38,8 +40,12 @@ export default function ClimbScreen() {
   const newest = history.length > 0 ? history[history.length - 1]! : null;
   const tier = newest ? tierForLevel(newest.level) : tierForLevel(1);
 
+  const newestLevel = newest ? newest.level : 1;
+
   return (
     <View style={{ flex: 1, backgroundColor: t.canvas }}>
+      <DriftBackdrop tier={tier} />
+      <ShareButton level={newestLevel} streak={streak} top={insets.top + 6} />
       <View
         style={{
           paddingTop: insets.top + 8,
