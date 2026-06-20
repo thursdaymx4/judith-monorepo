@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon, type IconName } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { Toast } from "@/components/ui";
+import { useAiConsent } from "@/contexts/AiConsentContext";
 import { useJudith } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -63,20 +64,26 @@ function TabBar({ state, navigation }: TabBarProps) {
   );
 }
 
-const FAB_ACTIONS: { label: string; icon: IconName; to: Href }[] = [
+// FAB actions are computed per-render so we can hide the AI-touching entries
+// (Scan a receipt + Ask Judith) when the user has opted out of AI features.
+// `Enter manually` is always available — bill tracking works without any AI.
+interface FabAction { label: string; icon: IconName; to: Href; aiOnly?: boolean }
+const FAB_ACTIONS: FabAction[] = [
   { label: "Enter manually", icon: "keyboard", to: "/add-bill" },
   // Cast until expo-router regenerates its typed-routes union (refreshes on
   // the next `expo start` after this file lands). At runtime expo-router
   // resolves the path from the filesystem regardless of the static union.
-  { label: "Scan a receipt", icon: "receipt", to: "/receipt-scan" as Href },
-  { label: "Ask Judith", icon: "spark", to: "/ask" },
+  { label: "Scan a receipt", icon: "receipt", to: "/receipt-scan" as Href, aiOnly: true },
+  { label: "Ask Judith", icon: "spark", to: "/ask", aiOnly: true },
 ];
 
 function AvatarFab() {
   const t = useTheme();
   const router = useRouter();
   const { persona } = useJudith();
+  const { aiEnabled } = useAiConsent();
   const [open, setOpen] = useState(false);
+  const visibleActions = FAB_ACTIONS.filter((a) => aiEnabled || !a.aiOnly);
 
   const go = (to: Href) => {
     setOpen(false);
@@ -121,7 +128,7 @@ function AvatarFab() {
         <Pressable onPress={() => setOpen(false)} style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }}>
           {/* action stack — sits just above the FAB */}
           <View style={{ position: "absolute", right: 20, bottom: 152, alignItems: "flex-end", gap: 12 }}>
-            {FAB_ACTIONS.map((a) => (
+            {visibleActions.map((a) => (
               <Pressable
                 key={a.label}
                 onPress={() => go(a.to)}

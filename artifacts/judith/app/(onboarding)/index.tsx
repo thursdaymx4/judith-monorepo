@@ -264,7 +264,7 @@ const VOICE_LINES_FIL: Record<string, string> = {
  */
 function useOnbVoice(line: string, persona: PersonaId, language = "en") {
   const played = useRef(false);
-  const { ensure: ensureAiConsent, accepted: aiAccepted } = useAiConsent();
+  const { ensure: ensureAiConsent, aiEnabled: aiAccepted } = useAiConsent();
   // Stop whatever is playing AND abort the in-flight TTS request when the
   // screen leaves. cancelOnboardingAudio covers both vs the old call which
   // only stopped playback.
@@ -3951,8 +3951,18 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                       <Icon name="keyboard" size={15} color={t.txtMid} />
                       <Txt size={14} color={t.txtMid}>{T("tapInstead")}</Txt>
                     </Pressable>
-                    <Pressable onPress={skipOne}>
-                      <Txt size={14} color={t.txtMid}>I don’t have this →</Txt>
+                    <Pressable
+                      onPress={skipOne}
+                      style={{
+                        paddingHorizontal: 14,
+                        paddingVertical: 7,
+                        borderRadius: 18,
+                        borderWidth: 1,
+                        borderColor: t.hair,
+                        backgroundColor: t.surface1,
+                      }}
+                    >
+                      <Txt size={14} weight="semibold" color={t.txtMid}>Skip →</Txt>
                     </Pressable>
                   </View>
                 </>
@@ -3969,8 +3979,18 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                       <Icon name="mic" size={14} color={t.txtMid} />
                       <Txt size={14} color={t.txtMid}>Speak instead</Txt>
                     </Pressable>
-                    <Pressable onPress={skipOne}>
-                      <Txt size={14} color={t.txtMid}>I don’t have this →</Txt>
+                    <Pressable
+                      onPress={skipOne}
+                      style={{
+                        paddingHorizontal: 14,
+                        paddingVertical: 7,
+                        borderRadius: 18,
+                        borderWidth: 1,
+                        borderColor: t.hair,
+                        backgroundColor: t.surface1,
+                      }}
+                    >
+                      <Txt size={14} weight="semibold" color={t.txtMid}>Skip →</Txt>
                     </Pressable>
                   </View>
                 </>
@@ -5077,6 +5097,16 @@ function FeatureShell({
               </Low>
             </Pressable>
           </View>
+        )}
+
+        {/* ── persistent Skip — always available so the user isn't stuck
+              on a demo screen if they don't want to chat ── */}
+        {!hadError && !hasAnswered && !busy && (
+          <Pressable onPress={next} style={{ alignItems: "center", paddingVertical: 6 }}>
+            <Low size={13} style={{ textDecorationLine: "underline" }}>
+              {dotIdx === 2 ? "Skip and finish" : "Skip"}
+            </Low>
+          </Pressable>
         )}
 
         {/* ── speaking status while Judith is responding ── */}
@@ -6393,6 +6423,7 @@ const SAVE_FROM = 0;
 export default function OnboardingScreen() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
+  const { aiEnabled } = useAiConsent();
   const {
     persona,
     setPersona,
@@ -6459,11 +6490,24 @@ export default function OnboardingScreen() {
     // can still arrive and play over screen N+1, or a "stuck" request
     // (network hang, server slow) leaves the next screen unresponsive.
     cancelOnboardingAudio();
-    if (toIdx >= FLOW.length) {
+    // Skip the 3 Ask Judith demo screens entirely when the user has
+    // opted out of AI features — showing them would be confusing
+    // (Judith can't talk) and they'd just bounce through.
+    let next = toIdx;
+    while (
+      next < FLOW.length &&
+      !aiEnabled &&
+      (FLOW[next]!.id === "feature1" ||
+        FLOW[next]!.id === "feature2" ||
+        FLOW[next]!.id === "feature3")
+    ) {
+      next += 1;
+    }
+    if (next >= FLOW.length) {
       setOnboarded(true);
       return;
     }
-    setIdx(toIdx);
+    setIdx(next);
   };
   const finishTrans = () => { setTrans(null); advance(idx + 1); };
   const next = () => {

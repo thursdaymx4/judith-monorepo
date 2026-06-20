@@ -61,32 +61,50 @@ export function AiConsentModal({ visible, persona, onAccept, onDecline }: AiCons
             Allow AI features?
           </Txt>
           <Muted size={13} style={{ textAlign: "center", marginBottom: 14 }}>
-            Judith uses two third-party AI services to power voice, ask, and receipt scanning. Tap Allow to enable them.
+            Voice, Ask Judith, and receipt scanning use two third-party AI services. Here's what they get.
           </Muted>
 
+          {/* What gets sent — by processor */}
           <Txt size={13} weight="semibold" color={t.txtHi} style={{ marginBottom: 6 }}>
             Anthropic (Claude)
           </Txt>
-          <Muted size={13} style={{ marginBottom: 4 }}>• Sends: your typed questions, your bill metadata (provider, amount, due date, payment status), and any image you choose to scan</Muted>
-          <Muted size={13} style={{ marginBottom: 12 }}>• Retained up to 30 days for trust-and-safety review · not used to train their models</Muted>
+          <Muted size={13} style={{ marginBottom: 4 }}>• Typed questions you ask Judith</Muted>
+          <Muted size={13} style={{ marginBottom: 4 }}>• Bill metadata — provider, amount, due date, paid/unpaid status</Muted>
+          <Muted size={13} style={{ marginBottom: 4 }}>• Images you choose to scan (receipts, bill screenshots)</Muted>
+          <Muted size={13} style={{ marginBottom: 12 }}>• 30-day trust-and-safety retention · not used to train Claude</Muted>
 
           <Txt size={13} weight="semibold" color={t.txtHi} style={{ marginBottom: 6 }}>
             ElevenLabs
           </Txt>
-          <Muted size={13} style={{ marginBottom: 4 }}>• Sends: your voice recordings (when you speak to Judith) and the text Judith says back</Muted>
-          <Muted size={13} style={{ marginBottom: 12 }}>• Retained up to 30 days for abuse review · not used to train their models</Muted>
+          <Muted size={13} style={{ marginBottom: 4 }}>• Voice recordings when you speak to Judith</Muted>
+          <Muted size={13} style={{ marginBottom: 4 }}>• Text Judith speaks back to you</Muted>
+          <Muted size={13} style={{ marginBottom: 14 }}>• 30-day abuse-review retention · not used to train their voices</Muted>
 
-          <Txt size={13} weight="semibold" color={t.txtHi} style={{ marginBottom: 6 }}>
-            We never send
-          </Txt>
-          <Muted size={13} style={{ marginBottom: 16 }}>
-            Your name, email, contacts, account password, payment credentials, or anything else outside what's listed above. Receipt OCR runs on-device with Apple's Vision framework first — images only leave your phone when on-device recognition fails.
-          </Muted>
+          {/* Highlighted "we never send" card — visually distinct so it
+              reads on a quick skim, per Apple feedback. */}
+          <View
+            style={{
+              backgroundColor: t.accent + "12",
+              borderColor: t.accent + "55",
+              borderWidth: 1,
+              borderRadius: 12,
+              padding: 12,
+              marginBottom: 14,
+            }}
+          >
+            <Txt size={13} weight="bold" color={t.accent} style={{ marginBottom: 6 }}>
+              We never send
+            </Txt>
+            <Muted size={13} style={{ marginBottom: 3 }}>• Your name or email</Muted>
+            <Muted size={13} style={{ marginBottom: 3 }}>• Your account password or auth tokens</Muted>
+            <Muted size={13} style={{ marginBottom: 3 }}>• Contacts, calendar, or location</Muted>
+            <Muted size={13}>• Payment credentials or card numbers</Muted>
+          </View>
 
           <Low size={11} style={{ textAlign: "left", marginBottom: 16 }}>
-            Full list and contact info in our{" "}
+            Receipt OCR runs on-device with Apple's Vision framework first — images only leave your phone when on-device recognition fails. Full list and contact info in our{" "}
             <Low size={11} color={t.accent} style={{ textDecorationLine: "underline" }} onPress={() => openLegal(PRIVACY_URL)}>Privacy Policy</Low>.
-            If you tap Don&apos;t Allow, Judith still works as a bill tracker with reminders and manual entry — no AI features.
+            Don't Allow keeps Judith working as a bill tracker with reminders and manual entry — no AI features. You can change this any time in Settings.
           </Low>
 
           <Pressable

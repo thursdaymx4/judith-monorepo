@@ -1,7 +1,7 @@
 import { useRouter } from "expo-router";
 import * as Updates from "expo-updates";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
 
 import { Icon, type IconName } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
@@ -10,6 +10,7 @@ import { COUNTRIES, CURRENCIES, countryByCode } from "@/constants/countries";
 import { formatMoney } from "@/constants/data";
 import { LANGUAGES, langDesc } from "@/constants/languages";
 import { PERSONAS } from "@/constants/personas";
+import { useAiConsent } from "@/contexts/AiConsentContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useJudithActions, useJudithSelect, type Toggles } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
@@ -293,6 +294,7 @@ function matches(needle: string, ...haystacks: (string | undefined)[]): boolean 
 export default function SettingsScreen() {
   const t = useTheme();
   const router = useRouter();
+  const aiConsent = useAiConsent();
   // Slice subscriptions — Settings only re-renders when a field it actually
   // reads here changes. Bill mutations from Home / Bills / Calendar (which
   // happen frequently) no longer cascade a re-render through this tab.
@@ -742,6 +744,53 @@ export default function SettingsScreen() {
           title="Financial Altitude"
           subtitle="Track your bills-vs-income rank and climb"
           onPress={() => router.push("/altitude")}
+        />
+      </Section>
+
+      {/* ── AI FEATURES ─── */}
+      <Section
+        title="AI Features"
+        footer={
+          aiConsent.status === "accepted"
+            ? "Anthropic (Claude) powers Ask Judith and receipt scanning; ElevenLabs powers the voice. We never send your name, email, contacts, or password. Tap to turn off."
+            : "Ask Judith, voice features, and receipt scanning are off. Turn on to enable them — you'll see one disclosure with what gets sent and to whom."
+        }
+      >
+        <Row
+          first
+          icon="spark"
+          iconColor={aiConsent.status === "accepted" ? t.accent : t.txtMid}
+          title="Allow AI features"
+          subtitle={
+            aiConsent.status === "accepted"
+              ? "On — voice, Ask Judith, and receipt scan enabled"
+              : aiConsent.status === "declined"
+              ? "Off — Ask Judith and voice are hidden"
+              : "Not set — you'll be asked on first use"
+          }
+          right={
+            <Toggle
+              on={aiConsent.status === "accepted"}
+              onPress={async () => {
+                if (aiConsent.status === "accepted") {
+                  Alert.alert(
+                    "Turn off AI features?",
+                    "Ask Judith and the voice features will be hidden. Bill tracking and reminders keep working.",
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      { text: "Turn off", style: "destructive", onPress: () => void aiConsent.revoke() },
+                    ],
+                  );
+                } else {
+                  // Either declined or unknown — clear to "unknown" so the
+                  // next ensure() shows the disclosure.
+                  await aiConsent.reaskNextTime();
+                  // Surface the modal right now via a no-op ensure call.
+                  void aiConsent.ensure();
+                }
+              }}
+            />
+          }
         />
       </Section>
 

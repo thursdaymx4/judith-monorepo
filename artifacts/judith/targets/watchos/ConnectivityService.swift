@@ -8,6 +8,10 @@ final class ConnectivityService: NSObject, WCSessionDelegate, ObservableObject {
     static let shared = ConnectivityService()
 
     @Published var isPhoneReachable: Bool = false
+    /// Mirrors the iPhone's AI-data-sharing consent state. Updated every
+    /// time a fresh WatchPayload arrives. AskView reads this to decide
+    /// whether to surface the Ask CTA at all.
+    @Published var aiConsented: Bool = false
 
     private var store: WatchStore?
     private let defaults = UserDefaults(suiteName: Config.appGroupID)
@@ -428,7 +432,9 @@ final class ConnectivityService: NSObject, WCSessionDelegate, ObservableObject {
             // even when no store is attached yet (cold-launch ordering) and
             // across watch reboots.
             defaults?.set(json, forKey: Config.payloadCacheKey)
+            let consent = p.aiConsented ?? false
             DispatchQueue.main.async { [weak self] in
+                self?.aiConsented = consent
                 self?.store?.applyPayload(p)
             }
         }

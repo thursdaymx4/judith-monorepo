@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -385,9 +386,22 @@ export default function LoginScreen() {
             </Text>
           </Pressable>
 
-          {/* skip for now */}
+          {/* Continue without an account — anonymous device-only mode.
+              We surface the trade-offs in an alert so the choice is
+              informed, rather than letting users discover they have no
+              backup after they've entered 12 bills. */}
           <Pressable
-            onPress={() => setGuest(true)}
+            onPress={() => {
+              if (anyBusy) return;
+              Alert.alert(
+                "Continue without an account?",
+                "Pros\n• Your bills stay on this device — nothing leaves it for sign-in\n• Anonymous to Judith — no email, no profile\n\nCons\n• No iCloud / cross-device backup — if you uninstall or switch phones, your bills are gone\n• You can't open Judith on another device with the same data\n• Apple Sign-In can still be added later if you change your mind",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  { text: "Continue Anonymously", onPress: () => setGuest(true) },
+                ],
+              );
+            }}
             disabled={anyBusy}
             style={{ paddingVertical: 6 }}
           >
@@ -399,7 +413,7 @@ export default function LoginScreen() {
                 fontFamily: t.fonts.regular,
               }}
             >
-              Skip for now →
+              Continue Anonymously →
             </Text>
           </Pressable>
         </View>
