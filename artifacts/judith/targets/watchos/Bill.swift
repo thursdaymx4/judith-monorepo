@@ -116,7 +116,8 @@ struct WatchPayload: Codable {
             paidAmount: paidAmount.map { max(0, $0) + removedAmount },
             overdueCount: overdueCount.map { wasOverdue ? max(0, $0 - 1) : $0 },
             overdueTotal: overdueTotal.map { wasOverdue ? max(0, $0 - removedAmount) : $0 },
-            next7Total: next7Total.map { wasInNext7 ? max(0, $0 - removedAmount) : $0 }
+            next7Total: next7Total.map { wasInNext7 ? max(0, $0 - removedAmount) : $0 },
+            aiConsented: aiConsented
         )
     }
 }
