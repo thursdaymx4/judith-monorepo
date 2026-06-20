@@ -13,10 +13,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AltitudeChart } from "@/components/altitude/AltitudeChart";
 import { DivisionShield } from "@/components/altitude/DivisionShield";
 import { DriftBackdrop } from "@/components/altitude/DriftBackdrop";
+import { MiniHex } from "@/components/altitude/MiniHex";
 import { PromotionOverlay } from "@/components/altitude/PromotionOverlay";
 import { ShareButton } from "@/components/altitude/ShareButton";
 import { Icon } from "@/components/Icon";
-import { Low, SectionLabel, Txt } from "@/components/ui";
+import { Low, RoundBtn, SectionLabel, Txt } from "@/components/ui";
+import { safeBack } from "@/lib/navigation";
 import { useTheme } from "@/hooks/useTheme";
 import { useAltitudeSnapshot } from "@/hooks/useAltitudeSnapshot";
 import { isTierChange, useAltitudePromotion } from "@/contexts/AltitudePromotionContext";
@@ -73,22 +75,35 @@ export default function AltitudeScreen() {
     <View style={{ flex: 1, backgroundColor: t.canvas }}>
       <DriftBackdrop tier={tier} />
       <PromotionOverlay />
+
+      {/* Modal header — close on the left, share on the right. */}
+      <View
+        style={{
+          paddingTop: insets.top + 8,
+          paddingBottom: 4,
+          paddingHorizontal: 16,
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <RoundBtn icon="x" onPress={() => safeBack(router)} />
+        <Low size={11} style={{ letterSpacing: 1.6, textTransform: "uppercase" }}>
+          Your League
+        </Low>
+        <View style={{ width: 32 }} />
+      </View>
       <ShareButton level={level} streak={streak} top={insets.top + 6} />
+
       <ScrollView
         contentContainerStyle={{
-          paddingTop: insets.top + 12,
+          paddingTop: 4,
           paddingBottom: insets.bottom + 100,
           paddingHorizontal: 20,
           gap: 18,
         }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Kicker */}
-        <View style={{ alignItems: "center" }}>
-          <Low size={11} style={{ letterSpacing: 1.6, textTransform: "uppercase" }}>
-            Your League
-          </Low>
-        </View>
 
         {/* Income gate — without an income figure the grade is locked to
             Level 1 by design. Surface that explicitly with a path to fix
@@ -215,24 +230,44 @@ export default function AltitudeScreen() {
                 TIERS.findIndex((x) => x.id === tier.id);
               const isLocked = !isCurrent && !isPast;
               return (
-                <View key={d.id} style={{ alignItems: "center", gap: 4, flex: 1 }}>
-                  <View
-                    style={{
-                      width: isCurrent ? 38 : 30,
-                      height: isCurrent ? 42 : 33,
-                      borderRadius: 6,
-                      backgroundColor: isLocked ? t.surface3 : d.color,
-                      opacity: isLocked ? 0.4 : isCurrent ? 1 : 0.85,
-                      borderWidth: isCurrent ? 2 : 0,
-                      borderColor: "white",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
+                <View key={d.id} style={{ alignItems: "center", gap: 5, flex: 1 }}>
+                  <View style={{ position: "relative" }}>
+                    <MiniHex
+                      level={d.repLevel}
+                      size={isCurrent ? 40 : 30}
+                      state={isLocked ? "locked" : "current"}
+                    />
+                    {isPast ? (
+                      <View
+                        pointerEvents="none"
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Icon name="check" size={isCurrent ? 16 : 12} color="white" />
+                      </View>
+                    ) : null}
                     {isLocked ? (
-                      <Icon name="lock" size={12} color={t.txtLow} />
-                    ) : isPast ? (
-                      <Icon name="check" size={14} color="white" />
+                      <View
+                        pointerEvents="none"
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Icon name="lock" size={11} color={t.txtLow} />
+                      </View>
                     ) : null}
                   </View>
                   <Low

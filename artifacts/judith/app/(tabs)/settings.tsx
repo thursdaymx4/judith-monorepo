@@ -733,6 +733,18 @@ export default function SettingsScreen() {
         })}
       </Section>
 
+      {/* ── YOUR JOURNEY ─── */}
+      <Section title="Your Journey">
+        <Row
+          first
+          icon="trend"
+          iconColor={t.accent}
+          title="Financial Altitude"
+          subtitle="Track your bills-vs-income rank and climb"
+          onPress={() => router.push("/altitude")}
+        />
+      </Section>
+
       {/* ── APPEARANCE ─── */}
       <Section title="Appearance" hidden={!visAppearance}>
         {visTheme && (

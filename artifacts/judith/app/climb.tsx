@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AltitudeChart } from "@/components/altitude/AltitudeChart";
 import { DriftBackdrop } from "@/components/altitude/DriftBackdrop";
+import { MiniHex } from "@/components/altitude/MiniHex";
 import { ShareButton } from "@/components/altitude/ShareButton";
 import { Icon } from "@/components/Icon";
 import { Low, RoundBtn, SectionLabel, Txt } from "@/components/ui";
@@ -191,21 +192,7 @@ function MonthRow({
         borderRadius: 14,
       }}
     >
-      <View
-        style={{
-          width: 38,
-          height: 42,
-          borderRadius: 8,
-          backgroundColor: tier.color,
-          opacity: 0.92,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Txt size={18} weight="bold" color="white">
-          {grade.level}
-        </Txt>
-      </View>
+      <MiniHex level={grade.level} size={44} label={String(grade.level)} />
       <View style={{ flex: 1, gap: 2 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           <Txt size={13} color={t.txtMid}>

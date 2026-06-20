@@ -12,7 +12,6 @@ import { useTheme } from "@/hooks/useTheme";
 const TABS: { name: string; label: string; icon: IconName }[] = [
   { name: "index", label: "Home", icon: "home" },
   { name: "calendar", label: "Calendar", icon: "cal" },
-  { name: "altitude", label: "Altitude", icon: "trend" },
   { name: "insights", label: "Insights", icon: "chart" },
   { name: "settings", label: "Settings", icon: "gear" },
 ];
@@ -192,7 +191,6 @@ export default function TabsLayout() {
       >
         <Tabs.Screen name="index" />
         <Tabs.Screen name="calendar" />
-        <Tabs.Screen name="altitude" />
         <Tabs.Screen name="insights" />
         <Tabs.Screen name="settings" />
       </Tabs>

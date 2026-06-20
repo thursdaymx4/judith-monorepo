@@ -4,6 +4,7 @@ import { Animated, Easing, Pressable, ScrollView, View } from "react-native";
 import Reanimated, { useSharedValue, useAnimatedStyle, withSpring as springTo } from "react-native-reanimated";
 import { Defs, LinearGradient as SvgGradient, Path, Stop, Svg } from "react-native-svg";
 
+import { AltitudeBadge } from "@/components/altitude/AltitudeBadge";
 import { Icon, type IconName } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
 import { BillRowSwipe } from "@/components/BillRowSwipe";
@@ -456,6 +457,11 @@ export default function HomeScreen() {
         money={money}
         reduce={reduce}
       />
+
+      {/* Compact altitude badge — single tap into the full League screen. */}
+      <View style={{ marginTop: 12 }}>
+        <AltitudeBadge />
+      </View>
 
       {/* timeline */}
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4, marginBottom: showFilters ? 8 : 12 }}>
