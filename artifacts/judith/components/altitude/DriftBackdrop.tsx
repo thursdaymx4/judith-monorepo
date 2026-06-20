@@ -1,13 +1,20 @@
 /**
- * Drifting backdrop for the Altitude screens. Four large blurred color
- * blobs (current tier + accent blues/purples) breathing and drifting,
- * with sixteen small white particles rising and fading.
+ * Drifting backdrop for the Altitude screens.
  *
- * Honors reduce-motion: blobs hold their starting position, particles
- * are hidden entirely.
+ * A smooth multi-stop radial sky gradient tinted to the current tier sits
+ * underneath. On top of it, a small accent blob breathes slowly and 16
+ * white particles rise and fade.
+ *
+ * Replaces the earlier 4-blob version which read as "decorative" but
+ * never quite landed as a coherent sky. The radial-gradient approach
+ * matches the Claude Design prototype, where the screen's hero glow
+ * concentrates near the shield and softly fades into the canvas.
+ *
+ * Honors reduce-motion: gradient holds, accent blob stops drifting,
+ * particles vanish.
  */
 import React, { useEffect, useMemo } from "react";
-import { Dimensions, View } from "react-native";
+import { Dimensions, StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -16,6 +23,12 @@ import Animated, {
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
+import Svg, {
+  Defs,
+  RadialGradient,
+  Rect,
+  Stop,
+} from "react-native-svg";
 
 import { useReduceMotion } from "@/hooks/useReduceMotion";
 import type { Tier } from "@/lib/altitude";
@@ -40,65 +53,86 @@ export function DriftBackdrop({ tier }: DriftBackdropProps) {
         overflow: "hidden",
       }}
     >
-      <Blob
+      <SkyGradient tier={tier} width={screen.width} height={screen.height} />
+      <AccentBlob
         color={tier.color}
-        x0={-40}
-        y0={80}
-        dx={60}
-        dy={-30}
-        duration={22000}
+        x={screen.width * 0.72}
+        y={screen.height * 0.62}
         reduceMotion={reduceMotion}
       />
-      <Blob
-        color={tier.light}
-        x0={screen.width - 240}
-        y0={140}
-        dx={-50}
-        dy={40}
-        duration={18000}
-        reduceMotion={reduceMotion}
-      />
-      <Blob
-        color="#5AD1FF"
-        x0={screen.width - 180}
-        y0={screen.height - 280}
-        dx={40}
-        dy={-50}
-        duration={20000}
-        reduceMotion={reduceMotion}
-      />
-      <Blob
-        color="#B89CFF"
-        x0={-80}
-        y0={screen.height - 200}
-        dx={-30}
-        dy={30}
-        duration={24000}
-        reduceMotion={reduceMotion}
-      />
-
       {!reduceMotion ? <ParticleField screenWidth={screen.width} screenHeight={screen.height} /> : null}
     </View>
   );
 }
 
-// ─── Blob ─────────────────────────────────────────────────────────────────────
+// ─── Sky gradient ─────────────────────────────────────────────────────────────
 
-function Blob({
+function SkyGradient({
+  tier,
+  width,
+  height,
+}: {
+  tier: Tier;
+  width: number;
+  height: number;
+}) {
+  // Two-layer wash: a bright tier-color glow concentrated near the hero
+  // position (~32% from top), and a deeper accent that bleeds from the
+  // bottom-right. Together they give the screen a sense of depth instead
+  // of a flat tint. Anchors chosen empirically to land the brightest spot
+  // behind the shield + ladder strip.
+  return (
+    <Svg
+      width={width}
+      height={height}
+      style={StyleSheet.absoluteFill}
+      pointerEvents="none"
+    >
+      <Defs>
+        <RadialGradient
+          id={`sky-top-${tier.id}`}
+          cx="50%"
+          cy="28%"
+          rx="80%"
+          ry="60%"
+        >
+          <Stop offset="0" stopColor={tier.light} stopOpacity="0.55" />
+          <Stop offset="0.45" stopColor={tier.color} stopOpacity="0.18" />
+          <Stop offset="1" stopColor="#0A0C11" stopOpacity="0" />
+        </RadialGradient>
+        <RadialGradient
+          id={`sky-bottom-${tier.id}`}
+          cx="78%"
+          cy="92%"
+          rx="80%"
+          ry="60%"
+        >
+          <Stop offset="0" stopColor={tier.color} stopOpacity="0.22" />
+          <Stop offset="0.55" stopColor={tier.color} stopOpacity="0.06" />
+          <Stop offset="1" stopColor="#0A0C11" stopOpacity="0" />
+        </RadialGradient>
+      </Defs>
+      {/* Canvas underlay so the gradients composite on a stable dark base
+          rather than the screen's own backgroundColor (which can flash
+          during the cross-tier transition). */}
+      <Rect x={0} y={0} width={width} height={height} fill="#0A0C11" />
+      <Rect x={0} y={0} width={width} height={height} fill={`url(#sky-bottom-${tier.id})`} />
+      <Rect x={0} y={0} width={width} height={height} fill={`url(#sky-top-${tier.id})`} />
+    </Svg>
+  );
+}
+
+// ─── Accent blob ──────────────────────────────────────────────────────────────
+
+function AccentBlob({
   color,
-  x0,
-  y0,
-  dx,
-  dy,
-  duration,
+  x,
+  y,
   reduceMotion,
 }: {
   color: string;
-  x0: number;
-  y0: number;
-  dx: number;
-  dy: number;
-  duration: number;
+  x: number;
+  y: number;
   reduceMotion: boolean;
 }) {
   const t = useSharedValue(0);
@@ -108,19 +142,19 @@ function Blob({
       return;
     }
     t.value = withRepeat(
-      withTiming(1, { duration, easing: Easing.inOut(Easing.sin) }),
+      withTiming(1, { duration: 22000, easing: Easing.inOut(Easing.sin) }),
       -1,
       true,
     );
-  }, [t, duration, reduceMotion]);
+  }, [t, reduceMotion]);
 
   const style = useAnimatedStyle(() => ({
     transform: [
-      { translateX: x0 + dx * t.value },
-      { translateY: y0 + dy * t.value },
-      { scale: 1 + 0.05 * t.value },
+      { translateX: -40 + 20 * t.value },
+      { translateY: -20 * t.value },
+      { scale: 1 + 0.06 * t.value },
     ],
-    opacity: 0.55 + 0.1 * t.value,
+    opacity: 0.32 + 0.06 * t.value,
   }));
 
   return (
@@ -128,14 +162,13 @@ function Blob({
       style={[
         {
           position: "absolute",
-          width: 240,
-          height: 240,
-          borderRadius: 120,
+          left: x,
+          top: y,
+          width: 260,
+          height: 260,
+          borderRadius: 130,
           backgroundColor: color,
-          opacity: 0.55,
-          // RN doesn't ship a Gaussian blur on plain Views, so we lean on
-          // a heavy opacity + size to fake a soft glow. Looks identical
-          // to the SwiftUI .blur(radius:44) on iOS at this size.
+          opacity: 0.32,
         },
         style,
       ]}
@@ -160,8 +193,6 @@ function ParticleField({
   screenWidth: number;
   screenHeight: number;
 }) {
-  // Lay out 16 particles deterministically — pseudo-random distribution
-  // baked at mount time so each particle has a stable lane + cadence.
   const particles = useMemo<ParticleConfig[]>(() => {
     return Array.from({ length: 16 }).map((_, i) => ({
       x: (screenWidth * (i + 0.5)) / 16 + ((i * 137) % 40) - 20,
@@ -201,8 +232,6 @@ function Particle({
   }, [t, config.delay, config.duration]);
 
   const style = useAnimatedStyle(() => {
-    // Particles travel from the bottom of the screen to ~30% above the top,
-    // fading in over the first 12% and out over the final 20%.
     const distance = screenHeight + 80;
     const ty = -t.value * distance;
     const phase = t.value;

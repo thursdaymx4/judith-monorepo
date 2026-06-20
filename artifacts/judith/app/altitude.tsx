@@ -15,6 +15,7 @@ import { DivisionShield } from "@/components/altitude/DivisionShield";
 import { DriftBackdrop } from "@/components/altitude/DriftBackdrop";
 import { MiniHex } from "@/components/altitude/MiniHex";
 import { PromotionOverlay } from "@/components/altitude/PromotionOverlay";
+import { PromotionRing } from "@/components/altitude/PromotionRing";
 import { ShareButton } from "@/components/altitude/ShareButton";
 import { Icon } from "@/components/Icon";
 import { Low, RoundBtn, SectionLabel, Txt } from "@/components/ui";
@@ -156,7 +157,17 @@ export default function AltitudeScreen() {
               delayLongPress={650}
               style={{ alignItems: "center" }}
             >
-              <DivisionShield level={level} size={150} />
+              {/* Promotion ring frames the hero. Stroke color is the NEXT
+                  tier so the visual cue is "this is where you're climbing
+                  to". On the top tier we draw a full ring in the current
+                  tier color as a "completed" halo. */}
+              <PromotionRing
+                size={196}
+                color={promo ? promo.tier.color : tier.color}
+                fraction={promo ? promo.frac : 1}
+              >
+                <DivisionShield level={level} size={150} />
+              </PromotionRing>
             </Pressable>
             <NeighborShield tier={nextTierObj(tier)} />
           </View>
@@ -189,7 +200,9 @@ export default function AltitudeScreen() {
           )}
         </View>
 
-        {/* Promotion progress ring (replaces neighbors at small screens — kept simple here) */}
+        {/* Climb-to nudge. The promotion progress arc lives around the
+            hero shield itself now, so this card just needs the next-level
+            label + the next-step nudge copy. */}
         {promo ? (
           <View
             style={{
@@ -200,10 +213,21 @@ export default function AltitudeScreen() {
               borderRadius: 16,
               flexDirection: "row",
               alignItems: "center",
-              gap: 14,
+              gap: 12,
             }}
           >
-            <RingPreview tier={promo.tier} fraction={promo.frac} />
+            <View
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: promo.tier.color + "22",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Icon name="arrow" size={18} color={promo.tier.color} />
+            </View>
             <View style={{ flex: 1, gap: 2 }}>
               <Txt size={13} weight="semibold" color={t.txtHi}>
                 Climb to Level {Math.min(10, level + 1)} · {levelMeta(level + 1).rank}
