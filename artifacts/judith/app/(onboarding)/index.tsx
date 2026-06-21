@@ -626,6 +626,18 @@ interface Ctx {
   /** Category IDs selected on the bill-picker screen. Empty = show all. */
   selectedCats: string[];
   setSelectedCats: (cats: string[]) => void;
+  /**
+   * Mutable handler a child screen can install so it intercepts the
+   * global back button. Returning true means "I handled it, don't leave
+   * the screen." Returning false (or never installing) falls through to
+   * the default behavior, which is to step one screen back in FLOW.
+   *
+   * Used by ScreenVoiceAdd: when the user is in the middle of the bill
+   * sequence (internal idx > 0), pressing back rewinds to the previous
+   * bill instead of leaving the whole screen and re-asking everything
+   * — that previously caused duplicates.
+   */
+  backHandlerRef: React.MutableRefObject<(() => boolean) | null>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -2413,6 +2425,65 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const [cardDone, setCardDone] = useState(0);
   const [loanN, setLoanN] = useState(0);
   const [loanDone, setLoanDone] = useState(0);
+
+  // Install a back handler so the global back arrow rewinds to the
+  // previous bill instead of bouncing us back to ScreenBillPicker. Without
+  // this, the user would re-enter ScreenVoiceAdd at idx=0 and re-ask
+  // every bill — the dup-check catches the same provider+cat but lets a
+  // typo through. The cleanest UX is to step through bills in-place.
+  //
+  // Returning true tells the parent the back was handled internally.
+  // We only return false when we're at the very first question — then
+  // the parent leaves the screen back to BillPicker.
+  useEffect(() => {
+    ctx.backHandlerRef.current = () => {
+      // Per-step reset — same as advanceAfterItem, so the prior bill
+      // form fields don't bleed into the previous question.
+      const resetPerBillState = () => {
+        setHeardText("");
+        setParsedBill(null);
+        setParsedEditing(false);
+        setScreenshotStatus("idle");
+        setScreenshotBills([]);
+        setDraftSubs([]);
+        setPaidStatus("no");
+        setPaidAmount("");
+        setMode("prompt");
+      };
+
+      if (mode !== "prompt" && mode !== "manualCats") {
+        // Mid-interaction (listening, transcribing, parsed) — drop back
+        // to prompt instead of advancing screens. The user can re-tap
+        // their input choice.
+        resetPerBillState();
+        return true;
+      }
+      if (phase === "loans" && loanDone > 0) {
+        resetPerBillState();
+        setLoanDone((n) => Math.max(0, n - 1));
+        return true;
+      }
+      if (phase === "cards" && cardDone > 0) {
+        resetPerBillState();
+        setCardDone((n) => Math.max(0, n - 1));
+        return true;
+      }
+      if (phase === "scripted" && idx > 0) {
+        resetPerBillState();
+        setIdx((n) => Math.max(0, n - 1));
+        return true;
+      }
+      // At the very first question — fall through so the parent moves
+      // back to BillPicker. The bills already added stay in state, so
+      // re-entering this screen won't re-create them (dup-check) and
+      // the user can correct their selection.
+      return false;
+    };
+    return () => {
+      // Only clear if we're still the installed handler (defensive).
+      if (ctx.backHandlerRef.current) ctx.backHandlerRef.current = null;
+    };
+  }, [ctx.backHandlerRef, mode, phase, idx, cardDone, loanDone]);
   const [screenshotStatus, setScreenshotStatus] = useState<"idle" | "loading" | "editing">("idle");
   const [screenshotBills, setScreenshotBills] = useState<{ provider: string; amount: number | null; dueDay: number | null }[]>([]);
   type DraftSub = {
@@ -6579,7 +6650,15 @@ export default function OnboardingScreen() {
     if (screen.id === "latefee")  { setTrans("question"); return; }
     advance(idx + 1);
   };
+  // Children can install a back handler so they intercept the global
+  // back button. See Ctx.backHandlerRef for the contract.
+  const backHandlerRef = useRef<(() => boolean) | null>(null);
   const back = () => {
+    // Let the current screen intercept first. If it returns true the
+    // screen handled the back (e.g. ScreenVoiceAdd rewound to the
+    // previous bill); only fall through to a real back navigation
+    // when the screen returns false / no handler is installed.
+    if (backHandlerRef.current?.()) return;
     cancelOnboardingAudio();
     // Mirror the forward-skip logic: when AI is declined, the back arrow
     // should also hop over the AI-only screens so the user can't land on
@@ -6602,10 +6681,17 @@ export default function OnboardingScreen() {
   const addBill = (b: OnbBill) => setBills((arr) => [...arr, b]);
 
   const ctx = useMemo<Ctx>(
-    () => ({ t, persona, setPersona, country, setCountry, language, setLanguage, name, setName, bills, addBill, next, selectedCats, setSelectedCats }),
+    () => ({ t, persona, setPersona, country, setCountry, language, setLanguage, name, setName, bills, addBill, next, selectedCats, setSelectedCats, backHandlerRef }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [t, persona, language, country, name, bills, idx, selectedCats],
   );
+
+  // Reset the back-handler whenever the screen changes — each screen
+  // installs its own if needed. Without this, a stale handler from a
+  // previous screen would block the global back forever.
+  useEffect(() => {
+    backHandlerRef.current = null;
+  }, [screen.id]);
 
   const showProgress = SETUP.includes(screen.id);
   const showBack = !NO_BACK.includes(screen.id);
