@@ -2321,7 +2321,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     return hasGroup(s.group);
   });
   const { saveBill, deleteBill, bills: storeBills, showToast } = useJudith();
-  const { ensure: ensureAiConsent } = useAiConsent();
+  const { ensure: ensureAiConsent, aiEnabled: aiAccepted } = useAiConsent();
   const cur = ctx.country.cur;
   const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
   // ── Voice Activity Detection refs ─────────────────────────────────
@@ -2890,7 +2890,14 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
 
   const progress = Math.min(idx + (mode === "done" ? 0 : 1), SAMPLES.length);
   const showConvo = mode === "prompt" || mode === "listening" || mode === "transcribing" || mode === "parsed";
-  const isPhoneSub = phase === "scripted" && sample.cat === "Phone subscription";
+  // The Phone-subscription screen has a special scripted UI that hinges on
+  // the screenshot-scan + voice paths — both AI features. When the user
+  // has opted out of AI we treat it as a normal category so the same
+  // manual provider / amount / due-day form renders. Without this, the
+  // user lands on a screen whose primary CTAs (Upload screenshot, mic)
+  // are gated and the screen feels broken.
+  const isPhoneSub =
+    phase === "scripted" && sample.cat === "Phone subscription" && aiAccepted;
   // Derive form category directly from sample for scripted flow — avoids effect timing
   // issues (e.g. Insurance arriving after a breather where formCat hasn't updated yet).
   const activeFormCat =
@@ -3969,16 +3976,20 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
               ) : (
                 <>
                   <Btn label="Log this bill →" onPress={() => { haptics.success(); saveForm(); }} />
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 1 }}>
-                    <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
-                    <Low size={12}>or speak</Low>
-                    <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
-                  </View>
+                  {aiAccepted ? (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 1 }}>
+                      <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
+                      <Low size={12}>or speak</Low>
+                      <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
+                    </View>
+                  ) : null}
                   <View style={{ flexDirection: "row", justifyContent: "center", gap: 22 }}>
-                    <Pressable onPress={startListening} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                      <Icon name="mic" size={14} color={t.txtMid} />
-                      <Txt size={14} color={t.txtMid}>Speak instead</Txt>
-                    </Pressable>
+                    {aiAccepted ? (
+                      <Pressable onPress={startListening} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        <Icon name="mic" size={14} color={t.txtMid} />
+                        <Txt size={14} color={t.txtMid}>Speak instead</Txt>
+                      </Pressable>
+                    ) : null}
                     <Pressable
                       onPress={skipOne}
                       style={{
