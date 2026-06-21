@@ -27,6 +27,7 @@ import { enqueueAudio, fileToBase64, isAudioActive, resetAudioToPlayback, stopCu
 import { safeBack } from "@/lib/navigation";
 import { type AddBillAction, askJudith, synthesizeAiReply, parseSubscriptionScreenshot, transcribe, RateLimitError, TimeoutError, ServerError, UnauthorizedError, AbortedError } from "@/lib/proxy";
 import { buildAskBills } from "@/lib/buildAskBills";
+import { ensureMicReady } from "@/lib/micPermission";
 import { sttHint, isFilipino } from "@/constants/languages";
 import { getPackageForTier, purchaseForTier, isPurchasesConfigured } from "@/lib/purchases";
 import { PRIVACY_URL, TERMS_URL, openLegal } from "@/constants/legal";
@@ -694,8 +695,8 @@ export default function AskModal() {
     }
     setErr("");
     try {
-      const perm = await AudioModule.requestRecordingPermissionsAsync();
-      if (!perm.granted) {
+      const ok = await ensureMicReady();
+      if (!ok) {
         setErr("Microphone permission is needed. You can type instead.");
         return;
       }

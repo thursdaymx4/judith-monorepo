@@ -55,6 +55,7 @@ import { getTierPackages, purchaseForTier, isPurchasesConfigured, type TierPacka
 import { fileToBase64, playBase64Mp3, stopCurrentAudio } from "@/lib/audio";
 import { transcribeOnboarding, synthOnboarding, fetchSampleOnboarding, parseBillOnboarding, parseSubscriptionScreenshot, askOnboarding, RateLimitError, TimeoutError } from "@/lib/proxy";
 import { speak as speakOnboarding, preview as previewOnboarding, prefetchPreview, cancelAll as cancelOnboardingAudio, currentSignal as onboardingSignal, ONBOARDING_WELCOME_LINE } from "@/lib/onboardingAudio";
+import { ensureMicReady } from "@/lib/micPermission";
 import { requestPermission } from "@/lib/notifications";
 import * as FK from "judith-financekit";
 import { makeBillFromAction } from "@/constants/data";
@@ -2683,8 +2684,8 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const startListening = async () => {
     setErr("");
     try {
-      const perm = await AudioModule.requestRecordingPermissionsAsync();
-      if (!perm.granted) {
+      const ok = await ensureMicReady();
+      if (!ok) {
         setErr("Microphone permission is needed to listen. You can type instead.");
         return;
       }
@@ -4890,8 +4891,8 @@ function FeatureShell({
     if (askMode !== "idle") return;
     setAskErr("");
     try {
-      const perm = await AudioModule.requestRecordingPermissionsAsync();
-      if (!perm.granted) {
+      const ok = await ensureMicReady();
+      if (!ok) {
         setAskErr("Microphone permission needed to ask by voice.");
         return;
       }
