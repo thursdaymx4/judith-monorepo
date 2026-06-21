@@ -267,6 +267,11 @@ interface JudithStoreValue extends PersistShape {
    *  chose to start fresh; onboarding proceeds normally and any new state
    *  saved will overwrite the prior backup. */
   dismissPendingRestore: () => void;
+  /** Manually re-peek iCloud for a backup tied to the current user. Used
+   *  by the onboarding welcome screen's "Returning user?" affordance for
+   *  the edge case where the automatic cold-launch peek missed it.
+   *  Returns true if a backup was found and pendingRestore was set. */
+  recheckICloudBackup: () => Promise<boolean>;
   /** Ephemeral context for the celebratory success cover that opens after a
    *  bill flips to paid. `null` = no modal showing. Set by togglePaid/markPaid
    *  on the transition to paid; cleared by `dismissPaidSuccess` (Done CTA). */
@@ -437,6 +442,38 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
     };
   }, [storageKey, user?.id]);
 
+  // Cold-launch race safety net. The hydration effect above may peek
+  // iCloud BEFORE Drive is online, or BEFORE the auth provider has
+  // resolved the userId. Once the user becomes available and we
+  // observe local state still empty (no bills, not onboarded), kick a
+  // deferred re-peek with the retry-with-backoff that lives inside
+  // peekICloudBackup. Runs once per (storageKey, userId) pair.
+  const repeekDoneRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!hydrated || !user?.id) return;
+    if (pendingRestore) return;
+    if (state.onboarded || state.bills.length > 0) return;
+    const fingerprint = `${storageKey}:${user.id}`;
+    if (repeekDoneRef.current === fingerprint) return;
+    repeekDoneRef.current = fingerprint;
+    let active = true;
+    void (async () => {
+      try {
+        const meta = await peekICloudBackup(user.id!);
+        if (!active || !meta) return;
+        setPendingRestore({
+          savedAt: meta.savedAt,
+          billCount: meta.billCount,
+        });
+      } catch {
+        // best-effort — Settings -> Restore from iCloud remains as a manual escape
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [hydrated, user?.id, storageKey, pendingRestore, state.onboarded, state.bills.length]);
+
   // persist (debounced) — always write to the current user's key
   useEffect(() => {
     if (!hydrated) return;
@@ -517,6 +554,17 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
         setPendingRestore(null);
       },
       dismissPendingRestore: () => setPendingRestore(null),
+      recheckICloudBackup: async () => {
+        if (!user?.id) return false;
+        try {
+          const meta = await peekICloudBackup(user.id);
+          if (!meta) return false;
+          setPendingRestore({ savedAt: meta.savedAt, billCount: meta.billCount });
+          return true;
+        } catch {
+          return false;
+        }
+      },
       togglePaid: (id, period) => {
         const today = new Date();
         // Snapshot the bill BEFORE the toggle so we can decide whether to fire

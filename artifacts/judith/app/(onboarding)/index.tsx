@@ -952,6 +952,11 @@ function ScreenWelcome({ ctx }: { ctx: Ctx }) {
   useOnbVoice(ONBOARDING_WELCOME_LINE, ctx.persona, ctx.language);
   const popScale   = useRef(new Animated.Value(0.8)).current;
   const popOpacity = useRef(new Animated.Value(0)).current;
+  const { user } = useAuth();
+  const { pendingRestore, recheckICloudBackup } = useJudith();
+  const [checking, setChecking] = useState(false);
+  const [checked, setChecked] = useState(false);
+  const [noBackup, setNoBackup] = useState(false);
   useEffect(() => {
     const anim = Animated.parallel([
       Animated.timing(popOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
@@ -960,6 +965,25 @@ function ScreenWelcome({ ctx }: { ctx: Ctx }) {
     anim.start();
     return () => anim.stop();
   }, []);
+
+  /** Manual re-peek the iCloud backup. The provider's cold-launch
+   *  re-peek effect handles 99% of cases, but if iCloud is on a
+   *  particularly slow handshake the user can force a recheck here. */
+  const recheckICloud = async () => {
+    if (!user?.id || checking || pendingRestore) return;
+    setChecking(true);
+    setNoBackup(false);
+    try {
+      const found = await recheckICloudBackup();
+      if (!found) setNoBackup(true);
+      // If found, the WelcomeBackSheet renders globally — no further
+      // work needed here. The user's next tap is in that sheet.
+    } finally {
+      setChecking(false);
+      setChecked(true);
+    }
+  };
+
   return (
     <>
       <Scroll center>
@@ -976,6 +1000,25 @@ function ScreenWelcome({ ctx }: { ctx: Ctx }) {
         <Animated.View style={{ opacity: popOpacity, transform: [{ scale: popScale }] }}>
           <Btn label={T("getstarted")} onPress={ctx.next} />
         </Animated.View>
+        {/* Returning user safety net. The provider re-peeks iCloud on
+            cold launch, but a slow handshake or a Hide-My-Email-style
+            auth quirk can hide the Welcome-Back sheet. One tap here
+            forces a recheck with the retry-with-backoff helper. */}
+        {!pendingRestore && user?.id ? (
+          <Pressable
+            onPress={recheckICloud}
+            disabled={checking}
+            style={{ alignItems: "center", paddingVertical: 12, marginTop: 4 }}
+          >
+            <Low size={12} style={{ textDecorationLine: "underline" }}>
+              {checking
+                ? "Checking iCloud…"
+                : noBackup && checked
+                  ? "No iCloud backup found for this account"
+                  : "Returning user? Check iCloud for a backup"}
+            </Low>
+          </Pressable>
+        ) : null}
       </CtaBar>
     </>
   );

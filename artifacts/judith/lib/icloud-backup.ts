@@ -134,6 +134,11 @@ export async function getICloudInfo(
  * Returns metadata only — the calling UI uses this to render a
  * "We found a backup from [date]" prompt before deciding whether to
  * restore. Returns null when no backup exists for this userId.
+ *
+ * Retries on iCloud-not-available because iCloud Drive takes a beat
+ * after app launch to come online, and the hydration peek fires very
+ * early. Without the retry a returning user sees no Welcome-Back
+ * sheet on the first launch and ends up in onboarding instead.
  */
 export async function peekICloudBackup(userId: string): Promise<{
   savedAt: string;
@@ -141,7 +146,19 @@ export async function peekICloudBackup(userId: string): Promise<{
   hasName: boolean;
 } | null> {
   if (!userId) return null;
-  if (!(await available())) return null;
+
+  // Three attempts: ~immediate, 500ms, 1500ms. Total worst case ~2s.
+  // available() flips to true the moment the iCloud Drive activation
+  // handshake finishes; on a returning user reinstall this is usually
+  // within the first second.
+  const delays = [0, 500, 1500];
+  let ready = false;
+  for (const wait of delays) {
+    if (wait > 0) await new Promise<void>((r) => setTimeout(r, wait));
+    if (await available()) { ready = true; break; }
+  }
+  if (!ready) return null;
+
   const cs = getCS()!;
   const path = backupPath(cs);
   if (!path) return null;
