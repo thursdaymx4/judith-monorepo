@@ -103,6 +103,39 @@ export async function isICloudAvailable(): Promise<boolean> {
 }
 
 /**
+ * Diagnostic snapshot of what's actually happening with iCloud on this
+ * device. Surfaces the silent-failure modes so the Settings screen can
+ * tell the user WHY backup isn't working instead of just saying "off".
+ *
+ * Returns one of:
+ *   - "ok"           → iCloud Drive on, container reachable, ready to write
+ *   - "ios-only"     → running on Android / web (no backup expected)
+ *   - "missing-module" → react-native-cloud-store wasn't autolinked
+ *   - "no-drive"     → user has iCloud Drive turned off / signed out
+ *   - "no-container" → entitlements/Info.plist not declaring the container
+ */
+export type ICloudStatus =
+  | "ok"
+  | "ios-only"
+  | "missing-module"
+  | "no-drive"
+  | "no-container";
+
+export async function getICloudStatus(): Promise<ICloudStatus> {
+  if (Platform.OS !== "ios") return "ios-only";
+  const cs = getCS();
+  if (!cs) return "missing-module";
+  try {
+    const driveOn = await cs.isICloudAvailable();
+    if (!driveOn) return "no-drive";
+  } catch {
+    return "no-drive";
+  }
+  if (!cs.defaultICloudContainerPath) return "no-container";
+  return "ok";
+}
+
+/**
  * Read the envelope metadata without applying it. Used by Settings to show
  * "Last backup: 5 minutes ago" so the user can confirm their data is safe.
  * Returns null if iCloud is off, no backup exists, or the envelope belongs

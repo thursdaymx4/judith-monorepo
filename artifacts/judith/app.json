@@ -16,15 +16,15 @@
       "appleTeamId": "88JK8X8BT7",
       "entitlements": {
         "com.apple.developer.icloud-container-identifiers": [
-          "iCloud.com.app.judith",
           "iCloud.com.app.judith"
         ],
         "com.apple.developer.ubiquity-container-identifiers": [
-          "iCloud.com.app.judith",
           "iCloud.com.app.judith"
         ],
+        "com.apple.developer.icloud-services": [
+          "CloudDocuments"
+        ],
         "com.apple.security.application-groups": [
-          "group.com.app.judith",
           "group.com.app.judith"
         ],
         "com.apple.developer.financekit": ["financial-data"]
@@ -33,7 +33,14 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSFinancialDataUsageDescription": "Judith uses your authorized financial transactions to detect bill payments and suggest recurring bills.",
         "UIBackgroundModes": ["fetch", "processing"],
-        "BGTaskSchedulerPermittedIdentifiers": ["com.app.judith.autopay-scan"]
+        "BGTaskSchedulerPermittedIdentifiers": ["com.app.judith.autopay-scan"],
+        "NSUbiquitousContainers": {
+          "iCloud.com.app.judith": {
+            "NSUbiquitousContainerIsDocumentScopePublic": true,
+            "NSUbiquitousContainerSupportedFolderLevels": "Any",
+            "NSUbiquitousContainerName": "Judith"
+          }
+        }
       }
     },
     "android": {
