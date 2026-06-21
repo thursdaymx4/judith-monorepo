@@ -848,10 +848,14 @@ export default function SettingsScreen() {
       </Section>
 
       {/* ── VOICE & PERSONA ─── */}
+      {/* Hidden entirely when the user has opted out of AI — these settings
+          only configure Judith's voice (ElevenLabs), so they have no effect
+          when AI is disabled. They reappear the moment AI is turned back on
+          via the AI Features toggle above. */}
       <Section
         title="Voice & persona"
         footer="Choose Judith's personality and the language she speaks aloud."
-        hidden={!visVoice}
+        hidden={!visVoice || !aiConsent.aiEnabled}
       >
         {visPersona && (
           <Row

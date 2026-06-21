@@ -6490,16 +6490,23 @@ export default function OnboardingScreen() {
     // can still arrive and play over screen N+1, or a "stuck" request
     // (network hang, server slow) leaves the next screen unresponsive.
     cancelOnboardingAudio();
-    // Skip the 3 Ask Judith demo screens entirely when the user has
-    // opted out of AI features — showing them would be confusing
-    // (Judith can't talk) and they'd just bounce through.
+    // Skip every AI-only screen when the user has opted out of AI
+    // features. That's the 3 Ask-Judith demo screens AND the language +
+    // persona pickers — those two only configure Judith's *voice*, which
+    // never plays without AI. Without skipping, the user has to make two
+    // pointless choices before they can use the bill tracker.
+    const aiOnlyScreens = new Set([
+      "language",
+      "persona",
+      "feature1",
+      "feature2",
+      "feature3",
+    ]);
     let next = toIdx;
     while (
       next < FLOW.length &&
       !aiEnabled &&
-      (FLOW[next]!.id === "feature1" ||
-        FLOW[next]!.id === "feature2" ||
-        FLOW[next]!.id === "feature3")
+      aiOnlyScreens.has(FLOW[next]!.id)
     ) {
       next += 1;
     }
@@ -6519,7 +6526,23 @@ export default function OnboardingScreen() {
   };
   const back = () => {
     cancelOnboardingAudio();
-    setIdx((i) => Math.max(i - 1, 0));
+    // Mirror the forward-skip logic: when AI is declined, the back arrow
+    // should also hop over the AI-only screens so the user can't land on
+    // a configuration screen they were never meant to see.
+    const aiOnlyScreens = new Set([
+      "language",
+      "persona",
+      "feature1",
+      "feature2",
+      "feature3",
+    ]);
+    setIdx((i) => {
+      let prev = i - 1;
+      while (prev > 0 && !aiEnabled && aiOnlyScreens.has(FLOW[prev]!.id)) {
+        prev -= 1;
+      }
+      return Math.max(prev, 0);
+    });
   };
   const addBill = (b: OnbBill) => setBills((arr) => [...arr, b]);
 
