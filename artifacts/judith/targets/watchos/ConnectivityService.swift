@@ -8,6 +8,10 @@ final class ConnectivityService: NSObject, WCSessionDelegate, ObservableObject {
     static let shared = ConnectivityService()
 
     @Published var isPhoneReachable: Bool = false
+    /// Mirrors the iPhone's AI-data-sharing consent state. Updated every
+    /// time a fresh WatchPayload arrives. AskView reads this to decide
+    /// whether to surface the Ask CTA at all.
+    @Published var aiConsented: Bool = false
 
     private var store: WatchStore?
     private let defaults = UserDefaults(suiteName: Config.appGroupID)
@@ -121,6 +125,23 @@ final class ConnectivityService: NSObject, WCSessionDelegate, ObservableObject {
         case phoneNotReachable
         case invalidReply
         case serverError(String)
+        /// The paired iPhone has not yet captured the AI-data-sharing
+        /// consent. Apple Guideline 5.1.1(i)/5.1.2(i) — the watch must
+        /// refuse to call /watch-ask or /watch-stt until the user has
+        /// opted in on the phone.
+        case aiConsentMissing
+    }
+
+    /// Reads the consent flag from the most recently received WatchPayload
+    /// stashed in App Group UserDefaults. Defaults to false on first run /
+    /// older payloads — safer than assuming yes.
+    private var hasAiConsent: Bool {
+        guard let json = defaults?.string(forKey: Config.payloadCacheKey),
+              let data = json.data(using: .utf8),
+              let payload = try? decoder.decode(WatchPayload.self, from: data) else {
+            return false
+        }
+        return payload.aiConsented ?? false
     }
 
     /// One turn of the watch Ask conversation. `role` is "user" or
@@ -131,6 +152,11 @@ final class ConnectivityService: NSObject, WCSessionDelegate, ObservableObject {
     }
 
     func sendAsk(query: String, history: [AskTurn] = []) async throws -> String {
+        // Apple Guideline 5.1.1(i)/5.1.2(i): block the watch's AI call until
+        // the user has accepted the data-sharing disclosure on the paired
+        // iPhone. The flag arrives on the WatchPayload pushed from the
+        // phone. AskView surfaces the error so the user knows where to go.
+        guard hasAiConsent else { throw AskError.aiConsentMissing }
         if WCSession.default.isReachable {
             do {
                 return try await sendAskToPhone(query: query, history: history)
@@ -237,6 +263,7 @@ final class ConnectivityService: NSObject, WCSessionDelegate, ObservableObject {
     /// already provisioned (hasWatchToken == true) — call sites should fall
     /// back to the chooser-based flow if the token isn't present.
     func transcribeAudio(at url: URL) async throws -> String {
+        guard hasAiConsent else { throw AskError.aiConsentMissing }
         guard hasWatchToken else { throw AskError.phoneNotReachable }
         let data: Data
         do {
@@ -401,7 +428,13 @@ final class ConnectivityService: NSObject, WCSessionDelegate, ObservableObject {
         if let json = dict["judith_payload_v2"] as? String,
            let data = json.data(using: .utf8),
            let p    = try? decoder.decode(WatchPayload.self, from: data) {
+            // Persist the payload JSON so `hasAiConsent` can read the flag
+            // even when no store is attached yet (cold-launch ordering) and
+            // across watch reboots.
+            defaults?.set(json, forKey: Config.payloadCacheKey)
+            let consent = p.aiConsented ?? false
             DispatchQueue.main.async { [weak self] in
+                self?.aiConsented = consent
                 self?.store?.applyPayload(p)
             }
         }

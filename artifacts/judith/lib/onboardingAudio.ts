@@ -18,6 +18,7 @@
  */
 import { enqueueAudio, playBase64Mp3, playFromUrl, stopCurrentAudio } from "@/lib/audio";
 import { fetchSampleOnboarding, synthOnboarding, AbortedError } from "@/lib/proxy";
+import { hasAiConsented } from "@/lib/aiConsent";
 import { getPersona, type PersonaId } from "@/constants/personas";
 
 /**
@@ -103,13 +104,19 @@ export function prefetchSpeak(
   if (!text) return;
   const key = synthCacheKey(text, persona, language);
   if (_synthCache.has(key)) return;
-  // Independent AbortController — prefetch must NOT ride the active session,
-  // otherwise an unrelated cancelAll() (e.g. screen transition) would tear
-  // down the prefetch mid-flight.
-  const ctrl = new AbortController();
-  synthOnboarding(text, persona, language, ctrl.signal)
-    .then(({ audioBase64 }) => { _synthCache.set(key, audioBase64); })
-    .catch(() => { /* best-effort */ });
+  // Apple Guideline 5.1.1(i)/5.1.2(i): no third-party AI call may fire
+  // before the user accepts the data-sharing disclosure. Even prefetch
+  // counts — frozen state is the right behavior until they consent.
+  void (async () => {
+    if (!(await hasAiConsented())) return;
+    const ctrl = new AbortController();
+    try {
+      const { audioBase64 } = await synthOnboarding(text, persona, language, ctrl.signal);
+      _synthCache.set(key, audioBase64);
+    } catch {
+      // best-effort
+    }
+  })();
 }
 
 /**
@@ -126,6 +133,12 @@ export async function speak(
   persona?: PersonaId,
   language?: string,
 ): Promise<void> {
+  // Apple Guideline 5.1.1(i)/5.1.2(i): block ALL ElevenLabs synth until
+  // the user has accepted the AI consent. The onboarding screen calls
+  // ensureAiConsent() before invoking speak() so this is a defense in
+  // depth — guarantees that no spoken line can predate the user's
+  // explicit opt-in, even if a future caller forgets to gate.
+  if (!(await hasAiConsented())) return;
   const signal = beginSession();
   try {
     // Cache hit — play immediately, no network wait. Crucial for the
@@ -169,6 +182,10 @@ export async function preview(
   persona: PersonaId,
   language?: string,
 ): Promise<void> {
+  // Pregen samples are pre-rendered ElevenLabs audio — pulling them is
+  // still data-sharing with a third-party AI processor's output, so gate
+  // on the same consent. The fallback live-synth path is also covered.
+  if (!(await hasAiConsented())) return;
   const signal = beginSession();
   try {
     const { audioBase64 } = await fetchSampleOnboarding(persona, language, signal);
@@ -217,13 +234,17 @@ export function prefetchPreview(
   persona: PersonaId,
   language?: string,
 ): void {
-  fetchSampleOnboarding(persona, language)
-    .catch(() => {
+  void (async () => {
+    if (!(await hasAiConsented())) return;
+    try {
+      await fetchSampleOnboarding(persona, language);
+    } catch {
       // Pregen unavailable — warm the live-synth fallback so the first
       // user tap doesn't stall waiting for ElevenLabs to round-trip.
       const fallbackLine = getPersona(persona).line;
       prefetchSpeak(fallbackLine, persona, language);
-    });
+    }
+  })();
 }
 
 /**

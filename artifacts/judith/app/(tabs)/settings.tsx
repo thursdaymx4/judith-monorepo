@@ -1,7 +1,7 @@
 import { useRouter } from "expo-router";
 import * as Updates from "expo-updates";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
 
 import { Icon, type IconName } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
@@ -10,6 +10,7 @@ import { COUNTRIES, CURRENCIES, countryByCode } from "@/constants/countries";
 import { formatMoney } from "@/constants/data";
 import { LANGUAGES, langDesc } from "@/constants/languages";
 import { PERSONAS } from "@/constants/personas";
+import { useAiConsent } from "@/contexts/AiConsentContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useJudithActions, useJudithSelect, type Toggles } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
@@ -293,6 +294,7 @@ function matches(needle: string, ...haystacks: (string | undefined)[]): boolean 
 export default function SettingsScreen() {
   const t = useTheme();
   const router = useRouter();
+  const aiConsent = useAiConsent();
   // Slice subscriptions — Settings only re-renders when a field it actually
   // reads here changes. Bill mutations from Home / Bills / Calendar (which
   // happen frequently) no longer cascade a re-render through this tab.
@@ -733,6 +735,65 @@ export default function SettingsScreen() {
         })}
       </Section>
 
+      {/* ── YOUR JOURNEY ─── */}
+      <Section title="Your Journey">
+        <Row
+          first
+          icon="trend"
+          iconColor={t.accent}
+          title="Financial Altitude"
+          subtitle="Track your bills-vs-income rank and climb"
+          onPress={() => router.push("/altitude")}
+        />
+      </Section>
+
+      {/* ── AI FEATURES ─── */}
+      <Section
+        title="AI Features"
+        footer={
+          aiConsent.status === "accepted"
+            ? "Anthropic (Claude) powers Ask Judith and receipt scanning; ElevenLabs powers the voice. We never send your name, email, contacts, or password. Tap to turn off."
+            : "Ask Judith, voice features, and receipt scanning are off. Turn on to enable them — you'll see one disclosure with what gets sent and to whom."
+        }
+      >
+        <Row
+          first
+          icon="spark"
+          iconColor={aiConsent.status === "accepted" ? t.accent : t.txtMid}
+          title="Allow AI features"
+          subtitle={
+            aiConsent.status === "accepted"
+              ? "On — voice, Ask Judith, and receipt scan enabled"
+              : aiConsent.status === "declined"
+              ? "Off — Ask Judith and voice are hidden"
+              : "Not set — you'll be asked on first use"
+          }
+          right={
+            <Toggle
+              on={aiConsent.status === "accepted"}
+              onPress={async () => {
+                if (aiConsent.status === "accepted") {
+                  Alert.alert(
+                    "Turn off AI features?",
+                    "Ask Judith and the voice features will be hidden. Bill tracking and reminders keep working.",
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      { text: "Turn off", style: "destructive", onPress: () => void aiConsent.revoke() },
+                    ],
+                  );
+                } else {
+                  // Either declined or unknown — clear to "unknown" so the
+                  // next ensure() shows the disclosure.
+                  await aiConsent.reaskNextTime();
+                  // Surface the modal right now via a no-op ensure call.
+                  void aiConsent.ensure();
+                }
+              }}
+            />
+          }
+        />
+      </Section>
+
       {/* ── APPEARANCE ─── */}
       <Section title="Appearance" hidden={!visAppearance}>
         {visTheme && (
@@ -787,10 +848,14 @@ export default function SettingsScreen() {
       </Section>
 
       {/* ── VOICE & PERSONA ─── */}
+      {/* Hidden entirely when the user has opted out of AI — these settings
+          only configure Judith's voice (ElevenLabs), so they have no effect
+          when AI is disabled. They reappear the moment AI is turned back on
+          via the AI Features toggle above. */}
       <Section
         title="Voice & persona"
         footer="Choose Judith's personality and the language she speaks aloud."
-        hidden={!visVoice}
+        hidden={!visVoice || !aiConsent.aiEnabled}
       >
         {visPersona && (
           <Row
@@ -1009,6 +1074,35 @@ export default function SettingsScreen() {
             subtitle="Replaces local bills & settings with your backup"
           />
         )}
+        {/* iCloud diagnostics — surfaces every silent-failure mode so a
+            tester can copy/paste the actual state when restore goes wrong.
+            Tap to refresh; long-press to copy as text. */}
+        <Row
+          icon="sliders"
+          iconColor={t.txtMid}
+          title="iCloud diagnostics"
+          subtitle="Tap to see the raw status (for support)"
+          onPress={async () => {
+            const { getICloudDiagnostics } = await import("@/lib/icloud-backup");
+            const d = await getICloudDiagnostics(user?.id);
+            const lines = [
+              `Status: ${d.status}`,
+              `Container: ${d.containerPath ?? "—"}`,
+              `File exists: ${d.fileExists ? "yes" : "no"}`,
+              `Envelope userId: ${d.envelopeUserId ?? "—"}`,
+              `Current userId: ${user?.id ?? "—"}`,
+              `Matches: ${d.userIdMatches ? "yes" : "no"}`,
+              `Saved at: ${d.savedAt ?? "—"}`,
+            ];
+            Alert.alert("iCloud Diagnostics", lines.join("\n"), [
+              {
+                text: "Copy",
+                onPress: () => Share.share({ message: lines.join("\n") }),
+              },
+              { text: "Close", style: "cancel" },
+            ]);
+          }}
+        />
       </Section>
 
       {/* ── PRIVACY & LEGAL ─── */}

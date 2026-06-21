@@ -21,6 +21,8 @@ export interface ScannedReceipt {
   amount: number | null;
   /** YYYY-MM-DD in the device's local timezone. */
   date: string | null;
+  /** ISO 4217 (e.g. "USD"). Null when no currency token was found. */
+  currencyHint: string | null;
   /** 0..1 — only the on-device path emits a real score; server returns 1. */
   confidence: number;
   source: ScanSource;
@@ -53,6 +55,7 @@ export async function scanReceipt(
         provider: result.provider,
         amount: result.amount,
         date: result.date,
+        currencyHint: result.currencyHint,
         confidence: result.confidence,
         source: "on-device",
       };
@@ -66,6 +69,7 @@ export async function scanReceipt(
     provider: server.provider,
     amount: server.amount,
     date: server.date,
+    currencyHint: server.currencyHint,
     confidence: 1,
     source: "server-fallback",
   };

@@ -103,6 +103,90 @@ export async function isICloudAvailable(): Promise<boolean> {
 }
 
 /**
+ * Diagnostic snapshot of what's actually happening with iCloud on this
+ * device. Surfaces the silent-failure modes so the Settings screen can
+ * tell the user WHY backup isn't working instead of just saying "off".
+ *
+ * Returns one of:
+ *   - "ok"           → iCloud Drive on, container reachable, ready to write
+ *   - "ios-only"     → running on Android / web (no backup expected)
+ *   - "missing-module" → react-native-cloud-store wasn't autolinked
+ *   - "no-drive"     → user has iCloud Drive turned off / signed out
+ *   - "no-container" → entitlements/Info.plist not declaring the container
+ */
+export type ICloudStatus =
+  | "ok"
+  | "ios-only"
+  | "missing-module"
+  | "no-drive"
+  | "no-container";
+
+export async function getICloudStatus(): Promise<ICloudStatus> {
+  if (Platform.OS !== "ios") return "ios-only";
+  const cs = getCS();
+  if (!cs) return "missing-module";
+  try {
+    const driveOn = await cs.isICloudAvailable();
+    if (!driveOn) return "no-drive";
+  } catch {
+    return "no-drive";
+  }
+  if (!cs.defaultICloudContainerPath) return "no-container";
+  return "ok";
+}
+
+/**
+ * Full diagnostic snapshot for the Settings -> Account -> iCloud Diagnostics
+ * row. Surfaces every silent-failure mode we've hit in TestFlight so a
+ * tester can tell us exactly which one they're in:
+ *   - status          : the overall reachability tier
+ *   - containerPath   : where iCloud would look for the file (null if not configured)
+ *   - fileExists      : does the file exist on disk yet (false often = sync still pending)
+ *   - envelopeUserId  : the user.id baked into the file's envelope, when readable
+ *   - userIdMatches   : true iff envelope.userId === current user.id
+ *   - savedAt         : the timestamp on the envelope
+ */
+export async function getICloudDiagnostics(userId: string | undefined): Promise<{
+  status: ICloudStatus;
+  containerPath: string | null;
+  fileExists: boolean;
+  envelopeUserId: string | null;
+  userIdMatches: boolean;
+  savedAt: string | null;
+}> {
+  const status = await getICloudStatus();
+  const cs = getCS();
+  const containerPath = cs?.defaultICloudContainerPath ?? null;
+  const path = cs ? backupPath(cs) : null;
+  let fileExists = false;
+  let envelopeUserId: string | null = null;
+  let savedAt: string | null = null;
+  if (status === "ok" && cs && path) {
+    try {
+      fileExists = await cs.exist(path);
+      if (fileExists) {
+        const raw = await cs.readFile(path);
+        const envelope = await parseProtectedObject<BackupEnvelope>(raw);
+        if (envelope) {
+          envelopeUserId = envelope.userId ?? null;
+          savedAt = envelope.savedAt ?? null;
+        }
+      }
+    } catch {
+      // best-effort — leave defaults
+    }
+  }
+  return {
+    status,
+    containerPath,
+    fileExists,
+    envelopeUserId,
+    userIdMatches: !!userId && !!envelopeUserId && envelopeUserId === userId,
+    savedAt,
+  };
+}
+
+/**
  * Read the envelope metadata without applying it. Used by Settings to show
  * "Last backup: 5 minutes ago" so the user can confirm their data is safe.
  * Returns null if iCloud is off, no backup exists, or the envelope belongs
@@ -124,6 +208,72 @@ export async function getICloudInfo(
     if (!envelope) return null;
     if (envelope.userId !== userId) return null;
     return { savedAt: envelope.savedAt };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Peek at the iCloud backup envelope without applying it.
+ * Returns metadata only — the calling UI uses this to render a
+ * "We found a backup from [date]" prompt before deciding whether to
+ * restore. Returns null when no backup exists for this userId.
+ *
+ * Retries on iCloud-not-available because iCloud Drive takes a beat
+ * after app launch to come online, and the hydration peek fires very
+ * early. Without the retry a returning user sees no Welcome-Back
+ * sheet on the first launch and ends up in onboarding instead.
+ */
+export async function peekICloudBackup(userId: string): Promise<{
+  savedAt: string;
+  billCount: number;
+  hasName: boolean;
+} | null> {
+  if (!userId) return null;
+
+  // Extended retry: iCloud Drive sync between uninstalls is occasionally
+  // SLOW (saw 6-8s lag in TestFlight). The peek runs after the user has
+  // explicitly asked for it (Welcome-Back rehydrate or "Returning user?"
+  // tap) — better to wait than to say "no backup" prematurely.
+  // Total worst-case ~10s with progressive backoff.
+  const delays = [0, 400, 800, 1500, 2500, 3500];
+  let ready = false;
+  for (const wait of delays) {
+    if (wait > 0) await new Promise<void>((r) => setTimeout(r, wait));
+    if (await available()) { ready = true; break; }
+  }
+  if (!ready) return null;
+
+  // Also retry the file-exists probe — even when iCloud is "available",
+  // the document descriptor for the backup file may need a beat to
+  // surface after a fresh installation. Three attempts.
+
+  const cs = getCS()!;
+  const path = backupPath(cs);
+  if (!path) return null;
+  try {
+    // Retry the exist() probe — fresh installs sometimes need a moment
+    // for the iCloud Drive descriptor to surface even after available()
+    // returned true.
+    let exists = false;
+    for (const wait of [0, 500, 1500, 3000]) {
+      if (wait > 0) await new Promise<void>((r) => setTimeout(r, wait));
+      exists = await cs.exist(path);
+      if (exists) break;
+    }
+    if (!exists) return null;
+    const raw = await cs.readFile(path);
+    const envelope = await parseProtectedObject<BackupEnvelope>(raw);
+    if (!envelope) return null;
+    if (envelope.userId !== userId) return null;
+    const data = envelope.data as { bills?: unknown[]; name?: string } | undefined;
+    const billCount = Array.isArray(data?.bills) ? data!.bills!.length : 0;
+    const hasName = typeof data?.name === "string" && data.name.trim().length > 0;
+    return {
+      savedAt: envelope.savedAt ?? new Date().toISOString(),
+      billCount,
+      hasName,
+    };
   } catch {
     return null;
   }

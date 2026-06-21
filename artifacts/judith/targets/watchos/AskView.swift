@@ -45,46 +45,59 @@ struct AskView: View {
                         .font(.system(Font.TextStyle.headline, design: .rounded).weight(.bold))
                         .foregroundStyle(Color.txtHi)
 
-                    promptCard
+                    if connectivity.aiConsented {
+                        promptCard
 
-                    VStack(spacing: 8) {
-                        Button {
-                            beginVoiceAsk()
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "mic.fill")
-                                Text("Speak to Judith")
+                        VStack(spacing: 8) {
+                            Button {
+                                beginVoiceAsk()
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "mic.fill")
+                                    Text("Speak to Judith")
+                                }
+                                .font(.system(Font.TextStyle.footnote, design: .rounded).weight(.semibold))
+                                .foregroundStyle(.black)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
                             }
-                            .font(.system(Font.TextStyle.footnote, design: .rounded).weight(.semibold))
-                            .foregroundStyle(.black)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                        }
-                        .background(Color.judithAccent)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .background(Color.judithAccent)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
 
-                        Button {
-                            beginAskFlow(voiceOnly: false)
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "hand.draw.fill")
-                                Text("Type or Scribble")
+                            Button {
+                                beginAskFlow(voiceOnly: false)
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "hand.draw.fill")
+                                    Text("Type or Scribble")
+                                }
+                                .font(.system(Font.TextStyle.caption, design: .rounded).weight(.semibold))
+                                .foregroundStyle(Color.txtHi)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
                             }
-                            .font(.system(Font.TextStyle.caption, design: .rounded).weight(.semibold))
-                            .foregroundStyle(Color.txtHi)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
+                            .background(Color.surface1)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
-                        .background(Color.surface1)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                    }
 
-                    if !connectivity.isPhoneReachable {
-                        Text("Open Judith on your iPhone if this takes a while.")
-                            .font(.system(Font.TextStyle.caption2, design: .rounded))
-                            .foregroundStyle(Color.txtLow)
+                        if !connectivity.isPhoneReachable {
+                            Text("Open Judith on your iPhone if this takes a while.")
+                                .font(.system(Font.TextStyle.caption2, design: .rounded))
+                                .foregroundStyle(Color.txtLow)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 8)
+                        }
+                    } else {
+                        // AI is off on the paired iPhone — hide the CTA and
+                        // tell the user where to flip it back on. Matches
+                        // Apple Guideline 5.1.1(i)/5.1.2(i) — no third-party
+                        // AI surface is reachable without explicit consent.
+                        Text("Open Judith on iPhone → Settings → AI Features to enable Ask Judith on your watch.")
+                            .font(.system(Font.TextStyle.caption, design: .rounded))
+                            .foregroundStyle(Color.txtMid)
                             .multilineTextAlignment(.center)
-                            .padding(.horizontal, 8)
+                            .padding(.horizontal, 14)
+                            .padding(.top, 10)
                     }
 
                 case .capturing:
@@ -277,6 +290,8 @@ struct AskView: View {
             }
             query = trimmed
             submitQuery()
+        } catch ConnectivityService.AskError.aiConsentMissing {
+            viewState = .error("Open Judith on your iPhone and accept the AI consent to enable voice and Ask.")
         } catch ConnectivityService.AskError.phoneNotReachable {
             viewState = .error("Pair your watch with Judith on iPhone first.")
         } catch {
@@ -390,6 +405,8 @@ struct AskView: View {
                 }
                 viewState = .answered(answer)
                 speak(answer)
+            } catch ConnectivityService.AskError.aiConsentMissing {
+                viewState = .error("Open Judith on your iPhone and accept the AI consent to enable voice and Ask.")
             } catch ConnectivityService.AskError.phoneNotReachable {
                 viewState = .error("iPhone not reachable. Keep your phone nearby and open Judith.")
             } catch ConnectivityService.AskError.serverError(let message) {

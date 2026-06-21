@@ -10,7 +10,8 @@
  */
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import React, { useMemo, useState } from "react";
+import * as ReceiptVision from "judith-receipt-vision";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -32,11 +33,26 @@ import { useTheme } from "@/hooks/useTheme";
 import { safeBack } from "@/lib/navigation";
 import { scanReceipt, type ScanSource } from "@/lib/receiptScan";
 import { matchReceiptToBill, type ReceiptIntent } from "@/lib/matchReceiptToBill";
+import { getFxRate, userCurrencyCode, type FxRate } from "@/lib/fx";
+import { useAiConsent } from "@/contexts/AiConsentContext";
 
 type ScreenState =
   | { kind: "idle" }
   | { kind: "scanning" }
-  | { kind: "result"; provider: string; amount: string; date: string; source: ScanSource }
+  | {
+      kind: "result";
+      provider: string;
+      /** Amount in the receipt's original currency. User-editable. */
+      amount: string;
+      date: string;
+      source: ScanSource;
+      /** ISO 4217 the receipt was denominated in (e.g. "USD"). Null when unknown. */
+      receiptCurrency: string | null;
+      /** Rate to convert receipt currency → user's account currency. Null = no conversion. */
+      fx: FxRate | null;
+      /** ISO 4217 of the user's account. Resolved from country at scan time. */
+      userCurrency: string;
+    }
   | { kind: "error"; message: string };
 
 const todayIso = (): string => {
@@ -84,37 +100,62 @@ export default function ReceiptScanScreen() {
     saveBill,
     showToast,
     money,
+    country,
   } = useJudith();
+  const { ensure: ensureAiConsent } = useAiConsent();
 
   const [state, setState] = useState<ScreenState>({ kind: "idle" });
+  // Guard against re-running consumePendingShare on every re-render —
+  // useEffect deps don't keep this stable across React Strict Mode or a
+  // params change. A ref is the simplest way to make the share handoff
+  // a one-shot per mount.
+  const consumedShareRef = useRef(false);
+
+  /** Receipt amount converted into the user's account currency, when an FX
+   *  rate was resolved. Always equal to the raw amount when no conversion
+   *  applies. Used by the matcher AND by the action that gets logged. */
+  const convertedAmount = useMemo(() => {
+    if (state.kind !== "result") return 0;
+    const raw = Number(state.amount);
+    if (!Number.isFinite(raw) || raw <= 0) return 0;
+    if (!state.fx) return raw;
+    return Math.round(raw * state.fx.rate * 100) / 100;
+  }, [state]);
 
   const match = useMemo(() => {
     if (state.kind !== "result") return null;
-    const amount = Number(state.amount);
     return matchReceiptToBill(
       {
         provider: state.provider || null,
-        amount: Number.isFinite(amount) && amount > 0 ? amount : null,
+        amount: convertedAmount > 0 ? convertedAmount : null,
         date: state.date || null,
       },
       bills,
     );
-  }, [state, bills]);
+  }, [state, convertedAmount, bills]);
 
-  const runScan = async (asset: ImagePicker.ImagePickerAsset) => {
-    if (!asset.base64) {
-      setState({ kind: "error", message: "Couldn't read that photo. Try again." });
-      return;
-    }
+  const runScanFromBase64 = async (base64: string, mime: string) => {
     setState({ kind: "scanning" });
     try {
-      const scan = await scanReceipt(asset.base64, asset.mimeType || "image/jpeg");
+      const scan = await scanReceipt(base64, mime);
+      const userCurrency = userCurrencyCode(country?.code);
+      const receiptCurrency = scan.currencyHint ?? null;
+      // Only fetch a rate when we KNOW the receipt is in a different
+      // currency. A null currencyHint means "we don't know" — assume
+      // same-currency rather than guess and convert wrong.
+      let fx: FxRate | null = null;
+      if (receiptCurrency && receiptCurrency !== userCurrency) {
+        fx = await getFxRate(receiptCurrency, userCurrency);
+      }
       setState({
         kind: "result",
         provider: scan.provider ?? "",
         amount: scan.amount != null ? String(scan.amount) : "",
         date: scan.date ?? todayIso(),
         source: scan.source,
+        receiptCurrency,
+        fx,
+        userCurrency,
       });
     } catch (err) {
       setState({
@@ -124,7 +165,39 @@ export default function ReceiptScanScreen() {
     }
   };
 
+  const runScan = async (asset: ImagePicker.ImagePickerAsset) => {
+    if (!asset.base64) {
+      setState({ kind: "error", message: "Couldn't read that photo. Try again." });
+      return;
+    }
+    await runScanFromBase64(asset.base64, asset.mimeType || "image/jpeg");
+  };
+
+  // Drain a pending share-extension handoff on mount. We always check
+  // (even without ?pending=1) so a stale handoff sitting in App Group
+  // UserDefaults gets cleared the next time the screen opens. The native
+  // bridge returns null when there's nothing waiting.
+  useEffect(() => {
+    if (consumedShareRef.current) return;
+    consumedShareRef.current = true;
+    void (async () => {
+      const pending = await ReceiptVision.consumePendingShare();
+      if (pending?.base64) {
+        // Same AI-consent gate as the camera/library entry points. The
+        // payload is already on-device, so consuming it on its own is
+        // free, but our pipeline may still hit the server fallback.
+        if (!(await ensureAiConsent())) return;
+        await runScanFromBase64(pending.base64, pending.mime || "image/jpeg");
+      }
+    })();
+  }, [ensureAiConsent]);
+
   const pickFromCamera = async () => {
+    // Apple Guideline 5.1.1(i)/5.1.2(i): explicit AI-data-share consent
+    // before any receipt photo could reach a third-party processor. We
+    // gate at the picker entry point so the user can't accidentally take
+    // a photo that goes to the server fallback without permission.
+    if (!(await ensureAiConsent())) return;
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) {
       setState({
@@ -143,6 +216,7 @@ export default function ReceiptScanScreen() {
   };
 
   const pickFromLibrary = async () => {
+    if (!(await ensureAiConsent())) return;
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
       setState({
@@ -170,7 +244,10 @@ export default function ReceiptScanScreen() {
 
   const confirm = () => {
     if (state.kind !== "result" || !match) return;
-    const amount = Number(state.amount);
+    // Always log the user-currency amount — converting if the receipt was
+    // foreign-denominated. Bills are stored in the user's account currency
+    // so logging the raw USD figure on a PHP bill would be 56x off.
+    const amount = convertedAmount;
     if (!Number.isFinite(amount) || amount <= 0) {
       showToast("Enter a valid amount before confirming");
       return;
@@ -289,9 +366,13 @@ export default function ReceiptScanScreen() {
   }
 
   // state.kind === "result"
-  const scanAmount = Number(state.amount);
+  const rawAmount = Number(state.amount);
   const matchedBill = match?.bill;
   const intent = match?.intent ?? "create_new";
+  const showConversion =
+    state.receiptCurrency != null &&
+    state.receiptCurrency !== state.userCurrency &&
+    rawAmount > 0;
 
   return (
     <KeyboardAvoidingView
@@ -309,12 +390,23 @@ export default function ReceiptScanScreen() {
             <Txt size={18} weight="bold" color={t.txtHi}>
               {intentTitle(intent, matchedBill)}
             </Txt>
-            {Number.isFinite(scanAmount) && scanAmount > 0 ? (
+            {convertedAmount > 0 ? (
               <Txt size={13} color={t.txtMid} style={{ textAlign: "center", paddingHorizontal: 12 }}>
-                {intentBlurb(intent, scanAmount, money)}
+                {intentBlurb(intent, convertedAmount, money)}
               </Txt>
             ) : null}
           </View>
+
+          {showConversion ? (
+            <ConversionBanner
+              receiptAmount={rawAmount}
+              receiptCurrency={state.receiptCurrency!}
+              converted={convertedAmount}
+              userCurrency={state.userCurrency}
+              money={money}
+              fx={state.fx}
+            />
+          ) : null}
 
           {matchedBill ? <BillCard bill={matchedBill} money={money} /> : null}
 
@@ -344,7 +436,11 @@ export default function ReceiptScanScreen() {
             </View>
 
             <View style={{ gap: 6 }}>
-              <Low size={11}>Amount</Low>
+              <Low size={11}>
+                {state.receiptCurrency && state.receiptCurrency !== state.userCurrency
+                  ? `Amount (${state.receiptCurrency})`
+                  : "Amount"}
+              </Low>
               <TextInput
                 value={state.amount}
                 onChangeText={(amount) =>
@@ -423,6 +519,59 @@ function Header({ onClose }: { onClose: () => void }) {
         Receipt
       </Text>
       <View style={{ width: 32 }} />
+    </View>
+  );
+}
+
+function ConversionBanner({
+  receiptAmount,
+  receiptCurrency,
+  converted,
+  userCurrency,
+  money,
+  fx,
+}: {
+  receiptAmount: number;
+  receiptCurrency: string;
+  converted: number;
+  userCurrency: string;
+  money: (n: number) => string;
+  fx: FxRate | null;
+}) {
+  const t = useTheme();
+  const rateLabel = fx
+    ? `1 ${receiptCurrency} ≈ ${fx.rate.toFixed(2)} ${userCurrency}`
+    : `Rate unavailable — logging as-is`;
+  const sourceLabel = !fx
+    ? "Check the converted amount before confirming."
+    : fx.stale
+    ? "Using last known rate (offline)."
+    : fx.source === "frankfurter"
+    ? "Today's mid-market rate (ECB)."
+    : "";
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+        padding: 14,
+        backgroundColor: t.surface2,
+        borderWidth: 1,
+        borderColor: t.hair,
+        borderRadius: t.radius.md,
+      }}
+    >
+      <Icon name="refresh" size={20} color={t.accent} />
+      <View style={{ flex: 1, gap: 2 }}>
+        <Mono size={14} color={t.txtHi}>
+          {receiptCurrency} {receiptAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+          {"  →  "}
+          {money(converted)}
+        </Mono>
+        <Low size={11}>{rateLabel}</Low>
+        {sourceLabel ? <Low size={11}>{sourceLabel}</Low> : null}
+      </View>
     </View>
   );
 }

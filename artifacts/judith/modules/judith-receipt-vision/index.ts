@@ -15,10 +15,17 @@ import { NativeModules, Platform } from "react-native";
 export interface ReceiptScanResult {
   /** Merchant / biller name as printed on the receipt. */
   provider: string | null;
-  /** Total amount paid as a plain number. */
+  /** Total amount paid as a plain number — denominated in `currencyHint`. */
   amount: number | null;
   /** Transaction date as YYYY-MM-DD in the device's local timezone. */
   date: string | null;
+  /**
+   * ISO 4217 code (e.g. "USD", "PHP", "EUR") inferred from currency tokens
+   * found on the receipt. Null when no token was detected. Callers use
+   * this together with the user's account currency to decide whether FX
+   * conversion is needed before matching to a bill.
+   */
+  currencyHint: string | null;
   /**
    * 0..1. Higher = clearer signal (e.g. a "Total" line was found, a date
    * was extracted, a merchant line was at the top of the receipt). Callers
@@ -27,9 +34,23 @@ export interface ReceiptScanResult {
   confidence: number;
 }
 
+/**
+ * Payload the iOS Share Extension drops into the App Group when the user
+ * shares an image into Judith from Photos / Safari / a screenshot. The host
+ * app pulls + clears it on the next mount of the receipt-scan screen.
+ */
+export interface PendingShare {
+  id: string;
+  base64: string;
+  mime: string;
+  /** Unix seconds the share happened. Used to age-out stale handoffs. */
+  createdAt: number;
+}
+
 interface NativeModuleShape {
   isAvailable(): Promise<boolean>;
   recognize(imageBase64: string, mimeType: string): Promise<ReceiptScanResult>;
+  consumePendingShare(): Promise<PendingShare | null>;
 }
 
 const RV = (NativeModules.JudithReceiptVisionModule ?? null) as NativeModuleShape | null;
@@ -59,6 +80,21 @@ export async function recognize(
   if (Platform.OS !== "ios" || !RV) return null;
   try {
     return await RV.recognize(imageBase64, mimeType);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Returns the most recent image shared into Judith from the iOS Share
+ * Extension, if any, AND clears it from the App Group so the same payload
+ * isn't replayed on the next mount. Returns null on Android, Expo Go, or
+ * when nothing has been shared.
+ */
+export async function consumePendingShare(): Promise<PendingShare | null> {
+  if (Platform.OS !== "ios" || !RV) return null;
+  try {
+    return await RV.consumePendingShare();
   } catch {
     return null;
   }

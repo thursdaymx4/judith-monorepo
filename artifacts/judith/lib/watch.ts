@@ -77,6 +77,11 @@ export interface WatchPayload {
   overdueTotal: number;
   /** Sum of remaining balances on payable bills due in the next 7 days (overdue excluded — matches phone hero "next 7 days"). */
   next7Total: number;
+  /** Whether the user has accepted the shared AI-data-sharing disclosure
+   *  on the iPhone. Watch reads this on every payload sync; it blocks
+   *  /watch-ask + /watch-stt until the user has consented on the paired
+   *  phone. Apple Guideline 5.1.1(i) / 5.1.2(i). */
+  aiConsented: boolean;
 }
 
 export interface WatchSnapshotContext {
@@ -109,7 +114,12 @@ function optimisticDeltasForBill(
   };
 }
 
-function buildPayload(bills: Bill[], persona: PersonaId, currency: string): WatchPayload {
+function buildPayload(
+  bills: Bill[],
+  persona: PersonaId,
+  currency: string,
+  aiConsented: boolean,
+): WatchPayload {
   const today = new Date();
   const daysLeftInMonth =
     daysInMonth(today.getFullYear(), today.getMonth()) - today.getDate();
@@ -176,6 +186,7 @@ function buildPayload(bills: Bill[], persona: PersonaId, currency: string): Watc
     overdueCount,
     overdueTotal,
     next7Total,
+    aiConsented,
   };
 }
 
@@ -253,7 +264,12 @@ export async function syncBillsToWatch(
 ): Promise<void> {
   if (Platform.OS !== "ios") return;
 
-  const payload     = buildPayload(bills, persona, currency);
+  // Read the phone's consent flag synchronously from AsyncStorage and
+  // propagate it on the payload — the watch needs it to gate /watch-ask
+  // and /watch-stt before it makes any third-party AI call.
+  const { hasAiConsented } = await import("@/lib/aiConsent");
+  const aiConsented = await hasAiConsented();
+  const payload     = buildPayload(bills, persona, currency, aiConsented);
   const payloadJson = JSON.stringify(payload);
   const [watchToken] = await Promise.all([
     provisionWatchToken(),

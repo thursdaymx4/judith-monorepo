@@ -45,6 +45,7 @@ import { JUDITH_VOICE } from "@/constants/voiceLines";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle } from "react-native-svg";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAiConsent } from "@/contexts/AiConsentContext";
 import { useJudith } from "@/contexts/JudithStore";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { getCategoryLabel } from "@/constants/categoryLocale";
@@ -54,6 +55,7 @@ import { getTierPackages, purchaseForTier, isPurchasesConfigured, type TierPacka
 import { fileToBase64, playBase64Mp3, stopCurrentAudio } from "@/lib/audio";
 import { transcribeOnboarding, synthOnboarding, fetchSampleOnboarding, parseBillOnboarding, parseSubscriptionScreenshot, askOnboarding, RateLimitError, TimeoutError } from "@/lib/proxy";
 import { speak as speakOnboarding, preview as previewOnboarding, prefetchPreview, cancelAll as cancelOnboardingAudio, currentSignal as onboardingSignal, ONBOARDING_WELCOME_LINE } from "@/lib/onboardingAudio";
+import { ensureMicReady } from "@/lib/micPermission";
 import { requestPermission } from "@/lib/notifications";
 import * as FK from "judith-financekit";
 import { makeBillFromAction } from "@/constants/data";
@@ -263,21 +265,34 @@ const VOICE_LINES_FIL: Record<string, string> = {
  */
 function useOnbVoice(line: string, persona: PersonaId, language = "en") {
   const played = useRef(false);
+  const { ensure: ensureAiConsent, aiEnabled: aiAccepted } = useAiConsent();
   // Stop whatever is playing AND abort the in-flight TTS request when the
   // screen leaves. cancelOnboardingAudio covers both vs the old call which
   // only stopped playback.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => () => { cancelOnboardingAudio(); }, []);
   // Fire the TTS exactly once per mount, in the chosen language.
+  // Apple Guideline 5.1.1(i)/5.1.2(i): we MUST get explicit consent
+  // before any ElevenLabs synth runs. The audio module already gates
+  // synth on hasAiConsented(), but we also surface the consent modal
+  // here so the user actually sees + answers it the moment they land on
+  // a voice screen. Once accepted, the existing speak() call below
+  // proceeds normally.
   useEffect(() => {
     if (played.current) return;
-    played.current = true;
     const utterance = (isFilipino(language) ? VOICE_LINES_FIL[line] : undefined) ?? line;
     if (!utterance) return; // empty string = voice suppressed for this screen
-    // Fire-and-forget — speak() handles cancellation via the shared session;
-    // the screen's transition handler will abort us if the user advances.
-    void speakOnboarding(utterance, persona, language);
-  }, []);
+    void (async () => {
+      if (!(await ensureAiConsent())) return;
+      if (played.current) return;
+      played.current = true;
+      // Fire-and-forget — speak() handles cancellation via the shared
+      // session; the screen's transition handler will abort us if the
+      // user advances. speak() itself also re-checks consent.
+      void speakOnboarding(utterance, persona, language);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiAccepted]);
 }
 
 
@@ -611,6 +626,18 @@ interface Ctx {
   /** Category IDs selected on the bill-picker screen. Empty = show all. */
   selectedCats: string[];
   setSelectedCats: (cats: string[]) => void;
+  /**
+   * Mutable handler a child screen can install so it intercepts the
+   * global back button. Returning true means "I handled it, don't leave
+   * the screen." Returning false (or never installing) falls through to
+   * the default behavior, which is to step one screen back in FLOW.
+   *
+   * Used by ScreenVoiceAdd: when the user is in the middle of the bill
+   * sequence (internal idx > 0), pressing back rewinds to the previous
+   * bill instead of leaving the whole screen and re-asking everything
+   * — that previously caused duplicates.
+   */
+  backHandlerRef: React.MutableRefObject<(() => boolean) | null>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -937,6 +964,11 @@ function ScreenWelcome({ ctx }: { ctx: Ctx }) {
   useOnbVoice(ONBOARDING_WELCOME_LINE, ctx.persona, ctx.language);
   const popScale   = useRef(new Animated.Value(0.8)).current;
   const popOpacity = useRef(new Animated.Value(0)).current;
+  const { user } = useAuth();
+  const { pendingRestore, recheckICloudBackup } = useJudith();
+  const [checking, setChecking] = useState(false);
+  const [checked, setChecked] = useState(false);
+  const [noBackup, setNoBackup] = useState(false);
   useEffect(() => {
     const anim = Animated.parallel([
       Animated.timing(popOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
@@ -945,6 +977,25 @@ function ScreenWelcome({ ctx }: { ctx: Ctx }) {
     anim.start();
     return () => anim.stop();
   }, []);
+
+  /** Manual re-peek the iCloud backup. The provider's cold-launch
+   *  re-peek effect handles 99% of cases, but if iCloud is on a
+   *  particularly slow handshake the user can force a recheck here. */
+  const recheckICloud = async () => {
+    if (!user?.id || checking || pendingRestore) return;
+    setChecking(true);
+    setNoBackup(false);
+    try {
+      const found = await recheckICloudBackup();
+      if (!found) setNoBackup(true);
+      // If found, the WelcomeBackSheet renders globally — no further
+      // work needed here. The user's next tap is in that sheet.
+    } finally {
+      setChecking(false);
+      setChecked(true);
+    }
+  };
+
   return (
     <>
       <Scroll center>
@@ -961,6 +1012,25 @@ function ScreenWelcome({ ctx }: { ctx: Ctx }) {
         <Animated.View style={{ opacity: popOpacity, transform: [{ scale: popScale }] }}>
           <Btn label={T("getstarted")} onPress={ctx.next} />
         </Animated.View>
+        {/* Returning user safety net. The provider re-peeks iCloud on
+            cold launch, but a slow handshake or a Hide-My-Email-style
+            auth quirk can hide the Welcome-Back sheet. One tap here
+            forces a recheck with the retry-with-backoff helper. */}
+        {!pendingRestore && user?.id ? (
+          <Pressable
+            onPress={recheckICloud}
+            disabled={checking}
+            style={{ alignItems: "center", paddingVertical: 12, marginTop: 4 }}
+          >
+            <Low size={12} style={{ textDecorationLine: "underline" }}>
+              {checking
+                ? "Checking iCloud…"
+                : noBackup && checked
+                  ? "No iCloud backup found for this account"
+                  : "Returning user? Check iCloud for a backup"}
+            </Low>
+          </Pressable>
+        ) : null}
       </CtaBar>
     </>
   );
@@ -2307,6 +2377,7 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     return hasGroup(s.group);
   });
   const { saveBill, deleteBill, bills: storeBills, showToast } = useJudith();
+  const { ensure: ensureAiConsent, aiEnabled: aiAccepted } = useAiConsent();
   const cur = ctx.country.cur;
   const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
   // ── Voice Activity Detection refs ─────────────────────────────────
@@ -2354,6 +2425,65 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const [cardDone, setCardDone] = useState(0);
   const [loanN, setLoanN] = useState(0);
   const [loanDone, setLoanDone] = useState(0);
+
+  // Install a back handler so the global back arrow rewinds to the
+  // previous bill instead of bouncing us back to ScreenBillPicker. Without
+  // this, the user would re-enter ScreenVoiceAdd at idx=0 and re-ask
+  // every bill — the dup-check catches the same provider+cat but lets a
+  // typo through. The cleanest UX is to step through bills in-place.
+  //
+  // Returning true tells the parent the back was handled internally.
+  // We only return false when we're at the very first question — then
+  // the parent leaves the screen back to BillPicker.
+  useEffect(() => {
+    ctx.backHandlerRef.current = () => {
+      // Per-step reset — same as advanceAfterItem, so the prior bill
+      // form fields don't bleed into the previous question.
+      const resetPerBillState = () => {
+        setHeardText("");
+        setParsedBill(null);
+        setParsedEditing(false);
+        setScreenshotStatus("idle");
+        setScreenshotBills([]);
+        setDraftSubs([]);
+        setPaidStatus("no");
+        setPaidAmount("");
+        setMode("prompt");
+      };
+
+      if (mode !== "prompt" && mode !== "manualCats") {
+        // Mid-interaction (listening, transcribing, parsed) — drop back
+        // to prompt instead of advancing screens. The user can re-tap
+        // their input choice.
+        resetPerBillState();
+        return true;
+      }
+      if (phase === "loans" && loanDone > 0) {
+        resetPerBillState();
+        setLoanDone((n) => Math.max(0, n - 1));
+        return true;
+      }
+      if (phase === "cards" && cardDone > 0) {
+        resetPerBillState();
+        setCardDone((n) => Math.max(0, n - 1));
+        return true;
+      }
+      if (phase === "scripted" && idx > 0) {
+        resetPerBillState();
+        setIdx((n) => Math.max(0, n - 1));
+        return true;
+      }
+      // At the very first question — fall through so the parent moves
+      // back to BillPicker. The bills already added stay in state, so
+      // re-entering this screen won't re-create them (dup-check) and
+      // the user can correct their selection.
+      return false;
+    };
+    return () => {
+      // Only clear if we're still the installed handler (defensive).
+      if (ctx.backHandlerRef.current) ctx.backHandlerRef.current = null;
+    };
+  }, [ctx.backHandlerRef, mode, phase, idx, cardDone, loanDone]);
   const [screenshotStatus, setScreenshotStatus] = useState<"idle" | "loading" | "editing">("idle");
   const [screenshotBills, setScreenshotBills] = useState<{ provider: string; amount: number | null; dueDay: number | null }[]>([]);
   type DraftSub = {
@@ -2581,6 +2711,10 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
 
   /* Screenshot upload — encouraged for Phone subscription category */
   const handleUploadScreenshot = async () => {
+    // Apple Guideline 5.1.1(i)/5.1.2(i): gate any data leaving the device
+    // for AI processing. The screenshot is sent to Claude vision for
+    // subscription extraction, so an upfront opt-in is required.
+    if (!(await ensureAiConsent())) return;
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
       setErr(isFilipino(language)
@@ -2664,8 +2798,8 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
   const startListening = async () => {
     setErr("");
     try {
-      const perm = await AudioModule.requestRecordingPermissionsAsync();
-      if (!perm.granted) {
+      const ok = await ensureMicReady();
+      if (!ok) {
         setErr("Microphone permission is needed to listen. You can type instead.");
         return;
       }
@@ -2744,6 +2878,12 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
     // VAD detected no real speech above threshold — stop silently without transcribing.
     if (!hadSpeech) {
       await recorder.stop().catch(() => {});
+      setMode("prompt");
+      return;
+    }
+    // Apple 5.1.1(i)/5.1.2(i): both ElevenLabs (transcribe) and Claude
+    // (parseBill) fire below — gate on the shared consent before either.
+    if (!(await ensureAiConsent())) {
       setMode("prompt");
       return;
     }
@@ -2865,7 +3005,14 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
 
   const progress = Math.min(idx + (mode === "done" ? 0 : 1), SAMPLES.length);
   const showConvo = mode === "prompt" || mode === "listening" || mode === "transcribing" || mode === "parsed";
-  const isPhoneSub = phase === "scripted" && sample.cat === "Phone subscription";
+  // The Phone-subscription screen has a special scripted UI that hinges on
+  // the screenshot-scan + voice paths — both AI features. When the user
+  // has opted out of AI we treat it as a normal category so the same
+  // manual provider / amount / due-day form renders. Without this, the
+  // user lands on a screen whose primary CTAs (Upload screenshot, mic)
+  // are gated and the screen feels broken.
+  const isPhoneSub =
+    phase === "scripted" && sample.cat === "Phone subscription" && aiAccepted;
   // Derive form category directly from sample for scripted flow — avoids effect timing
   // issues (e.g. Insurance arriving after a breather where formCat hasn't updated yet).
   const activeFormCat =
@@ -3926,26 +4073,50 @@ function ScreenVoiceAdd({ ctx }: { ctx: Ctx }) {
                       <Icon name="keyboard" size={15} color={t.txtMid} />
                       <Txt size={14} color={t.txtMid}>{T("tapInstead")}</Txt>
                     </Pressable>
-                    <Pressable onPress={skipOne}>
-                      <Txt size={14} color={t.txtMid}>I don’t have this →</Txt>
+                    <Pressable
+                      onPress={skipOne}
+                      style={{
+                        paddingHorizontal: 14,
+                        paddingVertical: 7,
+                        borderRadius: 18,
+                        borderWidth: 1,
+                        borderColor: t.hair,
+                        backgroundColor: t.surface1,
+                      }}
+                    >
+                      <Txt size={14} weight="semibold" color={t.txtMid}>Skip →</Txt>
                     </Pressable>
                   </View>
                 </>
               ) : (
                 <>
                   <Btn label="Log this bill →" onPress={() => { haptics.success(); saveForm(); }} />
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 1 }}>
-                    <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
-                    <Low size={12}>or speak</Low>
-                    <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
-                  </View>
+                  {aiAccepted ? (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 1 }}>
+                      <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
+                      <Low size={12}>or speak</Low>
+                      <View style={{ flex: 1, height: 1, backgroundColor: t.hair }} />
+                    </View>
+                  ) : null}
                   <View style={{ flexDirection: "row", justifyContent: "center", gap: 22 }}>
-                    <Pressable onPress={startListening} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                      <Icon name="mic" size={14} color={t.txtMid} />
-                      <Txt size={14} color={t.txtMid}>Speak instead</Txt>
-                    </Pressable>
-                    <Pressable onPress={skipOne}>
-                      <Txt size={14} color={t.txtMid}>I don’t have this →</Txt>
+                    {aiAccepted ? (
+                      <Pressable onPress={startListening} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        <Icon name="mic" size={14} color={t.txtMid} />
+                        <Txt size={14} color={t.txtMid}>Speak instead</Txt>
+                      </Pressable>
+                    ) : null}
+                    <Pressable
+                      onPress={skipOne}
+                      style={{
+                        paddingHorizontal: 14,
+                        paddingVertical: 7,
+                        borderRadius: 18,
+                        borderWidth: 1,
+                        borderColor: t.hair,
+                        backgroundColor: t.surface1,
+                      }}
+                    >
+                      <Txt size={14} weight="semibold" color={t.txtMid}>Skip →</Txt>
                     </Pressable>
                   </View>
                 </>
@@ -4696,6 +4867,7 @@ function FeatureShell({
   idleState?: "idle" | "speaking";
 }) {
   const { t, persona, language, next, bills } = ctx;
+  const { ensure: ensureAiConsent } = useAiConsent();
   const isFil = isFilipino(language);
   const voiceLine = JUDITH_VOICE.features[persona][isFil ? "fil" : "en"][dotIdx];
   useOnbVoice(voiceLine, persona, language);
@@ -4795,6 +4967,8 @@ function FeatureShell({
   const doAsk = async (text: string) => {
     const q2 = text.trim();
     if (!q2 || askMode === "thinking") return;
+    // Apple 5.1.1(i)/5.1.2(i): /ask hits Claude + ElevenLabs. Gate.
+    if (!(await ensureAiConsent())) return;
     lastFailedQRef.current = null;
     setAskErr("");
     setMessages((m) => [...m, { role: "user", text: q2 }]);
@@ -4831,8 +5005,8 @@ function FeatureShell({
     if (askMode !== "idle") return;
     setAskErr("");
     try {
-      const perm = await AudioModule.requestRecordingPermissionsAsync();
-      if (!perm.granted) {
+      const ok = await ensureMicReady();
+      if (!ok) {
         setAskErr("Microphone permission needed to ask by voice.");
         return;
       }
@@ -4847,6 +5021,11 @@ function FeatureShell({
 
   const stopRec = async () => {
     setAskMode("thinking");
+    // STT to ElevenLabs + ask to Claude. Gate.
+    if (!(await ensureAiConsent())) {
+      setAskMode("idle");
+      return;
+    }
     try {
       await recorder.stop();
       const uri = recorder.uri;
@@ -5044,6 +5223,16 @@ function FeatureShell({
               </Low>
             </Pressable>
           </View>
+        )}
+
+        {/* ── persistent Skip — always available so the user isn't stuck
+              on a demo screen if they don't want to chat ── */}
+        {!hadError && !hasAnswered && !busy && (
+          <Pressable onPress={next} style={{ alignItems: "center", paddingVertical: 6 }}>
+            <Low size={13} style={{ textDecorationLine: "underline" }}>
+              {dotIdx === 2 ? "Skip and finish" : "Skip"}
+            </Low>
+          </Pressable>
         )}
 
         {/* ── speaking status while Judith is responding ── */}
@@ -6360,6 +6549,7 @@ const SAVE_FROM = 0;
 export default function OnboardingScreen() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
+  const { aiEnabled } = useAiConsent();
   const {
     persona,
     setPersona,
@@ -6426,11 +6616,31 @@ export default function OnboardingScreen() {
     // can still arrive and play over screen N+1, or a "stuck" request
     // (network hang, server slow) leaves the next screen unresponsive.
     cancelOnboardingAudio();
-    if (toIdx >= FLOW.length) {
+    // Skip every AI-only screen when the user has opted out of AI
+    // features. That's the 3 Ask-Judith demo screens AND the language +
+    // persona pickers — those two only configure Judith's *voice*, which
+    // never plays without AI. Without skipping, the user has to make two
+    // pointless choices before they can use the bill tracker.
+    const aiOnlyScreens = new Set([
+      "language",
+      "persona",
+      "feature1",
+      "feature2",
+      "feature3",
+    ]);
+    let next = toIdx;
+    while (
+      next < FLOW.length &&
+      !aiEnabled &&
+      aiOnlyScreens.has(FLOW[next]!.id)
+    ) {
+      next += 1;
+    }
+    if (next >= FLOW.length) {
       setOnboarded(true);
       return;
     }
-    setIdx(toIdx);
+    setIdx(next);
   };
   const finishTrans = () => { setTrans(null); advance(idx + 1); };
   const next = () => {
@@ -6440,17 +6650,48 @@ export default function OnboardingScreen() {
     if (screen.id === "latefee")  { setTrans("question"); return; }
     advance(idx + 1);
   };
+  // Children can install a back handler so they intercept the global
+  // back button. See Ctx.backHandlerRef for the contract.
+  const backHandlerRef = useRef<(() => boolean) | null>(null);
   const back = () => {
+    // Let the current screen intercept first. If it returns true the
+    // screen handled the back (e.g. ScreenVoiceAdd rewound to the
+    // previous bill); only fall through to a real back navigation
+    // when the screen returns false / no handler is installed.
+    if (backHandlerRef.current?.()) return;
     cancelOnboardingAudio();
-    setIdx((i) => Math.max(i - 1, 0));
+    // Mirror the forward-skip logic: when AI is declined, the back arrow
+    // should also hop over the AI-only screens so the user can't land on
+    // a configuration screen they were never meant to see.
+    const aiOnlyScreens = new Set([
+      "language",
+      "persona",
+      "feature1",
+      "feature2",
+      "feature3",
+    ]);
+    setIdx((i) => {
+      let prev = i - 1;
+      while (prev > 0 && !aiEnabled && aiOnlyScreens.has(FLOW[prev]!.id)) {
+        prev -= 1;
+      }
+      return Math.max(prev, 0);
+    });
   };
   const addBill = (b: OnbBill) => setBills((arr) => [...arr, b]);
 
   const ctx = useMemo<Ctx>(
-    () => ({ t, persona, setPersona, country, setCountry, language, setLanguage, name, setName, bills, addBill, next, selectedCats, setSelectedCats }),
+    () => ({ t, persona, setPersona, country, setCountry, language, setLanguage, name, setName, bills, addBill, next, selectedCats, setSelectedCats, backHandlerRef }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [t, persona, language, country, name, bills, idx, selectedCats],
   );
+
+  // Reset the back-handler whenever the screen changes — each screen
+  // installs its own if needed. Without this, a stale handler from a
+  // previous screen would block the global back forever.
+  useEffect(() => {
+    backHandlerRef.current = null;
+  }, [screen.id]);
 
   const showProgress = SETUP.includes(screen.id);
   const showBack = !NO_BACK.includes(screen.id);
