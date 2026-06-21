@@ -1074,6 +1074,35 @@ export default function SettingsScreen() {
             subtitle="Replaces local bills & settings with your backup"
           />
         )}
+        {/* iCloud diagnostics — surfaces every silent-failure mode so a
+            tester can copy/paste the actual state when restore goes wrong.
+            Tap to refresh; long-press to copy as text. */}
+        <Row
+          icon="sliders"
+          iconColor={t.txtMid}
+          title="iCloud diagnostics"
+          subtitle="Tap to see the raw status (for support)"
+          onPress={async () => {
+            const { getICloudDiagnostics } = await import("@/lib/icloud-backup");
+            const d = await getICloudDiagnostics(user?.id);
+            const lines = [
+              `Status: ${d.status}`,
+              `Container: ${d.containerPath ?? "—"}`,
+              `File exists: ${d.fileExists ? "yes" : "no"}`,
+              `Envelope userId: ${d.envelopeUserId ?? "—"}`,
+              `Current userId: ${user?.id ?? "—"}`,
+              `Matches: ${d.userIdMatches ? "yes" : "no"}`,
+              `Saved at: ${d.savedAt ?? "—"}`,
+            ];
+            Alert.alert("iCloud Diagnostics", lines.join("\n"), [
+              {
+                text: "Copy",
+                onPress: () => Share.share({ message: lines.join("\n") }),
+              },
+              { text: "Close", style: "cancel" },
+            ]);
+          }}
+        />
       </Section>
 
       {/* ── PRIVACY & LEGAL ─── */}

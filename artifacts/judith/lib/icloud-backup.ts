@@ -136,6 +136,57 @@ export async function getICloudStatus(): Promise<ICloudStatus> {
 }
 
 /**
+ * Full diagnostic snapshot for the Settings -> Account -> iCloud Diagnostics
+ * row. Surfaces every silent-failure mode we've hit in TestFlight so a
+ * tester can tell us exactly which one they're in:
+ *   - status          : the overall reachability tier
+ *   - containerPath   : where iCloud would look for the file (null if not configured)
+ *   - fileExists      : does the file exist on disk yet (false often = sync still pending)
+ *   - envelopeUserId  : the user.id baked into the file's envelope, when readable
+ *   - userIdMatches   : true iff envelope.userId === current user.id
+ *   - savedAt         : the timestamp on the envelope
+ */
+export async function getICloudDiagnostics(userId: string | undefined): Promise<{
+  status: ICloudStatus;
+  containerPath: string | null;
+  fileExists: boolean;
+  envelopeUserId: string | null;
+  userIdMatches: boolean;
+  savedAt: string | null;
+}> {
+  const status = await getICloudStatus();
+  const cs = getCS();
+  const containerPath = cs?.defaultICloudContainerPath ?? null;
+  const path = cs ? backupPath(cs) : null;
+  let fileExists = false;
+  let envelopeUserId: string | null = null;
+  let savedAt: string | null = null;
+  if (status === "ok" && cs && path) {
+    try {
+      fileExists = await cs.exist(path);
+      if (fileExists) {
+        const raw = await cs.readFile(path);
+        const envelope = await parseProtectedObject<BackupEnvelope>(raw);
+        if (envelope) {
+          envelopeUserId = envelope.userId ?? null;
+          savedAt = envelope.savedAt ?? null;
+        }
+      }
+    } catch {
+      // best-effort — leave defaults
+    }
+  }
+  return {
+    status,
+    containerPath,
+    fileExists,
+    envelopeUserId,
+    userIdMatches: !!userId && !!envelopeUserId && envelopeUserId === userId,
+    savedAt,
+  };
+}
+
+/**
  * Read the envelope metadata without applying it. Used by Settings to show
  * "Last backup: 5 minutes ago" so the user can confirm their data is safe.
  * Returns null if iCloud is off, no backup exists, or the envelope belongs
@@ -180,11 +231,12 @@ export async function peekICloudBackup(userId: string): Promise<{
 } | null> {
   if (!userId) return null;
 
-  // Three attempts: ~immediate, 500ms, 1500ms. Total worst case ~2s.
-  // available() flips to true the moment the iCloud Drive activation
-  // handshake finishes; on a returning user reinstall this is usually
-  // within the first second.
-  const delays = [0, 500, 1500];
+  // Extended retry: iCloud Drive sync between uninstalls is occasionally
+  // SLOW (saw 6-8s lag in TestFlight). The peek runs after the user has
+  // explicitly asked for it (Welcome-Back rehydrate or "Returning user?"
+  // tap) — better to wait than to say "no backup" prematurely.
+  // Total worst-case ~10s with progressive backoff.
+  const delays = [0, 400, 800, 1500, 2500, 3500];
   let ready = false;
   for (const wait of delays) {
     if (wait > 0) await new Promise<void>((r) => setTimeout(r, wait));
@@ -192,11 +244,23 @@ export async function peekICloudBackup(userId: string): Promise<{
   }
   if (!ready) return null;
 
+  // Also retry the file-exists probe — even when iCloud is "available",
+  // the document descriptor for the backup file may need a beat to
+  // surface after a fresh installation. Three attempts.
+
   const cs = getCS()!;
   const path = backupPath(cs);
   if (!path) return null;
   try {
-    const exists = await cs.exist(path);
+    // Retry the exist() probe — fresh installs sometimes need a moment
+    // for the iCloud Drive descriptor to surface even after available()
+    // returned true.
+    let exists = false;
+    for (const wait of [0, 500, 1500, 3000]) {
+      if (wait > 0) await new Promise<void>((r) => setTimeout(r, wait));
+      exists = await cs.exist(path);
+      if (exists) break;
+    }
     if (!exists) return null;
     const raw = await cs.readFile(path);
     const envelope = await parseProtectedObject<BackupEnvelope>(raw);
