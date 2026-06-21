@@ -130,6 +130,42 @@ export async function getICloudInfo(
 }
 
 /**
+ * Peek at the iCloud backup envelope without applying it.
+ * Returns metadata only — the calling UI uses this to render a
+ * "We found a backup from [date]" prompt before deciding whether to
+ * restore. Returns null when no backup exists for this userId.
+ */
+export async function peekICloudBackup(userId: string): Promise<{
+  savedAt: string;
+  billCount: number;
+  hasName: boolean;
+} | null> {
+  if (!userId) return null;
+  if (!(await available())) return null;
+  const cs = getCS()!;
+  const path = backupPath(cs);
+  if (!path) return null;
+  try {
+    const exists = await cs.exist(path);
+    if (!exists) return null;
+    const raw = await cs.readFile(path);
+    const envelope = await parseProtectedObject<BackupEnvelope>(raw);
+    if (!envelope) return null;
+    if (envelope.userId !== userId) return null;
+    const data = envelope.data as { bills?: unknown[]; name?: string } | undefined;
+    const billCount = Array.isArray(data?.bills) ? data!.bills!.length : 0;
+    const hasName = typeof data?.name === "string" && data.name.trim().length > 0;
+    return {
+      savedAt: envelope.savedAt ?? new Date().toISOString(),
+      billCount,
+      hasName,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Try to restore a backup from iCloud.
  * Returns the stored data object if a backup exists for this userId,
  * or null if unavailable / not found / wrong user.

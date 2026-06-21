@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppState } from "react-native";
 import { router } from "expo-router";
-import { loadFromICloud, saveToICloud } from "@/lib/icloud-backup";
+import { loadFromICloud, peekICloudBackup, saveToICloud } from "@/lib/icloud-backup";
 import { parseProtectedObject, serializeProtectedObject } from "@/lib/securePersist";
 import { computeBillStreak, isStreakEligible } from "@/lib/billStreak";
 import { clearIntentCommands, readIntentCommands, writeAskAccess } from "judith-widget-bridge";
@@ -256,6 +256,17 @@ interface JudithStoreValue extends PersistShape {
   money: (n: number) => string;
   toast: string;
   showToast: (msg: string) => void;
+  /** Set after hydration when iCloud has a backup for the current account
+   *  AND there's no local AsyncStorage data — i.e. the user just signed
+   *  back in on a fresh install. The Welcome-Back sheet listens to this. */
+  pendingRestore: { savedAt: string; billCount: number } | null;
+  /** Apply the iCloud backup, marking the user as onboarded so the app
+   *  jumps straight to Home. */
+  applyPendingRestore: () => Promise<void>;
+  /** Discard the iCloud backup prompt without applying. The user explicitly
+   *  chose to start fresh; onboarding proceeds normally and any new state
+   *  saved will overwrite the prior backup. */
+  dismissPendingRestore: () => void;
   /** Ephemeral context for the celebratory success cover that opens after a
    *  bill flips to paid. `null` = no modal showing. Set by togglePaid/markPaid
    *  on the transition to paid; cleared by `dismissPaidSuccess` (Done CTA). */
@@ -347,6 +358,11 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
   const setState = _setState;
   const [hydrated, setHydrated] = useState(false);
   const [toast, setToast] = useState("");
+  // Surfaced when iCloud has a backup for this account but no local data
+  // exists yet (returning user reinstall). The UI renders a Welcome-Back
+  // sheet so the user explicitly chooses Restore vs. Start Fresh.
+  const [pendingRestore, setPendingRestore] =
+    useState<{ savedAt: string; billCount: number } | null>(null);
   const [paidSuccess, setPaidSuccess] = useState<{ billId: string; streakMonths: number; wasOverdue: boolean } | null>(null);
   const dismissPaidSuccess = useCallback(() => setPaidSuccess(null), []);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -396,12 +412,20 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
           setHydrated(true);
           return;
         }
-        // Local storage empty — try restoring from iCloud (fresh install / new build).
+        // Local storage empty — peek at iCloud. If a backup exists for
+        // THIS account, expose it as `pendingRestore` and let the UI
+        // prompt the user before applying. Silent auto-restore was the
+        // earlier bug — a user signing back in after a reinstall got
+        // pushed through onboarding while the restore was still resolving,
+        // then their blank state overwrote the backup.
         if (user?.id) {
           try {
-            const cloud = await loadFromICloud(user.id);
-            if (active && cloud) {
-              applyParsed(cloud as Partial<PersistShape>);
+            const meta = await peekICloudBackup(user.id);
+            if (active && meta) {
+              setPendingRestore({
+                savedAt: meta.savedAt,
+                billCount: meta.billCount,
+              });
             }
           } catch { /* best-effort */ }
         }
@@ -421,8 +445,16 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       serializeProtectedObject(state)
         .then((json) => AsyncStorage.setItem(storageKey, json))
         .catch(() => {});
-      // Mirror to iCloud so the backup survives reinstalls and device switches.
-      if (user?.id) saveToICloud(state, user.id).catch(() => {});
+      // Mirror to iCloud — but only when the local state has real content
+      // worth preserving. Without this guard, a fresh-install user whose
+      // restore is still in flight would auto-save the DEFAULTS state
+      // (bills=[], onboarded=false) over their existing iCloud backup
+      // within 800 ms of mount. That bug cost a tester ~15 min of data.
+      const hasContent =
+        state.onboarded ||
+        state.bills.length > 0 ||
+        !!state.name?.trim();
+      if (user?.id && hasContent) saveToICloud(state, user.id).catch(() => {});
     }, 800);
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -455,6 +487,36 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       showToast,
       paidSuccess,
       dismissPaidSuccess,
+      pendingRestore,
+      applyPendingRestore: async () => {
+        if (!user?.id) return;
+        try {
+          const cloud = await loadFromICloud(user.id);
+          if (cloud) {
+            const parsed = cloud as Partial<PersistShape>;
+            if ((parsed.tier as string) === "plus") parsed.tier = "chat";
+            if ((parsed.tier as string) === "unlimited") parsed.tier = "voice";
+            if (
+              parsed.countryCode &&
+              parsed.countryCode !== DEFAULT_COUNTRY.code &&
+              (!parsed.currency || parsed.currency === DEFAULT_COUNTRY.cur)
+            ) {
+              parsed.currency = countryByCode(parsed.countryCode).cur;
+            }
+            setState({
+              ...DEFAULTS,
+              ...parsed,
+              toggles: { ...DEFAULTS.toggles, ...(parsed.toggles ?? {}) },
+            });
+          }
+        } catch {
+          // If the read fails after a successful peek, the user will see
+          // their state stay at DEFAULTS — they can try again via
+          // Settings -> Account -> Restore from iCloud.
+        }
+        setPendingRestore(null);
+      },
+      dismissPendingRestore: () => setPendingRestore(null),
       togglePaid: (id, period) => {
         const today = new Date();
         // Snapshot the bill BEFORE the toggle so we can decide whether to fire

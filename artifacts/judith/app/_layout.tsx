@@ -57,6 +57,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AiConsentProvider } from "@/contexts/AiConsentContext";
 import { AltitudePromotionProvider } from "@/contexts/AltitudePromotionContext";
 import { JudithProvider, useJudith } from "@/contexts/JudithStore";
+import { WelcomeBackSheet } from "@/components/WelcomeBackSheet";
 import { PaidSuccessView } from "@/components/PaidSuccessView";
 import { useBiometricLock } from "@/hooks/useBiometricLock";
 import { useNotificationSync } from "@/hooks/useNotificationSync";
@@ -315,7 +316,13 @@ function RootLayoutNav() {
           <Stack.Screen name="plans" options={modalOpts} />
           <Stack.Screen name="bill/[id]" options={modalOpts} />
         </Stack.Protected>
-        <Stack.Protected guard={authed && !onboarded && !recoveryActive}>
+        {/* Onboarding is gated on `hydrated` so we never push a returning
+            user through onboarding while their iCloud restore is still in
+            flight. Without this, the navigator commits the onboarding
+            route in the ~50–200ms window before restore lands, and the
+            user finishes onboarding with a blank state that then
+            overwrites the iCloud backup. */}
+        <Stack.Protected guard={authed && hydrated && !onboarded && !recoveryActive}>
           <Stack.Screen name="(onboarding)" />
         </Stack.Protected>
         <Stack.Protected guard={!authed || recoveryActive}>
@@ -388,6 +395,10 @@ function RootLayout() {
                         flips to paid. Mounted here so it overlays every
                         screen and survives navigation. */}
                     <PaidSuccessHost />
+                    {/* Mounted globally so it overlays auth, onboarding,
+                        and the tabs uniformly — wherever the returning
+                        user lands first, the prompt is there. */}
+                    <WelcomeBackSheet />
                     </AltitudePromotionProvider>
                     </AiConsentProvider>
                   </SubscriptionProvider>
