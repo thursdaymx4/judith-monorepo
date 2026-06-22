@@ -260,6 +260,12 @@ interface JudithStoreValue extends PersistShape {
    *  AND there's no local AsyncStorage data — i.e. the user just signed
    *  back in on a fresh install. The Welcome-Back sheet listens to this. */
   pendingRestore: { savedAt: string; billCount: number } | null;
+  /** True while the cold-launch iCloud peek is in flight. The Welcome
+   *  screen uses this to gate "Let's begin" so the user can't accidentally
+   *  outrun a slow iCloud handshake and land in onboarding before their
+   *  backup surfaces. Flips to false when the peek resolves (with or
+   *  without a backup) or when iCloud is unreachable. */
+  peekingICloud: boolean;
   /** Apply the iCloud backup, marking the user as onboarded so the app
    *  jumps straight to Home. */
   applyPendingRestore: () => Promise<void>;
@@ -268,8 +274,8 @@ interface JudithStoreValue extends PersistShape {
    *  saved will overwrite the prior backup. */
   dismissPendingRestore: () => void;
   /** Manually re-peek iCloud for a backup tied to the current user. Used
-   *  by the onboarding welcome screen's "Returning user?" affordance for
-   *  the edge case where the automatic cold-launch peek missed it.
+   *  by Settings -> Restore from iCloud for the edge case where the
+   *  automatic cold-launch peek missed it.
    *  Returns true if a backup was found and pendingRestore was set. */
   recheckICloudBackup: () => Promise<boolean>;
   /** Ephemeral context for the celebratory success cover that opens after a
@@ -368,6 +374,10 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
   // sheet so the user explicitly chooses Restore vs. Start Fresh.
   const [pendingRestore, setPendingRestore] =
     useState<{ savedAt: string; billCount: number } | null>(null);
+  // True while ANY iCloud peek is in flight (hydration peek or cold-launch
+  // re-peek). The onboarding Welcome screen uses this to gate "Let's begin"
+  // so the user doesn't outrun a slow handshake and bypass their backup.
+  const [peekingICloud, setPeekingICloud] = useState(false);
   const [paidSuccess, setPaidSuccess] = useState<{ billId: string; streakMonths: number; wasOverdue: boolean } | null>(null);
   const dismissPaidSuccess = useCallback(() => setPaidSuccess(null), []);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -424,6 +434,7 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
         // pushed through onboarding while the restore was still resolving,
         // then their blank state overwrote the backup.
         if (user?.id) {
+          if (active) setPeekingICloud(true);
           try {
             const meta = await peekICloudBackup(user.id);
             if (active && meta) {
@@ -433,6 +444,9 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
               });
             }
           } catch { /* best-effort */ }
+          finally {
+            if (active) setPeekingICloud(false);
+          }
         }
         if (active) setHydrated(true);
       })
@@ -457,6 +471,7 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
     if (repeekDoneRef.current === fingerprint) return;
     repeekDoneRef.current = fingerprint;
     let active = true;
+    setPeekingICloud(true);
     void (async () => {
       try {
         const meta = await peekICloudBackup(user.id!);
@@ -467,6 +482,8 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
         });
       } catch {
         // best-effort — Settings -> Restore from iCloud remains as a manual escape
+      } finally {
+        if (active) setPeekingICloud(false);
       }
     })();
     return () => {
@@ -525,26 +542,43 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
       paidSuccess,
       dismissPaidSuccess,
       pendingRestore,
+      peekingICloud,
       applyPendingRestore: async () => {
         if (!user?.id) return;
         try {
           const cloud = await loadFromICloud(user.id);
-          if (cloud) {
+          // Defensive shape check: a malformed envelope (e.g. truncated
+          // write, hand-edited file, version skew with an older build)
+          // would otherwise replace state with garbage and crash the
+          // first render of (tabs) — what the user sees is a white
+          // screen because that crash lands AFTER the WelcomeBackSheet
+          // dismiss animation. Bail before mutating state.
+          if (
+            cloud &&
+            typeof cloud === "object" &&
+            !Array.isArray(cloud)
+          ) {
             const parsed = cloud as Partial<PersistShape>;
-            if ((parsed.tier as string) === "plus") parsed.tier = "chat";
-            if ((parsed.tier as string) === "unlimited") parsed.tier = "voice";
-            if (
-              parsed.countryCode &&
-              parsed.countryCode !== DEFAULT_COUNTRY.code &&
-              (!parsed.currency || parsed.currency === DEFAULT_COUNTRY.cur)
-            ) {
-              parsed.currency = countryByCode(parsed.countryCode).cur;
+            const billsOk = !("bills" in parsed) || Array.isArray(parsed.bills);
+            const togglesOk =
+              !("toggles" in parsed) ||
+              (typeof parsed.toggles === "object" && parsed.toggles !== null);
+            if (billsOk && togglesOk) {
+              if ((parsed.tier as string) === "plus") parsed.tier = "chat";
+              if ((parsed.tier as string) === "unlimited") parsed.tier = "voice";
+              if (
+                parsed.countryCode &&
+                parsed.countryCode !== DEFAULT_COUNTRY.code &&
+                (!parsed.currency || parsed.currency === DEFAULT_COUNTRY.cur)
+              ) {
+                parsed.currency = countryByCode(parsed.countryCode).cur;
+              }
+              setState({
+                ...DEFAULTS,
+                ...parsed,
+                toggles: { ...DEFAULTS.toggles, ...(parsed.toggles ?? {}) },
+              });
             }
-            setState({
-              ...DEFAULTS,
-              ...parsed,
-              toggles: { ...DEFAULTS.toggles, ...(parsed.toggles ?? {}) },
-            });
           }
         } catch {
           // If the read fails after a successful peek, the user will see
@@ -1040,7 +1074,7 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
         return true;
       },
     };
-  }, [state, hydrated, patch, mapBills, toast, showToast, paidSuccess, dismissPaidSuccess, storageKey, user?.id]);
+  }, [state, hydrated, patch, mapBills, toast, showToast, paidSuccess, dismissPaidSuccess, storageKey, user?.id, pendingRestore, peekingICloud]);
 
   // Latest-value ref. Updated synchronously during render so action wrappers
   // (created once via the useMemo below) can always delegate to the freshest

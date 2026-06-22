@@ -25,12 +25,14 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { persona, setGuest, setName } = useJudith();
   const {
+    session,
     signInWithPassword,
     signUp,
     signInWithProvider,
     signInWithApple,
     appleAuthAvailable,
     resetPassword,
+    signOut,
   } = useAuth();
 
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -398,7 +400,21 @@ export default function LoginScreen() {
                 "Pros\n• Your bills stay on this device — nothing leaves it for sign-in\n• Anonymous to Judith — no email, no profile\n\nCons\n• No iCloud / cross-device backup — if you uninstall or switch phones, your bills are gone\n• You can't open Judith on another device with the same data\n• Apple Sign-In can still be added later if you change your mind",
                 [
                   { text: "Cancel", style: "cancel" },
-                  { text: "Continue Anonymously", onPress: () => setGuest(true) },
+                  {
+                    text: "Continue Anonymously",
+                    onPress: async () => {
+                      // A stale signed-in session (e.g. tester just hit Back
+                      // from Apple Sign-In) would otherwise let the iCloud peek
+                      // match a previous-account backup and silently restore
+                      // someone else's bills into "anonymous" mode. Tear down
+                      // the session before flipping the guest flag so user.id
+                      // is definitively null.
+                      if (session) {
+                        try { await signOut({ scope: "local" }); } catch { /* best-effort */ }
+                      }
+                      setGuest(true);
+                    },
+                  },
                 ],
               );
             }}

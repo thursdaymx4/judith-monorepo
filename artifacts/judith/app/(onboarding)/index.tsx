@@ -7,6 +7,7 @@ import {
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as ImagePicker from "expo-image-picker";
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   Easing,
@@ -964,11 +965,22 @@ function ScreenWelcome({ ctx }: { ctx: Ctx }) {
   useOnbVoice(ONBOARDING_WELCOME_LINE, ctx.persona, ctx.language);
   const popScale   = useRef(new Animated.Value(0.8)).current;
   const popOpacity = useRef(new Animated.Value(0)).current;
+  const t = useTheme();
   const { user } = useAuth();
-  const { pendingRestore, recheckICloudBackup } = useJudith();
-  const [checking, setChecking] = useState(false);
-  const [checked, setChecked] = useState(false);
-  const [noBackup, setNoBackup] = useState(false);
+  const { peekingICloud } = useJudith();
+
+  // Gate "Let's begin" on the cold-launch iCloud peek so a returning user
+  // can't outrun a slow handshake and land in onboarding before their
+  // Welcome-Back sheet surfaces. Hard 12s ceiling so a truly unreachable
+  // iCloud never permanently traps the user on this screen.
+  const [peekTimedOut, setPeekTimedOut] = useState(false);
+  useEffect(() => {
+    if (!user?.id || !peekingICloud) return;
+    const id = setTimeout(() => setPeekTimedOut(true), 12000);
+    return () => clearTimeout(id);
+  }, [user?.id, peekingICloud]);
+  const showPeekLoader = !!user?.id && peekingICloud && !peekTimedOut;
+
   useEffect(() => {
     const anim = Animated.parallel([
       Animated.timing(popOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
@@ -977,24 +989,6 @@ function ScreenWelcome({ ctx }: { ctx: Ctx }) {
     anim.start();
     return () => anim.stop();
   }, []);
-
-  /** Manual re-peek the iCloud backup. The provider's cold-launch
-   *  re-peek effect handles 99% of cases, but if iCloud is on a
-   *  particularly slow handshake the user can force a recheck here. */
-  const recheckICloud = async () => {
-    if (!user?.id || checking || pendingRestore) return;
-    setChecking(true);
-    setNoBackup(false);
-    try {
-      const found = await recheckICloudBackup();
-      if (!found) setNoBackup(true);
-      // If found, the WelcomeBackSheet renders globally — no further
-      // work needed here. The user's next tap is in that sheet.
-    } finally {
-      setChecking(false);
-      setChecked(true);
-    }
-  };
 
   return (
     <>
@@ -1010,26 +1004,18 @@ function ScreenWelcome({ ctx }: { ctx: Ctx }) {
       </Scroll>
       <CtaBar>
         <Animated.View style={{ opacity: popOpacity, transform: [{ scale: popScale }] }}>
-          <Btn label={T("getstarted")} onPress={ctx.next} />
+          <View style={{ opacity: showPeekLoader ? 0.5 : 1 }}>
+            <Btn
+              label={showPeekLoader ? "Checking iCloud…" : T("getstarted")}
+              onPress={showPeekLoader ? undefined : ctx.next}
+            />
+          </View>
         </Animated.View>
-        {/* Returning user safety net. The provider re-peeks iCloud on
-            cold launch, but a slow handshake or a Hide-My-Email-style
-            auth quirk can hide the Welcome-Back sheet. One tap here
-            forces a recheck with the retry-with-backoff helper. */}
-        {!pendingRestore && user?.id ? (
-          <Pressable
-            onPress={recheckICloud}
-            disabled={checking}
-            style={{ alignItems: "center", paddingVertical: 12, marginTop: 4 }}
-          >
-            <Low size={12} style={{ textDecorationLine: "underline" }}>
-              {checking
-                ? "Checking iCloud…"
-                : noBackup && checked
-                  ? "No iCloud backup found for this account"
-                  : "Returning user? Check iCloud for a backup"}
-            </Low>
-          </Pressable>
+        {showPeekLoader ? (
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 12 }}>
+            <ActivityIndicator size="small" color={t.accent} />
+            <Low size={12}>Looking for your iCloud backup…</Low>
+          </View>
         ) : null}
       </CtaBar>
     </>
