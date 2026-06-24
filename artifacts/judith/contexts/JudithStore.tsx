@@ -466,25 +466,55 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
   // resolved the userId. Once the user becomes available and we
   // observe local state still empty (no bills, not onboarded), kick a
   // deferred re-peek with the retry-with-backoff that lives inside
-  // peekICloudBackup. Runs once per (storageKey, userId) pair.
-  const repeekDoneRef = useRef<string | null>(null);
+  // peekICloudBackup.
+  //
+  // The earlier implementation tracked completion in `repeekDoneRef`
+  // unconditionally — set BEFORE the await — which permanently marked
+  // the (storageKey, userId) pair as "done" even when the peek returned
+  // null (transient iCloud unavailability). The user would then never
+  // see their Welcome-Back surface because the re-peek would never run
+  // again for that session. Now we only mark the fingerprint done after
+  // a SUCCESSFUL peek, and we use an attempt counter to cap retries so
+  // a permanently-broken iCloud can't drive runaway re-runs.
+  const repeekDoneRef = useRef<Map<string, number>>(new Map());
+  const [repeekNonce, setRepeekNonce] = useState(0);
+  const MAX_REPEEK_ATTEMPTS = 4;
   useEffect(() => {
     if (!hydrated || !user?.id) return;
     if (pendingRestore) return;
     if (state.onboarded || state.bills.length > 0) return;
     const fingerprint = `${storageKey}:${user.id}`;
-    if (repeekDoneRef.current === fingerprint) return;
-    repeekDoneRef.current = fingerprint;
+    const attempts = repeekDoneRef.current.get(fingerprint) ?? 0;
+    if (attempts >= MAX_REPEEK_ATTEMPTS) return;
+    repeekDoneRef.current.set(fingerprint, attempts + 1);
     let active = true;
     setPeekingICloud(true);
     void (async () => {
       try {
         const meta = await peekICloudBackup(user.id!);
-        if (!active || !meta) return;
-        setPendingRestore({
-          savedAt: meta.savedAt,
-          billCount: meta.billCount,
-        });
+        if (!active) return;
+        if (meta) {
+          setPendingRestore({
+            savedAt: meta.savedAt,
+            billCount: meta.billCount,
+          });
+          // Pin the fingerprint at MAX so we definitively stop re-peeking
+          // once we've surfaced something.
+          repeekDoneRef.current.set(fingerprint, MAX_REPEEK_ATTEMPTS);
+          return;
+        }
+        // No backup found this attempt. Schedule a deferred retry so a
+        // slow-to-warm iCloud Drive eventually surfaces the user's data
+        // without us spinning the effect dependency graph. Bumping
+        // repeekNonce triggers the effect to re-run; the attempt counter
+        // caps total tries.
+        if (attempts + 1 < MAX_REPEEK_ATTEMPTS) {
+          const backoffMs = 5000 * (attempts + 1);
+          setTimeout(() => {
+            if (!active) return;
+            setRepeekNonce((n) => n + 1);
+          }, backoffMs);
+        }
       } catch {
         // best-effort — Settings -> Restore from iCloud remains as a manual escape
       } finally {
@@ -494,7 +524,7 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
     return () => {
       active = false;
     };
-  }, [hydrated, user?.id, storageKey, pendingRestore, state.onboarded, state.bills.length]);
+  }, [hydrated, user?.id, storageKey, pendingRestore, state.onboarded, state.bills.length, repeekNonce]);
 
   // persist (debounced) — always write to the current user's key
   useEffect(() => {

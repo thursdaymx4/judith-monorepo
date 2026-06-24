@@ -49,6 +49,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAiConsent } from "@/contexts/AiConsentContext";
 import { useJudith } from "@/contexts/JudithStore";
 import { useSplash } from "@/contexts/SplashContext";
+import { useRouter } from "expo-router";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { getCategoryLabel } from "@/constants/categoryLocale";
 import { useTheme } from "@/hooks/useTheme";
@@ -975,11 +976,11 @@ function ScreenWelcome({ ctx }: { ctx: Ctx }) {
   const popOpacity = useRef(new Animated.Value(0)).current;
   const t = useTheme();
   const { user } = useAuth();
-  const { peekingICloud } = useJudith();
+  const { peekingICloud, pendingRestore } = useJudith();
 
   // Gate "Let's begin" on the cold-launch iCloud peek so a returning user
   // can't outrun a slow handshake and land in onboarding before their
-  // Welcome-Back sheet surfaces. Hard 12s ceiling so a truly unreachable
+  // Welcome-Back surface appears. Hard 12s ceiling so a truly unreachable
   // iCloud never permanently traps the user on this screen.
   const [peekTimedOut, setPeekTimedOut] = useState(false);
   useEffect(() => {
@@ -997,6 +998,16 @@ function ScreenWelcome({ ctx }: { ctx: Ctx }) {
     anim.start();
     return () => anim.stop();
   }, []);
+
+  // Returning user: render the dedicated Welcome-Back full screen INSTEAD
+  // of the normal Welcome. Used to be a bottom-sheet Modal sitting over
+  // the Welcome content, which was confusing — the bills-handled hero +
+  // "Let's begin" CTA peeked out from underneath the half-pop-up. As a
+  // full screen with its own avatar + hero, the moment feels like a
+  // deliberate "Welcome back" rather than an interruption.
+  if (pendingRestore) {
+    return <ScreenWelcomeBack ctx={ctx} popOpacity={popOpacity} popScale={popScale} />;
+  }
 
   return (
     <>
@@ -1025,6 +1036,114 @@ function ScreenWelcome({ ctx }: { ctx: Ctx }) {
             <Low size={12}>Looking for your iCloud backup…</Low>
           </View>
         ) : null}
+      </CtaBar>
+    </>
+  );
+}
+
+/**
+ * Full-screen "Welcome back" surface, rendered by ScreenWelcome when
+ * `pendingRestore` is set. Mirrors the content of the old WelcomeBackSheet
+ * bottom-sheet but as a dedicated screen so it feels like an intentional
+ * moment, not a pop-up sitting over the regular onboarding Welcome.
+ */
+function ScreenWelcomeBack({
+  ctx,
+  popOpacity,
+  popScale,
+}: {
+  ctx: Ctx;
+  popOpacity: Animated.Value;
+  popScale: Animated.Value;
+}) {
+  const t = useTheme();
+  const router = useRouter();
+  const { pendingRestore, applyPendingRestore, dismissPendingRestore } = useJudith();
+  const [restoring, setRestoring] = useState(false);
+
+  // pendingRestore was non-null when the parent rendered us; the type
+  // narrowing here is just for TypeScript.
+  const meta = pendingRestore ?? { savedAt: new Date().toISOString(), billCount: 0 };
+  const savedAt = new Date(meta.savedAt);
+  const dateLabel = Number.isFinite(savedAt.getTime())
+    ? savedAt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+    : "an earlier date";
+
+  const onRestore = async () => {
+    if (restoring) return;
+    setRestoring(true);
+    try {
+      await applyPendingRestore();
+      // applyPendingRestore writes onboarded=true into state when the
+      // envelope has it. The guard flips and the user is automatically
+      // routed to (tabs). No explicit navigation needed here.
+    } finally {
+      setRestoring(false);
+    }
+  };
+
+  const onStartFresh = () => {
+    Alert.alert(
+      "Start fresh?",
+      "Your previous backup stays in iCloud, but the moment you add a bill or finish onboarding, the new state will REPLACE the old one. Restore your existing data instead?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Restore instead", onPress: onRestore },
+        {
+          text: "Start fresh",
+          style: "destructive",
+          // Clearing pendingRestore makes ScreenWelcome render the normal
+          // Welcome content on the next render — the user can then tap
+          // "Let's begin" to proceed through onboarding.
+          onPress: () => dismissPendingRestore(),
+        },
+      ],
+    );
+  };
+
+  return (
+    <>
+      <Scroll center>
+        <View style={{ alignItems: "center" }}>
+          <JudithAvatar persona={ctx.persona} size={140} state="listening" />
+        </View>
+        <Kicker style={{ marginTop: 30, textAlign: "center" }}>Welcome back</Kicker>
+        <Title style={{ maxWidth: 320, textAlign: "center" }}>
+          Your bills are still here.
+        </Title>
+        <Low size={13} style={{ marginTop: 14, textAlign: "center", paddingHorizontal: 24 }}>
+          We found your iCloud backup from {dateLabel}.{" "}
+          {meta.billCount > 0
+            ? `${meta.billCount} bill${meta.billCount === 1 ? "" : "s"}, your settings, and your altitude history are still there.`
+            : "Your settings and altitude history are still there."}
+        </Low>
+      </Scroll>
+      <CtaBar>
+        <Animated.View style={{ opacity: popOpacity, transform: [{ scale: popScale }] }}>
+          <View style={{ opacity: restoring ? 0.6 : 1 }}>
+            <Btn
+              label={restoring ? "Restoring…" : "Restore my data"}
+              onPress={restoring ? undefined : () => void onRestore()}
+            />
+          </View>
+        </Animated.View>
+        <Pressable
+          onPress={() => router.push("/restore-from-icloud")}
+          style={{ paddingVertical: 12, alignItems: "center", marginTop: 4 }}
+          disabled={restoring}
+        >
+          <Txt size={14} color={t.accent}>See all backups</Txt>
+        </Pressable>
+        <Pressable
+          onPress={onStartFresh}
+          style={{ paddingVertical: 8, alignItems: "center" }}
+          disabled={restoring}
+        >
+          <Txt size={14} color={t.txtMid}>Start fresh instead</Txt>
+        </Pressable>
+        <Low size={11} style={{ textAlign: "center", marginTop: 8, paddingHorizontal: 20 }}>
+          If you start fresh, the new data will replace this backup as soon as you finish onboarding.
+        </Low>
       </CtaBar>
     </>
   );

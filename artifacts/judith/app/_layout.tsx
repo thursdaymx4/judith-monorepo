@@ -58,7 +58,6 @@ import { AiConsentProvider } from "@/contexts/AiConsentContext";
 import { AltitudePromotionProvider } from "@/contexts/AltitudePromotionContext";
 import { JudithProvider, useJudith } from "@/contexts/JudithStore";
 import { SplashProvider, useSplash } from "@/contexts/SplashContext";
-import { WelcomeBackSheet } from "@/components/WelcomeBackSheet";
 import { PaidSuccessView } from "@/components/PaidSuccessView";
 import { useBiometricLock } from "@/hooks/useBiometricLock";
 import { useNotificationSync } from "@/hooks/useNotificationSync";
@@ -422,10 +421,13 @@ function RootLayout() {
                         flips to paid. Mounted here so it overlays every
                         screen and survives navigation. */}
                     <PaidSuccessHost />
-                    {/* Mounted globally so it overlays auth, onboarding,
-                        and the tabs uniformly — wherever the returning
-                        user lands first, the prompt is there. */}
-                    <WelcomeBackSheet />
+                    {/* The old WelcomeBackSheet bottom-sheet has been
+                        replaced by a dedicated full-screen render inside
+                        (onboarding)/index → ScreenWelcomeBack. The screen
+                        approach feels intentional ("Welcome back") instead
+                        of an interruption pop-up over the regular Welcome
+                        hero. See ScreenWelcome's `if (pendingRestore)`
+                        branch for the surface. */}
                     </AltitudePromotionProvider>
                     </AiConsentProvider>
                     </SplashProvider>
