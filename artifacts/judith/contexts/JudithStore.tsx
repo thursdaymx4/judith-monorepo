@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppState } from "react-native";
 import { router } from "expo-router";
-import { loadFromICloud, peekICloudBackup, saveToICloud } from "@/lib/icloud-backup";
+import { loadFromICloud, loadICloudBackup, peekICloudBackup, saveToICloud } from "@/lib/icloud-backup";
 import { parseProtectedObject, serializeProtectedObject } from "@/lib/securePersist";
 import { computeBillStreak, isStreakEligible } from "@/lib/billStreak";
 import { clearIntentCommands, readIntentCommands, writeAskAccess } from "judith-widget-bridge";
@@ -278,6 +278,11 @@ interface JudithStoreValue extends PersistShape {
    *  automatic cold-launch peek missed it.
    *  Returns true if a backup was found and pendingRestore was set. */
   recheckICloudBackup: () => Promise<boolean>;
+  /** Apply a SPECIFIC iCloud backup by its key (from listICloudBackups).
+   *  Powers the restore-from-history chooser. Same shape validation as
+   *  applyPendingRestore — bad envelopes leave state untouched.
+   *  Returns true on success, false if the key was missing / unreadable. */
+  applyICloudBackupByKey: (key: string) => Promise<boolean>;
   /** Ephemeral context for the celebratory success cover that opens after a
    *  bill flips to paid. `null` = no modal showing. Set by togglePaid/markPaid
    *  on the transition to paid; cleared by `dismissPaidSuccess` (Done CTA). */
@@ -594,6 +599,47 @@ export function JudithProvider({ children }: { children: React.ReactNode }) {
           const meta = await peekICloudBackup(user.id);
           if (!meta) return false;
           setPendingRestore({ savedAt: meta.savedAt, billCount: meta.billCount });
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      applyICloudBackupByKey: async (key: string) => {
+        if (!user?.id || !key) return false;
+        try {
+          const cloud = await loadICloudBackup(user.id, key);
+          // Same defensive shape check as applyPendingRestore — a malformed
+          // envelope replacing state with garbage would crash the (tabs)
+          // first render with a white screen the user can't escape from.
+          if (
+            !cloud ||
+            typeof cloud !== "object" ||
+            Array.isArray(cloud)
+          ) {
+            return false;
+          }
+          const parsed = cloud as Partial<PersistShape>;
+          const billsOk = !("bills" in parsed) || Array.isArray(parsed.bills);
+          const togglesOk =
+            !("toggles" in parsed) ||
+            (typeof parsed.toggles === "object" && parsed.toggles !== null);
+          if (!billsOk || !togglesOk) return false;
+          if ((parsed.tier as string) === "plus") parsed.tier = "chat";
+          if ((parsed.tier as string) === "unlimited") parsed.tier = "voice";
+          if (
+            parsed.countryCode &&
+            parsed.countryCode !== DEFAULT_COUNTRY.code &&
+            (!parsed.currency || parsed.currency === DEFAULT_COUNTRY.cur)
+          ) {
+            parsed.currency = countryByCode(parsed.countryCode).cur;
+          }
+          setState({
+            ...DEFAULTS,
+            ...parsed,
+            toggles: { ...DEFAULTS.toggles, ...(parsed.toggles ?? {}) },
+          });
+          // Any prior peek prompt is moot now — we just applied a backup.
+          setPendingRestore(null);
           return true;
         } catch {
           return false;

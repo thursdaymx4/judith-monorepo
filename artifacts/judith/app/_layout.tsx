@@ -57,6 +57,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AiConsentProvider } from "@/contexts/AiConsentContext";
 import { AltitudePromotionProvider } from "@/contexts/AltitudePromotionContext";
 import { JudithProvider, useJudith } from "@/contexts/JudithStore";
+import { SplashProvider, useSplash } from "@/contexts/SplashContext";
 import { WelcomeBackSheet } from "@/components/WelcomeBackSheet";
 import { PaidSuccessView } from "@/components/PaidSuccessView";
 import { useBiometricLock } from "@/hooks/useBiometricLock";
@@ -325,6 +326,14 @@ function RootLayoutNav() {
         <Stack.Protected guard={authed && hydrated && !onboarded && !recoveryActive}>
           <Stack.Screen name="(onboarding)" />
         </Stack.Protected>
+        {/* Restore-from-iCloud chooser is registered OUTSIDE the
+            onboarding/tabs guards so it's reachable from BOTH the
+            onboarding Welcome screen AND post-onboarding Settings. The
+            screen itself handles the no-user.id case by inviting the
+            user to sign in. */}
+        <Stack.Protected guard={authed}>
+          <Stack.Screen name="restore-from-icloud" options={modalOpts} />
+        </Stack.Protected>
         <Stack.Protected guard={!authed || recoveryActive}>
           {/* Auth route renders transparent so the root BreathingBackdrop
               shows through — without this override, Stack's default
@@ -342,6 +351,19 @@ function RootLayoutNav() {
   );
 }
 
+/**
+ * Renders the HandledSplash until it fades out, then writes `splashDone`
+ * into SplashContext. Sits inside SplashProvider so the rest of the tree
+ * (notably useOnbVoice → ensureAiConsent) can defer work until the splash
+ * is gone — without that gate, the AI-consent modal can render under a
+ * still-fading splash and feels blocking.
+ */
+function SplashGate() {
+  const { splashDone, setSplashDone } = useSplash();
+  if (splashDone) return null;
+  return <HandledSplash onDone={() => setSplashDone(true)} />;
+}
+
 function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     SpaceGrotesk_400Regular,
@@ -356,7 +378,7 @@ function RootLayout() {
   // The animated "Handled." splash covers the screen while the JS bundle
   // warms and contexts hydrate. It dismisses itself ~2.2s after fonts load
   // by calling onDone(), at which point the system splash is also released.
-  const [splashDone, setSplashDone] = React.useState(false);
+  // splashDone now lives inside SplashProvider — see <SplashGate /> below.
 
   useEffect(() => {
     if (fontsLoaded || fontError) SplashScreen.hideAsync();
@@ -383,13 +405,18 @@ function RootLayout() {
               <AuthProvider>
                 <JudithProvider>
                   <SubscriptionProvider>
+                    <SplashProvider>
                     <AiConsentProvider>
                     <AltitudePromotionProvider>
                     <RootLayoutNav />
                     {/* Splash sits INSIDE the provider stack so its useTheme()
                         call resolves against JudithProvider. It absolute-positions
-                        over RootLayoutNav and unmounts after its own fade. */}
-                    {!splashDone && <HandledSplash onDone={() => setSplashDone(true)} />}
+                        over RootLayoutNav and unmounts after its own fade.
+                        SplashGate writes its dismissal into SplashContext so
+                        useOnbVoice can defer the AI-consent modal until the
+                        splash is fully gone (otherwise the modal renders
+                        underneath the fading splash and feels blocking). */}
+                    <SplashGate />
                     {/* Global "Bill paid" celebratory cover — fired by
                         togglePaid/markPaid when a streak-eligible bill
                         flips to paid. Mounted here so it overlays every
@@ -401,6 +428,7 @@ function RootLayout() {
                     <WelcomeBackSheet />
                     </AltitudePromotionProvider>
                     </AiConsentProvider>
+                    </SplashProvider>
                   </SubscriptionProvider>
                 </JudithProvider>
               </AuthProvider>

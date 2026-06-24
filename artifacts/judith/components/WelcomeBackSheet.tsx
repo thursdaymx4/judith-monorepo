@@ -12,6 +12,7 @@
  */
 import React from "react";
 import { Alert, Modal, Pressable, View } from "react-native";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon } from "@/components/Icon";
@@ -21,6 +22,7 @@ import { useTheme } from "@/hooks/useTheme";
 
 export function WelcomeBackSheet() {
   const t = useTheme();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { pendingRestore, applyPendingRestore, dismissPendingRestore } = useJudith();
 
@@ -110,6 +112,23 @@ export function WelcomeBackSheet() {
           >
             <Txt size={16} weight="bold" color={t.onAccent}>
               Restore my data
+            </Txt>
+          </Pressable>
+
+          <Pressable
+            onPress={() => {
+              // Dismiss the RN <Modal> first, then push on the next tick.
+              // Pushing while the modal is still in its close animation can
+              // leave expo-router without a proper back entry, breaking the
+              // chooser's X button. The 0ms timeout lets React commit the
+              // dismiss before navigation kicks off.
+              dismissPendingRestore();
+              setTimeout(() => router.push("/restore-from-icloud"), 0);
+            }}
+            style={{ paddingVertical: 10, alignItems: "center" }}
+          >
+            <Txt size={14} color={t.accent}>
+              See all backups
             </Txt>
           </Pressable>
 

@@ -1066,12 +1066,12 @@ export default function SettingsScreen() {
         {visRestore && (
           <Row
             first={!visBackupRow}
-            onPress={canRestore ? () => { setRestoreMsg(""); setRestoreOpen(true); } : undefined}
+            onPress={canRestore ? () => router.push("/restore-from-icloud") : undefined}
             disabled={!canRestore}
             icon="refresh"
             iconColor={canRestore ? t.accent : t.txtMid}
             title="Restore from iCloud"
-            subtitle="Replaces local bills & settings with your backup"
+            subtitle="Pick a backup to restore — your bills are versioned"
           />
         )}
         {/* iCloud diagnostics — surfaces every silent-failure mode so a
@@ -1088,11 +1088,10 @@ export default function SettingsScreen() {
             const lines = [
               `Status: ${d.status}`,
               `Container: ${d.containerPath ?? "—"}`,
-              `File exists: ${d.fileExists ? "yes" : "no"}`,
-              `Envelope userId: ${d.envelopeUserId ?? "—"}`,
+              `Backups for you: ${d.backupCount}`,
+              `Latest saved at: ${d.savedAt ?? "—"}`,
+              `Latest matches userId: ${d.userIdMatches ? "yes" : "no"}`,
               `Current userId: ${user?.id ?? "—"}`,
-              `Matches: ${d.userIdMatches ? "yes" : "no"}`,
-              `Saved at: ${d.savedAt ?? "—"}`,
             ];
             Alert.alert("iCloud Diagnostics", lines.join("\n"), [
               {

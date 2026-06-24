@@ -48,6 +48,7 @@ import Svg, { Circle } from "react-native-svg";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAiConsent } from "@/contexts/AiConsentContext";
 import { useJudith } from "@/contexts/JudithStore";
+import { useSplash } from "@/contexts/SplashContext";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { getCategoryLabel } from "@/constants/categoryLocale";
 import { useTheme } from "@/hooks/useTheme";
@@ -267,6 +268,7 @@ const VOICE_LINES_FIL: Record<string, string> = {
 function useOnbVoice(line: string, persona: PersonaId, language = "en") {
   const played = useRef(false);
   const { ensure: ensureAiConsent, aiEnabled: aiAccepted } = useAiConsent();
+  const { splashDone } = useSplash();
   // Stop whatever is playing AND abort the in-flight TTS request when the
   // screen leaves. cancelOnboardingAudio covers both vs the old call which
   // only stopped playback.
@@ -279,8 +281,14 @@ function useOnbVoice(line: string, persona: PersonaId, language = "en") {
   // here so the user actually sees + answers it the moment they land on
   // a voice screen. Once accepted, the existing speak() call below
   // proceeds normally.
+  //
+  // Splash gate: hold the consent modal until the HandledSplash has fully
+  // dismissed. Otherwise the modal can render underneath the fading
+  // splash and feels blocking the moment the screen clears. The peek for
+  // iCloud already runs during hydration (well before this hook), so
+  // gating the modal here costs no perceived latency.
   useEffect(() => {
-    if (played.current) return;
+    if (played.current || !splashDone) return;
     const utterance = (isFilipino(language) ? VOICE_LINES_FIL[line] : undefined) ?? line;
     if (!utterance) return; // empty string = voice suppressed for this screen
     void (async () => {
@@ -293,7 +301,7 @@ function useOnbVoice(line: string, persona: PersonaId, language = "en") {
       void speakOnboarding(utterance, persona, language);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aiAccepted]);
+  }, [aiAccepted, splashDone]);
 }
 
 
