@@ -129,12 +129,14 @@ export default function RestoreFromICloudScreen() {
             setApplyingKey(null);
             if (ok) {
               showToast("Restored from iCloud");
-              // A successful restore may have flipped the underlying Stack
-              // guards (onboarded true→false or vice versa depending on the
-              // snapshot age), invalidating the route this modal was
-              // pushed on top of. Reusing `closeChooser` ensures we land on
-              // a valid root regardless of which guard is now active.
-              closeChooser();
+              // Defer the navigation past the Alert.alert dismiss animation.
+              // iOS Alert's onPress fires while the alert is still in its
+              // dismiss animation — calling router.back() inside that window
+              // is sometimes rejected because the modal stack hasn't
+              // finished resolving, leaving the chooser visibly stuck and
+              // forcing the user to tap Restore a SECOND time. A short
+              // delay lets the alert fully dismiss before we navigate.
+              setTimeout(() => closeChooser(), 60);
             } else {
               Alert.alert(
                 "Couldn't restore",
