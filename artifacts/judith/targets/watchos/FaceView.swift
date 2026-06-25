@@ -62,6 +62,9 @@ struct FaceView: View {
                     Text(store.payload?.totalOwedDisplay ?? "")
                         .font(.judithMonoLarge)
                         .foregroundStyle(Color.judithAccent)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .allowsTightening(true)
                 } else if store.totalCount > 0 {
                     Label("All paid up!", systemImage: "checkmark.seal.fill")
                         .font(.system(Font.TextStyle.footnote, design: .rounded).weight(.semibold))

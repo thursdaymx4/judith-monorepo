@@ -9,7 +9,7 @@ import UniformTypeIdentifiers
 ///   2. Downscale + JPEG-encode so the App Group blob stays small.
 ///   3. Persist as base64 + metadata in App Group UserDefaults under
 ///      `judith.pendingReceiptShare`.
-///   4. Open `judith://receipt-scan?pending=1` so expo-router routes the host
+///   4. Open `judith:///receipt-scan?pending=1` so expo-router routes the host
 ///      app straight to the receipt-scan screen, which reads the payload via
 ///      the judith-receipt-vision `consumePendingShare()` bridge.
 ///
@@ -51,7 +51,7 @@ final class ShareViewController: UIViewController {
 
         let id = UUID().uuidString
         persistPending(id: id, base64: data.base64EncodedString())
-        openHost(pendingId: id)
+        await openHost(pendingId: id)
         completeExtension()
     }
 
@@ -64,7 +64,8 @@ final class ShareViewController: UIViewController {
         for item in extensionItems {
             guard let attachments = item.attachments else { continue }
             for provider in attachments {
-                if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+                if provider.canLoadObject(ofClass: UIImage.self)
+                    || provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
                     return provider
                 }
             }
@@ -73,7 +74,12 @@ final class ShareViewController: UIViewController {
     }
 
     private func loadImage(from provider: NSItemProvider) async -> UIImage? {
-        await withCheckedContinuation { (cont: CheckedContinuation<UIImage?, Never>) in
+        if provider.canLoadObject(ofClass: UIImage.self),
+           let image = await loadImageObject(from: provider) {
+            return image
+        }
+
+        return await withCheckedContinuation { (cont: CheckedContinuation<UIImage?, Never>) in
             provider.loadItem(forTypeIdentifier: UTType.image.identifier, options: nil) { item, _ in
                 if let url = item as? URL,
                    let data = try? Data(contentsOf: url),
@@ -90,6 +96,14 @@ final class ShareViewController: UIViewController {
                     return
                 }
                 cont.resume(returning: nil)
+            }
+        }
+    }
+
+    private func loadImageObject(from provider: NSItemProvider) async -> UIImage? {
+        await withCheckedContinuation { (cont: CheckedContinuation<UIImage?, Never>) in
+            provider.loadObject(ofClass: UIImage.self) { object, _ in
+                cont.resume(returning: object as? UIImage)
             }
         }
     }
@@ -125,12 +139,16 @@ final class ShareViewController: UIViewController {
 
     // MARK: — Open host app
 
-    /// Walk the responder chain to find a UIApplication so we can call
-    /// open(_:). Share extensions don't ship UIApplication.shared, but the
-    /// hosting process exposes it via the responder graph — the standard
-    /// workaround.
-    private func openHost(pendingId: String) {
-        let url = URL(string: "judith://receipt-scan?pending=1&id=\(pendingId)")!
+    private func openHost(pendingId: String) async {
+        let url = URL(string: "judith:///receipt-scan?pending=1&id=\(pendingId)")!
+        let opened = await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+            extensionContext?.open(url) { ok in
+                cont.resume(returning: ok)
+            }
+        }
+        if opened { return }
+
+        // Fallback for extension hosts that refuse NSExtensionContext.open.
         var responder: UIResponder? = self
         let selector = sel_registerName("openURL:")
         while let next = responder {

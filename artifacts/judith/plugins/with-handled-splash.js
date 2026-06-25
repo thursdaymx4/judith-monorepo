@@ -24,6 +24,16 @@ const path = require("path");
 
 const LABEL_ID = "HandledSplashTitle";
 const IMAGE_VIEW_ID = "EXPO-SplashScreen";
+const TRANSPARENT_ANDROID_SPLASH_LOGO = `<vector xmlns:android="http://schemas.android.com/apk/res/android"
+  android:width="1dp"
+  android:height="1dp"
+  android:viewportWidth="1"
+  android:viewportHeight="1">
+  <path
+    android:fillColor="@android:color/transparent"
+    android:pathData="M0,0h1v1h-1z" />
+</vector>
+`;
 
 /**
  * Remove every XML element whose tag matches `tagName` AND whose `id`
@@ -61,7 +71,7 @@ function stripConstraintsReferencing(xml, idValue) {
 }
 
 module.exports = function withHandledSplash(config) {
-  return withDangerousMod(config, [
+  const withIOSHandledSplash = withDangerousMod(config, [
     "ios",
     (cfg) => {
       const storyboardPath = path.join(
@@ -92,6 +102,26 @@ module.exports = function withHandledSplash(config) {
       );
 
       if (xml !== before) fs.writeFileSync(storyboardPath, xml);
+      return cfg;
+    },
+  ]);
+
+  return withDangerousMod(withIOSHandledSplash, [
+    "android",
+    (cfg) => {
+      const drawableDir = path.join(
+        cfg.modRequest.platformProjectRoot,
+        "app",
+        "src",
+        "main",
+        "res",
+        "drawable",
+      );
+      const splashLogoPath = path.join(drawableDir, "splashscreen_logo.xml");
+
+      fs.mkdirSync(drawableDir, { recursive: true });
+      fs.writeFileSync(splashLogoPath, TRANSPARENT_ANDROID_SPLASH_LOGO);
+
       return cfg;
     },
   ]);

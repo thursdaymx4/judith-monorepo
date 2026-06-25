@@ -29,6 +29,8 @@ struct BillRowView: View {
                 .font(.judithMono)
                 .foregroundStyle(Color.txtHi)
                 .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .allowsTightening(true)
         }
         .padding(.vertical, 4)
     }

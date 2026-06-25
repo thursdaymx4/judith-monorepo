@@ -105,7 +105,13 @@ private func dueShort(_ days: Int) -> String {
 }
 
 private func amountShort(_ amount: Double, currency: String) -> String {
-    "\(currency)\(String(format: "%.0f", amount))"
+    let formatter = NumberFormatter()
+    formatter.numberStyle = .decimal
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.positiveFormat = "#,##0"
+    formatter.maximumFractionDigits = 0
+    formatter.groupingSeparator = ","
+    return "\(currency)\(formatter.string(from: NSNumber(value: amount)) ?? String(format: "%.0f", amount))"
 }
 
 // MARK: — Circular: amount-based progress ring + headline number

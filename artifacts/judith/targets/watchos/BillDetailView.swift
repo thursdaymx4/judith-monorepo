@@ -35,8 +35,11 @@ struct BillDetailView: View {
 
                 // Amount — big mono
                 Text(bill.amountDisplay(currency: currency))
-                    .font(.system(size: 36, design: .monospaced).weight(.bold))
+                    .font(.system(size: 30, design: .monospaced).weight(.bold))
                     .foregroundStyle(Color.txtHi)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .allowsTightening(true)
                     .padding(.top, 6)
 
                 // Due label

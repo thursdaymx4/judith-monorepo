@@ -26,8 +26,12 @@ struct UpNextView: View {
                         }
                         Spacer()
                         Text(store.payload?.totalOwedDisplay ?? "—")
-                            .font(.judithMonoLarge)
+                            .font(.system(size: 24, design: .monospaced).weight(.bold))
                             .foregroundStyle(Color.judithAccent)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                            .allowsTightening(true)
+                            .layoutPriority(1)
                     }
                     .listRowBackground(Color.surface1)
                 }

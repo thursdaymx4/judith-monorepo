@@ -32,8 +32,11 @@ struct PaidConfirmView: View {
                 .foregroundStyle(Color.txtHi)
 
             Text("\(provider) · \(amountDisplay)")
-                .font(.system(Font.TextStyle.footnote, design: .rounded))
+                .font(.system(size: 12, design: .rounded))
                 .foregroundStyle(Color.txtMid)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .allowsTightening(true)
                 .multilineTextAlignment(.center)
 
             if streak > 1 {

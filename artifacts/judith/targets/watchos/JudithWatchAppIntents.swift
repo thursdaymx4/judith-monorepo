@@ -493,6 +493,8 @@ private extension Double {
     var formattedForJudithWatchIntent: String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.positiveFormat = "#,##0"
         formatter.maximumFractionDigits = 0
         formatter.groupingSeparator = ","
         return formatter.string(from: NSNumber(value: self)) ?? String(format: "%.0f", self)

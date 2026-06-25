@@ -19,7 +19,7 @@ struct UpcomingBill: Codable, Identifiable, Hashable {
     // MARK: — Display helpers
 
     func amountDisplay(currency: String) -> String {
-        "\(currency)\(String(format: "%.0f", amount))"
+        "\(currency)\(amount.formattedForJudithWatchAmount)"
     }
 
     var dueLabelShort: String {
@@ -69,11 +69,11 @@ struct WatchPayload: Codable {
     // MARK: — Derived helpers
 
     var totalOwedDisplay: String {
-        "\(currency)\(String(format: "%.0f", totalOwed))"
+        "\(currency)\(totalOwed.formattedForJudithWatchAmount)"
     }
 
     var nextAmountDisplay: String {
-        "\(currency)\(String(format: "%.0f", nextAmount))"
+        "\(currency)\(nextAmount.formattedForJudithWatchAmount)"
     }
 
     /// Amount-based paid fraction — matches the phone hero card. Falls back to
@@ -86,11 +86,11 @@ struct WatchPayload: Codable {
     }
 
     var overdueTotalDisplay: String {
-        "\(currency)\(String(format: "%.0f", overdueTotal ?? 0))"
+        "\(currency)\((overdueTotal ?? 0).formattedForJudithWatchAmount)"
     }
 
     var next7TotalDisplay: String {
-        "\(currency)\(String(format: "%.0f", next7Total ?? 0))"
+        "\(currency)\((next7Total ?? 0).formattedForJudithWatchAmount)"
     }
 
     /// Optimistically remove a bill when mark-paid is tapped on the watch.
@@ -119,6 +119,18 @@ struct WatchPayload: Codable {
             next7Total: next7Total.map { wasInNext7 ? max(0, $0 - removedAmount) : $0 },
             aiConsented: aiConsented
         )
+    }
+}
+
+extension Double {
+    var formattedForJudithWatchAmount: String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.positiveFormat = "#,##0"
+        formatter.maximumFractionDigits = 0
+        formatter.groupingSeparator = ","
+        return formatter.string(from: NSNumber(value: self)) ?? String(format: "%.0f", self)
     }
 }
 

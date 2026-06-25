@@ -43,7 +43,7 @@ struct NotificationBill {
 
     var amountDisplay: String {
         guard let a = amount else { return "" }
-        return "\(currency)\(String(format: "%.0f", a))"
+        return "\(currency)\(a.formattedForJudithWatchAmount)"
     }
 
     var dueLabel: String {
@@ -105,8 +105,11 @@ struct NotificationView: View {
 
                     if !b.amountDisplay.isEmpty {
                         Text(b.amountDisplay)
-                            .font(.system(size: 28, design: .monospaced).weight(.bold))
+                            .font(.system(size: 24, design: .monospaced).weight(.bold))
                             .foregroundStyle(Color.txtHi)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                            .allowsTightening(true)
                             .padding(.top, 2)
                     }
                 }

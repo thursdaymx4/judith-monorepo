@@ -31,6 +31,29 @@ const SNAPSHOT_PREFIX = "snapshot_";
 const SNAPSHOT_SUFFIX = ".json";
 /** Keep at most this many timestamped snapshots per device. */
 const SNAPSHOT_RETENTION = 10;
+/** Within this window, repeated saves COLLAPSE into the most recent
+ *  snapshot instead of accumulating new files. Prevents tester-style
+ *  rapid settings churn from burning the 10-slot retention buffer in
+ *  90 seconds and leaving no meaningful history. */
+const SNAPSHOT_THROTTLE_MS = 15 * 60 * 1000;
+
+/**
+ * In-memory cache of the most-recent snapshot we wrote for the current
+ * user, used by the 15-min throttle to decide whether the next save
+ * should create a fresh timestamped file or replace the previous one.
+ *
+ * - Resets on app launch (module reload) — first save after launch
+ *   always creates a fresh file, even if iCloud already has a recent
+ *   snapshot. This is a deliberate simplification: at most 1 extra
+ *   snapshot per app restart, no AsyncStorage roundtrip on the hot path.
+ * - Keyed by userId so a user-switch never collapses two different
+ *   accounts' history into one file.
+ */
+let _lastSnapshotCache: {
+  userId: string;
+  savedAtMs: number;
+  filename: string;
+} | null = null;
 
 // Lazy-load so Expo Go (which lacks the native module) doesn't crash.
 type CloudStoreModule = {
@@ -166,6 +189,17 @@ export async function saveToICloud(
   const savedAt = new Date().toISOString();
   const path = buildSnapshotPath(cs, savedAt);
   if (!path) return;
+  // 15-min throttle: if we wrote a snapshot for this user within the
+  // window, mark the previous file for deletion so we end the operation
+  // with ONE fresh snapshot instead of two near-duplicates.
+  // The pruner alone would catch it eventually, but only after we've
+  // burned a retention slot with redundant data. Collapsing inline keeps
+  // the 10-slot history meaningful.
+  const cache = _lastSnapshotCache;
+  const shouldCollapsePrev =
+    cache?.userId === userId &&
+    Date.now() - cache.savedAtMs < SNAPSHOT_THROTTLE_MS &&
+    !!cs.unlink;
   try {
     const envelope: BackupEnvelope = {
       version: 2,
@@ -179,9 +213,25 @@ export async function saveToICloud(
     // Best-effort — never block the app
     return;
   }
-  // After a successful write, trim old snapshots. We deliberately do this
-  // AFTER the new file lands so a power-cut between unlink + write can never
-  // leave the user with fewer backups than expected.
+  // Now that the new file is safely on disk, delete the previous one
+  // it superseded. Doing this AFTER the write means a crash between the
+  // two ops leaves the user with one extra snapshot, never zero.
+  if (shouldCollapsePrev && cache) {
+    const dir = snapshotDirPath(cs);
+    if (dir) {
+      try { await cs.unlink!(`${dir}/${cache.filename}`); } catch { /* best-effort */ }
+    }
+  }
+  // Update the in-memory cache so subsequent saves within the window
+  // collapse into THIS file (not the one we just deleted).
+  _lastSnapshotCache = {
+    userId,
+    savedAtMs: Date.now(),
+    filename: path.split("/").pop() ?? "",
+  };
+  // Belt-and-suspenders: trim anything else past the retention cap.
+  // The inline collapse handles the common "rapid churn" case; the
+  // pruner catches snapshots from prior sessions that crossed the cap.
   void pruneICloudBackups(userId).catch(() => {});
 }
 

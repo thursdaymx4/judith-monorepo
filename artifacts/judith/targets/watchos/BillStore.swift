@@ -51,7 +51,9 @@ final class WatchStore: ObservableObject {
 
     var lastSyncDate: Date? {
         guard let generatedAt = payload?.generatedAt else { return nil }
-        return ISO8601DateFormatter().date(from: generatedAt)
+        let fractionalFormatter = ISO8601DateFormatter()
+        fractionalFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return fractionalFormatter.date(from: generatedAt) ?? ISO8601DateFormatter().date(from: generatedAt)
     }
 
     var isPayloadStale: Bool {
