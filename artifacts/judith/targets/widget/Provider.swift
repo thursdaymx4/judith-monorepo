@@ -10,6 +10,11 @@ struct JudithEntry: TimelineEntry {
     let upcomingBills: [UpcomingBill]   // for Medium / Large families
     let unpaidCount: Int
     let totalOwed: Double
+    let calendarMonthLabel: String
+    let calendarMonthTotal: Double
+    let calendarThisWeekCount: Int
+    let calendarDays: [CalendarDaySummary]
+    let calendarWeeks: [CalendarWeekSummary]
     let relevance: TimelineEntryRelevance?
     let debugState: String?
     /// True when the cached payload is older than 12 hours — widget may be stale.
@@ -33,6 +38,21 @@ struct JudithEntry: TimelineEntry {
         ],
         unpaidCount: 3,
         totalOwed: 4_348,
+        calendarMonthLabel: "June 2026",
+        calendarMonthTotal: 4_348,
+        calendarThisWeekCount: 1,
+        calendarDays: [
+            CalendarDaySummary(day: 3, dueCount: 1, paidCount: 0, amount: 499, minDueDays: 3),
+            CalendarDaySummary(day: 7, dueCount: 1, paidCount: 0, amount: 2_450, minDueDays: 7),
+            CalendarDaySummary(day: 12, dueCount: 1, paidCount: 0, amount: 1_399, minDueDays: 12),
+        ],
+        calendarWeeks: [
+            CalendarWeekSummary(startDay: 1, endDay: 6, amount: 499),
+            CalendarWeekSummary(startDay: 7, endDay: 13, amount: 3_849),
+            CalendarWeekSummary(startDay: 14, endDay: 20, amount: 0),
+            CalendarWeekSummary(startDay: 21, endDay: 27, amount: 0),
+            CalendarWeekSummary(startDay: 28, endDay: 30, amount: 0),
+        ],
         relevance: nil,
         debugState: nil,
         isDataStale: false
@@ -104,6 +124,11 @@ struct JudithProvider: TimelineProvider {
         let totalOwed   = payload?.totalOwed    ?? 0
         let bills       = payload?.upcomingBills ?? []
         let nextBill    = bills.first
+        let calendarMonthLabel = payload?.calendarMonthLabel ?? "This month"
+        let calendarMonthTotal = payload?.calendarMonthTotal ?? totalOwed
+        let calendarThisWeekCount = payload?.calendarThisWeekCount ?? 0
+        let calendarDays = payload?.calendarDays ?? []
+        let calendarWeeks = payload?.calendarWeeks ?? []
 
         let relevance: TimelineEntryRelevance? = nextBill.map { b in
             let d     = max(b.dueDays, 0)
@@ -119,6 +144,11 @@ struct JudithProvider: TimelineProvider {
             upcomingBills: bills,
             unpaidCount:   unpaidCount,
             totalOwed:     totalOwed,
+            calendarMonthLabel: calendarMonthLabel,
+            calendarMonthTotal: calendarMonthTotal,
+            calendarThisWeekCount: calendarThisWeekCount,
+            calendarDays: calendarDays,
+            calendarWeeks: calendarWeeks,
             relevance:     relevance,
             debugState:    debugState,
             isDataStale:   isDataStale

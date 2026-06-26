@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 import { useJudith } from "@/contexts/JudithStore";
+import { useAiConsent } from "@/contexts/AiConsentContext";
 import { syncBillsToWatch } from "@/lib/watch";
 import { useWatchMessages } from "@/hooks/useWatchMessages";
 
@@ -29,6 +30,7 @@ export function useWatchSync() {
     paydaySemi,
     paydayWeekday,
   } = useJudith();
+  const aiConsent = useAiConsent();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const billsRef    = useRef(bills);
@@ -83,7 +85,7 @@ export function useWatchSync() {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bills, toggles.watch, persona, currency, country, monthlyIncome, incomeByMonth, payCycle, paydayDay, paydaySemi, paydayWeekday]);
+  }, [bills, toggles.watch, persona, currency, country, monthlyIncome, incomeByMonth, payCycle, paydayDay, paydaySemi, paydayWeekday, aiConsent.status]);
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state: AppStateStatus) => {

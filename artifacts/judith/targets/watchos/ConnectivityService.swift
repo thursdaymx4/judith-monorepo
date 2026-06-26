@@ -84,6 +84,9 @@ final class ConnectivityService: NSObject, WCSessionDelegate, ObservableObject {
 
     func register(store: WatchStore) {
         self.store = store
+        if let consent = cachedPayload?.aiConsented {
+            DispatchQueue.main.async { self.aiConsented = consent }
+        }
         // Hydrate immediately from the last context the phone sent — covers the
         // case where the Watch was asleep or backgrounded when the payload arrived.
         // This is more up-to-date than the UserDefaults cache when the phone has
@@ -136,12 +139,24 @@ final class ConnectivityService: NSObject, WCSessionDelegate, ObservableObject {
     /// stashed in App Group UserDefaults. Defaults to false on first run /
     /// older payloads — safer than assuming yes.
     private var hasAiConsent: Bool {
-        guard let json = defaults?.string(forKey: Config.payloadCacheKey),
-              let data = json.data(using: .utf8),
-              let payload = try? decoder.decode(WatchPayload.self, from: data) else {
-            return false
+        cachedPayload?.aiConsented ?? false
+    }
+
+    /// WatchStore persists the payload as encoded Data, while older handoff
+    /// code stored the original JSON string. Decode both so Ask and STT do not
+    /// incorrectly fall back to "AI consent missing" after the store rewrites
+    /// the cache.
+    private var cachedPayload: WatchPayload? {
+        if let data = defaults?.data(forKey: Config.payloadCacheKey),
+           let payload = try? decoder.decode(WatchPayload.self, from: data) {
+            return payload
         }
-        return payload.aiConsented ?? false
+        if let json = defaults?.string(forKey: Config.payloadCacheKey),
+           let data = json.data(using: .utf8),
+           let payload = try? decoder.decode(WatchPayload.self, from: data) {
+            return payload
+        }
+        return nil
     }
 
     /// One turn of the watch Ask conversation. `role` is "user" or
@@ -290,6 +305,7 @@ final class ConnectivityService: NSObject, WCSessionDelegate, ObservableObject {
             body: Optional<EmptyBody>.none
         )
         await MainActor.run { [weak self] in
+            self?.aiConsented = response.payload.aiConsented ?? false
             self?.store?.applyPayload(response.payload)
         }
     }
@@ -428,10 +444,10 @@ final class ConnectivityService: NSObject, WCSessionDelegate, ObservableObject {
         if let json = dict["judith_payload_v2"] as? String,
            let data = json.data(using: .utf8),
            let p    = try? decoder.decode(WatchPayload.self, from: data) {
-            // Persist the payload JSON so `hasAiConsent` can read the flag
-            // even when no store is attached yet (cold-launch ordering) and
-            // across watch reboots.
-            defaults?.set(json, forKey: Config.payloadCacheKey)
+            // Persist the payload so `hasAiConsent` can read the flag even
+            // when no store is attached yet (cold-launch ordering) and across
+            // watch reboots. Store encoded Data, matching WatchStore.
+            defaults?.set(data, forKey: Config.payloadCacheKey)
             let consent = p.aiConsented ?? false
             DispatchQueue.main.async { [weak self] in
                 self?.aiConsented = consent

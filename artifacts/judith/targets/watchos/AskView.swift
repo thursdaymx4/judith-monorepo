@@ -278,9 +278,11 @@ struct AskView: View {
     @MainActor
     private func transcribeAndAsk(audioURL: URL) async {
         defer { try? FileManager.default.removeItem(at: audioURL) }
+        selectedTab = tagValue
         viewState = .asking
         do {
             let text = try await connectivity.transcribeAudio(at: audioURL)
+            selectedTab = tagValue
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
             // Defensive: ElevenLabs Scribe sometimes returns empty/whitespace
             // for sub-second clips. Don't ship that to /watch-ask.
@@ -291,10 +293,13 @@ struct AskView: View {
             query = trimmed
             submitQuery()
         } catch ConnectivityService.AskError.aiConsentMissing {
+            selectedTab = tagValue
             viewState = .error("Open Judith on your iPhone and accept the AI consent to enable voice and Ask.")
         } catch ConnectivityService.AskError.phoneNotReachable {
+            selectedTab = tagValue
             viewState = .error("Pair your watch with Judith on iPhone first.")
         } catch {
+            selectedTab = tagValue
             viewState = .error("Couldn't transcribe that. Try again.")
         }
     }
@@ -379,6 +384,7 @@ struct AskView: View {
         return nil
     }
 
+    @MainActor
     private func submitQuery() {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
@@ -386,6 +392,7 @@ struct AskView: View {
             return
         }
 
+        selectedTab = tagValue
         query = trimmed
         viewState = .asking
 
@@ -393,9 +400,11 @@ struct AskView: View {
         // only prior turns as context and the current question stays in the
         // `text` field — same shape the phone /ask endpoint expects.
         let priorHistory = history
-        Task {
+        Task { @MainActor in
             do {
+                selectedTab = tagValue
                 let answer = try await connectivity.sendAsk(query: trimmed, history: priorHistory)
+                selectedTab = tagValue
                 history.append(.init(role: "user", text: trimmed))
                 history.append(.init(role: "assistant", text: answer))
                 // Cap locally at the same 5 turns the server caps at, so a
@@ -406,12 +415,16 @@ struct AskView: View {
                 viewState = .answered(answer)
                 speak(answer)
             } catch ConnectivityService.AskError.aiConsentMissing {
+                selectedTab = tagValue
                 viewState = .error("Open Judith on your iPhone and accept the AI consent to enable voice and Ask.")
             } catch ConnectivityService.AskError.phoneNotReachable {
+                selectedTab = tagValue
                 viewState = .error("iPhone not reachable. Keep your phone nearby and open Judith.")
             } catch ConnectivityService.AskError.serverError(let message) {
+                selectedTab = tagValue
                 viewState = .error(message.isEmpty ? "Judith couldn't respond right now. Try again in a moment." : message)
             } catch {
+                selectedTab = tagValue
                 viewState = .error("Judith couldn't respond right now. Try again in a moment.")
             }
         }

@@ -37,6 +37,35 @@ struct UpcomingBill: Codable, Identifiable, Hashable {
     }
 }
 
+struct CalendarDaySummary: Codable, Identifiable, Hashable {
+    let day: Int
+    let dueCount: Int
+    let paidCount: Int
+    let amount: Double
+    let minDueDays: Int
+
+    var id: Int { day }
+
+    var urgency: Urgency {
+        if minDueDays < 0 { return .overdue }
+        if minDueDays <= 3 { return .urgent }
+        if minDueDays <= 7 { return .near }
+        return .ok
+    }
+}
+
+struct CalendarWeekSummary: Codable, Identifiable, Hashable {
+    let startDay: Int
+    let endDay: Int
+    let amount: Double
+
+    var id: Int { startDay }
+
+    var label: String {
+        startDay == endDay ? "\(startDay)" : "\(startDay)-\(endDay)"
+    }
+}
+
 struct WatchPayload: Codable {
     let generatedAt: String
     let currency: String
@@ -65,6 +94,13 @@ struct WatchPayload: Codable {
     /// has explicitly opted in. Older cached payloads decode as nil, which
     /// the watch treats as "not consented" (safe default).
     let aiConsented: Bool?
+    /// Current-month bill calendar snapshot, mirrored from the phone Calendar tab.
+    let calendarMonth: String?
+    let calendarMonthLabel: String?
+    let calendarMonthTotal: Double?
+    let calendarThisWeekCount: Int?
+    let calendarDays: [CalendarDaySummary]?
+    let calendarWeeks: [CalendarWeekSummary]?
 
     // MARK: — Derived helpers
 
@@ -117,7 +153,13 @@ struct WatchPayload: Codable {
             overdueCount: overdueCount.map { wasOverdue ? max(0, $0 - 1) : $0 },
             overdueTotal: overdueTotal.map { wasOverdue ? max(0, $0 - removedAmount) : $0 },
             next7Total: next7Total.map { wasInNext7 ? max(0, $0 - removedAmount) : $0 },
-            aiConsented: aiConsented
+            aiConsented: aiConsented,
+            calendarMonth: calendarMonth,
+            calendarMonthLabel: calendarMonthLabel,
+            calendarMonthTotal: calendarMonthTotal,
+            calendarThisWeekCount: calendarThisWeekCount,
+            calendarDays: calendarDays,
+            calendarWeeks: calendarWeeks
         )
     }
 }

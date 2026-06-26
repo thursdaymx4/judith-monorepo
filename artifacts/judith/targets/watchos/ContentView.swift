@@ -1,7 +1,7 @@
 import SwiftUI
 
 // MARK: — Root view: gates on payload availability, then shows tab pages
-// Tab order: Face (paid ring + summary) → Bills → Ask Judith
+// Tab order: Face (paid ring + summary) → Bills → Calendar → Ask Judith
 
 struct ContentView: View {
     @EnvironmentObject var store: WatchStore
@@ -23,7 +23,8 @@ struct ContentView: View {
                 TabView(selection: $selectedTab) {
                     FaceView().tag(0)
                     UpNextView().tag(1)
-                    AskView(selectedTab: $selectedTab, tagValue: 2).tag(2)
+                    CalendarView().tag(2)
+                    AskView(selectedTab: $selectedTab, tagValue: 3).tag(3)
                 }
                 .tabViewStyle(.page)
             } else {
@@ -37,7 +38,7 @@ struct ContentView: View {
         // We respond by snapping to the Ask tab and acknowledging.
         .onChange(of: launchFlags.shouldOpenAsk) { _, shouldOpen in
             if shouldOpen {
-                selectedTab = 2
+                selectedTab = 3
                 launchFlags.acknowledge()
             }
         }

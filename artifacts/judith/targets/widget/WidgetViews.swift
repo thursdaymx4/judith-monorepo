@@ -304,6 +304,208 @@ private struct LargeView: View {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// MARK: — Homescreen: Calendar Widget
+// ─────────────────────────────────────────────────────────────────────────────
+
+struct JudithCalendarWidgetView: View {
+    let entry: JudithEntry
+    @Environment(\.widgetFamily) private var family
+
+    var body: some View {
+        switch family {
+        case .systemSmall:  CalendarSmallView(entry: entry)
+        case .systemMedium: CalendarMediumView(entry: entry)
+        case .systemLarge:  CalendarLargeView(entry: entry)
+        default:            CalendarSmallView(entry: entry)
+        }
+    }
+}
+
+private struct CalendarSmallView: View {
+    let entry: JudithEntry
+
+    var body: some View {
+        ZStack {
+            WidgetCardBackground()
+            VStack(alignment: .leading, spacing: 8) {
+                CalendarHeader(entry: entry, compact: true)
+                Text(fullAmount(entry.calendarMonthTotal, currency: entry.currency))
+                    .font(.system(size: 25, weight: .black, design: .monospaced))
+                    .foregroundStyle(Color.judithAccent)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.68)
+                Text("\(entry.calendarThisWeekCount) this week")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Color.txtMid)
+                CalendarDayStrip(days: Array(entry.calendarDays.prefix(4)))
+                Spacer(minLength: 0)
+            }
+            .padding(14)
+        }
+    }
+}
+
+private struct CalendarMediumView: View {
+    let entry: JudithEntry
+
+    var body: some View {
+        ZStack {
+            WidgetCardBackground()
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top) {
+                    CalendarHeader(entry: entry, compact: false)
+                    Spacer(minLength: 8)
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(fullAmount(entry.calendarMonthTotal, currency: entry.currency))
+                            .font(.system(size: 24, weight: .black, design: .monospaced))
+                            .foregroundStyle(Color.judithAccent)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                        Text("\(entry.calendarThisWeekCount) this week")
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .foregroundStyle(Color.txtLow)
+                    }
+                }
+                CalendarWeekBars(weeks: entry.calendarWeeks, currency: entry.currency, height: 38)
+                CalendarDayStrip(days: Array(entry.calendarDays.prefix(6)))
+                Spacer(minLength: 0)
+            }
+            .padding(14)
+        }
+    }
+}
+
+private struct CalendarLargeView: View {
+    let entry: JudithEntry
+
+    var body: some View {
+        ZStack {
+            WidgetCardBackground()
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top) {
+                    CalendarHeader(entry: entry, compact: false)
+                    Spacer(minLength: 10)
+                    VStack(alignment: .trailing, spacing: 3) {
+                        Text(fullAmount(entry.calendarMonthTotal, currency: entry.currency))
+                            .font(.system(size: 30, weight: .black, design: .monospaced))
+                            .foregroundStyle(Color.judithAccent)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
+                        Text("\(entry.calendarDays.reduce(0) { $0 + $1.dueCount }) unpaid · \(entry.calendarThisWeekCount) this week")
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .foregroundStyle(Color.txtMid)
+                    }
+                }
+                CalendarWeekBars(weeks: entry.calendarWeeks, currency: entry.currency, height: 70)
+                CalendarDayGrid(days: Array(entry.calendarDays.prefix(12)))
+                Spacer(minLength: 0)
+            }
+            .padding(16)
+        }
+    }
+}
+
+private struct CalendarHeader: View {
+    let entry: JudithEntry
+    let compact: Bool
+
+    var body: some View {
+        HStack(spacing: compact ? 6 : 8) {
+            JudithAvatar(size: compact ? 18 : 24)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("CALENDAR")
+                    .font(.system(size: compact ? 8 : 10, weight: .black, design: .rounded))
+                    .foregroundStyle(Color.judithAccent)
+                    .kerning(1.2)
+                Text(entry.calendarMonthLabel)
+                    .font(.system(size: compact ? 8 : 10, weight: .medium, design: .rounded))
+                    .foregroundStyle(Color.txtLow)
+                    .lineLimit(1)
+            }
+        }
+    }
+}
+
+private struct CalendarWeekBars: View {
+    let weeks: [CalendarWeekSummary]
+    let currency: String
+    let height: CGFloat
+
+    private var maxAmount: Double { max(1, weeks.map(\.amount).max() ?? 1) }
+
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 6) {
+            ForEach(weeks) { week in
+                VStack(spacing: 4) {
+                    Text(week.amount > 0 ? compactAmount(week.amount, currency: currency) : "-")
+                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                        .foregroundStyle(week.amount > 0 ? Color.txtHi : Color.txtLow)
+                        .lineLimit(1)
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(week.amount > 0 ? Color.judithAccent : Color.surface1)
+                        .frame(height: max(7, CGFloat(week.amount / maxAmount) * height))
+                    Text(week.label)
+                        .font(.system(size: 8, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Color.txtLow)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .frame(minHeight: height + 30, alignment: .bottom)
+    }
+}
+
+private struct CalendarDayStrip: View {
+    let days: [CalendarDaySummary]
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(days) { day in
+                CalendarDayChip(day: day)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+}
+
+private struct CalendarDayGrid: View {
+    let days: [CalendarDaySummary]
+
+    var body: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 4), spacing: 6) {
+            ForEach(days) { day in
+                CalendarDayChip(day: day)
+            }
+        }
+    }
+}
+
+private struct CalendarDayChip: View {
+    let day: CalendarDaySummary
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text("\(day.day)")
+                .font(.system(size: 13, weight: .black, design: .rounded))
+                .foregroundStyle(Color.txtHi)
+            Text(day.dueCount > 0 ? "\(day.dueCount)" : "paid")
+                .font(.system(size: 8, weight: .bold, design: .rounded))
+                .foregroundStyle(day.dueCount > 0 ? day.urgency.color : Color.txtLow)
+                .lineLimit(1)
+        }
+        .frame(minWidth: 34, minHeight: 36)
+        .padding(.horizontal, 4)
+        .background(Color.surface1.opacity(0.92))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(day.dueCount > 0 ? day.urgency.color.opacity(0.75) : Color.txtLow.opacity(0.25), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // MARK: — Lockscreen: Circular
 // ─────────────────────────────────────────────────────────────────────────────
 

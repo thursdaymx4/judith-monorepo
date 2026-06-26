@@ -47,6 +47,20 @@ export interface UpcomingBill {
   optimisticUnpaidCountDelta: number;
 }
 
+export interface CalendarDaySummary {
+  day: number;
+  dueCount: number;
+  paidCount: number;
+  amount: number;
+  minDueDays: number;
+}
+
+export interface CalendarWeekSummary {
+  startDay: number;
+  endDay: number;
+  amount: number;
+}
+
 export interface WatchPayload {
   /** ISO-8601 timestamp */
   generatedAt: string;
@@ -82,6 +96,13 @@ export interface WatchPayload {
    *  /watch-ask + /watch-stt until the user has consented on the paired
    *  phone. Apple Guideline 5.1.1(i) / 5.1.2(i). */
   aiConsented: boolean;
+  /** Current-month bill calendar, mirroring the Calendar tab's due-date grid. */
+  calendarMonth: string;
+  calendarMonthLabel: string;
+  calendarMonthTotal: number;
+  calendarThisWeekCount: number;
+  calendarDays: CalendarDaySummary[];
+  calendarWeeks: CalendarWeekSummary[];
 }
 
 export interface WatchSnapshotContext {
@@ -111,6 +132,92 @@ function optimisticDeltasForBill(
   return {
     optimisticTotalOwedDelta: deltaAmount,
     optimisticUnpaidCountDelta: deltaAmount > 0 ? 1 : 0,
+  };
+}
+
+function currentMonthCalendar(
+  bills: Bill[],
+): Pick<
+  WatchPayload,
+  | "calendarMonth"
+  | "calendarMonthLabel"
+  | "calendarMonthTotal"
+  | "calendarThisWeekCount"
+  | "calendarDays"
+  | "calendarWeeks"
+> {
+  const today = new Date();
+  const year = today.getFullYear();
+  const monthIndex = today.getMonth();
+  const dim = daysInMonth(year, monthIndex);
+  const firstDow = new Date(year, monthIndex, 1).getDay();
+  const monthKey = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+  const monthLabel = today.toLocaleString(undefined, { month: "long", year: "numeric" });
+
+  const billsForMonth = bills.filter((bill) => {
+    if (bill.dueDate > dim) return false;
+    if (bill.createdAt && monthKey < bill.createdAt.slice(0, 7)) return false;
+    if (bill.frequency === "annual" || bill.frequency === "once") {
+      const nextDue = new Date(today.getTime());
+      nextDue.setDate(nextDue.getDate() + bill.dueDays);
+      return nextDue.getFullYear() === year && nextDue.getMonth() === monthIndex;
+    }
+    return true;
+  });
+
+  const unpaid = billsForMonth.filter((bill) => !isPaidThisMonth(bill, today));
+  const calendarMonthTotal = unpaid
+    .filter((bill) => !isPaidViaCard(bill))
+    .reduce((sum, bill) => sum + remainingThisMonth(bill, today), 0);
+  const calendarThisWeekCount = unpaid.filter((bill) => bill.dueDays >= 0 && bill.dueDays <= 7).length;
+
+  const byDay = new Map<number, CalendarDaySummary>();
+  for (const bill of billsForMonth) {
+    const day = Math.min(bill.dueDate, dim);
+    const paid = isPaidThisMonth(bill, today);
+    const previous = byDay.get(day) ?? {
+      day,
+      dueCount: 0,
+      paidCount: 0,
+      amount: 0,
+      minDueDays: bill.dueDays,
+    };
+    byDay.set(day, {
+      day,
+      dueCount: previous.dueCount + (paid ? 0 : 1),
+      paidCount: previous.paidCount + (paid ? 1 : 0),
+      amount: previous.amount + (!paid && !isPaidViaCard(bill) ? remainingThisMonth(bill, today) : 0),
+      minDueDays: Math.min(previous.minDueDays, bill.dueDays),
+    });
+  }
+
+  const ranges: [number, number][] = [];
+  for (let start = 1; start <= dim;) {
+    const end = start === 1 ? 7 - firstDow : start + 6;
+    ranges.push([start, Math.min(end, dim)]);
+    start = Math.min(end, dim) + 1;
+  }
+  const weekIndexFor = (day: number) => {
+    const clamped = Math.min(Math.max(day, 1), dim);
+    return Math.max(0, ranges.findIndex(([start, end]) => clamped >= start && clamped <= end));
+  };
+  const weekAmounts = ranges.map(() => 0);
+  for (const bill of unpaid) {
+    if (isPaidViaCard(bill)) continue;
+    weekAmounts[weekIndexFor(bill.dueDate)] += remainingThisMonth(bill, today);
+  }
+
+  return {
+    calendarMonth: monthKey,
+    calendarMonthLabel: monthLabel,
+    calendarMonthTotal,
+    calendarThisWeekCount,
+    calendarDays: [...byDay.values()].sort((left, right) => left.day - right.day),
+    calendarWeeks: ranges.map(([startDay, endDay], index) => ({
+      startDay,
+      endDay,
+      amount: weekAmounts[index] ?? 0,
+    })),
   };
 }
 
@@ -187,6 +294,7 @@ function buildPayload(
     overdueTotal,
     next7Total,
     aiConsented,
+    ...currentMonthCalendar(bills),
   };
 }
 

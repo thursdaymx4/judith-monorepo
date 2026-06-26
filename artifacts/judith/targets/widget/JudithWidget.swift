@@ -21,6 +21,26 @@ struct JudithHomeWidget: Widget {
     }
 }
 
+// MARK: — Calendar homescreen widget
+
+struct JudithCalendarWidget: Widget {
+    static let kind = "JudithCalendarWidget"
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: Self.kind, provider: JudithProvider()) { entry in
+            if #available(iOS 17.0, *) {
+                JudithCalendarWidgetView(entry: entry)
+                    .containerBackground(Color.bgBase, for: .widget)
+            } else {
+                JudithCalendarWidgetView(entry: entry)
+            }
+        }
+        .configurationDisplayName("Judith Calendar")
+        .description("Your bill calendar at a glance.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+    }
+}
+
 // MARK: — Lockscreen / StandBy widget (iOS 16+)
 
 struct JudithLockWidget: Widget {
@@ -51,6 +71,7 @@ struct JudithLockWidget: Widget {
 struct JudithWidgetBundle: WidgetBundle {
     var body: some Widget {
         JudithHomeWidget()
+        JudithCalendarWidget()
         JudithLockWidget()
     }
 }

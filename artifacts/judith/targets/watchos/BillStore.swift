@@ -48,6 +48,11 @@ final class WatchStore: ObservableObject {
     var overdueCount: Int { payload?.overdueCount ?? 0 }
     var overdueTotal: Double { payload?.overdueTotal ?? 0 }
     var next7Total: Double { payload?.next7Total ?? 0 }
+    var calendarMonthLabel: String { payload?.calendarMonthLabel ?? "This month" }
+    var calendarMonthTotal: Double { payload?.calendarMonthTotal ?? totalOwed }
+    var calendarThisWeekCount: Int { payload?.calendarThisWeekCount ?? 0 }
+    var calendarDays: [CalendarDaySummary] { payload?.calendarDays ?? [] }
+    var calendarWeeks: [CalendarWeekSummary] { payload?.calendarWeeks ?? [] }
 
     var lastSyncDate: Date? {
         guard let generatedAt = payload?.generatedAt else { return nil }

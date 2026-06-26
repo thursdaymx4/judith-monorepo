@@ -82,6 +82,35 @@ struct UpcomingBill: Codable, Identifiable {
     }
 }
 
+struct CalendarDaySummary: Codable, Identifiable {
+    let day: Int
+    let dueCount: Int
+    let paidCount: Int
+    let amount: Double
+    let minDueDays: Int
+
+    var id: Int { day }
+
+    var urgency: Urgency {
+        if minDueDays < 0 { return .overdue }
+        if minDueDays <= 3 { return .urgent }
+        if minDueDays <= 7 { return .near }
+        return .ok
+    }
+}
+
+struct CalendarWeekSummary: Codable, Identifiable {
+    let startDay: Int
+    let endDay: Int
+    let amount: Double
+
+    var id: Int { startDay }
+
+    var label: String {
+        startDay == endDay ? "\(startDay)" : "\(startDay)-\(endDay)"
+    }
+}
+
 struct WatchPayload: Codable {
     let generatedAt: String
     let currency: String
@@ -97,6 +126,13 @@ struct WatchPayload: Codable {
     let paidCount: Int
     /// Total tracked bills (paid + unpaid) — gauge denominator.
     let totalCount: Int
+    /// Current-month bill calendar snapshot, mirrored from the phone Calendar tab.
+    let calendarMonth: String?
+    let calendarMonthLabel: String?
+    let calendarMonthTotal: Double?
+    let calendarThisWeekCount: Int?
+    let calendarDays: [CalendarDaySummary]?
+    let calendarWeeks: [CalendarWeekSummary]?
 }
 
 private extension Double {
