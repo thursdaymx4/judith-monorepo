@@ -24,14 +24,24 @@ import { AudioModule } from "expo-audio";
 
 const WARMUP_MS = 400;
 
-export async function ensureMicReady(): Promise<boolean> {
+export type MicPermissionResult =
+  | { ok: true }
+  | { ok: false; reason: "denied" | "unavailable"; canAskAgain: boolean };
+
+type RecordingPermission = {
+  granted?: boolean;
+  status?: string;
+  canAskAgain?: boolean;
+};
+
+export async function ensureMicPermission(): Promise<MicPermissionResult> {
   // Pre-check so we can tell whether this turn is a fresh grant. If the
   // platform doesn't expose getRecordingPermissionsAsync, treat the
   // status as undetermined — the warmup is cheap on a repeated grant.
   let wasGrantedBefore = false;
   try {
     const getFn = (AudioModule as unknown as {
-      getRecordingPermissionsAsync?: () => Promise<{ granted: boolean; status?: string }>;
+      getRecordingPermissionsAsync?: () => Promise<RecordingPermission>;
     }).getRecordingPermissionsAsync;
     if (getFn) {
       const current = await getFn.call(AudioModule);
@@ -43,7 +53,15 @@ export async function ensureMicReady(): Promise<boolean> {
   }
 
   const perm = await AudioModule.requestRecordingPermissionsAsync();
-  if (!perm.granted) return false;
+  if (!perm.granted) {
+    const status = String(perm.status ?? "").toLowerCase();
+    const canAskAgain = perm.canAskAgain !== false;
+    return {
+      ok: false,
+      reason: status === "denied" || !canAskAgain ? "denied" : "unavailable",
+      canAskAgain,
+    };
+  }
 
   if (!wasGrantedBefore) {
     // Fresh grant — let the audio session activate before the caller
@@ -53,5 +71,9 @@ export async function ensureMicReady(): Promise<boolean> {
     await new Promise<void>((resolve) => setTimeout(resolve, WARMUP_MS));
   }
 
-  return true;
+  return { ok: true };
+}
+
+export async function ensureMicReady(): Promise<boolean> {
+  return (await ensureMicPermission()).ok;
 }

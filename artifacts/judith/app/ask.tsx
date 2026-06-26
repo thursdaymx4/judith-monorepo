@@ -6,6 +6,7 @@ import {
   useAudioRecorder,
 } from "expo-audio";
 import * as ImagePicker from "expo-image-picker";
+import * as Linking from "expo-linking";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
@@ -27,7 +28,7 @@ import { enqueueAudio, fileToBase64, isAudioActive, resetAudioToPlayback, stopCu
 import { safeBack } from "@/lib/navigation";
 import { type AddBillAction, askJudith, synthesizeAiReply, parseSubscriptionScreenshot, transcribe, RateLimitError, TimeoutError, ServerError, UnauthorizedError, AbortedError } from "@/lib/proxy";
 import { buildAskBills } from "@/lib/buildAskBills";
-import { ensureMicReady } from "@/lib/micPermission";
+import { ensureMicPermission } from "@/lib/micPermission";
 import { sttHint, isFilipino } from "@/constants/languages";
 import { getPackageForTier, purchaseForTier, isPurchasesConfigured } from "@/lib/purchases";
 import { PRIVACY_URL, TERMS_URL, openLegal } from "@/constants/legal";
@@ -695,9 +696,21 @@ export default function AskModal() {
     }
     setErr("");
     try {
-      const ok = await ensureMicReady();
-      if (!ok) {
-        setErr("Microphone permission is needed. You can type instead.");
+      const mic = await ensureMicPermission();
+      if (!mic.ok) {
+        if (mic.reason === "denied" && !mic.canAskAgain) {
+          setErr("Microphone access is off. Enable it in iPhone Settings, or type instead.");
+          Alert.alert(
+            "Microphone access is off",
+            "Judith needs microphone access for voice questions. You can turn it on in Settings.",
+            [
+              { text: "Type instead", style: "cancel" },
+              { text: "Open Settings", onPress: () => void Linking.openSettings() },
+            ],
+          );
+        } else {
+          setErr("Microphone permission is needed. You can type instead.");
+        }
         return;
       }
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
@@ -765,7 +778,15 @@ export default function AskModal() {
     } catch (e) {
       const msg = String((e as Error)?.message ?? e);
       if (msg.toLowerCase().includes("permission")) {
-        setErr("Microphone permission denied — allow it in your phone settings and try again.");
+        setErr("Microphone permission denied — allow it in iPhone Settings and try again.");
+        Alert.alert(
+          "Microphone permission needed",
+          "Turn on microphone access for Judith in Settings, then try the mic again.",
+          [
+            { text: "Type instead", style: "cancel" },
+            { text: "Open Settings", onPress: () => void Linking.openSettings() },
+          ],
+        );
       } else {
         setErr("Microphone couldn't start — try again in a moment.");
       }

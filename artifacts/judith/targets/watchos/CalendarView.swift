@@ -51,6 +51,7 @@ struct CalendarView: View {
                     emptyState
                 } else {
                     legend
+                    nextDueStrip
                     calendarGrid
                 }
             }
@@ -101,6 +102,39 @@ struct CalendarView: View {
         .padding(.horizontal, 2)
     }
 
+    private var nextDueDays: [CalendarDaySummary] {
+        store.calendarDays
+            .filter { $0.dueCount > 0 }
+            .sorted {
+                if $0.minDueDays != $1.minDueDays { return $0.minDueDays < $1.minDueDays }
+                return $0.amount > $1.amount
+            }
+    }
+
+    private var nextDueStrip: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Next due")
+                .font(.system(Font.TextStyle.caption2, design: .rounded).weight(.semibold))
+                .foregroundStyle(Color.txtLow)
+
+            HStack(spacing: 6) {
+                ForEach(Array(nextDueDays.prefix(3))) { day in
+                    CalendarDateBubble(
+                        day: day.day,
+                        summary: day,
+                        currency: store.currency,
+                        maxAmount: maxDayAmount,
+                        compact: true
+                    )
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        .padding(8)
+        .background(Color.surface1)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
     private var calendarGrid: some View {
         VStack(spacing: 5) {
             HStack(spacing: 3) {
@@ -149,6 +183,7 @@ private struct CalendarDateBubble: View {
     let summary: CalendarDaySummary?
     let currency: String
     let maxAmount: Double
+    var compact: Bool = false
 
     private var amountText: String {
         guard let summary, summary.amount > 0 else { return "" }
@@ -160,7 +195,7 @@ private struct CalendarDateBubble: View {
 
     private var bubbleSize: CGFloat {
         guard let summary, summary.dueCount > 0 else { return 0 }
-        return 14 + CGFloat(summary.amount / maxAmount) * 20
+        return (compact ? 24 : 14) + CGFloat(summary.amount / maxAmount) * (compact ? 18 : 20)
     }
 
     var body: some View {
@@ -178,18 +213,18 @@ private struct CalendarDateBubble: View {
 
             VStack(spacing: 0) {
                 Text(amountText)
-                    .font(.system(size: 6.5, design: .monospaced).weight(.bold))
+                    .font(.system(size: compact ? 8 : 6.5, design: .monospaced).weight(.bold))
                     .foregroundStyle(Color.txtHi)
                     .lineLimit(1)
                     .minimumScaleFactor(0.55)
-                    .frame(height: 8)
+                    .frame(height: compact ? 10 : 8)
                 Text("\(day)")
-                    .font(.system(size: 10, design: .rounded).weight(summary == nil ? .medium : .bold))
+                    .font(.system(size: compact ? 15 : 10, design: .rounded).weight(summary == nil ? .medium : .bold))
                     .foregroundStyle(summary == nil ? Color.txtLow : Color.txtHi)
-                    .frame(height: 14)
+                    .frame(height: compact ? 18 : 14)
             }
         }
-        .frame(height: 36)
+        .frame(height: compact ? 48 : 36)
         .frame(maxWidth: .infinity)
     }
 }

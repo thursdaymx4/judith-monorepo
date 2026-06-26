@@ -334,6 +334,9 @@ private struct CalendarSmallView: View {
                     .foregroundStyle(Color.judithAccent)
                     .lineLimit(1)
                     .minimumScaleFactor(0.68)
+                Text("Next due dates")
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.txtLow)
                 CalendarBubbleStrip(entry: entry, limit: 4)
                 Spacer(minLength: 0)
                 CalendarLegendInline()
@@ -364,6 +367,9 @@ private struct CalendarMediumView: View {
                             .foregroundStyle(Color.txtLow)
                     }
                 }
+                Text("Next due dates")
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.txtLow)
                 CalendarBubbleStrip(entry: entry, limit: 7)
                 CalendarLegendInline()
                 Spacer(minLength: 0)
@@ -445,9 +451,19 @@ private struct CalendarBubbleStrip: View {
     let entry: JudithEntry
     let limit: Int
 
+    private var priorityDays: [CalendarDaySummary] {
+        let due = entry.calendarDays
+            .filter { $0.dueCount > 0 }
+            .sorted {
+                if $0.minDueDays != $1.minDueDays { return $0.minDueDays < $1.minDueDays }
+                return $0.amount > $1.amount
+            }
+        return Array((due.isEmpty ? entry.calendarDays : due).prefix(limit))
+    }
+
     var body: some View {
         HStack(alignment: .center, spacing: 7) {
-            ForEach(Array(entry.calendarDays.prefix(limit))) { day in
+            ForEach(priorityDays) { day in
                 CalendarAmountBubble(
                     day: day,
                     currency: entry.currency,
