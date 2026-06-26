@@ -75,7 +75,6 @@ fun BillCalendarScreen(store: BillStore, onBill: (String) -> Unit) {
     val offset = first.get(Calendar.DAY_OF_WEEK) - Calendar.SUNDAY
     val dim = first.getActualMaximum(Calendar.DAY_OF_MONTH)
     val monthLabel = SimpleDateFormat("MMMM yyyy", Locale.US).format(cal.time)
-    val overdueTotal = p.overdueTotal ?: 0.0
 
     ScalingLazyColumn(
         modifier = Modifier.fillMaxSize().background(JudithColors.background),
@@ -108,24 +107,30 @@ fun BillCalendarScreen(store: BillStore, onBill: (String) -> Unit) {
                     fontSize = 9.sp,
                     letterSpacing = 0.8.sp,
                 )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        p.totalOwedDisplay,
-                        color = JudithColors.txtHi,
-                        fontSize = 20.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    if (overdueTotal > 0) {
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            "${amountDisplay(p.currency, overdueTotal)} late",
-                            color = JudithColors.overdue,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                        )
-                    }
+                Text(
+                    p.totalOwedDisplay,
+                    color = JudithColors.txtHi,
+                    fontSize = 24.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                )
+                // Non-redundant subtitle: the amount already shows above, so use
+                // this line for counts (and overdue is shown as a count, in red,
+                // never a second copy of the total).
+                val overdueCount = p.overdueCount ?: 0
+                val subtitle = when {
+                    p.unpaidCount == 0 -> "All bills paid"
+                    overdueCount == 0 ->
+                        "${p.unpaidCount} ${if (p.unpaidCount == 1) "bill" else "bills"} due"
+                    overdueCount >= p.unpaidCount -> "All ${p.unpaidCount} overdue"
+                    else -> "${p.unpaidCount} due · $overdueCount overdue"
                 }
+                Text(
+                    subtitle,
+                    color = if (overdueCount > 0) JudithColors.overdue else JudithColors.txtMid,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                )
             }
         }
 
