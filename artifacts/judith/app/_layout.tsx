@@ -359,8 +359,13 @@ function RootLayoutNav() {
  */
 function SplashGate() {
   const { splashDone, setSplashDone } = useSplash();
+  // Drive the splash exit off real readiness. Fonts are already loaded by the
+  // time SplashGate mounts (RootLayout returns null until then), so store
+  // hydration is the remaining signal — once hydrated, RootLayoutNav renders
+  // real content underneath instead of the loading spinner.
+  const { hydrated } = useJudith();
   if (splashDone) return null;
-  return <HandledSplash onDone={() => setSplashDone(true)} />;
+  return <HandledSplash ready={hydrated} onDone={() => setSplashDone(true)} />;
 }
 
 function RootLayout() {
@@ -375,9 +380,10 @@ function RootLayout() {
   });
 
   // The animated "Handled." splash covers the screen while the JS bundle
-  // warms and contexts hydrate. It dismisses itself ~2.2s after fonts load
-  // by calling onDone(), at which point the system splash is also released.
-  // splashDone now lives inside SplashProvider — see <SplashGate /> below.
+  // warms and contexts hydrate. It now dismisses as soon as the app is
+  // actually ready (store hydrated) after a short minimum brand hold —
+  // see SplashGate, which passes `ready={hydrated}` into HandledSplash —
+  // instead of a fixed multi-second timer. splashDone lives in SplashProvider.
 
   useEffect(() => {
     if (fontsLoaded || fontError) SplashScreen.hideAsync();

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { Dimensions, StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
@@ -59,9 +59,14 @@ const CHIPS: Chip[] = [
 interface Props {
   /** Called once the splash has fully faded out; parent should swap to the app. */
   onDone: () => void;
+  /** True once the app is actually ready to show (fonts loaded + store
+   *  hydrated). The splash leaves as soon as this is true AND the minimum
+   *  brand hold has elapsed — instead of a fixed multi-second timer that made
+   *  every cold launch *feel* slow even when the app was ready in <1s. */
+  ready?: boolean;
 }
 
-export function HandledSplash({ onDone }: Props) {
+export function HandledSplash({ onDone, ready = true }: Props) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   // Persona + language drive the prefetched onboarding voice line. Reading
@@ -98,6 +103,38 @@ export function HandledSplash({ onDone }: Props) {
   const chip3 = useSharedValue(0);
   const chipProgress = [chip0, chip1, chip2, chip3];
 
+  // ── Exit timing ─────────────────────────────────────────────────────────
+  // Minimum brand hold, hard cap, and the slide-off duration. The splash used
+  // to hold a FIXED 5800ms then slide for 1600ms (7.4s on every launch). Now it
+  // holds for MIN_HOLD_MS, leaves the instant `ready` is true after that, and
+  // caps at MAX_HOLD_MS so a stalled hydration can never trap the user.
+  const MIN_HOLD_MS = 1400;
+  const MAX_HOLD_MS = 6000;
+  // Slide-off duration with the iOS-style decel curve (0.32, 0.72, 0, 1) — one
+  // smooth deceleration, no accel/brake. Same curve UIKit uses for sheet
+  // dismissals; keeps the full-screen slide from reading as "speed up then jerk."
+  const FADE_MS = 900;
+
+  const readyRef = useRef(ready);
+  const minHeld = useRef(false);
+  const exitStarted = useRef(false);
+  const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Run the slide-off exactly once, then hand control back to the host.
+  const startExit = useCallback(() => {
+    if (exitStarted.current) return;
+    exitStarted.current = true;
+    exitProgress.value = withTiming(1, {
+      duration: FADE_MS,
+      easing: Easing.bezier(0.32, 0.72, 0, 1),
+    });
+    // Unmount on the JS thread once the slide has finished. setTimeout is
+    // cleaner than runOnJS-from-worklet because state setters must run on JS,
+    // and it guarantees dismissal even if a frame drops during the slide.
+    exitTimer.current = setTimeout(onDone, FADE_MS);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     // Blooms are now provided by the persistent BreathingBackdrop in
     // _layout.tsx — they were already alive before this component
@@ -131,35 +168,29 @@ export function HandledSplash({ onDone }: Props) {
       sv.value = withDelay(900 + i * 80, withSpring(1, { damping: 15, stiffness: 120 }));
     });
 
-    // Hold the design on-screen, then SLIDE the splash off the top
-    // instead of fading. A slide keeps the splash fully opaque the
-    // entire time it's visible, so there's never a moment where the
-    // login's avatar can be seen "ghosting" behind a half-faded splash.
-    // The blooms underneath get revealed cleanly as the splash leaves.
-    const HOLD_MS = 5800;
-    // 1600ms with the iOS-style decel curve (0.32, 0.72, 0, 1) — a
-    // single long deceleration with no acceleration phase at the start
-    // and no abrupt slow-down at the end. The whole slide reads as
-    // ONE smooth gesture instead of "speed up then brake," which is
-    // what makes Easing.inOut feel jerky on long full-screen moves.
-    // This is the same curve UIKit's UIView.animate "ease out" uses
-    // for system transitions like sheet dismissals.
-    const FADE_MS = 1600;
-    exitProgress.value = withDelay(
-      HOLD_MS,
-      withTiming(1, {
-        duration: FADE_MS,
-        easing: Easing.bezier(0.32, 0.72, 0, 1),
-      }),
-    );
+    // The minimum on-screen hold (brand moment + time for the entry anims at
+    // t=900 to land) and a hard safety cap so the splash ALWAYS leaves even if
+    // `ready` somehow never flips true (e.g. a hung hydration).
+    const minTimer = setTimeout(() => {
+      minHeld.current = true;
+      if (readyRef.current) startExit();
+    }, MIN_HOLD_MS);
+    const maxTimer = setTimeout(startExit, MAX_HOLD_MS);
 
-    // Unmount on the JS thread once the fade has finished. A setTimeout is
-    // cleaner here than runOnJS-from-worklet because React state setters
-    // must run on JS — and we want a guaranteed dismissal even if a frame
-    // is dropped during the fade.
-    const handle = setTimeout(onDone, HOLD_MS + FADE_MS);
-    return () => clearTimeout(handle);
+    return () => {
+      clearTimeout(minTimer);
+      clearTimeout(maxTimer);
+      if (exitTimer.current) clearTimeout(exitTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Leave as soon as the app is actually ready — but never before the minimum
+  // hold has elapsed (the entry animation is still landing before then).
+  useEffect(() => {
+    readyRef.current = ready;
+    if (ready && minHeld.current) startExit();
+  }, [ready, startExit]);
 
   // ── Animated styles ─────────────────────────────────────────────────────
   // Shared-element transition: background (blooms + chips + headline) fades

@@ -16,7 +16,7 @@
  *     payment); offering it would record a misleading payment record
  *   - paid bills shouldn't show a mark-paid swipe
  */
-import React, { useRef } from "react";
+import React, { useCallback, useRef } from "react";
 import { Alert, Pressable, View } from "react-native";
 import ReanimatedSwipeable, { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
 import Animated, { SharedValue, useAnimatedStyle } from "react-native-reanimated";
@@ -25,7 +25,7 @@ import { Icon } from "@/components/Icon";
 import { Txt } from "@/components/ui";
 import type { Bill } from "@/constants/data";
 import { isPaidViaCard } from "@/constants/data";
-import { useJudith } from "@/contexts/JudithStore";
+import { useJudithActions } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { haptics } from "@/lib/haptics";
 import { useRouter } from "expo-router";
@@ -42,34 +42,38 @@ interface Props {
 export function BillRowSwipe({ bill, enableMarkPaid, children }: Props) {
   const t = useTheme();
   const router = useRouter();
-  const { togglePaid, deleteBill, snooze, showToast } = useJudith();
+  // Stable actions bag — never changes reference, so this component no longer
+  // re-renders on every unrelated store mutation (it used to read the full
+  // useJudith() value). It still re-renders when its parent does, which is
+  // expected for a per-row wrapper.
+  const { togglePaid, deleteBill, snooze, showToast } = useJudithActions();
   const swipeRef = useRef<SwipeableMethods | null>(null);
   // Always close the row after any action so the swipe state never lingers
   // (without this, a full-swipe leaves the row visually stuck in its open
   // position and blocks every subsequent tap + scroll on that row).
-  const closeRow = () => swipeRef.current?.close();
+  const closeRow = useCallback(() => swipeRef.current?.close(), []);
 
   const viaCard = isPaidViaCard(bill);
   const isPaid = bill.status === "paid";
   const allowMarkPaid = (enableMarkPaid ?? true) && !viaCard && !isPaid;
 
-  const onMarkPaid = () => {
+  const onMarkPaid = useCallback(() => {
     haptics.success();
     togglePaid(bill.id);
     closeRow();
-  };
-  const onEdit = () => {
+  }, [togglePaid, bill.id, closeRow]);
+  const onEdit = useCallback(() => {
     haptics.selection();
     closeRow();
     router.push(`/add-bill?id=${bill.id}`);
-  };
-  const onSnooze = () => {
+  }, [router, bill.id, closeRow]);
+  const onSnooze = useCallback(() => {
     haptics.light();
     snooze(bill.id, 1);
     showToast(`Snoozed ${bill.provider} 1 day`);
     closeRow();
-  };
-  const onDelete = () => {
+  }, [snooze, showToast, bill.id, bill.provider, closeRow]);
+  const onDelete = useCallback(() => {
     haptics.error();
     Alert.alert(
       "Delete this bill?",
@@ -88,7 +92,7 @@ export function BillRowSwipe({ bill, enableMarkPaid, children }: Props) {
         },
       ],
     );
-  };
+  }, [deleteBill, showToast, bill.id, bill.provider, closeRow]);
 
   const renderLeft = (_progress: SharedValue<number>, drag: SharedValue<number>) => {
     const aStyle = useAnimatedStyle(() => ({

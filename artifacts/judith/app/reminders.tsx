@@ -19,7 +19,7 @@ import {
 import { MOM_ENDEARMENT } from "@/constants/countries";
 import { currentCycleDue, dueClass, dueText, type Bill } from "@/constants/data";
 import type { PersonaId } from "@/constants/personas";
-import { useJudith } from "@/contexts/JudithStore";
+import { useJudith, useJudithSelect, useMoney } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { isPaidThisMonth } from "@/lib/currentCycle";
 import { safeBack } from "@/lib/navigation";
@@ -252,30 +252,39 @@ function LockNotification({ bill }: { bill: Bill | null }) {
 export default function RemindersModal() {
   const t = useTheme();
   const router = useRouter();
-  const { bills, money, toggles } = useJudith();
+  const bills = useJudithSelect((s) => s.bills);
+  const toggles = useJudithSelect((s) => s.toggles);
+  const money = useMoney();
   const [permStatus, setPermStatus] = React.useState<"granted" | "denied" | "undetermined">("undetermined");
-  const today = new Date();
+  const todayKey = new Date().toDateString();
 
   React.useEffect(() => {
     getPermissionStatus().then(setPermStatus).catch(() => {});
   }, []);
 
-  const list = bills
-    .map((b) => ({ ...b, ...currentCycleDue(b, today) }))
-    .filter((b) => !isPaidThisMonth(b, today))
-    .slice()
-    .sort((a, b) => a.dueDays - b.dueDays);
+  // Live-cycle map + sort + grouping, memoized so it only recomputes when the
+  // bills (or the calendar day) change — not on every render.
+  const { list, groups } = React.useMemo(() => {
+    const today = new Date();
+    const list = bills
+      .map((b) => ({ ...b, ...currentCycleDue(b, today) }))
+      .filter((b) => !isPaidThisMonth(b, today))
+      .slice()
+      .sort((a, b) => a.dueDays - b.dueDays);
+    /* group reminders by when Judith will nudge */
+    const groups = [
+      { label: "Coming up", items: list.filter((b) => b.dueDays <= 3) },
+      { label: "This week", items: list.filter((b) => b.dueDays > 3 && b.dueDays <= 7) },
+      { label: "Later this month", items: list.filter((b) => b.dueDays > 7) },
+    ].filter((g) => g.items.length);
+    return { list, groups };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bills, todayKey]);
+
   const hero = list[0] || null;
   const lead = 3; // days before — matches Settings default
   const remindersOn = toggles.dueReminders !== false;
   const notificationsBlocked = remindersOn && permStatus === "denied";
-
-  /* group reminders by when Judith will nudge */
-  const groups = [
-    { label: "Coming up", items: list.filter((b) => b.dueDays <= 3) },
-    { label: "This week", items: list.filter((b) => b.dueDays > 3 && b.dueDays <= 7) },
-    { label: "Later this month", items: list.filter((b) => b.dueDays > 7) },
-  ].filter((g) => g.items.length);
 
   const openBill = (b: Bill) => router.push(`/bill/${b.id}`);
 

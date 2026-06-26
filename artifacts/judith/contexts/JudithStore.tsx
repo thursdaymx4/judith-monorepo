@@ -250,6 +250,18 @@ export function useJudithSelect<T>(selector: (s: PersistShape) => T): T {
   return useSyncExternalStore(_subscribe, getSelected, getSelected);
 }
 
+/**
+ * Stable money-formatter bound to the user's currency. Subscribes only to the
+ * `currency` slice, so the returned function reference is stable until currency
+ * changes. Prefer this over destructuring `money` off `useJudith()` — the
+ * latter is recreated on every store mutation, which defeats memoization of any
+ * row component that receives `money` as a prop.
+ */
+export function useMoney(): (n: number) => string {
+  const currency = useJudithSelect((s) => s.currency);
+  return useMemo(() => (n: number) => formatMoney(n, currency), [currency]);
+}
+
 interface JudithStoreValue extends PersistShape {
   hydrated: boolean;
   country: Country;

@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Easing, Pressable, ScrollView, View } from "react-native";
 import Reanimated, { useSharedValue, useAnimatedStyle, withSpring as springTo } from "react-native-reanimated";
 import { Defs, LinearGradient as SvgGradient, Path, Stop, Svg } from "react-native-svg";
@@ -24,7 +24,7 @@ import {
 } from "@/components/ui";
 import { CAT_ICONS, currentCycleDue, dueClass, dueShort, isPaidViaCard, isPartialBill, partialPct, totalOwed, type Bill } from "@/constants/data";
 import { getCategoryLabel } from "@/constants/categoryLocale";
-import { useJudith } from "@/contexts/JudithStore";
+import { useJudithSelect, useMoney } from "@/contexts/JudithStore";
 import { useCountUp } from "@/hooks/useCountUp";
 import { haptics } from "@/lib/haptics";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
@@ -202,10 +202,22 @@ function StaggerRow({
   return <Animated.View style={[style, { opacity: op, transform: [{ translateY: ty }] }]}>{children}</Animated.View>;
 }
 
+/** Mono amount that counts up to its value, isolated so the per-frame count-up
+ *  setState only re-renders this small node — not the whole Home screen. */
+function CountUpMoney({
+  value, money, ...rest
+}: { value: number; money: (n: number) => string } & React.ComponentProps<typeof Mono>) {
+  const v = useCountUp(value);
+  return <Mono {...rest}>{money(Math.round(v))}</Mono>;
+}
+
 export default function HomeScreen() {
   const t = useTheme();
   const router = useRouter();
-  const { bills, persona, money, language } = useJudith();
+  const bills = useJudithSelect((s) => s.bills);
+  const persona = useJudithSelect((s) => s.persona);
+  const language = useJudithSelect((s) => s.language);
+  const money = useMoney();
   const reduce = useReducedMotion();
   const [sortBy, setSortBy] = useState<"dueDate" | "amount">("dueDate");
   const [filterCats, setFilterCats] = useState<Set<string>>(new Set());
@@ -213,101 +225,143 @@ export default function HomeScreen() {
   const [filterBiz, setFilterBiz] = useState<string | null>(null);
   const [overdueOnly, setOverdueOnly] = useState(false);
 
-  const todayDay = new Date().getDate();
-  const _today = new Date();
-  const currentPeriodKey = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, "0")}`;
-  // Use paymentHistory as source of truth — b.status advances to next month after paying,
-  // so it cannot tell us whether THIS month's bill was paid.
-  const isPaidThisMonth = (b: Bill): boolean => {
-    if ((b.paymentHistory ?? []).some((r) => r.period === currentPeriodKey && r.paid >= r.totalDue)) return true;
-    // Fallback for bills marked paid via markPaid() before it wrote paymentHistory:
-    // if status="paid" and amountPaid covers the full balance, treat as paid this month
-    // so it doesn't leak into the timeline showing ₱0.
-    return b.status === "paid" && (b.amountPaid ?? 0) >= totalOwed(b);
-  };
-  const amtPaidThisMonth = (b: Bill): number => {
-    const rec = (b.paymentHistory ?? []).find((r) => r.period === currentPeriodKey);
-    // Only count a history record as paid-toward-this-cycle when it's a SETTLED
-    // record (paid >= totalDue). A partial or rolled-over record (paid < totalDue)
-    // belongs to a prior, closed balance — its unpaid remainder lives in carryOver,
-    // so treating its `paid` as money on the current cycle wrongly zeroes the row
-    // (home showed ₱0 while the bill detail still showed the full amount due).
-    // The live in-progress partial for an unsettled cycle lives in b.amountPaid.
-    if (rec && rec.paid >= rec.totalDue) return rec.paid;
-    return b.amountPaid ?? 0;
-  };
-  const ccStatementToday = bills.filter(
-    (b) => b.cat === "Credit card" && b.statementDay === todayDay,
-  );
+  // Day-granularity key: lets the heavy derivation memo recompute when the
+  // calendar day rolls over (so dueDays stays correct across midnight) without
+  // busting on every render the way a raw `new Date()` would.
+  const todayKey = new Date().toDateString();
 
-  // dueDays/dueLabel on the stored bill are stale snapshots the store never
-  // refreshes; recompute them live (signed, so passed-but-unpaid bills stay
-  // negative/overdue) so the timeline matches the calendar.
-  const liveBills = bills.map((b) => ({ ...b, ...currentCycleDue(b, _today) }));
-  const due = liveBills
-    .filter((b) => !isPaidThisMonth(b))
-    .slice()
-    .sort((a, b) => a.dueDays - b.dueDays);
+  // The entire bill-derivation pipeline. Previously this ran inline on every
+  // render — and with two count-ups firing per-frame setState, it re-ran dozens
+  // of times in <1s. Memoized on the inputs that actually change it.
+  const d = useMemo(() => {
+    const _today = new Date();
+    const todayDay = _today.getDate();
+    const currentPeriodKey = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, "0")}`;
+    // Use paymentHistory as source of truth — b.status advances to next month after paying,
+    // so it cannot tell us whether THIS month's bill was paid.
+    const isPaidThisMonth = (b: Bill): boolean => {
+      if ((b.paymentHistory ?? []).some((r) => r.period === currentPeriodKey && r.paid >= r.totalDue)) return true;
+      // Fallback for bills marked paid via markPaid() before it wrote paymentHistory:
+      // if status="paid" and amountPaid covers the full balance, treat as paid this month
+      // so it doesn't leak into the timeline showing ₱0.
+      return b.status === "paid" && (b.amountPaid ?? 0) >= totalOwed(b);
+    };
+    const amtPaidThisMonth = (b: Bill): number => {
+      const rec = (b.paymentHistory ?? []).find((r) => r.period === currentPeriodKey);
+      // Only count a history record as paid-toward-this-cycle when it's a SETTLED
+      // record (paid >= totalDue). A partial or rolled-over record (paid < totalDue)
+      // belongs to a prior, closed balance — its unpaid remainder lives in carryOver,
+      // so treating its `paid` as money on the current cycle wrongly zeroes the row
+      // (home showed ₱0 while the bill detail still showed the full amount due).
+      // The live in-progress partial for an unsettled cycle lives in b.amountPaid.
+      if (rec && rec.paid >= rec.totalDue) return rec.paid;
+      return b.amountPaid ?? 0;
+    };
+    const ccStatementToday = bills.filter(
+      (b) => b.cat === "Credit card" && b.statementDay === todayDay,
+    );
 
-  const daysLeftInMonth = new Date(_today.getFullYear(), _today.getMonth() + 1, 0).getDate() - _today.getDate();
-  const timelineBills = due.filter((b) => b.dueDays <= daysLeftInMonth);
+    // Provider name per bill id — used by rows to label "via <card>" without an
+    // O(n) bills.find() per row (which made the timeline O(n²)).
+    const providerById = new Map(bills.map((b) => [b.id, b.provider] as const));
 
-  // Business filter — scope timeline to isBusiness before building cats / visible.
-  const hasBizBills = timelineBills.some((b) => b.isBusiness === true);
-  // Distinct named businesses across ALL bills — drives the per-business identifier
-  // on each row (only worth showing when the user juggles 2+ businesses).
-  const bizName = (b: Bill) => (b.businessName ?? "").trim();
-  const allBizNames = [...new Set(bills.filter((b) => b.isBusiness && bizName(b)).map(bizName))];
-  const hasMultipleBiz = allBizNames.length > 1;
-  // Businesses present in THIS month's timeline — drives the sub-filter chips.
-  const timelineBizNames = [
-    ...new Set(timelineBills.filter((b) => b.isBusiness && bizName(b)).map(bizName)),
-  ].sort((a, b) => a.localeCompare(b));
-  // Auto-heal a stale selection: if the chosen business no longer has bills this
-  // month (e.g. they were all paid) its chip disappears, so ignore the filter
-  // rather than silently showing an empty list with no way to clear it.
-  const effectiveBiz = filterBiz && timelineBizNames.includes(filterBiz) ? filterBiz : null;
-  const filteredTimeline = showBizOnly
-    ? timelineBills.filter(
-        (b) => b.isBusiness === true && (effectiveBiz === null || bizName(b) === effectiveBiz),
-      )
-    : timelineBills;
+    // dueDays/dueLabel on the stored bill are stale snapshots the store never
+    // refreshes; recompute them live (signed, so passed-but-unpaid bills stay
+    // negative/overdue) so the timeline matches the calendar.
+    const liveBills = bills.map((b) => ({ ...b, ...currentCycleDue(b, _today) }));
+    const due = liveBills
+      .filter((b) => !isPaidThisMonth(b))
+      .slice()
+      .sort((a, b) => a.dueDays - b.dueDays);
 
-  // Build unique category list ordered by count (most-billed first)
-  const catCounts: Record<string, number> = {};
-  filteredTimeline.forEach((b) => { catCounts[b.cat] = (catCounts[b.cat] ?? 0) + 1; });
-  const cats = Object.keys(catCounts).sort((a, b) => catCounts[b]! - catCounts[a]!);
-  const showFilters = cats.length > 1 || hasBizBills;
+    const daysLeftInMonth = new Date(_today.getFullYear(), _today.getMonth() + 1, 0).getDate() - _today.getDate();
+    const timelineBills = due.filter((b) => b.dueDays <= daysLeftInMonth);
 
-  // Remaining balance per bill (full amount minus any payment already made this period)
-  const remaining = (b: Bill) => Math.max(0, totalOwed(b) - amtPaidThisMonth(b));
-  // Money totals exclude bills auto-charged to a linked card — their cost is
-  // already in the card's statement, so counting both would double-count. They
-  // still appear in the timeline below, tagged "via card".
-  // Base the headline "due this month" figures on the CURRENT calendar month
-  // (timelineBills), NOT every unpaid bill — otherwise annual bills due in a
-  // later month inflate the total and it stops matching the Calendar screen's
-  // "Due in <month>" figure for the same period.
-  const payable = timelineBills.filter((b) => !isPaidViaCard(b));
-  const overdue = payable.filter((b) => b.dueDays < 0);
-  const overdueTotal = overdue.reduce((s, b) => s + remaining(b), 0);
+    // Business filter — scope timeline to isBusiness before building cats / visible.
+    const hasBizBills = timelineBills.some((b) => b.isBusiness === true);
+    // Distinct named businesses across ALL bills — drives the per-business identifier
+    // on each row (only worth showing when the user juggles 2+ businesses).
+    const bizName = (b: Bill) => (b.businessName ?? "").trim();
+    const allBizNames = [...new Set(bills.filter((b) => b.isBusiness && bizName(b)).map(bizName))];
+    const hasMultipleBiz = allBizNames.length > 1;
+    // Businesses present in THIS month's timeline — drives the sub-filter chips.
+    const timelineBizNames = [
+      ...new Set(timelineBills.filter((b) => b.isBusiness && bizName(b)).map(bizName)),
+    ].sort((a, b) => a.localeCompare(b));
+    // Auto-heal a stale selection: if the chosen business no longer has bills this
+    // month (e.g. they were all paid) its chip disappears, so ignore the filter
+    // rather than silently showing an empty list with no way to clear it.
+    const effectiveBiz = filterBiz && timelineBizNames.includes(filterBiz) ? filterBiz : null;
+    const filteredTimeline = showBizOnly
+      ? timelineBills.filter(
+          (b) => b.isBusiness === true && (effectiveBiz === null || bizName(b) === effectiveBiz),
+        )
+      : timelineBills;
 
-  // Apply active filter then chosen sort order
-  const visibleBase = overdueOnly
-    ? overdue
-    : filteredTimeline.filter((b) => filterCats.size === 0 || filterCats.has(b.cat));
-  const visible = visibleBase
-    .slice()
-    .sort((a, b) => sortBy === "amount" ? totalOwed(b) - totalOwed(a) : a.dueDays - b.dueDays);
-  // Total of the bills currently shown — surfaced as context text when a category filter is active.
-  // Excludes via-card bills (their cost is in the linked card's statement), matching every
-  // other money SUM in the app so the footer reconciles with the headline totals.
-  const catTotal = visible.filter((b) => !isPaidViaCard(b)).reduce((s, b) => s + remaining(b), 0);
+    // Build unique category list ordered by count (most-billed first)
+    const catCounts: Record<string, number> = {};
+    filteredTimeline.forEach((b) => { catCounts[b.cat] = (catCounts[b.cat] ?? 0) + 1; });
+    const cats = Object.keys(catCounts).sort((a, b) => catCounts[b]! - catCounts[a]!);
+    const showFilters = cats.length > 1 || hasBizBills;
 
-  const total = payable.reduce((s, b) => s + remaining(b), 0);
-  const week = payable.filter((b) => b.dueDays >= 0 && b.dueDays <= 7);
-  const weekSum = week.reduce((s, b) => s + remaining(b), 0);
-  const soon = payable.filter((b) => b.dueDays <= 3).length;
+    // Remaining balance per bill (full amount minus any payment already made this period)
+    const remaining = (b: Bill) => Math.max(0, totalOwed(b) - amtPaidThisMonth(b));
+    // Money totals exclude bills auto-charged to a linked card — their cost is
+    // already in the card's statement, so counting both would double-count. They
+    // still appear in the timeline below, tagged "via card".
+    // Base the headline "due this month" figures on the CURRENT calendar month
+    // (timelineBills), NOT every unpaid bill — otherwise annual bills due in a
+    // later month inflate the total and it stops matching the Calendar screen's
+    // "Due in <month>" figure for the same period.
+    const payable = timelineBills.filter((b) => !isPaidViaCard(b));
+    const overdue = payable.filter((b) => b.dueDays < 0);
+    const overdueTotal = overdue.reduce((s, b) => s + remaining(b), 0);
+
+    // Apply active filter then chosen sort order
+    const visibleBase = overdueOnly
+      ? overdue
+      : filteredTimeline.filter((b) => filterCats.size === 0 || filterCats.has(b.cat));
+    const visible = visibleBase
+      .slice()
+      .sort((a, b) => sortBy === "amount" ? totalOwed(b) - totalOwed(a) : a.dueDays - b.dueDays);
+    // Total of the bills currently shown — surfaced as context text when a category filter is active.
+    // Excludes via-card bills (their cost is in the linked card's statement), matching every
+    // other money SUM in the app so the footer reconciles with the headline totals.
+    const catTotal = visible.filter((b) => !isPaidViaCard(b)).reduce((s, b) => s + remaining(b), 0);
+
+    const total = payable.reduce((s, b) => s + remaining(b), 0);
+    const week = payable.filter((b) => b.dueDays >= 0 && b.dueDays <= 7);
+    const weekSum = week.reduce((s, b) => s + remaining(b), 0);
+    const soon = payable.filter((b) => b.dueDays <= 3).length;
+
+    // Paid-progress scoped to this month's bills only (same window as timelineBills).
+    // paid bills are excluded from `due` → not in timelineBills/payable, so source from liveBills.
+    const paid = liveBills.filter((b) => !isPaidViaCard(b) && isPaidThisMonth(b));
+    const unpaid = payable; // already non-via-card, unpaid, current-month scope
+    // paidAmt = fully paid bills + in-progress partial payments on unpaid bills
+    const paidAmt =
+      paid.reduce((s, b) => s + amtPaidThisMonth(b), 0) +
+      unpaid.reduce((s, b) => s + amtPaidThisMonth(b), 0);
+    // unpaidAmt is only the remaining balance, not the full original amount
+    const unpaidAmt = unpaid.reduce((s, b) => s + remaining(b), 0);
+    const grand = paidAmt + unpaidAmt;
+    const pct = grand > 0 ? Math.round((paidAmt / grand) * 100) : 0;
+
+    return {
+      ccStatementToday, providerById, timelineBills, hasBizBills, bizName,
+      hasMultipleBiz, timelineBizNames, effectiveBiz, cats, showFilters,
+      remaining, overdue, overdueTotal, visible, catTotal, total, week,
+      weekSum, soon, paid, unpaid, paidAmt, unpaidAmt, pct,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bills, sortBy, filterCats, showBizOnly, filterBiz, overdueOnly, todayKey]);
+
+  const {
+    ccStatementToday, providerById, timelineBills, hasBizBills, bizName,
+    hasMultipleBiz, timelineBizNames, effectiveBiz, cats, showFilters,
+    remaining, overdue, overdueTotal, visible, catTotal, total, week,
+    weekSum, soon, paid, unpaid, paidAmt, unpaidAmt, pct,
+  } = d;
 
   const openOverdue = () => {
     if (overdue.length === 1) { router.push(`/bill/${overdue[0]!.id}`); return; }
@@ -315,23 +369,6 @@ export default function HomeScreen() {
     setFilterCats(new Set());
     setOverdueOnly((v) => !v);
   };
-
-  // Paid-progress scoped to this month's bills only (same window as timelineBills).
-  // paid bills are excluded from `due` → not in timelineBills/payable, so source from liveBills.
-  const paid = liveBills.filter((b) => !isPaidViaCard(b) && isPaidThisMonth(b));
-  const unpaid = payable; // already non-via-card, unpaid, current-month scope
-  // paidAmt = fully paid bills + in-progress partial payments on unpaid bills
-  const paidAmt =
-    paid.reduce((s, b) => s + amtPaidThisMonth(b), 0) +
-    unpaid.reduce((s, b) => s + amtPaidThisMonth(b), 0);
-  // unpaidAmt is only the remaining balance, not the full original amount
-  const unpaidAmt = unpaid.reduce((s, b) => s + remaining(b), 0);
-  const grand = paidAmt + unpaidAmt;
-  const pct = grand > 0 ? Math.round((paidAmt / grand) * 100) : 0;
-
-
-  const totalA = useCountUp(total);
-  const weekA = useCountUp(weekSum);
 
   const openBill = (b: Bill) => router.push(`/bill/${b.id}`);
 
@@ -430,18 +467,14 @@ export default function HomeScreen() {
       {/* stat duo */}
       <Card style={{ flexDirection: "row", padding: 0, overflow: "hidden", marginBottom: 14 }}>
         <View style={{ flex: 1.3, paddingVertical: 14, paddingHorizontal: 15 }}>
-          <Mono size={24} weight="bold">
-            {money(Math.round(totalA))}
-          </Mono>
+          <CountUpMoney value={total} money={money} size={24} weight="bold" />
           <Low size={12} style={{ marginTop: 2 }}>
             due this month
           </Low>
         </View>
         <View style={{ width: 1, backgroundColor: t.hair }} />
         <View style={{ flex: 1, paddingVertical: 14, paddingHorizontal: 15 }}>
-          <Mono size={24} weight="bold" color={t.semantic.near}>
-            {money(Math.round(weekA))}
-          </Mono>
+          <CountUpMoney value={weekSum} money={money} size={24} weight="bold" color={t.semantic.near} />
           <Low size={12} style={{ marginTop: 2 }}>
             next 7 days
           </Low>
@@ -632,7 +665,7 @@ export default function HomeScreen() {
                           {isPaidViaCard(b) && (
                             <View style={{ flexDirection: "row", alignItems: "center", gap: 3, paddingVertical: 1, paddingHorizontal: 6, borderRadius: 8, backgroundColor: t.surface3 }}>
                               <Icon name="card" size={9} color={t.txtLow} />
-                              <Low size={10}>via {bills.find((c) => c.id === b.parentCardId)?.provider ?? "card"}</Low>
+                              <Low size={10}>via {providerById.get(b.parentCardId ?? "") ?? "card"}</Low>
                             </View>
                           )}
                           {b.isBusiness && (

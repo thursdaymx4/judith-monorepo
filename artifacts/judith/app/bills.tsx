@@ -1,11 +1,11 @@
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
 import { BillRow, Card, Chip, Low, Mono, Screen, SheetHeader } from "@/components/ui";
 import { currentCycleDue, type Bill } from "@/constants/data";
 import { getCategoryLabel } from "@/constants/categoryLocale";
-import { useJudith } from "@/contexts/JudithStore";
+import { useJudithSelect, useMoney } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { isPaidThisMonth, remainingThisMonth } from "@/lib/currentCycle";
 import { safeBack } from "@/lib/navigation";
@@ -15,36 +15,47 @@ type SortKey = "due" | "amount" | "name";
 export default function BillsModal() {
   const t = useTheme();
   const router = useRouter();
-  const { bills, money, language } = useJudith();
+  const bills = useJudithSelect((s) => s.bills);
+  const language = useJudithSelect((s) => s.language);
+  const money = useMoney();
   const [cat, setCat] = useState("All");
   const [prov, setProv] = useState("All");
   const [sort, setSort] = useState<SortKey>("due");
-  const today = new Date();
+  const todayKey = new Date().toDateString();
 
-  const cats = ["All", ...Array.from(new Set(bills.map((b) => b.cat)))];
-  const provsForCat = bills
-    .filter((b) => cat === "All" || b.cat === cat)
-    .map((b) => b.provider);
-  const provs = ["All", ...Array.from(new Set(provsForCat))];
+  // Filter + sort once per input change instead of on every render. Each branch
+  // here does date math (currentCycleDue / remainingThisMonth / isPaidThisMonth),
+  // and the sort comparator invokes it O(n log n) times — previously all inline.
+  const { cats, provs, list, total } = useMemo(() => {
+    const today = new Date();
+    const cats = ["All", ...Array.from(new Set(bills.map((b) => b.cat)))];
+    const provsForCat = bills
+      .filter((b) => cat === "All" || b.cat === cat)
+      .map((b) => b.provider);
+    const provs = ["All", ...Array.from(new Set(provsForCat))];
 
-  const billRemaining = (b: Bill) => remainingThisMonth(b, today);
-  const liveBills = bills.map((b) => ({ ...b, ...currentCycleDue(b, today) }));
+    const billRemaining = (b: Bill) => remainingThisMonth(b, today);
+    const liveBills = bills.map((b) => ({ ...b, ...currentCycleDue(b, today) }));
 
-  let list = liveBills.filter(
-    (b) => (cat === "All" || b.cat === cat) && (prov === "All" || b.provider === prov),
-  );
-  list = list.slice().sort((a, b) => {
-    if (sort === "amount") return billRemaining(b) - billRemaining(a);
-    if (sort === "name") return a.provider.localeCompare(b.provider);
-    // due: unpaid first by days, paid last
-    const aPaid = isPaidThisMonth(a, today);
-    const bPaid = isPaidThisMonth(b, today);
-    if (aPaid !== bPaid) return aPaid ? 1 : -1;
-    return a.dueDays - b.dueDays;
-  });
-  const total = list
-    .filter((b) => !isPaidThisMonth(b, today))
-    .reduce((s, b) => s + billRemaining(b), 0);
+    const list = liveBills
+      .filter((b) => (cat === "All" || b.cat === cat) && (prov === "All" || b.provider === prov))
+      .slice()
+      .sort((a, b) => {
+        if (sort === "amount") return billRemaining(b) - billRemaining(a);
+        if (sort === "name") return a.provider.localeCompare(b.provider);
+        // due: unpaid first by days, paid last
+        const aPaid = isPaidThisMonth(a, today);
+        const bPaid = isPaidThisMonth(b, today);
+        if (aPaid !== bPaid) return aPaid ? 1 : -1;
+        return a.dueDays - b.dueDays;
+      });
+    const total = list
+      .filter((b) => !isPaidThisMonth(b, today))
+      .reduce((s, b) => s + billRemaining(b), 0);
+    return { cats, provs, list, total };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bills, cat, prov, sort, todayKey]);
+
   const sorts: [SortKey, string][] = [
     ["due", "Due date"],
     ["amount", "Amount"],

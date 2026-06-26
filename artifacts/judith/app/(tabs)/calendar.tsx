@@ -1,6 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, View } from "react-native";
 import RA, { useSharedValue, useAnimatedStyle, withSpring, withTiming, withDelay } from "react-native-reanimated";
 
@@ -21,7 +21,8 @@ import {
   type Urgency,
 } from "@/components/ui";
 import { CAT_ICONS, ccOutstanding, ccProjectedFuture, dueClass, dueShort, isPaidViaCard, totalOwed, type Bill } from "@/constants/data";
-import { useJudith } from "@/contexts/JudithStore";
+import { countryByCode } from "@/constants/countries";
+import { useJudithSelect, useMoney } from "@/contexts/JudithStore";
 import { useTheme } from "@/hooks/useTheme";
 import { haptics } from "@/lib/haptics";
 
@@ -207,7 +208,11 @@ function NavBtn({ onPress, rotate }: { onPress: () => void; rotate?: boolean }) 
 export default function CalendarScreen() {
   const t = useTheme();
   const router = useRouter();
-  const { bills, persona, money, country } = useJudith();
+  const bills = useJudithSelect((s) => s.bills);
+  const persona = useJudithSelect((s) => s.persona);
+  const countryCode = useJudithSelect((s) => s.countryCode);
+  const country = useMemo(() => countryByCode(countryCode), [countryCode]);
+  const money = useMoney();
   const [sel, setSel] = useState<number | null>(null);
   const [monthOffset, setMonthOffset] = useState(0);
   const [sortBy, setSortBy] = useState<"dueDate" | "amount">("dueDate");
@@ -216,6 +221,7 @@ export default function CalendarScreen() {
   const [filterBiz, setFilterBiz] = useState<string | null>(null);
 
   const todayReal = new Date();
+  const todayKey = todayReal.toDateString();
   const viewDate = new Date(todayReal.getFullYear(), todayReal.getMonth() + monthOffset, 1);
   const monthIndex = viewDate.getMonth();
   const year = viewDate.getFullYear();
@@ -233,6 +239,16 @@ export default function CalendarScreen() {
   const viewedPeriodKey = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
   const openBill = (b: Bill) => router.push(`/bill/${b.id}?period=${viewedPeriodKey}`);
 
+  // Whole-month derivation, memoized. Previously every render (including a mere
+  // day-tap via setSel, which doesn't affect the agenda at all) re-ran the full
+  // billsForMonth filter, the O(n log n) sort whose comparator does date math,
+  // the byDay map, and the weekly bucketing. Keyed on the inputs that actually
+  // change the result — notably NOT `sel`.
+  const {
+    isPaidInPeriod, viewedAmt, viewedDueDays, agendaForMonth, hasBizBills,
+    monthBizNames, effectiveBiz, cats, showFilters, monthTotal, agenda,
+    visiblePaid, visibleTotal, byDay, weeks, maxW, thisWeekCount, ranges,
+  } = useMemo(() => {
   // Whether the bill was fully paid in the VIEWED period — read from paymentHistory so
   // the answer is correct even after togglePaid advances the natural period to next month.
   const isPaidInPeriod = (b: Bill): boolean =>
@@ -363,7 +379,6 @@ export default function CalendarScreen() {
     .sort((a, b) => sortBy === "amount" ? viewedAmt(b) - viewedAmt(a) : a.dueDate - b.dueDate);
   const visiblePaid = agendaPaid
     .filter((b) => (!showBizOnly || (b.isBusiness === true && (effectiveBiz === null || bizName(b) === effectiveBiz))) && (filterCats.size === 0 || filterCats.has(b.cat)));
-  const agenda = visibleAgenda;
   // Total of the unpaid bills currently shown — surfaced as footer context when a filter
   // is active. Excludes via-card bills (their cost is in the card's statement).
   const visibleTotal = visibleAgenda
@@ -404,6 +419,15 @@ export default function CalendarScreen() {
     const d = viewedDueDays(b);
     return d >= 0 && d <= 7;
   }).length;
+
+  return {
+    isPaidInPeriod, viewedAmt, viewedDueDays, agendaForMonth, hasBizBills,
+    monthBizNames, effectiveBiz, cats, showFilters, monthTotal,
+    agenda: visibleAgenda, visiblePaid, visibleTotal, byDay, weeks, maxW,
+    thisWeekCount, ranges,
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bills, monthOffset, sortBy, filterCats, showBizOnly, filterBiz, todayKey]);
 
   return (
     <Screen>
@@ -783,17 +807,26 @@ function CalBillRow({
   children: React.ReactNode;
 }) {
   const t = useTheme();
-  const { bills } = useJudith();
+  // Subscribe to just the bills slice; memoize the two whole-list derivations
+  // (card-name lookup + distinct named-business count) so they don't rebuild on
+  // every re-render of this row — only when the bills actually change.
+  const bills = useJudithSelect((s) => s.bills);
   const amt = displayAmt ?? bill.amount;
   const baseAmt = carryAmt && carryAmt > 0 ? amt - carryAmt : null;
-  const cardName = bills.find((c) => c.id === bill.parentCardId)?.provider ?? "card";
+  const cardName = useMemo(
+    () => bills.find((c) => c.id === bill.parentCardId)?.provider ?? "card",
+    [bills, bill.parentCardId],
+  );
   // Per-row business identifier — only worth showing when the user juggles 2+ named
   // businesses (otherwise the BIZ tag alone is enough).
   const bizLabel = (bill.businessName ?? "").trim();
-  const namedBiz = new Set(
-    bills.filter((b) => b.isBusiness && (b.businessName ?? "").trim()).map((b) => (b.businessName ?? "").trim()),
+  const namedBizCount = useMemo(
+    () => new Set(
+      bills.filter((b) => b.isBusiness && (b.businessName ?? "").trim()).map((b) => (b.businessName ?? "").trim()),
+    ).size,
+    [bills],
   );
-  const showBizName = !!bill.isBusiness && bizLabel.length > 0 && namedBiz.size > 1;
+  const showBizName = !!bill.isBusiness && bizLabel.length > 0 && namedBizCount > 1;
   return (
     <Pressable
       onPress={onPress}

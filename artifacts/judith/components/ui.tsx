@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon, type IconName } from "@/components/Icon";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { CAT_ICONS, dueClass, initials, isPartialBill, lookupProvider, partialPct, totalOwed } from "@/constants/data";
-import { useJudith } from "@/contexts/JudithStore";
+import { useJudith, useJudithSelect } from "@/contexts/JudithStore";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useTheme } from "@/hooks/useTheme";
 import type { Theme } from "@/constants/theme";
@@ -414,7 +414,9 @@ export function BillRow({
   money: (n: number) => string;
 }) {
   const t = useTheme();
-  const { bills } = useJudith();
+  // Subscribe only to the bills slice (not the whole store) so this row isn't
+  // re-rendered by unrelated state mutations.
+  const bills = useJudithSelect((s) => s.bills);
   const cardName = bills.find((c) => c.id === bill.parentCardId)?.provider ?? "card";
   // Funding-source badge: card uses parentCardId lookup; bank/wallet use the
   // bill's own fundingSourceName free-text; manual renders nothing.
