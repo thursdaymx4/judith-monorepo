@@ -76,16 +76,23 @@ const ANDROID_SPLASH_LOGO_XML = `<?xml version="1.0" encoding="utf-8"?>
 // from a configured splash image) — a PNG/WEBP + our XML of the same name would
 // be a duplicate-resource AAPT error.
 function ensureAndroidSplashLogo(resRoot) {
-  if (!fs.existsSync(resRoot)) return;
-  const hasLogo = fs
-    .readdirSync(resRoot)
-    .filter((d) => d.startsWith("drawable"))
-    .some((d) =>
-      fs
-        .readdirSync(path.join(resRoot, d))
-        .some((f) => /^splashscreen_logo\.(png|webp|jpg|jpeg|xml)$/i.test(f)),
-    );
-  if (hasLogo) return;
+  // If a REAL splashscreen_logo (png/webp/etc) already exists in any drawable*
+  // dir, don't add our xml — same-name resources are a duplicate AAPT error.
+  if (fs.existsSync(resRoot)) {
+    const hasLogo = fs
+      .readdirSync(resRoot, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && e.name.startsWith("drawable"))
+      .some((e) =>
+        fs
+          .readdirSync(path.join(resRoot, e.name))
+          .some((f) => /^splashscreen_logo\.(png|webp|jpg|jpeg|xml)$/i.test(f)),
+      );
+    if (hasLogo) return;
+  }
+  // Write unconditionally otherwise. `recursive` creates res/ + res/drawable/
+  // even on a clean prebuild where the dir tree may not exist yet when this
+  // mod runs — the previous `if (!existsSync(resRoot)) return` early-out is why
+  // clean builds (EAS) shipped without the drawable and failed resource linking.
   const baseDir = path.join(resRoot, "drawable");
   fs.mkdirSync(baseDir, { recursive: true });
   fs.writeFileSync(path.join(baseDir, "splashscreen_logo.xml"), ANDROID_SPLASH_LOGO_XML);
