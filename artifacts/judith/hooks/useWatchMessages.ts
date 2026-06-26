@@ -21,6 +21,7 @@
  * (Expo Go, Android, no paired watch).
  */
 import { useEffect, useRef } from "react";
+import { Platform } from "react-native";
 import { useJudith } from "@/contexts/JudithStore";
 import { askJudith, type JudithAction } from "@/lib/proxy";
 import {
@@ -202,6 +203,37 @@ export function useWatchMessages() {
       },
     ).catch(() => {});
 
+  // Dispatch a single Judith action against the local store. Hoisted to the hook
+  // body so BOTH the iOS Ask/replay path AND the Android Wear forwarding path use
+  // the same dispatcher (full action vocabulary stays in one place).
+  const applyJudithAction = (a: JudithAction | null | undefined) => {
+    if (!a) return;
+    if (a.type === "add_bill") {
+      const bill = makeBillFromAction(a);
+      saveBillRef.current(bill);
+    } else if (a.type === "mark_paid") {
+      if (a.id) markPaidRef.current(a.id);
+    } else if (a.type === "add_payment") {
+      if (a.id && a.amount > 0) payPartialRef.current(a.id, a.amount);
+    } else if (a.type === "update_amount") {
+      if (a.id && a.amount > 0) updateBillAmountRef.current(a.id, a.amount);
+    } else if (a.type === "update_bill") {
+      const existing = a.id ? billsRef.current.find((b) => b.id === a.id) : undefined;
+      if (existing) {
+        const updated = {
+          ...existing,
+          ...(typeof a.cat === "string" && a.cat ? { cat: a.cat } : {}),
+          ...(a.kind === "Fixed" || a.kind === "Variable" ? { kind: a.kind } : {}),
+          ...(typeof a.reminderDays === "number" ? { reminderDays: a.reminderDays } : {}),
+          ...(typeof a.isBusiness === "boolean" ? { isBusiness: a.isBusiness } : {}),
+          ...(typeof a.house === "string" && a.house ? { house: a.house } : {}),
+          ...(typeof a.chargedToCard === "boolean" ? { chargedToCard: a.chargedToCard } : {}),
+        };
+        saveBillRef.current(updated);
+      }
+    }
+  };
+
   useEffect(() => { billsRef.current = bills; }, [bills]);
   useEffect(() => { personaRef.current = persona; }, [persona]);
   useEffect(() => { currencyRef.current = currency; }, [currency]);
@@ -217,6 +249,51 @@ export function useWatchMessages() {
   useEffect(() => { updateBillAmountRef.current = updateBillAmount; }, [updateBillAmount]);
   useEffect(() => { saveBillRef.current = saveBill; }, [saveBill]);
 
+  // ── Android: Wear OS watch → phone action messages ──────────────────────
+  // The Wear app sends actions over the Data Layer. We apply them to the phone
+  // store so the change shows on the phone and re-syncs everywhere (a fresh
+  // snapshot upload included) — the Android analog of the iOS WCSession handlers.
+  //   {action:"markPaid", billId}        — manual mark-paid from the watch
+  //   {action:"applyActions", payload}   — JSON array of Judith actions from the
+  //                                        watch's voice /watch-ask reply (full
+  //                                        vocabulary: add_bill, add_payment,
+  //                                        update_amount, update_bill, mark_paid,
+  //                                        single or multiple)
+  //   {action:"refreshWatchPayload"}     — rebuild + re-upload a fresh snapshot
+  // Active while the app runs.
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    let sub: { remove: () => void } | null = null;
+    let cancelled = false;
+    (async () => {
+      const { addWatchMessageListener } = await import("judith-wear-bridge");
+      if (cancelled) return;
+      sub = addWatchMessageListener((msg) => {
+        if (msg.action === "markPaid" && msg.billId) {
+          markPaidRef.current(msg.billId);
+          return;
+        }
+        if (msg.action === "refreshWatchPayload") {
+          syncCurrentPayload();
+          return;
+        }
+        if (msg.action === "applyActions" && msg.payload) {
+          try {
+            const actions = JSON.parse(msg.payload) as JudithAction[];
+            if (Array.isArray(actions)) actions.forEach((a) => applyJudithAction(a));
+          } catch {
+            // Malformed payload — ignore rather than crash the listener.
+          }
+        }
+      });
+    })().catch(() => {});
+    return () => {
+      cancelled = true;
+      sub?.remove();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (!WatchConnectivity) return;
 
@@ -230,37 +307,6 @@ export function useWatchMessages() {
         };
       }
     ).watchEvents;
-
-    // Dispatch a single Judith action against the local store. Shared by the
-    // /ask multi-action loop and the watch's offline-queue replay path so
-    // both sites stay in sync as the action vocabulary grows.
-    const applyJudithAction = (a: JudithAction | null | undefined) => {
-      if (!a) return;
-      if (a.type === "add_bill") {
-        const bill = makeBillFromAction(a);
-        saveBillRef.current(bill);
-      } else if (a.type === "mark_paid") {
-        if (a.id) markPaidRef.current(a.id);
-      } else if (a.type === "add_payment") {
-        if (a.id && a.amount > 0) payPartialRef.current(a.id, a.amount);
-      } else if (a.type === "update_amount") {
-        if (a.id && a.amount > 0) updateBillAmountRef.current(a.id, a.amount);
-      } else if (a.type === "update_bill") {
-        const existing = a.id ? billsRef.current.find((b) => b.id === a.id) : undefined;
-        if (existing) {
-          const updated = {
-            ...existing,
-            ...(typeof a.cat === "string" && a.cat ? { cat: a.cat } : {}),
-            ...(a.kind === "Fixed" || a.kind === "Variable" ? { kind: a.kind } : {}),
-            ...(typeof a.reminderDays === "number" ? { reminderDays: a.reminderDays } : {}),
-            ...(typeof a.isBusiness === "boolean" ? { isBusiness: a.isBusiness } : {}),
-            ...(typeof a.house === "string" && a.house ? { house: a.house } : {}),
-            ...(typeof a.chargedToCard === "boolean" ? { chargedToCard: a.chargedToCard } : {}),
-          };
-          saveBillRef.current(updated);
-        }
-      }
-    };
 
     // ── Channel 1: sendMessage (phone foregrounded / reachable) ──────────────
     let messageSub: { remove?: () => void } | undefined;

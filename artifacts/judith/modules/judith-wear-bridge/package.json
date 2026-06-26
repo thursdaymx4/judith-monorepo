@@ -1,0 +1,9 @@
+{
+  "name": "judith-wear-bridge",
+  "version": "1.0.0",
+  "description": "Pushes the Judith bill payload + watch token to a paired Wear OS watch via the Wear Data Layer (the Android analog of WatchConnectivity).",
+  "main": "./index",
+  "peerDependencies": {
+    "expo-modules-core": "*"
+  }
+}
