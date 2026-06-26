@@ -11,30 +11,49 @@ android {
     defaultConfig {
         applicationId = "com.app.judith"
         minSdk = 30
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
     }
 
     signingConfigs {
         // Reuse the phone app's Expo debug keystore so both apps share one
-        // signing identity — REQUIRED for the Wear Data Layer to deliver the
-        // payload + token between phone and watch (and for Play to link them).
+        // signing identity in DEBUG — needed for the Wear Data Layer to deliver
+        // the payload + token between phone and watch during development.
         getByName("debug") {
             storeFile = file("debug.keystore")
             storePassword = "android"
             keyAlias = "androiddebugkey"
             keyPassword = "android"
         }
+        // RELEASE signing. The keystore is NOT committed — supply it at build
+        // time via ~/.gradle/gradle.properties or -P flags. It MUST be the same
+        // key as the phone app's Play upload key so the shared com.app.judith
+        // package links the two form factors in one Play app.
+        //   JUDITH_WEAR_STORE_FILE, JUDITH_WEAR_STORE_PASSWORD,
+        //   JUDITH_WEAR_KEY_ALIAS, JUDITH_WEAR_KEY_PASSWORD
+        create("release") {
+            val storePath = project.findProperty("JUDITH_WEAR_STORE_FILE") as String?
+            if (storePath != null) {
+                storeFile = file(storePath)
+                storePassword = project.findProperty("JUDITH_WEAR_STORE_PASSWORD") as String?
+                keyAlias = project.findProperty("JUDITH_WEAR_KEY_ALIAS") as String?
+                keyPassword = project.findProperty("JUDITH_WEAR_KEY_PASSWORD") as String?
+            }
+        }
     }
 
     buildTypes {
         release {
+            // Minify left OFF deliberately: the watch parses WatchPayload via
+            // Gson reflection, which R8 would break without careful keep rules.
+            // Enable later together with -keep rules for com.app.judith.wear.data.
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
