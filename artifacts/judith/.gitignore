@@ -40,3 +40,6 @@ yarn-error.*
 
 .env
 targets/*/generated.entitlements
+*.keystore
+upload_certificate.pem
+@thursdaymx4__judith.jks
