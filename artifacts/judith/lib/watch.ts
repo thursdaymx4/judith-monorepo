@@ -1,8 +1,10 @@
 /**
- * Apple Watch bill-sync.
+ * Watch / companion bill-sync.
  *
- * Pushes the current bill summary to a paired Apple Watch app via
- * WatchConnectivity's application context (latest-state delivery).
+ * Pushes the current bill summary to the shared backend snapshot
+ * (`/watch-snapshot`, read by every companion) and, on iOS, to a paired Apple
+ * Watch via WatchConnectivity's application context (latest-state delivery).
+ * On Android the snapshot upload is what feeds the standalone Wear OS app.
  *
  * The payload is JSON-stringified and sent under the `judith_payload_v2` key
  * so the Swift side can decode it cleanly with JSONDecoder.
@@ -12,7 +14,7 @@
  * anywhere.
  */
 import { Platform } from "react-native";
-import { currentCycleDue, isPaidViaCard, type Bill } from "@/constants/data";
+import { currentCycleDue, dueClass, isPaidViaCard, type Bill } from "@/constants/data";
 import type { PersonaId } from "@/constants/personas";
 import { amountPaidThisMonth, isPaidThisMonth, remainingThisMonth } from "@/lib/currentCycle";
 import { buildAskBills } from "@/lib/buildAskBills";
@@ -45,6 +47,21 @@ export interface UpcomingBill {
   optimisticTotalOwedDelta: number;
   /** Optimistic watch-side delta to apply to the payable bill count after mark paid. */
   optimisticUnpaidCountDelta: number;
+}
+
+/** One bill's marker on the current-month calendar grid (widget + watch
+ *  calendar surfaces). Consumers collapse these by `day`, taking the most
+ *  urgent unpaid, non-via-card entry to colour the cell — mirroring the in-app
+ *  calendar heat dots (app/(tabs)/calendar.tsx). */
+export interface DayMarker {
+  /** Day-of-month (1-31), clamped to the month length. */
+  day: number;
+  /** Urgency bucket from dueClass() — overdue/urgent/near/ok. */
+  urgency: "overdue" | "urgent" | "near" | "ok";
+  /** Settled this month (paymentHistory) — rendered neutral, no urgency. */
+  paid: boolean;
+  /** Auto-charged to a linked card — neutral dot (cost lives on the card). */
+  viaCard: boolean;
 }
 
 export interface WatchPayload {
@@ -82,6 +99,9 @@ export interface WatchPayload {
    *  /watch-ask + /watch-stt until the user has consented on the paired
    *  phone. Apple Guideline 5.1.1(i) / 5.1.2(i). */
   aiConsented: boolean;
+  /** Per-bill markers for the CURRENT month, for the calendar widget + watch
+   *  calendar screen. Additive/optional — older decoders ignore it. */
+  monthDueDays: DayMarker[];
 }
 
 export interface WatchSnapshotContext {
@@ -157,6 +177,37 @@ function buildPayload(
     .filter((b) => b.dueDays >= 0 && b.dueDays <= 7)
     .reduce((sum, b) => sum + remainingThisMonth(b, today), 0);
 
+  // Per-bill markers for the CURRENT month's calendar grid. Mirrors the in-app
+  // calendar's billsForMonth + byDay/urgency logic (app/(tabs)/calendar.tsx):
+  // day-of-month is the bill's stored dueDate (clamped); urgency is dueClass on
+  // signed days-to-that-day; paid/viaCard let consumers render neutral dots.
+  const calYear = today.getFullYear();
+  const calMonth = today.getMonth();
+  const dim = daysInMonth(calYear, calMonth);
+  const todayDate = today.getDate();
+  const currentPeriodKey = `${calYear}-${String(calMonth + 1).padStart(2, "0")}`;
+  const monthDueDays: DayMarker[] = bills
+    .filter((b) => {
+      // Never show a bill before the month it was first recorded.
+      if (b.createdAt && currentPeriodKey < b.createdAt.slice(0, 7)) return false;
+      // Single-date cadences only appear in the month their due date falls.
+      if (b.frequency === "annual" || b.frequency === "once") {
+        const nd = new Date(calYear, calMonth, todayDate);
+        nd.setDate(nd.getDate() + currentCycleDue(b, today).dueDays);
+        return nd.getFullYear() === calYear && nd.getMonth() === calMonth;
+      }
+      return true; // monthly → present every month from creation onward
+    })
+    .map((b) => {
+      const day = Math.min(b.dueDate, dim);
+      return {
+        day,
+        urgency: dueClass(day - todayDate),
+        paid: isPaidThisMonth(b, today),
+        viaCard: isPaidViaCard(b),
+      };
+    });
+
   return {
     generatedAt: new Date().toISOString(),
     currency,
@@ -187,6 +238,7 @@ function buildPayload(
     overdueTotal,
     next7Total,
     aiConsented,
+    monthDueDays,
   };
 }
 
@@ -248,12 +300,19 @@ async function uploadWatchSnapshot(
 // ─── Push to Watch ─────────────────────────────────────────────────────────────
 
 /**
- * Push bill summary to the widget and optionally to a paired Apple Watch.
+ * Push bill summary to the shared backend snapshot and, on iOS, to the
+ * homescreen widget and a paired Apple Watch.
+ *
+ * On **Android** this uploads the same snapshot to `/watch-snapshot` so the
+ * standalone Wear OS app (and a future Android widget) read identical data via
+ * `/watch-summary`. There is no device-to-device bridge on Android — the Wear
+ * app signs in independently and provisions its own watch token — so we skip
+ * the iOS-only widget write + WatchConnectivity push here.
  *
  * @param watchEnabled - When false, only the widget is updated (Watch sync
  *   is skipped). Always pass `toggles.watch` from the store.
  *
- * Safe to call on Android (no-ops) and in Expo Go (stub).
+ * Safe to call in Expo Go (stub) and on Android.
  */
 export async function syncBillsToWatch(
   bills: Bill[],
@@ -262,7 +321,7 @@ export async function syncBillsToWatch(
   watchEnabled = true,
   context?: WatchSnapshotContext,
 ): Promise<void> {
-  if (Platform.OS !== "ios") return;
+  if (Platform.OS !== "ios" && Platform.OS !== "android") return;
 
   // Read the phone's consent flag synchronously from AsyncStorage and
   // propagate it on the payload — the watch needs it to gate /watch-ask
@@ -271,6 +330,30 @@ export async function syncBillsToWatch(
   const aiConsented = await hasAiConsented();
   const payload     = buildPayload(bills, persona, currency, aiConsented);
   const payloadJson = JSON.stringify(payload);
+
+  // ── Android: backend snapshot + Wear Data Layer hand-off ─────────────────
+  // The Wear OS watch has no built-in bridge, so the phone hands it a payload
+  // and a server-signed watch token over the Wear Data Layer (mirroring the
+  // iOS WatchConnectivity path below). The token lets the standalone Wear app
+  // refresh via /watch-summary and run Ask / Mark-paid; the snapshot upload
+  // backs that /watch-summary pull. pushToWatch no-ops when no watch is paired.
+  if (Platform.OS === "android") {
+    // Home-screen widget: cache the payload + refresh the AppWidgetProvider.
+    // Independent of the Watch toggle / pairing, same as the iOS widget write
+    // below — the widget should update whenever bills change.
+    writeWidgetPayload(payloadJson);
+
+    const [watchToken] = await Promise.all([
+      provisionWatchToken(),
+      uploadWatchSnapshot(payload, bills, persona, currency, context),
+    ]);
+    if (watchEnabled) {
+      const { pushToWatch } = await import("judith-wear-bridge");
+      await pushToWatch(payloadJson, watchToken);
+    }
+    return;
+  }
+
   const [watchToken] = await Promise.all([
     provisionWatchToken(),
     uploadWatchSnapshot(payload, bills, persona, currency, context),

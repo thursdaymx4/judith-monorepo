@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Accent-tinted rounded tile holding the next provider's initial — mirrors
+     the app's ProviderLogo fallback. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+  <solid android:color="#2329D5A5" />
+  <corners android:radius="10dp" />
+</shape>

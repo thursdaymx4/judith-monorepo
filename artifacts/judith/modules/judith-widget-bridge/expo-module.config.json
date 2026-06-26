@@ -1,7 +1,10 @@
 {
-  "platforms": ["ios"],
+  "platforms": ["ios", "android"],
   "ios": {
     "modules": ["JudithWidgetBridgeModule"],
     "appDelegateSubscribers": ["JudithWidgetBridgeAppDelegate"]
+  },
+  "android": {
+    "modules": ["expo.modules.judithwidgetbridge.JudithWidgetBridgeModule"]
   }
 }

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The widget receiver is declared here in the local Expo module's library
+  manifest. Android's manifest merger folds it into the host app's
+  (com.app.judith) manifest at build time, so the widget appears in the OS
+  widget picker without a config plugin touching the generated app manifest.
+
+  The provider class + the @xml/@layout resources it references live in this
+  same module (android/src/main/java + android/src/main/res); library resource
+  merging makes them resolvable from the merged app package.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application>
+    <receiver
+      android:name="expo.modules.judithwidgetbridge.JudithWidgetProvider"
+      android:exported="false"
+      android:label="Judith">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/judith_widget_info" />
+    </receiver>
+    <receiver
+      android:name="expo.modules.judithwidgetbridge.JudithCalendarWidgetProvider"
+      android:exported="false"
+      android:label="Judith Calendar">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data
+        android:name="android.appwidget.provider"
+        android:resource="@xml/judith_calendar_widget_info" />
+    </receiver>
+  </application>
+</manifest>

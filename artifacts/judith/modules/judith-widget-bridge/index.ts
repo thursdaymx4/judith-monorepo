@@ -78,6 +78,9 @@ let _bridge: Bridge | null = null;
 
 function getBridge(): Bridge | null {
   if (_bridge !== null) return _bridge;
+  // iOS-only surface (FinanceKit / FoundationModels / App-Intents / auto-pay).
+  // Android implements only writePayload — see getAndroidBridge below — so the
+  // rest stay JS no-ops on Android via this null.
   if (Platform.OS !== "ios") return null;
   try {
     // requireOptionalNativeModule returns null (not throws) when the native
@@ -95,11 +98,41 @@ function getBridge(): Bridge | null {
   return _bridge;
 }
 
+// Android home-screen widget bridge. The native module (registered under the
+// same name "JudithWidgetBridge") only implements writePayload — it caches the
+// payload to SharedPreferences and refreshes the AppWidgetProvider. Resolved
+// separately from getBridge() so the iOS-only functions above remain no-ops.
+let _androidBridge: Pick<Bridge, "writePayload"> | null = null;
+function getAndroidBridge(): Pick<Bridge, "writePayload"> | null {
+  if (_androidBridge !== null) return _androidBridge;
+  if (Platform.OS !== "android") return null;
+  try {
+    const { requireOptionalNativeModule } = require("expo-modules-core") as {
+      requireOptionalNativeModule: (name: string) => Pick<Bridge, "writePayload"> | null;
+    };
+    _androidBridge =
+      requireOptionalNativeModule("JudithWidgetBridge") ??
+      (NativeModules.JudithWidgetBridge as Pick<Bridge, "writePayload"> | undefined) ??
+      null;
+  } catch {
+    _androidBridge = (NativeModules.JudithWidgetBridge as Pick<Bridge, "writePayload"> | undefined) ?? null;
+  }
+  return _androidBridge;
+}
+
 /**
- * Write the WatchPayload JSON string to the shared App Group and reload widget
- * timelines. Pass the same payload JSON used for WatchConnectivity sync.
+ * Write the WatchPayload JSON string to the shared widget store and refresh the
+ * home-screen widgets. Pass the same payload JSON used for the Watch sync.
+ *
+ * iOS  → App Group UserDefaults + WidgetCenter.reloadAllTimelines().
+ * Android → SharedPreferences + AppWidgetManager update (see Android module).
+ * Other (Expo Go) → no-op.
  */
 export function writePayload(json: string): void {
+  if (Platform.OS === "android") {
+    getAndroidBridge()?.writePayload?.(json);
+    return;
+  }
   getBridge()?.writePayload(json);
 }
 
