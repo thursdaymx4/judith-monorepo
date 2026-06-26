@@ -254,6 +254,17 @@ class BillStore(app: Application) : AndroidViewModel(app) {
     suspend fun requestPhoneRefresh(): Boolean =
         sendMessageToPhone(JSONObject().apply { put("action", "refreshWatchPayload") })
 
+    /**
+     * Fire-and-forget version for lifecycle callbacks: on every watch resume, ask
+     * the phone to re-push a fresh payload (Data Layer) AND re-upload a fresh
+     * server snapshot. Combined with refresh()'s generatedAt guard, this keeps
+     * the face/Up-Next total current and prevents a stale /watch-summary from
+     * reappearing after unlock.
+     */
+    fun requestPhoneRefreshNow() {
+        viewModelScope.launch { runCatching { requestPhoneRefresh() } }
+    }
+
     /** Deliver one Data Layer message to every connected phone node. */
     private suspend fun sendMessageToPhone(obj: JSONObject): Boolean =
         withContext(Dispatchers.IO) {

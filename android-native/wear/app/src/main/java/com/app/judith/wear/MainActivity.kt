@@ -49,6 +49,9 @@ fun JudithApp(store: BillStore = viewModel()) {
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         store.reloadFromPrefs()
         store.syncFromDataLayer()
+        // Ask the phone to re-push fresh data (face + backend snapshot) so the
+        // Up Next total can't get stuck on a stale value after unlock.
+        store.requestPhoneRefreshNow()
         if (store.token.value != null) store.refresh()
     }
 
