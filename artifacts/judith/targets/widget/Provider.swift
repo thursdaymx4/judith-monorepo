@@ -10,6 +10,7 @@ struct JudithEntry: TimelineEntry {
     let upcomingBills: [UpcomingBill]   // for Medium / Large families
     let unpaidCount: Int
     let totalOwed: Double
+    let calendarMonth: String?
     let calendarMonthLabel: String
     let calendarMonthTotal: Double
     let calendarThisWeekCount: Int
@@ -38,6 +39,7 @@ struct JudithEntry: TimelineEntry {
         ],
         unpaidCount: 3,
         totalOwed: 4_348,
+        calendarMonth: "2026-06",
         calendarMonthLabel: "June 2026",
         calendarMonthTotal: 4_348,
         calendarThisWeekCount: 1,
@@ -124,6 +126,7 @@ struct JudithProvider: TimelineProvider {
         let totalOwed   = payload?.totalOwed    ?? 0
         let bills       = payload?.upcomingBills ?? []
         let nextBill    = bills.first
+        let calendarMonth = payload?.calendarMonth
         let calendarMonthLabel = payload?.calendarMonthLabel ?? "This month"
         let calendarMonthTotal = payload?.calendarMonthTotal ?? totalOwed
         let calendarThisWeekCount = payload?.calendarThisWeekCount ?? 0
@@ -144,6 +147,7 @@ struct JudithProvider: TimelineProvider {
             upcomingBills: bills,
             unpaidCount:   unpaidCount,
             totalOwed:     totalOwed,
+            calendarMonth: calendarMonth,
             calendarMonthLabel: calendarMonthLabel,
             calendarMonthTotal: calendarMonthTotal,
             calendarThisWeekCount: calendarThisWeekCount,

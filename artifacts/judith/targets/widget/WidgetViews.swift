@@ -326,19 +326,17 @@ private struct CalendarSmallView: View {
 
     var body: some View {
         ZStack {
-            WidgetCardBackground()
-            VStack(alignment: .leading, spacing: 8) {
+            CalendarWidgetBackground()
+            VStack(alignment: .leading, spacing: 9) {
                 CalendarHeader(entry: entry, compact: true)
                 Text(fullAmount(entry.calendarMonthTotal, currency: entry.currency))
-                    .font(.system(size: 25, weight: .black, design: .monospaced))
+                    .font(.system(size: 26, weight: .black, design: .monospaced))
                     .foregroundStyle(Color.judithAccent)
                     .lineLimit(1)
                     .minimumScaleFactor(0.68)
-                Text("\(entry.calendarThisWeekCount) this week")
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Color.txtMid)
-                CalendarDayStrip(days: Array(entry.calendarDays.prefix(4)))
+                CalendarBubbleStrip(entry: entry, limit: 4)
                 Spacer(minLength: 0)
+                CalendarLegendInline()
             }
             .padding(14)
         }
@@ -350,7 +348,7 @@ private struct CalendarMediumView: View {
 
     var body: some View {
         ZStack {
-            WidgetCardBackground()
+            CalendarWidgetBackground()
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .top) {
                     CalendarHeader(entry: entry, compact: false)
@@ -366,8 +364,8 @@ private struct CalendarMediumView: View {
                             .foregroundStyle(Color.txtLow)
                     }
                 }
-                CalendarWeekBars(weeks: entry.calendarWeeks, currency: entry.currency, height: 38)
-                CalendarDayStrip(days: Array(entry.calendarDays.prefix(6)))
+                CalendarBubbleStrip(entry: entry, limit: 7)
+                CalendarLegendInline()
                 Spacer(minLength: 0)
             }
             .padding(14)
@@ -380,7 +378,7 @@ private struct CalendarLargeView: View {
 
     var body: some View {
         ZStack {
-            WidgetCardBackground()
+            CalendarWidgetBackground()
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top) {
                     CalendarHeader(entry: entry, compact: false)
@@ -396,8 +394,8 @@ private struct CalendarLargeView: View {
                             .foregroundStyle(Color.txtMid)
                     }
                 }
-                CalendarWeekBars(weeks: entry.calendarWeeks, currency: entry.currency, height: 70)
-                CalendarDayGrid(days: Array(entry.calendarDays.prefix(12)))
+                CalendarMonthGrid(entry: entry)
+                CalendarLegendInline()
                 Spacer(minLength: 0)
             }
             .padding(16)
@@ -426,82 +424,182 @@ private struct CalendarHeader: View {
     }
 }
 
-private struct CalendarWeekBars: View {
-    let weeks: [CalendarWeekSummary]
-    let currency: String
-    let height: CGFloat
-
-    private var maxAmount: Double { max(1, weeks.map(\.amount).max() ?? 1) }
-
+private struct CalendarWidgetBackground: View {
     var body: some View {
-        HStack(alignment: .bottom, spacing: 6) {
-            ForEach(weeks) { week in
-                VStack(spacing: 4) {
-                    Text(week.amount > 0 ? compactAmount(week.amount, currency: currency) : "-")
-                        .font(.system(size: 8, weight: .bold, design: .monospaced))
-                        .foregroundStyle(week.amount > 0 ? Color.txtHi : Color.txtLow)
-                        .lineLimit(1)
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .fill(week.amount > 0 ? Color.judithAccent : Color.surface1)
-                        .frame(height: max(7, CGFloat(week.amount / maxAmount) * height))
-                    Text(week.label)
-                        .font(.system(size: 8, weight: .semibold, design: .rounded))
-                        .foregroundStyle(Color.txtLow)
-                        .lineLimit(1)
-                }
-                .frame(maxWidth: .infinity)
-            }
-        }
-        .frame(minHeight: height + 30, alignment: .bottom)
+        RoundedRectangle(cornerRadius: 22, style: .continuous)
+            .fill(
+                LinearGradient(
+                    colors: [Color(hex: "#171a22"), Color(hex: "#20242e")],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.06), lineWidth: 1)
+            )
     }
 }
 
-private struct CalendarDayStrip: View {
-    let days: [CalendarDaySummary]
+private struct CalendarBubbleStrip: View {
+    let entry: JudithEntry
+    let limit: Int
 
     var body: some View {
-        HStack(spacing: 6) {
-            ForEach(days) { day in
-                CalendarDayChip(day: day)
+        HStack(alignment: .center, spacing: 7) {
+            ForEach(Array(entry.calendarDays.prefix(limit))) { day in
+                CalendarAmountBubble(
+                    day: day,
+                    currency: entry.currency,
+                    maxAmount: maxDayAmount(entry.calendarDays),
+                    compact: true
+                )
             }
             Spacer(minLength: 0)
         }
     }
 }
 
-private struct CalendarDayGrid: View {
-    let days: [CalendarDaySummary]
+private struct CalendarMonthGrid: View {
+    let entry: JudithEntry
+
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
+    private let weekdays = ["S", "M", "T", "W", "T", "F", "S"]
+
+    private var daysByNumber: [Int: CalendarDaySummary] {
+        Dictionary(uniqueKeysWithValues: entry.calendarDays.map { ($0.day, $0) })
+    }
+
+    private var monthStart: Date? {
+        guard let key = entry.calendarMonth else { return Date() }
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: "\(key)-01")
+    }
+
+    private var daysInMonth: Int {
+        guard let monthStart else { return 31 }
+        return Calendar.current.range(of: .day, in: .month, for: monthStart)?.count ?? 31
+    }
+
+    private var firstWeekday: Int {
+        guard let monthStart else { return 0 }
+        return Calendar.current.component(.weekday, from: monthStart) - 1
+    }
+
+    private var cells: [Int?] {
+        var result: [Int?] = Array(repeating: nil, count: firstWeekday)
+        result.append(contentsOf: (1...daysInMonth).map { Optional($0) })
+        while result.count % 7 != 0 { result.append(nil) }
+        return result
+    }
 
     var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 4), spacing: 6) {
-            ForEach(days) { day in
-                CalendarDayChip(day: day)
+        VStack(spacing: 4) {
+            HStack(spacing: 4) {
+                ForEach(Array(weekdays.enumerated()), id: \.offset) { _, weekday in
+                    Text(weekday)
+                        .font(.system(size: 8, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color.txtLow)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            LazyVGrid(columns: columns, spacing: 3) {
+                ForEach(Array(cells.enumerated()), id: \.offset) { _, day in
+                    if let day {
+                        CalendarAmountBubble(
+                            day: daysByNumber[day],
+                            fallbackDay: day,
+                            currency: entry.currency,
+                            maxAmount: maxDayAmount(entry.calendarDays),
+                            compact: false
+                        )
+                    } else {
+                        Color.clear.frame(height: 33)
+                    }
+                }
             }
         }
     }
 }
 
-private struct CalendarDayChip: View {
-    let day: CalendarDaySummary
+private struct CalendarAmountBubble: View {
+    let day: CalendarDaySummary?
+    var fallbackDay: Int? = nil
+    let currency: String
+    let maxAmount: Double
+    let compact: Bool
+
+    private var displayDay: Int {
+        day?.day ?? fallbackDay ?? 0
+    }
+
+    private var bubbleSize: CGFloat {
+        guard let day, day.dueCount > 0 else { return day?.paidCount ?? 0 > 0 ? 22 : 0 }
+        let maxSize: CGFloat = compact ? 40 : 32
+        let minSize: CGFloat = compact ? 24 : 14
+        return minSize + CGFloat(day.amount / maxAmount) * (maxSize - minSize)
+    }
+
+    private var amountText: String {
+        guard let day, day.amount > 0 else { return "" }
+        return compactAmount(day.amount, currency: currency)
+    }
 
     var body: some View {
-        VStack(spacing: 2) {
-            Text("\(day.day)")
-                .font(.system(size: 13, weight: .black, design: .rounded))
-                .foregroundStyle(Color.txtHi)
-            Text(day.dueCount > 0 ? "\(day.dueCount)" : "paid")
-                .font(.system(size: 8, weight: .bold, design: .rounded))
-                .foregroundStyle(day.dueCount > 0 ? day.urgency.color : Color.txtLow)
-                .lineLimit(1)
+        ZStack {
+            if let day, day.dueCount > 0 {
+                Circle()
+                    .fill(day.urgency.color.opacity(0.88))
+                    .frame(width: bubbleSize, height: bubbleSize)
+                    .shadow(color: day.urgency.color.opacity(compact ? 0.35 : 0.2), radius: compact ? 6 : 3)
+            } else if day?.paidCount ?? 0 > 0 {
+                Circle()
+                    .stroke(Color.txtLow.opacity(0.35), lineWidth: 1)
+                    .frame(width: bubbleSize, height: bubbleSize)
+            }
+
+            VStack(spacing: compact ? 1 : 0) {
+                Text(amountText)
+                    .font(.system(size: compact ? 8 : 6, weight: .bold, design: .monospaced))
+                    .foregroundStyle(Color.txtHi)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.55)
+                    .frame(height: compact ? 10 : 7)
+                Text("\(displayDay)")
+                    .font(.system(size: compact ? 15 : 9, weight: day == nil ? .medium : .black, design: .rounded))
+                    .foregroundStyle(day == nil ? Color.txtLow.opacity(0.55) : Color.txtHi)
+                    .frame(height: compact ? 18 : 11)
+            }
         }
-        .frame(minWidth: 34, minHeight: 36)
-        .padding(.horizontal, 4)
-        .background(Color.surface1.opacity(0.92))
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(day.dueCount > 0 ? day.urgency.color.opacity(0.75) : Color.txtLow.opacity(0.25), lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .frame(height: compact ? 48 : 33)
+        .frame(maxWidth: .infinity)
+    }
+}
+
+private struct CalendarLegendInline: View {
+    var body: some View {
+        HStack(spacing: 10) {
+            CalendarLegendItem(color: Color.judithUrgent, label: "soon")
+            CalendarLegendItem(color: Color.judithNear, label: "week")
+            CalendarLegendItem(color: Color.judithOK, label: "later")
+        }
+    }
+}
+
+private struct CalendarLegendItem: View {
+    let color: Color
+    let label: String
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Circle().fill(color).frame(width: 6, height: 6)
+            Text(label)
+                .font(.system(size: 8, weight: .bold, design: .rounded))
+                .foregroundStyle(Color.txtLow)
+        }
     }
 }
 
@@ -909,6 +1007,10 @@ private struct StatChip: View {
                 .fill(Color.surface1.opacity(0.92))
         )
     }
+}
+
+private func maxDayAmount(_ days: [CalendarDaySummary]) -> Double {
+    max(1, days.map(\.amount).max() ?? 1)
 }
 
 private func compactAmount(_ amount: Double, currency: String) -> String {

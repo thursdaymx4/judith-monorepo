@@ -5,8 +5,41 @@ import SwiftUI
 struct CalendarView: View {
     @EnvironmentObject var store: WatchStore
 
-    private var maxWeekAmount: Double {
-        max(1, store.calendarWeeks.map(\.amount).max() ?? 1)
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 3), count: 7)
+    private let weekdays = ["S", "M", "T", "W", "T", "F", "S"]
+
+    private var daysByNumber: [Int: CalendarDaySummary] {
+        Dictionary(uniqueKeysWithValues: store.calendarDays.map { ($0.day, $0) })
+    }
+
+    private var monthGrid: [Int?] {
+        var cells: [Int?] = Array(repeating: nil, count: firstWeekday)
+        cells.append(contentsOf: (1...daysInMonth).map { Optional($0) })
+        while cells.count % 7 != 0 { cells.append(nil) }
+        return cells
+    }
+
+    private var daysInMonth: Int {
+        guard let date = monthStart else { return 31 }
+        return Calendar.current.range(of: .day, in: .month, for: date)?.count ?? 31
+    }
+
+    private var firstWeekday: Int {
+        guard let date = monthStart else { return 0 }
+        return Calendar.current.component(.weekday, from: date) - 1
+    }
+
+    private var monthStart: Date? {
+        guard let key = store.payload?.calendarMonth else { return Date() }
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: "\(key)-01")
+    }
+
+    private var maxDayAmount: Double {
+        max(1, store.calendarDays.map(\.amount).max() ?? 1)
     }
 
     var body: some View {
@@ -17,8 +50,8 @@ struct CalendarView: View {
                 if store.calendarDays.isEmpty {
                     emptyState
                 } else {
-                    weekBars
-                    dayMarkers
+                    legend
+                    calendarGrid
                 }
             }
             .padding(.horizontal, 8)
@@ -50,7 +83,7 @@ struct CalendarView: View {
             }
 
             HStack(spacing: 8) {
-                CalendarStat(label: "bills", value: "\(store.calendarDays.reduce(0) { $0 + $1.dueCount })")
+                CalendarStat(label: "unpaid", value: "\(store.calendarDays.reduce(0) { $0 + $1.dueCount })")
                 CalendarStat(label: "this week", value: "\(store.calendarThisWeekCount)")
             }
         }
@@ -59,65 +92,42 @@ struct CalendarView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
-    private var weekBars: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Weekly totals")
-                .font(.system(Font.TextStyle.caption2, design: .rounded).weight(.semibold))
-                .foregroundStyle(Color.txtLow)
-
-            HStack(alignment: .bottom, spacing: 6) {
-                ForEach(store.calendarWeeks) { week in
-                    VStack(spacing: 4) {
-                        Text(week.amount > 0 ? shortAmount(week.amount) : "-")
-                            .font(.system(size: 8, design: .monospaced).weight(.semibold))
-                            .foregroundStyle(week.amount > 0 ? Color.txtHi : Color.txtLow)
-                            .lineLimit(1)
-                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                            .fill(week.amount > 0 ? Color.judithAccent : Color.surface2)
-                            .frame(height: max(8, CGFloat(week.amount / maxWeekAmount) * 44))
-                        Text(week.label)
-                            .font(.system(size: 8, design: .rounded).weight(.medium))
-                            .foregroundStyle(Color.txtLow)
-                            .lineLimit(1)
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-            }
-            .frame(minHeight: 74, alignment: .bottom)
+    private var legend: some View {
+        HStack(spacing: 8) {
+            CalendarLegendDot(color: Color.judithUrgent, label: "soon")
+            CalendarLegendDot(color: Color.judithNear, label: "week")
+            CalendarLegendDot(color: Color.judithOK, label: "later")
         }
-        .padding(10)
-        .background(Color.surface1)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .padding(.horizontal, 2)
     }
 
-    private var dayMarkers: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Due dates")
-                .font(.system(Font.TextStyle.caption2, design: .rounded).weight(.semibold))
-                .foregroundStyle(Color.txtLow)
+    private var calendarGrid: some View {
+        VStack(spacing: 5) {
+            HStack(spacing: 3) {
+                ForEach(Array(weekdays.enumerated()), id: \.offset) { _, day in
+                    Text(day)
+                        .font(.system(size: 8, design: .rounded).weight(.bold))
+                        .foregroundStyle(Color.txtLow)
+                        .frame(maxWidth: .infinity)
+                }
+            }
 
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 4), spacing: 6) {
-                ForEach(store.calendarDays) { day in
-                    VStack(spacing: 3) {
-                        Text("\(day.day)")
-                            .font(.system(size: 15, design: .rounded).weight(.bold))
-                            .foregroundStyle(Color.txtHi)
-                        Text(day.dueCount > 0 ? "\(day.dueCount) due" : "paid")
-                            .font(.system(size: 8, design: .rounded).weight(.semibold))
-                            .foregroundStyle(day.dueCount > 0 ? day.urgency.color : Color.txtLow)
-                            .lineLimit(1)
+            LazyVGrid(columns: columns, spacing: 5) {
+                ForEach(Array(monthGrid.enumerated()), id: \.offset) { _, day in
+                    if let day {
+                        CalendarDateBubble(
+                            day: day,
+                            summary: daysByNumber[day],
+                            currency: store.currency,
+                            maxAmount: maxDayAmount
+                        )
+                    } else {
+                        Color.clear.frame(height: 36)
                     }
-                    .frame(maxWidth: .infinity, minHeight: 42)
-                    .background(Color.surface2)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(day.dueCount > 0 ? day.urgency.color.opacity(0.8) : Color.txtLow.opacity(0.25), lineWidth: 1)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
             }
         }
-        .padding(10)
+        .padding(8)
         .background(Color.surface1)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
@@ -132,12 +142,69 @@ struct CalendarView: View {
             .background(Color.surface1)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
+}
 
-    private func shortAmount(_ amount: Double) -> String {
-        if amount >= 1_000 {
-            return "\(store.currency)\(Int((amount / 1_000).rounded()))k"
+private struct CalendarDateBubble: View {
+    let day: Int
+    let summary: CalendarDaySummary?
+    let currency: String
+    let maxAmount: Double
+
+    private var amountText: String {
+        guard let summary, summary.amount > 0 else { return "" }
+        if summary.amount >= 1_000 {
+            return "\(currency)\(String(format: "%.1fk", summary.amount / 1_000).replacingOccurrences(of: ".0k", with: "k"))"
         }
-        return "\(store.currency)\(amount.formattedForJudithWatchAmount)"
+        return "\(currency)\(summary.amount.formattedForJudithWatchAmount)"
+    }
+
+    private var bubbleSize: CGFloat {
+        guard let summary, summary.dueCount > 0 else { return 0 }
+        return 14 + CGFloat(summary.amount / maxAmount) * 20
+    }
+
+    var body: some View {
+        ZStack {
+            if let summary, summary.dueCount > 0 {
+                Circle()
+                    .fill(summary.urgency.color.opacity(0.88))
+                    .frame(width: bubbleSize, height: bubbleSize)
+                    .shadow(color: summary.urgency.color.opacity(0.35), radius: 5)
+            } else if summary?.paidCount ?? 0 > 0 {
+                Circle()
+                    .stroke(Color.txtLow.opacity(0.35), lineWidth: 1)
+                    .frame(width: 24, height: 24)
+            }
+
+            VStack(spacing: 0) {
+                Text(amountText)
+                    .font(.system(size: 6.5, design: .monospaced).weight(.bold))
+                    .foregroundStyle(Color.txtHi)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.55)
+                    .frame(height: 8)
+                Text("\(day)")
+                    .font(.system(size: 10, design: .rounded).weight(summary == nil ? .medium : .bold))
+                    .foregroundStyle(summary == nil ? Color.txtLow : Color.txtHi)
+                    .frame(height: 14)
+            }
+        }
+        .frame(height: 36)
+        .frame(maxWidth: .infinity)
+    }
+}
+
+private struct CalendarLegendDot: View {
+    let color: Color
+    let label: String
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Circle().fill(color).frame(width: 6, height: 6)
+            Text(label)
+                .font(.system(size: 8, design: .rounded).weight(.semibold))
+                .foregroundStyle(Color.txtLow)
+        }
     }
 }
 
