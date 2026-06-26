@@ -38,6 +38,7 @@ import {
   watchSnapshotLimiter,
   watchSummaryLimiter,
   watchSttLimiter,
+  watchActionLimiter,
 } from "../middleware/rateLimit";
 
 const router: IRouter = Router();
@@ -1184,6 +1185,74 @@ router.post("/watch-stt", watchSttLimiter, async (req, res) => {
   } catch (err) {
     logger.error({ err }, "watch-stt failed");
     res.status(500).json({ error: "Transcription failed" });
+  }
+});
+
+// POST /api/judith/watch-action  { action: "mark_paid" | "snooze", billId, snoozeUntil? }
+//   -> { ok: true }
+// Canonical bill mutation for the standalone Wear OS app. iOS marks paid via
+// WatchConnectivity (the phone owns the write); Android's Wear app has no such
+// bridge, so it writes directly here using the same HMAC watch token that
+// guards every other /watch-* route. The phone app re-derives and re-uploads
+// the watch snapshot on its next sync, so /watch-summary eventually reflects
+// this; the watch applies an optimistic local update in the meantime.
+router.post("/watch-action", watchActionLimiter, async (req, res) => {
+  try {
+    const verified = verifyWatchToken(watchBearer(req));
+    if (!verified) {
+      res.status(401).json({ error: "Invalid watch token" });
+      return;
+    }
+    const { action, billId, snoozeUntil } = req.body ?? {};
+    if (typeof billId !== "string" || !/^[0-9a-fA-F-]{10,}$/.test(billId)) {
+      res.status(400).json({ error: "billId is required" });
+      return;
+    }
+    if (action !== "mark_paid" && action !== "snooze") {
+      res.status(400).json({ error: "action must be 'mark_paid' or 'snooze'" });
+      return;
+    }
+
+    // Default snooze: tomorrow. Only accept a client-supplied date that is both
+    // well-formed AND a real calendar date — a regex alone passes "2026-13-45",
+    // which the bills.snoozed_until `date` column would reject with a 500.
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    // Date.parse returns NaN (never throws) for a bad date; only then is it safe
+    // to round-trip through toISOString to confirm it's a real calendar date.
+    const snoozeMs =
+      typeof snoozeUntil === "string" && /^\d{4}-\d{2}-\d{2}$/.test(snoozeUntil)
+        ? Date.parse(`${snoozeUntil}T00:00:00Z`)
+        : NaN;
+    const snoozedUntil =
+      !Number.isNaN(snoozeMs) &&
+      new Date(snoozeMs).toISOString().slice(0, 10) === snoozeUntil
+        ? (snoozeUntil as string)
+        : tomorrow;
+
+    const update: Record<string, unknown> =
+      action === "mark_paid"
+        ? { status: "paid" }
+        : { status: "snoozed", snoozed_until: snoozedUntil };
+
+    const admin = getSupabaseAdmin();
+    // Scope the update to the token's user so a stolen token can never mutate
+    // another account's bills. .select() lets us 404 when the bill isn't theirs.
+    const { data, error } = await admin
+      .from("bills")
+      .update(update)
+      .eq("id", billId)
+      .eq("user_id", verified.userId)
+      .select("id")
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) {
+      res.status(404).json({ error: "Bill not found" });
+      return;
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err }, "watch-action failed");
+    res.status(500).json({ error: "Could not update bill" });
   }
 });
 

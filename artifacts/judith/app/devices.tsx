@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import React from "react";
-import { Pressable, Text, View } from "react-native";
+import { Platform, Pressable, Text, View } from "react-native";
 
 import { Icon } from "@/components/Icon";
 import { JudithAvatar } from "@/components/JudithAvatar";
@@ -384,8 +384,8 @@ export default function DevicesModal() {
         </View>
       </View>
 
-      {/* APPLE WATCH */}
-      <DevLabel icon="watch" label="Apple Watch" marginTop={22} />
+      {/* WATCH — Apple Watch on iOS, Wear OS on Android */}
+      <DevLabel icon="watch" label={Platform.OS === "ios" ? "Apple Watch" : "Wear OS watch"} marginTop={22} />
       <View style={{ flexDirection: "row", gap: 16, justifyContent: "center" }}>
         {/* watch 1 — month total */}
         <View
@@ -507,7 +507,7 @@ export default function DevicesModal() {
       </View>
 
       <Low size={12} style={{ textAlign: "center", marginTop: 20, lineHeight: 18 }}>
-        Reminders &amp; nudges are live. Home-screen widgets and Apple Watch require a development build — enable them in Settings to be first when they ship.
+        Reminders &amp; nudges are live. Home-screen widgets and {Platform.OS === "ios" ? "Apple Watch" : "Wear OS"} require a development build — enable them in Settings to be first when they ship.
       </Low>
     </Screen>
   );

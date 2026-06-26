@@ -60,7 +60,55 @@ function stripConstraintsReferencing(xml, idValue) {
   return xml.replace(re, "");
 }
 
+// Transparent stand-in for the Android 12+ splash icon. expo-splash-screen
+// writes `windowSplashScreenAnimatedIcon = @drawable/splashscreen_logo` into
+// styles.xml even though no splash `image` is configured (Judith shows the
+// JS-side HandledSplash on a plain dark canvas, no native logo). Without this
+// drawable the resource link fails: "resource drawable/splashscreen_logo not
+// found". Rendering a transparent shape keeps the native splash logo-free.
+const ANDROID_SPLASH_LOGO_XML = `<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@android:color/transparent" />
+</shape>
+`;
+
+// Only create the placeholder if no real splashscreen_logo was generated (e.g.
+// from a configured splash image) — a PNG/WEBP + our XML of the same name would
+// be a duplicate-resource AAPT error.
+function ensureAndroidSplashLogo(resRoot) {
+  if (!fs.existsSync(resRoot)) return;
+  const hasLogo = fs
+    .readdirSync(resRoot)
+    .filter((d) => d.startsWith("drawable"))
+    .some((d) =>
+      fs
+        .readdirSync(path.join(resRoot, d))
+        .some((f) => /^splashscreen_logo\.(png|webp|jpg|jpeg|xml)$/i.test(f)),
+    );
+  if (hasLogo) return;
+  const baseDir = path.join(resRoot, "drawable");
+  fs.mkdirSync(baseDir, { recursive: true });
+  fs.writeFileSync(path.join(baseDir, "splashscreen_logo.xml"), ANDROID_SPLASH_LOGO_XML);
+}
+
 module.exports = function withHandledSplash(config) {
+  // Android: guarantee a (transparent) splashscreen_logo drawable exists. Runs
+  // after expo-splash-screen since this plugin is listed after it in app.json.
+  config = withDangerousMod(config, [
+    "android",
+    (cfg) => {
+      const resRoot = path.join(
+        cfg.modRequest.platformProjectRoot,
+        "app",
+        "src",
+        "main",
+        "res",
+      );
+      ensureAndroidSplashLogo(resRoot);
+      return cfg;
+    },
+  ]);
+
   return withDangerousMod(config, [
     "ios",
     (cfg) => {

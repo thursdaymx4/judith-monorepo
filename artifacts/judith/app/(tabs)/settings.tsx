@@ -271,7 +271,10 @@ const REMINDER_TOGGLES: ToggleDef[] = [
 // widget payloads regardless of state). Replaced with a navigation row
 // to /widget that shows the install flow (preview + step-by-step).
 const DEVICE_TOGGLES: ToggleDef[] = [
-  { key: "watch", icon: "watch", t: "Apple Watch", s: "Glanceable on your wrist" },
+  // Title is platform-aware: Android ships a Wear OS app, iOS an Apple
+  // Watch app. Subtitle stays shared. iOS copy is left byte-for-byte
+  // unchanged — only Android sees "Wear OS watch".
+  { key: "watch", icon: "watch", t: Platform.OS === "ios" ? "Apple Watch" : "Wear OS watch", s: "Glanceable on your wrist" },
 ];
 
 // Phase 3 — FinanceKit auto-pay detection. On a non-eligible device
@@ -545,18 +548,21 @@ export default function SettingsScreen() {
   const visDevPreview = !searchActive || m("Preview on your devices");
   const visDevices = !searchActive || visDeviceRows.some(Boolean) || visWidget || visDevPreview;
 
-  // Auto-pay detection (FinanceKit)
+  // Auto-pay detection (FinanceKit) — iOS-only. Relies on Apple FinanceKit
+  // (Apple Card / Apple Cash) which has no Android equivalent, so the whole
+  // section is hidden on Android.
   const visAutoPayRows = searchActive
     ? AUTO_PAY_TOGGLES.map((d) => m(d.t, d.s))
     : AUTO_PAY_TOGGLES.map(() => true);
   const visAutoPayScan = !searchActive || m("Scan now", "Run a manual scan");
   const visAutoPayActivity = !searchActive || m("Auto-pay activity", "View what Judith matched");
-  const visAutoPay = !searchActive || visAutoPayRows.some(Boolean) || visAutoPayScan || visAutoPayActivity;
+  const visAutoPay = Platform.OS === "ios" && (!searchActive || visAutoPayRows.some(Boolean) || visAutoPayScan || visAutoPayActivity);
 
-  // Backup
+  // Backup — iCloud backup/restore is iOS-only (Supabase covers Android
+  // persistence). The whole section is hidden on Android.
   const visBackupRow = !searchActive || m("iCloud backup", lastBackupLabel);
   const visRestore = !searchActive || m("Restore from iCloud");
-  const visBackup = visBackupRow || visRestore;
+  const visBackup = Platform.OS === "ios" && (visBackupRow || visRestore);
 
   // Legal
   const visTerms = !searchActive || m("Terms of Use");
@@ -984,7 +990,7 @@ export default function SettingsScreen() {
             icon="watch"
             iconColor={t.accent}
             title="Preview on your devices"
-            subtitle="Widgets & Apple Watch concepts"
+            subtitle={Platform.OS === "ios" ? "Widgets & Apple Watch concepts" : "Widgets & watch concepts"}
           />
         )}
       </Section>

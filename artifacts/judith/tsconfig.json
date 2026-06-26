@@ -11,6 +11,9 @@
       ],
       "judith-widget-bridge": [
         "./modules/judith-widget-bridge/index"
+      ],
+      "judith-wear-bridge": [
+        "./modules/judith-wear-bridge/index"
       ]
     }
   },

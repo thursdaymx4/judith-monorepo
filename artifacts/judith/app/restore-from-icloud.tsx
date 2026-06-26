@@ -224,7 +224,7 @@ export default function RestoreFromICloudScreen() {
                   marginBottom: 10,
                   borderRadius: t.radius.md,
                   borderWidth: 1,
-                  borderColor: idx === 0 ? t.accent : t.line,
+                  borderColor: idx === 0 ? t.accent : t.hair,
                   backgroundColor: idx === 0 ? t.accent + "0a" : t.surface1,
                   opacity: applyingKey && !isApplying ? 0.4 : 1,
                 }}

@@ -988,7 +988,10 @@ function ScreenWelcome({ ctx }: { ctx: Ctx }) {
     const id = setTimeout(() => setPeekTimedOut(true), 12000);
     return () => clearTimeout(id);
   }, [user?.id, peekingICloud]);
-  const showPeekLoader = !!user?.id && peekingICloud && !peekTimedOut;
+  // iCloud is iOS-only. On Android the peek can never surface a backup, so
+  // never show "Checking iCloud…"/"Looking for your iCloud backup…" or block
+  // "Let's begin" on it — the button must work immediately.
+  const showPeekLoader = Platform.OS === "ios" && !!user?.id && peekingICloud && !peekTimedOut;
 
   useEffect(() => {
     const anim = Animated.parallel([
@@ -1005,7 +1008,10 @@ function ScreenWelcome({ ctx }: { ctx: Ctx }) {
   // "Let's begin" CTA peeked out from underneath the half-pop-up. As a
   // full screen with its own avatar + hero, the moment feels like a
   // deliberate "Welcome back" rather than an interruption.
-  if (pendingRestore) {
+  // iCloud restore / Welcome-Back is iOS-only. On Android pendingRestore is
+  // never set (the iCloud peek returns null), but gate defensively so the
+  // returning-user restore prompt can never render there.
+  if (Platform.OS === "ios" && pendingRestore) {
     return <ScreenWelcomeBack ctx={ctx} popOpacity={popOpacity} popScale={popScale} />;
   }
 
@@ -1718,7 +1724,8 @@ function ScreenProblem({ ctx }: { ctx: Ctx }) {
     { icon: "card", cat: "Credit card" },
     { icon: "spark", cat: "Netflix" },
     { icon: "spark", cat: "Spotify" },
-    { icon: "spark", cat: "iCloud+" },
+    // iCloud+ is an Apple-brand example; show a neutral one on Android.
+    { icon: "spark", cat: Platform.OS === "ios" ? "iCloud+" : "Disney+" },
   ];
 
   /* fault animation refs */
@@ -6436,6 +6443,14 @@ function ScreenFkDiscovery({ ctx }: { ctx: Ctx }) {
   // device. Production builds always auto-skip — the dev short-circuit
   // depends on `__DEV__` which is stripped at build time.
   useEffect(() => {
+    // Android has no FinanceKit (Apple Card / Apple Cash). Skip the screen
+    // unconditionally — including DEV builds — so the "Got an Apple Card?"
+    // intro and the dev mock entry point never surface on Android. The
+    // __DEV__ short-circuit below only applies to iOS no-Apple-Card devices.
+    if (Platform.OS !== "ios") {
+      next();
+      return;
+    }
     let alive = true;
     void (async () => {
       const available = await FK.isAvailable();

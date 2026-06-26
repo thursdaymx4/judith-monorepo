@@ -41,7 +41,7 @@ async function keyByVerifiedUser(req: Request): Promise<string> {
     const userId = await resolveUserId(token);
     if (userId) return `uid:${userId}`;
   }
-  return `ip:${await ipKeyGenerator(req)}`;
+  return `ip:${ipKeyGenerator(req.ip ?? "")}`;
 }
 
 /**
@@ -50,7 +50,7 @@ async function keyByVerifiedUser(req: Request): Promise<string> {
  * clients cannot spoof it via x-forwarded-for.
  */
 async function keyByIp(req: Request): Promise<string> {
-  return `ip:${await ipKeyGenerator(req)}`;
+  return `ip:${ipKeyGenerator(req.ip ?? "")}`;
 }
 
 const HANDLER: Options["handler"] = (_req, res) => {
@@ -120,6 +120,10 @@ export const watchSummaryLimiter     = userLimiter(HOUR, 120);
 // clip. 60/hr covers heavy real-user use (1/min sustained) without giving
 // a stolen watch token room to burn through ElevenLabs Scribe.
 export const watchSttLimiter         = userLimiter(HOUR, 60);
+// Watch action (mark paid / snooze) from the standalone Wear OS app. A real
+// user taps a handful of times per session; 120/hr is generous while still
+// bounding abuse from a stolen watch token mutating the bills table.
+export const watchActionLimiter      = userLimiter(HOUR, 120);
 // Dev/test sessions loop through onboarding many times — give much more headroom.
 const isDev = process.env.NODE_ENV !== "production";
 export const askOnboardingLimiter    = ipLimiter(HOUR, isDev ? 500 : 60);
