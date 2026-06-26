@@ -1,0 +1,20 @@
+# Files excluded from the EAS Build upload archive (managed workflow).
+# The native projects are regenerated on the server via `expo prebuild`, so the
+# local copies (and their huge build/.gradle outputs) don't need uploading.
+android/
+ios/
+
+# Build outputs / artifacts
+**/build/
+**/.gradle/
+*.aab
+*.apk
+
+# Local/dev caches
+.expo/
+.gradle/
+*.tsbuildinfo
+
+# Not needed for the phone app build
+modules/*/android/build/
+modules/*/ios/build/
