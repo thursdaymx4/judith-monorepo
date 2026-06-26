@@ -8,9 +8,10 @@
  *      — arrives via watchEvents 'user-info'; no reply needed
  *
  * Supported actions:
- *   {action: "ask",         query: string}    → calls /ask API, replies {answer}
- *   {action: "markPaid",    billId: string}   → marks bill paid in local store
- *   {action: "applyAction", payload: string}  → JSON-encoded Judith action
+ *   {action: "ask",             query: string} → calls /ask API, replies {answer}
+ *   {action: "transcribeAudio", audioBase64}   → calls /stt API, replies {text}
+ *   {action: "markPaid",        billId: string} → marks bill paid in local store
+ *   {action: "applyAction",     payload: string} → JSON-encoded Judith action
  *                                               drained from the watch's
  *                                               offline queue (standalone
  *                                               /watch-ask path). Replayed
@@ -22,7 +23,7 @@
  */
 import { useEffect, useRef } from "react";
 import { useJudith } from "@/contexts/JudithStore";
-import { askJudith, type JudithAction } from "@/lib/proxy";
+import { askJudith, transcribe, type JudithAction } from "@/lib/proxy";
 import {
   currentCycleDue,
   makeBillFromAction,
@@ -274,6 +275,22 @@ export function useWatchMessages() {
         if (action === "refreshWatchPayload") {
           syncCurrentPayload();
           reply?.({ ok: true });
+          return;
+        }
+
+        if (action === "transcribeAudio") {
+          const audioBase64 = (message.audioBase64 as string | undefined) ?? "";
+          const mimeType = (message.mimeType as string | undefined) ?? "audio/m4a";
+          if (!audioBase64) {
+            reply?.({ error: "No audio was received from the watch." });
+            return;
+          }
+          try {
+            const result = await transcribe(audioBase64, mimeType, "en");
+            reply?.({ text: result.text ?? "" });
+          } catch {
+            reply?.({ error: "Judith couldn't transcribe that right now." });
+          }
           return;
         }
 

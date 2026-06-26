@@ -247,6 +247,30 @@ final class ConnectivityService: NSObject, WCSessionDelegate, ObservableObject {
         watchToken?.isEmpty == false
     }
 
+    private func transcribeAudioOnPhone(audioBase64: String, mimeType: String) async throws -> String {
+        guard WCSession.default.isReachable else { throw AskError.phoneNotReachable }
+        let payload: [String: Any] = [
+            "action": "transcribeAudio",
+            "audioBase64": audioBase64,
+            "mimeType": mimeType,
+        ]
+        return try await withCheckedThrowingContinuation { cont in
+            WCSession.default.sendMessage(
+                payload,
+                replyHandler: { reply in
+                    if let text = reply["text"] as? String {
+                        cont.resume(returning: text)
+                    } else if let error = reply["error"] as? String {
+                        cont.resume(throwing: AskError.serverError(error))
+                    } else {
+                        cont.resume(throwing: AskError.invalidReply)
+                    }
+                },
+                errorHandler: { error in cont.resume(throwing: error) }
+            )
+        }
+    }
+
     private func sendAskToPhone(query: String, history: [AskTurn]) async throws -> String {
         guard WCSession.default.isReachable else { throw AskError.phoneNotReachable }
         var payload: [String: Any] = ["action": "ask", "query": query]
@@ -273,29 +297,35 @@ final class ConnectivityService: NSObject, WCSessionDelegate, ObservableObject {
         }
     }
 
-    /// Upload a recorded .m4a clip from VoiceRecorderView to /watch-stt and
-    /// return the transcription. Requires the device to have a watch token
-    /// already provisioned (hasWatchToken == true) — call sites should fall
-    /// back to the chooser-based flow if the token isn't present.
+    /// Transcribe a recorded .m4a clip from VoiceRecorderView. Prefer the
+    /// watch backend token when available, but relay through the iPhone when
+    /// the token has not arrived yet. This keeps first-run voice usable as soon
+    /// as the paired phone is reachable and AI consent is already accepted.
     func transcribeAudio(at url: URL) async throws -> String {
         guard hasAiConsent else { throw AskError.aiConsentMissing }
-        guard hasWatchToken else { throw AskError.phoneNotReachable }
         let data: Data
         do {
             data = try Data(contentsOf: url)
         } catch {
             throw AskError.invalidReply
         }
-        let body = WatchSttRequest(
-            audioBase64: data.base64EncodedString(),
-            mimeType: "audio/m4a"
-        )
-        let response: WatchSttResponse = try await sendBackendRequest(
-            path: "watch-stt",
-            method: "POST",
-            body: body
-        )
-        return response.text
+
+        let audioBase64 = data.base64EncodedString()
+        if hasWatchToken {
+            let body = WatchSttRequest(
+                audioBase64: audioBase64,
+                mimeType: "audio/m4a"
+            )
+            let response: WatchSttResponse = try await sendBackendRequest(
+                path: "watch-stt",
+                method: "POST",
+                body: body
+            )
+            return response.text
+        }
+
+        guard WCSession.default.isReachable else { throw AskError.phoneNotReachable }
+        return try await transcribeAudioOnPhone(audioBase64: audioBase64, mimeType: "audio/m4a")
     }
 
     private func fetchSummaryFromBackend() async throws {

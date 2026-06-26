@@ -297,7 +297,7 @@ struct AskView: View {
             viewState = .error("Open Judith on your iPhone and accept the AI consent to enable voice and Ask.")
         } catch ConnectivityService.AskError.phoneNotReachable {
             selectedTab = tagValue
-            viewState = .error("Pair your watch with Judith on iPhone first.")
+            viewState = .error("Keep your iPhone nearby and open Judith, then try again.")
         } catch {
             selectedTab = tagValue
             viewState = .error("Couldn't transcribe that. Try again.")
